@@ -4,6 +4,26 @@ Tobler and the atlas are worked on in separate chats (decided 17 Nov). Tobler do
 What Tobler can rely on is written down in the atlas repo's `docs/mcp-tools.md`. When Tobler needs something
 new from the atlas, add it here (newest first), tell Rob, and he passes it to the atlas chat.
 
+- **22 Nov: UK protected sites as must-check layers, and three faults from a Dogger Bank screen.** Tobler's first
+  audience is now environmental consultants (Rob, 22 Nov), and a screen of a 100 km² offshore wind site north of
+  R4 Project 1 (Dogger Bank South West) found no protected areas at all, though Dogger Bank is a designated SAC.
+  The EEA's Natura 2000 layers returned no features for UK waters (believed: UK sites dropped out after Brexit; please
+  confirm), WDPA is off for licence reasons, and Natural England/JNCC Marine Conservation Zones returned nothing there.
+  Asks: (1) **UK protected sites as trusted records that return features**, licence and attribution verbatim (all
+  believed OGL): JNCC offshore SACs, SPAs and MCZs (and the inshore sets from Natural England, NatureScot, NRW and
+  DAERA): SAC, SPA, Ramsar, SSSI/ASSI, MPA (Scotland), NCMPA, plus ancient woodland and priority habitats in England.
+  Tobler will add them to its must-check baseline for UK sites, so they need to be reliable and quick
+  (`fetch_features` with a bbox, no paging problems). (2) **"offshore platform" picks seismic layers:**
+  `find_features_near` with type "offshore platform" near 54.75 N, 1.47 E asked NSTA seismic line and licensing-round
+  prospect layers (97 "found"); check the concept tags on NSTA seismic and prospect layers. (3) **Named search by
+  country missed The Crown Estate:** `find_place` for "R4 Project 1 Dogger Bank South West", kind "wind farm or lease",
+  area "United Kingdom" asked 40 layers and missed Wind Site Agreements (England, Wales & NI); the same search over
+  the map view found it. The layer picker by country should rank the national lease registers (Crown Estate, Crown
+  Estate Scotland) first for wind. (4) **EMODnet Seabed Habitats WFS timeouts:** `fetch_features` on Collated EUNIS
+  Habitat point data, Collated Habitat point data (all classifications) and Habitat point data bounding boxes each
+  timed out after about 52 s for a 50 km box round the same site. A faster failure (or a smaller page) would help;
+  worth a note in `mcp-check`.
+
 - **20 Nov (evening): finding a project's own outline.** Tobler screened the Cnoc Buidhe Wind Energy Hub (Kintyre,
   ECU00004767) against a stand-in circle because no outline was found; it now calls such a shape a search area and
   says so (see `docs/site-vs-search-area.md`), but screening needs the project's own outline. Asks: (1) named search
