@@ -127,18 +127,17 @@
     ]
   },
   "examples": {
-    "find": [
-      "Show me Linlithgow Palace and 5 km around it",
-      "Show me Lake Tekapo in New Zealand"
+    "local": [
+      "Screen a 5 ha housing site on the edge of Linlithgow",
+      "Screen a 10 ha warehouse site on the edge of Livingston"
     ],
-    "shape": [
-      "Draw a 2 km square around the Kinderdijk windmills",
-      "Mark out 10 km around Peggy's Cove, Nova Scotia",
-      "Mark out 3 km around Mont-Saint-Michel"
+    "regional": [
+      "Screen a 10 km² area 6 km south-east of Gifford, East Lothian, for the proposed Newlands Hill wind farm",
+      "Screen a 10 km² area between Swaffham and Castle Acre, Norfolk, for the proposed Droves solar farm"
     ],
-    "screen": [
-      "Screen a 1 km² wind farm site 3 km south-east of Lemvig, Denmark",
-      "Screen a 1 km² solar farm site 5 km west of Évora, Portugal"
+    "global": [
+      "Screen the Reventazón hydropower dam in Costa Rica against IFC standards",
+      "Screen the Rudine wind farm in Croatia against IFC standards"
     ]
   },
   "report": null

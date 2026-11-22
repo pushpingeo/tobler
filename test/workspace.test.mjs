@@ -127,13 +127,13 @@ await test("a country only clipped at an area's edge is 'touching', not 'across'
   assert.ok(d2.countries.includes("Brunei") && d2.countries.includes("Malaysia") && !d2.touches_at_edge?.includes("Brunei"), d2.countries.join());
 });
 
-await test("welcome examples: one of each kind, rotating, none about oil and gas", async () => {
+await test("welcome examples: one per scale (local, regional, global), rotating, none about oil and gas", async () => {
   const { pickExamples } = await import("../js/examples.js");
   const EXAMPLES = JSON.parse(readFileSync(new URL("../catalogue/industries/energy.json", import.meta.url))).examples;
   const first = pickExamples(EXAMPLES, () => 0), last = pickExamples(EXAMPLES, () => 0.999);
   assert.equal(first.length, 3);
-  assert.deepEqual(first, [EXAMPLES.find[0], EXAMPLES.shape[0], EXAMPLES.screen[0]]);
-  assert.deepEqual(last, [EXAMPLES.find.at(-1), EXAMPLES.shape.at(-1), EXAMPLES.screen.at(-1)]);
+  assert.deepEqual(first, [EXAMPLES.local[0], EXAMPLES.regional[0], EXAMPLES.global[0]]);
+  assert.deepEqual(last, [EXAMPLES.local.at(-1), EXAMPLES.regional.at(-1), EXAMPLES.global.at(-1)]);
   assert.ok(!Object.values(EXAMPLES).flat().some((e) => /oil|gas|platform|block \d|mine|pipeline/i.test(e)));
 });
 

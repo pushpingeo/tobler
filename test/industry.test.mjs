@@ -30,7 +30,7 @@ await test("every ready profile names a skill that exists, picks the distances t
     for (const pick of p.asset_picks.picks) for (const t of [pick.type, pick.onshore, pick.offshore].filter(Boolean)) assert.ok(table.assets[t], `${p.id}: pick ${t} not in distances`);
     for (const th of p.themes) assert.ok(th.id in THEME_CODE, `${p.id}: theme ${th.id}`);
     assert.deepEqual(p.decisions, DECISIONS);
-    for (const k of ["find", "shape", "screen"]) assert.ok(p.examples[k]?.length, `${p.id}: ${k} examples`);
+    for (const k of ["local", "regional", "global"]) assert.ok(p.examples[k]?.length, `${p.id}: ${k} examples`);
     assert.ok(p.wording.screen_chip && p.other_requests);
   }
   for (const entry of index.industries.filter((i) => i.status !== "ready")) assert.ok(entry.label && entry.about);

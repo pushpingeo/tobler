@@ -921,3 +921,20 @@ Judgement calls made while building, newest first. Bigger product decisions live
   12, epsg 20, cards 14), desktop and phone; phone screenshots of Settings, the flag badges and the feedback row.
 - **Not tested:** the live model's use of `site_defined`, `planned` and the ask-before-re-run rule (needs a
   try-requests replay, a few cents); the digest on real feedback (needs Rob's test sessions).
+
+## 22 Nov 2026: the welcome card (Rob)
+- **Lead:** "Check a site before you commit to it." The line below says what Tobler does (pin it down, screen it
+  for environmental constraints, show the working), replacing "Pick a spot on Earth."
+- **Examples, one per scale,** from pools in `catalogue/industries/energy.json` (`local`, `regional`, `global`,
+  replacing find/shape/screen). All three now screen.
+  - Local: a 5 ha housing site (Linlithgow) or a 10 ha warehouse site (Livingston). Both are outside the profile,
+    so they show the general-screen caveat.
+  - Regional: proposed, undecided schemes, so the screen comes before consent and the map doesn't show them built:
+    Newlands Hill wind farm (East Lothian, s36 inquiry WIN-210-1) and The Droves solar farm (Norfolk, NSIP
+    EN0110013). Both undecided on 22 Nov 2026. Swap each one out once it's decided.
+  - Global ("anywhere, to an international lender's standard", not the whole world): Reventazón hydropower (high
+    location confidence in the IFC set) and Rudine wind farm (medium). No low-confidence pins, mining, or oil and gas.
+- **Tested:** `npm test`; the welcome card on desktop and phone (both pools, panel open on the phone), and a click
+  on the long regional example sends its full text.
+- **Not tested:** the live analyst on the six new examples (try-requests, twice each). The regional areas (10 km²)
+  are rough sizes, not the schemes' red lines.
