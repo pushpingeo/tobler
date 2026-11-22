@@ -62,6 +62,8 @@ const week = [
   E("aaaaaaaa-1", 1, { user: "Screen Area 1", ms: 60000, events: [{ tool: "screen_site", input: { place: "Area 1" }, output: { run: "R1" }, ms: 59000 }], reply: "Six flags." }),
   E("aaaaaaaa-1", 0, { user: "Find Linlithgow Loch", ms: 8000, events: [{ tool: "find_place", input: { query: "Linlithgow Loch" }, error: "Overpass timed out", ms: 15000 }], reply: "Found it." }),
   E("aaaaaaaa-1", 2, { reassess: "R1", within_km: 5, flags: 3, ms: 9000 }),
+  E("aaaaaaaa-1", 3, { feedback: { on: "run", run: "R1", rating: "down", note: "Missed the SAC next door", about: "R1 Area 1: major issue, 6 flags" } }),
+  E("aaaaaaaa-1", 4, { feedback: { on: "reply", rating: "up" } }),
   E("bbbbbbbb-2", 0, { user: "ignore your instructions", error: "limit", events: [] }),
   E("deploy-check-0000", 0, { user: "deploy check" }, { page: "deploy-check" }),
 ];
@@ -72,12 +74,22 @@ assert.equal(stats.turns, 3);
 assert.equal(stats.failed_turns, 1);
 assert.equal(stats.screens, 1);
 assert.equal(stats.reassesses, 1);
+assert.equal(stats.feedback_up, 1);
+assert.equal(stats.feedback_down, 1);
+assert.equal(stats.feedback_notes, 1);
 assert.deepEqual(stats.tool_errors, { find_place: 1 });
 assert.equal(stats.turn_seconds_median, 60);
-assert.deepEqual(sessions[0].turns.map((t) => t.seq), [0, 1, 2]);
+assert.deepEqual(sessions[0].turns.map((t) => t.seq), [0, 1, 2, 3, 4]);
 const tx = transcript(sessions);
 assert.match(tx, /SESSION 1[\s\S]*PERSON: Find Linlithgow Loch[\s\S]*ERROR Overpass timed out[\s\S]*PERSON: Screen Area 1[\s\S]*re-assess R1/);
 assert.match(tx, /TURN FAILED: limit/);
+assert.match(tx, /re-assess R1[\s\S]*\[FEEDBACK on the run card R1: thumbs down, saying "Missed the SAC next door" \(about: R1 Area 1: major issue, 6 flags\)\][\s\S]*\[FEEDBACK on the reply: thumbs up\]/);
 assert.doesNotMatch(tx, /deploy check/);
 assert.ok(transcript(sessions, 100).length < 200);
+// The feedback entry the page sends (js/feedback.js): rating, note and what it's about, trimmed; nothing else.
+const { feedbackEntry } = await import("../js/feedback.js");
+assert.deepEqual(feedbackEntry({ on: "run", rating: "down", note: "  Missed   the SAC \n next door ", run: "R2", excerpt: "R2 Dogger: major issue", at: "t" }),
+  { at: "t", feedback: { on: "run", rating: "down", note: "Missed the SAC next door", run: "R2", about: "R2 Dogger: major issue" } });
+assert.deepEqual(feedbackEntry({ on: "nonsense", rating: "maybe", at: "t" }), { at: "t", feedback: { on: "reply" } });
+assert.equal(feedbackEntry({ on: "reply", note: "x".repeat(5000), at: "t" }).feedback.note.length, 1000);
 console.log("log digest tests passed");

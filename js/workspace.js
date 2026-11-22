@@ -23,6 +23,7 @@ import { seaShort, seaMatters } from "./seavalues.js";
 import { placeRole, whereText, searchHeadline, SEARCH_BAND } from "./siterole.js";
 import { elevationShort } from "./elevation.js";
 import { createLogSharer } from "./sharelog.js";
+import { feedbackRow } from "./feedback.js";
 import { settlementNear } from "./gazetteer.js";
 import { coordinateNote } from "./coords.js";
 import { picksFor, pickMessage } from "./assetpicks.js";
@@ -949,6 +950,12 @@ function highlight(record, fids) {
   map.fitBounds(turf.bbox(turf.featureCollection([...feats, site])), { padding: fitPadding(), maxZoom: 14 });
 }
 
+// Feedback rows (js/feedback.js): each piece goes into the session log and the shared log, beside the turns.
+function sendFeedback(entry) {
+  sessionLog.push(entry);
+  return sharer.share(entry) !== null;
+}
+
 function showRun(record) {
   const card = $("run-card").content.firstElementChild.cloneNode(true);
   const r = record.tobler_run;
@@ -962,6 +969,7 @@ function showRun(record) {
     `${r.site.asset_label[0].toUpperCase()}${r.site.asset_label.slice(1)}${r.site.asset_assumed ? " (assumed)" : ""}`, r.site.stage, r.site.setting, r.site.footprint,
   ].filter(Boolean).join(" · ");
   card.querySelector(".disclaimer").textContent = DISCLAIMER;
+  card.querySelector(".disclaimer").before(feedbackRow({ on: "run", run: r.id, excerpt: `${r.id} ${r.site.name}: ${r.decision?.value || ""}, ${r.flags.length} flags`, send: sendFeedback }));
   { const o = card.querySelector(".outside"); o.hidden = !r.site.outside_profile; o.textContent = r.site.outside_profile || ""; }
   // A search area says so first: the site's outline wasn't found, so nothing on this card is "on site".
   if (r.site.role === "search_area") {
@@ -1169,13 +1177,17 @@ function paintRun(entry) {
   list.replaceChildren(...r.flags.map((f) => {
     const li = el("li", null, "flag");
     li.dataset.conf = f.confidence;
+    // The badge is severity, with confidence as a word under the flag (Rob, 22 Nov). Runs without a severity keep
+    // the confidence badge they had.
+    if (f.severity) li.dataset.sev = f.severity;
     const d = document.createElement("details");
     const s = document.createElement("summary");
     const sw = el("span", null, "swatch"); sw.style.background = THEMES[f.theme]?.colour || THEMES.context.colour; sw.title = THEMES[f.theme]?.label || "";
     const risk = el("span", null, "risk");
     if (f.id) risk.append(el("span", f.id, "fid"));
     risk.append(document.createTextNode(f.risk));
-    s.append(el("span", f.confidence, "conf"), sw, risk, el("span", f.relation === SEARCH_BAND ? "in search area" : f.nearest_km == null ? "" : fmtKm(f.nearest_km), "dist"));
+    if (f.severity) risk.append(el("span", `${f.confidence} confidence${f.confidence_capped ? " (capped)" : ""}`, "cw"));
+    s.append(el("span", f.severity || f.confidence, f.severity ? "sev" : "conf"), sw, risk, el("span", f.relation === SEARCH_BAND ? "in search area" : f.nearest_km == null ? "" : fmtKm(f.nearest_km), "dist"));
     s.title = `${f.severity ? `Severity ${f.severity}, ` : ""}confidence ${f.confidence}`;
     const body = el("div", null, "body");
     body.append(el("p", `${THEMES[f.theme]?.label || "Operating context"}${THEME_CODE[f.theme] && THEME_CODE[f.theme] !== "context" ? ` (${THEME_CODE[f.theme]})` : ""}.${f.severity ? ` Severity ${f.severity}, confidence ${f.confidence}.` : ""} ${f.why || ""}${f.confidence_capped ? ` (Confidence ${f.confidence_capped}.)` : ""}`, "why"));
@@ -1476,6 +1488,7 @@ async function send(text, forModel = text) {
     turnLog.usage = res.usage;
     reply.replaceChildren(renderText(res.text || "Done."));
     if (steps.children.length) reply.append(trace);
+    reply.append(feedbackRow({ on: "reply", turnAt: turnLog.at, excerpt: res.text, send: sendFeedback }));
     remember("user", forModel);
     remember("assistant", res.text);
     activity("");

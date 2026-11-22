@@ -266,6 +266,11 @@ a { color: var(--sea); }
 .run .flag[data-conf="high"] .conf { background: var(--ink); color: #fff; }
 .run .flag[data-conf="medium"] .conf { background: #fff; color: var(--ink); }
 .run .flag[data-conf="low"] .conf { border-style: dashed; color: var(--ink-2); border-color: var(--ink-2); }
+.run .sev { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; border-radius: 999px; padding: 1px 7px; border: 1px solid var(--ink); text-align: center; }
+.run .flag[data-sev="high"] .sev { background: var(--ink); color: #fff; }
+.run .flag[data-sev="medium"] .sev { background: #fff; color: var(--ink); }
+.run .flag[data-sev="low"] .sev { border-style: dashed; color: var(--ink-2); border-color: var(--ink-2); }
+.run .flag .cw { display: block; font-size: 12px; font-weight: 500; color: var(--ink-2); margin-top: 1px; }
 .run .flag .swatch { width: 12px; height: 12px; border-radius: 3px; align-self: center; }
 .run .flag .risk { font-size: 14px; font-weight: 600; }
 .run .flag .fid { font-weight: 500; color: var(--ink-2); font-variant-numeric: tabular-nums; margin-right: 6px; }
@@ -284,7 +289,7 @@ a { color: var(--sea); }
 .run .search-note { margin: 0 0 8px; padding: 6px 10px; border: 1px dashed var(--ink); border-radius: 4px; font-size: 13px; }
 .run .outside { margin: 0 0 8px; padding: 6px 10px; border-left: 3px solid var(--ink-2); background: var(--paper); font-size: 13px; }
 .run .flag .dist { font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.run .flag.beyond .risk, .run .flag.beyond .conf { opacity: .5; }
+.run .flag.beyond .risk, .run .flag.beyond .conf, .run .flag.beyond .sev { opacity: .5; }
 .run .flag .body { padding: 0 0 8px 20px; font-size: 13px; }
 .run .flag .why { margin: 0 0 4px; }
 .run .flag .ev { margin: 0; padding-left: 16px; }
@@ -381,3 +386,16 @@ a { color: var(--sea); }
 .asset-pick .picks { display: flex; flex-wrap: wrap; gap: 6px; }
 .asset-pick .chip.general { border-style: dashed; }
 .asset-pick.done { opacity: .6; }
+
+/* Feedback under a reply or a run card (js/feedback.js): quiet until used. */
+.feedback { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 8px; font-size: 12.5px; color: var(--ink-2); }
+.feedback button { border: 1px solid transparent; background: none; border-radius: 8px; padding: 2px 6px; font: inherit; color: inherit; cursor: pointer; }
+.feedback .fb-up, .feedback .fb-down { font-size: 14px; line-height: 1; filter: grayscale(1); opacity: .7; }
+.feedback button:hover { border-color: var(--rule); opacity: 1; }
+.feedback [aria-pressed="true"] { border-color: var(--ink-2); background: var(--paper); filter: none; opacity: 1; }
+.feedback .fb-wrong { text-decoration: underline; text-underline-offset: 2px; }
+.feedback .fb-said:empty { display: none; }
+.feedback .fb-box { flex-basis: 100%; display: flex; gap: 6px; align-items: flex-end; margin-top: 4px; }
+.feedback .fb-box textarea { flex: 1; min-width: 0; font: inherit; font-size: 13px; border: 1px solid var(--rule); border-radius: 8px; padding: 5px 8px; resize: vertical; }
+.feedback .fb-send { border-color: var(--ink); background: var(--ink); color: #fff; padding: 5px 12px; }
+.feedback .fb-box[hidden] { display: none; }

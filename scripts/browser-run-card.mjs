@@ -181,6 +181,32 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   check(/^Progress with targeted investigation\. Live pipelines/.test(s.decision), `${label}: decision line first on the card (${s.decision.slice(0, 50)})`);
   check(/^F-01/.test(s.flags[0]) && /F-03/.test(s.flags[2]), `${label}: findings numbered F-01 to F-03`);
   check(/^Next step: Agree crossing/.test(s.next), `${label}: a flag shows its next step (${s.next.slice(0, 40)})`);
+  // Feedback (Rob, 22 Nov): thumbs and a "Something's wrong?" box on the run card and on the reply, each sent to the
+  // session log beside the turn. Thumbs down opens the box; an empty note isn't sent.
+  {
+    const n0 = logs.length;
+    const fb = await page.evaluate(() => ({ run: !!document.querySelector(".run .feedback .fb-down"), reply: document.querySelectorAll(".msg.analyst:not(.run):not(.shape) .feedback").length }));
+    check(fb.run && fb.reply >= 1, `${label}: feedback rows on the run card and the analyst's reply (${fb.reply} reply rows)`);
+    await page.locator(".run .feedback .fb-down").scrollIntoViewIfNeeded();
+    await page.click(".run .feedback .fb-down");
+    const box = await page.evaluate(() => ({ open: !document.querySelector(".run .feedback .fb-box").hidden, focus: document.activeElement?.tagName, said: document.querySelector(".run .feedback .fb-said").textContent, pressed: document.querySelector(".run .feedback .fb-down").getAttribute("aria-pressed") }));
+    check(box.open && box.focus === "TEXTAREA" && box.said === "Thanks." && box.pressed === "true", `${label}: thumbs down is marked, thanks you, and opens the note box`);
+    await page.click(".run .feedback .fb-send");
+    check(logs.length === n0 + 1, `${label}: an empty note isn't sent (only the thumbs went: ${logs.length - n0})`);
+    await page.fill(".run .feedback textarea", "Missed the pipeline   crossing");
+    await page.click(".run .feedback .fb-send");
+    await page.waitForTimeout(300);
+    const sent = logs.slice(n0).map((l) => l.body.log.feedback);
+    check(sent.length === 2 && sent[0].on === "run" && sent[0].run === "R1" && sent[0].rating === "down" && !sent[0].note && sent[1].note === "Missed the pipeline crossing" && sent[1].rating === "down" && /^R1 Area 1/.test(sent[1].about || ""),
+      `${label}: run-card feedback sent with its run, rating and note (${JSON.stringify(sent[1]).slice(0, 120)})`);
+    check(await page.evaluate(() => document.querySelector(".run .feedback .fb-box").hidden && document.querySelector(".run .feedback .fb-said").textContent === "Thanks, that's sent."), `${label}: the box closes and says it's sent`);
+    await page.locator(".msg.analyst:not(.run):not(.shape) > .feedback .fb-up").first().scrollIntoViewIfNeeded();
+    await page.locator(".msg.analyst:not(.run):not(.shape) > .feedback .fb-up").first().click();
+    await page.waitForTimeout(200);
+    const up = logs.at(-1).body.log.feedback;
+    check(up.on === "reply" && up.rating === "up" && !!up.turn_at, `${label}: thumbs up on a reply is sent with the turn it's about`);
+    await page.locator(".run .feedback").screenshot({ path: `/tmp/feedback-${label}.png` }).catch(() => {});
+  }
   // The report (and share link): opens in a new tab from the run's link, draws both maps, prints to A4.
   await page.context().route(/openfreemap/, (r) => r.abort());
   const [rp] = await Promise.all([page.waitForEvent("popup"), page.click('.run [data-op="report"]')]);

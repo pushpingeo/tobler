@@ -89,7 +89,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   const card = await page.evaluate(() => ({
     note: document.querySelector(".run .search-note").hidden ? "" : document.querySelector(".run .search-note").textContent,
     setup: document.querySelector(".run .setup").textContent,
-    flags: [...document.querySelectorAll(".run .flag")].map((li) => ({ risk: li.querySelector(".risk").textContent, conf: li.querySelector(".conf").textContent, dist: li.querySelector(".dist").textContent, why: li.querySelector(".why").textContent, ev: li.querySelector(".ev li").textContent })),
+    flags: [...document.querySelectorAll(".run .flag")].map((li) => ({ risk: li.querySelector(".risk").textContent, conf: li.dataset.conf, sev: li.querySelector(".sev")?.textContent || "", cw: li.querySelector(".cw")?.textContent || "", dist: li.querySelector(".dist").textContent, why: li.querySelector(".why").textContent, ev: li.querySelector(".ev li").textContent })),
     sea: document.querySelector(".run .sea").hidden ? "" : document.querySelector(".run .sea").textContent,
     body: document.querySelector(".run").textContent,
   }));
@@ -99,12 +99,14 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   const mon = card.flags.find((f) => /monument/i.test(f.risk));
   const peat = card.flags.find((f) => /peat/i.test(f.risk));
   check(peat && peat.conf === "high" && /in the search area \(covers \d+% of it/.test(peat.ev) && !/Confidence high →/.test(peat.why), `${label}: peat covering a third of it: 10% or more, so high confidence, not capped (${peat?.conf}, ${peat?.ev.slice(0, 60)})`);
+  check(spa && spa.sev === "high" && spa.cw === "low confidence (capped)" && peat?.sev === "medium" && peat?.cw === "high confidence", `${label}: the badge is severity, with confidence as a word under the flag (${spa?.sev} / ${spa?.cw}; ${peat?.sev} / ${peat?.cw})`);
   check(spa && /in the search area/.test(spa.risk) && spa.dist === "in search area" && spa.conf === "low", `${label}: the roost: worded for a search area, low confidence (a sliver) (${spa?.conf}, ${spa?.dist})`);
   check(spa && /in the search area \(covers \d+(\.\d)?% of it, on its eastern side\)/.test(spa.ev) && /Confidence high → low/.test(spa.why), `${label}: the roost's evidence says how much it covers and where; the cap is explained (${spa?.ev.slice(0, 80)})`);
   check(mon && mon.conf === "medium" && /in the search area \(on its/.test(mon.ev), `${label}: the monument point: medium, inside, with where (${mon?.ev.slice(0, 70)})`);
   check(card.sea === "", `${label}: no "At sea" line for an onshore site`);
   check(/search area/.test(firsts.at(-1) || ""), `${label}: the analyst was told it's a search area`);
   await page.screenshot({ path: `/tmp/search-${label}-card.png` });
+  await page.locator(".run .flags").screenshot({ path: `/tmp/search-${label}-flags.png` }).catch(() => {});
   // The report: the same line, a dashed outline, "in the search area".
   const [rp] = await Promise.all([page.waitForEvent("popup"), page.click('.run [data-op="report"]')]);
   await rp.waitForFunction(() => window.__report?.ready, null, { timeout: 40000 });
