@@ -261,7 +261,17 @@ function start() {
   });
   draw.start();
   draw.on("finish", onFinish);
-  draw.on("change", (ids, type) => { scheduleRefresh(); if (type === "delete") ids.forEach(onDeleted); });
+  draw.on("change", (ids, type, ctx) => {
+    if (pointerDown && type === "update" && ctx?.target === "geometry" && places.has(ids[0])) liveEdit = ids[0];
+    scheduleRefresh();
+    if (type === "delete") ids.forEach(onDeleted);
+  });
+  // A drag on the map: Terra Draw draws the shape as it moves. Our copy goes through MapLibre's worker and would trail
+  // a frame or two behind as a "shadow", so it's left out until the pointer lifts, then redrawn where the shape landed.
+  map.getCanvasContainer().addEventListener("pointerdown", () => { pointerDown = true; });
+  const lift = () => { pointerDown = false; if (liveEdit) { liveEdit = null; scheduleRefresh(); } };
+  window.addEventListener("pointerup", lift);
+  window.addEventListener("pointercancel", lift);
   draw.on("select", onSelect);
   draw.on("deselect", () => onSelect(null));
   setMode("select");
@@ -295,12 +305,13 @@ function setShapeColour(colour) {
 }
 
 let refreshQueued = false;
+let pointerDown = false, liveEdit = null; // the place being dragged on the map, if any
 function scheduleRefresh() {
   if (refreshQueued || !draw) return;
   refreshQueued = true;
   requestAnimationFrame(() => {
     refreshQueued = false;
-    const feats = draw.getSnapshot().filter((f) => places.has(f.id) || !isGuide(f)).map((f) => {
+    const feats = draw.getSnapshot().filter((f) => f.id !== liveEdit && (places.has(f.id) || !isGuide(f))).map((f) => {
       const p = places.get(f.id);
       const role = p ? placeRole(p.origin || {}, p.feature?.geometry || f.geometry).role : "";
       return { type: "Feature", geometry: withExtras(p, f.geometry), properties: { label: p ? `${p.name}${role === "search_area" ? " · search area" : ""}${p.status === "proposed" ? " (proposed)" : ""}` : "", status: p?.status || "", role } };

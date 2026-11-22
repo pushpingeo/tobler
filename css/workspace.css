@@ -311,7 +311,9 @@ a { color: var(--sea); }
 .run .flag summary { color: var(--ink); }
 .shape .actions .card-delete:hover { color: var(--alert); }
 .shape.gone .card-delete { display: none; }
-.shape h2 { white-space: nowrap; }
+.shape h2 { white-space: nowrap; min-width: 0; flex: 1 1 auto; } /* shrink inside the header so a long name ends in an ellipsis */
+.shape h2 .swatch, .shape header .badge { flex-shrink: 0; }
+.shape h2 .name { min-width: 0; }
 .run .disclaimer { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid var(--rule); font-size: 11.5px; line-height: 1.4; color: var(--ink-2); }
 
 /* ---- settings: the gear and its dialog ---- */
