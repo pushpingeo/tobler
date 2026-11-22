@@ -893,3 +893,31 @@ Judgement calls made while building, newest first. Bigger product decisions live
 - **Tested:** new `scripts/browser-cards.mjs` (desktop mouse, phone touch): 14/14, and 4 fails on the old code;
   `npm test` and all other browser checks pass; the live page checked in the built-in browser after the deploy.
 - **Not tested:** a real drag on a real phone.
+
+## 22 Nov 2026 (evening): Environment and Energy, and the small changes Rob agreed
+- **The profile is "Environment and Energy"** (label, wording, the analyst's method line, the screen chip "Screen for
+  environmental constraints", run card meta "method 3.8-draft"). The skill's method text is unchanged. The id stays
+  `energy` (and the file `energy.json`) so stored Settings choices, run records and share links keep working.
+- **Settings lists Rob's sectors** as coming soon: Construction, Infrastructure, Property, Mining, Data centres.
+  Retail is gone. **About** is Rob's sentence exactly; the run-card browser check tests it word for word.
+- **Search areas:** a finding covering 10% or more of the search area is uncapped; under 10% stays low; points and
+  lines inside stay medium (they have no share to measure).
+- **A site the person defines by size and position is an area**, not a search area. `make_place` takes
+  `site_defined: true` from the model; the role is still decided in code, and only for square, circle or rectangle.
+  Alternatives were a regex on the words (brittle) or a new `match` value (it also drives place confidence).
+- **"Insufficient evidence" only when no biodiversity source was checked at all.** Settled in code after the
+  analyst's decision (`settleDecision`, js/industry.js): with a biodiversity source checked it becomes major issue
+  (a high-severity flag with medium or high confidence) or progress with targeted investigation; with none checked,
+  progress becomes insufficient evidence, and a major issue stays. The card and report say "Set by Tobler's rules".
+- **Asked whether a screen still holds,** the analyst answers from get_run and asks before re-running (prompt only:
+  a code guard can't tell "yes" from a new request without guessing at words).
+- **Outside the profile** (housing, a warehouse): screened at once with `planned`; the caveat travels in the run
+  record (`site.outside_profile`), so the card, report and a re-run carry it.
+- **Severity is the flag badge;** confidence is a word under the flag, so the risk text keeps its width on a phone.
+- **Feedback:** thumbs and a "Something's wrong?" box on replies and run cards, sent as session-log entries beside the
+  turn (respecting the sharing switch). The digest counts them in code and reads every note.
+- **Also:** place-finding skill 4.14 (scale asked only when genuinely unclear; `site_defined`).
+- **Tested:** `npm test`; every browser check (run-card 123, search-area 34, out-of-date 28, ux 26, choice 8, coords
+  12, epsg 20, cards 14), desktop and phone; phone screenshots of Settings, the flag badges and the feedback row.
+- **Not tested:** the live model's use of `site_defined`, `planned` and the ask-before-re-run rule (needs a
+  try-requests replay, a few cents); the digest on real feedback (needs Rob's test sessions).
