@@ -10,6 +10,7 @@ import { coordinateNote } from "../js/coords.js";
 import { chooseIndustry, industryNote } from "../js/industry.js";
 import { atlasCall } from "./atlas-client.mjs";
 import { createScreening, evidenceOf } from "../js/ntrrun.js";
+import { siteChange, runLines } from "../js/outofdate.js";
 import { firmsCall } from "./firms-client.mjs";
 
 const UA = { "User-Agent": "tobler-try/1.0 (+https://github.com/pushpingeo/tobler)" };
@@ -84,7 +85,7 @@ for (const conv of convs) {
       const alias = `Area ${list.length + 1}`;
       let nm = name || alias;
       for (let k = 2; name && list.some((q) => q.name.toLowerCase() === nm.toLowerCase()); k++) nm = `${name} (${k})`;
-      const p = { name: nm, alias, given, feature, origin, status: "proposed", edits: [] }; list.push(p); return p;
+      const p = { id: `p${list.length + 1}-${Date.now()}`, name: nm, alias, given, feature, origin, status: "proposed", edits: [] }; list.push(p); return p;
     },
     updatePlace(name, feature, words) { const p = this.findPlace(name); p.feature = feature; p.edits.push({ change: words }); },
     renamePlace(name, to) { this.findPlace(name).name = to; },
@@ -102,6 +103,7 @@ for (const conv of convs) {
     onRun: (rec) => {
       const r = rec.tobler_run;
       console.log(`   [RUN CARD ${r.id}: ${r.site.name}; ${r.site.asset_label}${r.site.asset_assumed ? " (assumed)" : ""}; ${r.site.footprint}; ${r.distances.near}/${r.distances.close}/${r.distances.wider} km (${r.distances.reasons[0]})]`);
+      if (r.replaces) console.log(`     REPLACES ${r.replaces.run}: ${r.replaces.why}`);
       if (r.sea) console.log(`     SEA ${JSON.stringify(r.sea).slice(0, 900)}`);
       console.log(`     DECISION: ${r.decision ? `${r.decision.value} (${r.decision.why})` : "none given"}`);
       for (const f of r.flags) console.log(`     ${f.id} ${f.severity ? `sev ${f.severity}, ` : ""}${f.confidence.toUpperCase()} [${f.theme}]${f.next_step ? ` next: ${f.next_step} |` : ""} ${f.risk} | nearest ${f.nearest_km} km | evidence ${f.traced} traced, ${f.untraced} not traced: ${f.evidence.map((e) => `${e.name} ${e.distance_km} km${e.traced ? "" : " (untraced)"}`).join("; ").slice(0, 400)}`);
@@ -125,7 +127,7 @@ for (const conv of convs) {
     try {
       const res = await runTurn({
         system: systemPrompt({ skills: convSkills, loaded, comingSoon: ["net developable area and constraints-and-access analysis"], industryRule: profile.other_requests }),
-        messages: buildMessages({ recent, summary: [await projectSummary(ref, list, list.at(-1)?.name), industryNote(profile, industries)].join("\n"), userText: coordinateNote(text) ? `${text}\n\n${coordinateNote(text)}` : text }),
+        messages: buildMessages({ recent, summary: [await projectSummary(ref, list, list.at(-1)?.name, null, runLines([...host.screening.runs.values()].map((record) => ({ record, change: siteChange(record, list.find((q) => q.id === record.tobler_run.place_id) || null), replacedBy: record.tobler_run.replaced_by })))), industryNote(profile, industries)].join("\n"), userText: coordinateNote(text) ? `${text}\n\n${coordinateNote(text)}` : text }),
         tools: placeToolDefs(convSkills),
         maxRounds: 14,
         exec: (name, input) => tools.exec(name, input),
