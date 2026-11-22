@@ -2,6 +2,28 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 22 Nov 2026: out-of-date runs ("energy is done" item 2; Rob chose it as next)
+- **What makes a run out of date:** its place's outline no longer matches the one it was screened on (compared to
+  about a centimetre, the 7-decimal rounding edits use). Any edit counts: a drag on the map, the card's rotate or
+  resize, or the analyst's `edit_place`. Moving it back clears it. Deleting the place marks its runs too, with no re-run.
+- **On the card:** a strip under the setup line ("Out of date: the site was edited after this screen (moved 0.6 km
+  east). The findings are for the earlier outline.") and "Re-run on the edited site". Flags and decision dimmed.
+  No error red: nothing failed.
+- **Re-run (my call):** a new run beside the old one (R2 replaces R1), never overwriting, so they can be compared. The
+  card's button repeats the request in code with the same asset type, stage, capacity, tip height, focus, extent and
+  any distances the person set; default distances are worked out again, since they follow the site's size. No model
+  call decides it; it still costs a screen, with the usual progress block, and a one-line result in the conversation.
+- **The analyst:** the project summary lists every run and which are out of date or replaced. When the analyst
+  screens an edited place itself, the new run is linked to the out-of-date one the same way, and the headline asks it
+  to say what changed. `get_run` says when a run was replaced.
+- **Report and share link:** carry `out_of_date` and `replaces`; a report made after the edit says so first.
+- **Run record:** `inputs`, `replaces {run, why}`, `replaced_by`, `out_of_date {noted_at, change, replaced_by}`.
+- Tested: `npm test` (two new ntrrun tests); new `scripts/browser-outofdate.mjs` 28/28 (desktop and phone); other
+  browser checks pass (run-card 109, search-area 30, ux 26, choice 8, coords 12, epsg 20). Haiku replay on branch
+  `outofdate` (Évora solar → "make the site 2 km²" → "is the screen still right?"): the analyst saw R1 was out of date,
+  re-ran (R2 replaces R1, "area 1 → 2 km²") and compared them; asked to screen again, it said R2 was current.
+  **Seen:** it re-ran without asking first. **Not tested:** a drag on the real map by hand; a real phone; live.
+
 ## 20 Nov 2026 (late night, later): datum transformations simple and largely hidden (Rob)
 - Rob: for Tobler, transformations should be simple and mostly out of sight; reasonable accuracy is enough. The GIGS
   work moves to its own workstream.
