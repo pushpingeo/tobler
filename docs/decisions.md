@@ -882,3 +882,14 @@ Judgement calls made while building, newest first. Bigger product decisions live
   "Ask me"). At Berwick the Scotland-only transformation was rightly left out; the ED50 well got EPSG:1311 (1 m).
 - **Not done:** a `transform` tool that applies the chosen transformation (the analyst says honestly it can't give the
   exact shift yet); grid-based transformations in the page; checking EPSG's terms of use for commercial serving.
+
+## 22 Nov 2026: Rob's two live-test bugs (card header, drag shadow)
+- **Card header overspill:** the header's `h2` was a flex item with `nowrap` and no `min-width: 0`, so a long name
+  couldn't shrink and the ellipsis on `.name` never applied. It now shrinks; the swatch and badge keep their size.
+- **Drag shadow:** our banded copy of each place (the `aoi` source) goes through MapLibre's worker on every `setData`
+  and lands a frame or more behind Terra Draw. While the pointer is down and a place's geometry changes, that place is
+  left out of `aoi`; it is redrawn where it landed when the pointer lifts. Moves from the Adjust buttons redraw at once.
+  Shapes still being drawn are mirrored as before (a small fix for later).
+- **Tested:** new `scripts/browser-cards.mjs` (desktop mouse, phone touch): 14/14, and 4 fails on the old code;
+  `npm test` and all other browser checks pass; the live page checked in the built-in browser after the deploy.
+- **Not tested:** a real drag on a real phone.
