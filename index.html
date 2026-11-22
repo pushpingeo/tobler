@@ -9,7 +9,7 @@
 <link rel="icon" href="img/tobler.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/public-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="js/vendor/maplibre-gl.css">
-<link rel="stylesheet" href="css/workspace.css?v=e472c9eb">
+<link rel="stylesheet" href="css/workspace.css?v=78e9c899">
 <script src="js/vendor/maplibre-gl.js"></script>
 <script type="importmap">
 {
@@ -51,7 +51,7 @@
   "./js/units.js": "./js/units.js?v=77029a89",
   "./js/vendor/draw.js": "./js/vendor/draw.js?v=d46ad546",
   "./js/vendor/turf.js": "./js/vendor/turf.js?v=bae079f8",
-  "./js/workspace.js": "./js/workspace.js?v=6f426422",
+  "./js/workspace.js": "./js/workspace.js?v=0f391b75",
   "@turf/turf": "./js/vendor/turf.js?v=bae079f8",
   "osmtogeojson": "./js/vendor/osmtogeojson.js?v=75ffea00"
  }
@@ -155,8 +155,10 @@
     <header><h2 id="settings-title">Settings</h2><button class="close" value="close" title="Close" aria-label="Close settings">×</button></header>
     <fieldset>
       <legend>Industry</legend>
-      <div class="industry-choices" role="radiogroup" aria-label="Industry"></div>
-      <p class="hint-line">Decides the screening method, the quick picks and the examples. Environment and Energy is ready; the others are on the way.</p>
+      <label for="industry" class="sr">Industry</label>
+      <select id="industry" name="industry" class="industry-select"></select>
+      <p class="hint-line industry-about"></p>
+      <p class="hint-line">Decides the screening method, the quick picks and the examples.</p>
     </fieldset>
     <fieldset>
       <legend>Data the analyst may use</legend>
@@ -196,7 +198,6 @@
     <fieldset>
       <legend>About</legend>
       <p class="about">Tobler does the desk screening before the desk study: what's on or near a site, who says so, and what still needs checking.</p>
-      <p class="links"><a href="lab-results.html">How the risk screening was tested</a><a href="lab.html">Earlier agent page</a><a href="https://github.com/pushpingeo/tobler">Code</a></p>
     </fieldset>
     <p class="foot">Settings are saved in this browser only.</p>
   </form>
@@ -296,6 +297,6 @@
   </article>
 </template>
 
-<script type="module" src="js/workspace.js?v=6f426422"></script>
+<script type="module" src="js/workspace.js?v=0f391b75"></script>
 </body>
 </html>

@@ -938,3 +938,11 @@ Judgement calls made while building, newest first. Bigger product decisions live
   on the long regional example sends its full text.
 - **Not tested:** the live analyst on the six new examples (try-requests, twice each). The regional areas (10 km²)
   are rough sizes, not the schemes' red lines.
+
+## 22 Nov 2026: Settings (Rob)
+- **Industry is a dropdown** (`select[name=industry]`) to save space. Profiles not ready show as disabled
+  "(coming soon)" options; the chosen one's description sits under it.
+- **No links at the foot of Settings.** The About text stays. The lab links go anyway when the lab material moves
+  to asktobler-lab.
+- **Tested:** `npm test`; browser-run-card (125), ux (26), cards (14), choice (8), desktop and phone; phone screenshot
+  of Settings.

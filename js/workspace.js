@@ -1627,17 +1627,13 @@ document.querySelectorAll(".tools [data-mode]").forEach((b) => b.addEventListene
 const dlg = $("settings");
 const form = dlg.querySelector("form");
 function paintSettings() {
-  const ic = form.querySelector(".industry-choices");
-  ic.replaceChildren(...(industries?.industries || []).map((i) => {
-    const ready = i.status === "ready";
-    const lab = el("label", null, ready ? "" : "soon");
-    const r = Object.assign(document.createElement("input"), { type: "radio", name: "industry", value: i.id, disabled: !ready, checked: i.id === profile?.id });
-    r.addEventListener("change", () => { if (!r.checked) return; store.set("industry", i.id); loadIndustry(i.id).catch((e) => note(`That industry didn't load: ${e.message}`)); });
-    const text = el("span");
-    text.append(el("b", i.label), document.createTextNode(ready ? ` · ${i.about}` : ` · coming soon: ${i.about.charAt(0).toLowerCase()}${i.about.slice(1)}`));
-    lab.append(r, text);
-    return lab;
-  }));
+  // Industry: a dropdown to save space (Rob, 22 Nov). Profiles not ready yet show as disabled "coming soon" options.
+  const list = industries?.industries || [];
+  form.industry.replaceChildren(...list.map((i) => Object.assign(document.createElement("option"), {
+    value: i.id, disabled: i.status !== "ready", selected: i.id === profile?.id,
+    textContent: i.status === "ready" ? i.label : `${i.label} (coming soon)`,
+  })));
+  paintIndustryAbout();
   form.esri.checked = host.esriLicence();
   form.nonCommercial.checked = host.nonCommercial();
   form.shareSessions.checked = store.get("shareSessions") !== "no";
@@ -1653,6 +1649,16 @@ function paintSettings() {
     ? "Your key is in use for this tab: calls go straight to Anthropic and are billed to you. Clear it to go back to Tobler's shared allowance."
     : "Optional. Without one, Tobler's shared daily allowance is used. A key is kept for this tab only and sent straight to Anthropic.";
 }
+function paintIndustryAbout() {
+  const i = (industries?.industries || []).find((x) => x.id === form.industry.value);
+  form.querySelector(".industry-about").textContent = i?.about || "";
+}
+form.industry.addEventListener("change", () => {
+  const id = form.industry.value;
+  paintIndustryAbout();
+  store.set("industry", id);
+  loadIndustry(id).catch((e) => note(`That industry didn't load: ${e.message}`));
+});
 $("gear").addEventListener("click", () => { paintSettings(); dlg.showModal(); });
 // Click outside the box closes it.
 dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });

@@ -290,11 +290,12 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   if (label === "phone") await page.evaluate(() => document.getElementById("panel").classList.remove("collapsed"));
   await page.click("#gear");
   await page.waitForSelector("#settings[open]");
-  check(await page.evaluate(() => document.querySelectorAll('#settings .links a[href="lab-results.html"]').length === 1), `${label}: About in settings links to how the screening was tested`);
+  check(await page.evaluate(() => !document.querySelector("#settings .links") && !document.querySelector('#settings a[href="lab.html"]')), `${label}: no links at the foot of Settings (Rob, 22 Nov)`);
   const about = await page.evaluate(() => document.querySelector("#settings p.about").textContent);
   check(about === "Tobler does the desk screening before the desk study: what's on or near a site, who says so, and what still needs checking.", `${label}: About says what Tobler does, in Rob's words, with no "Coming next"`);
-  const ind = await page.evaluate(() => [...document.querySelectorAll('#settings input[name="industry"]')].map((r) => `${r.value}:${r.checked ? "on" : ""}:${r.disabled ? "soon" : ""}`));
+  const ind = await page.evaluate(() => [...document.querySelectorAll('#settings select[name="industry"] option')].map((r) => `${r.value}:${r.selected ? "on" : ""}:${r.disabled ? "soon" : ""}`));
   check(ind.join(",") === "energy:on:,construction::soon,infrastructure::soon,property::soon,mining::soon,data-centres::soon", `${label}: Settings → Industry: Environment and Energy chosen, the five sectors coming soon (${ind.join(", ")})`);
+  check(await page.evaluate(() => document.querySelector("#settings .industry-about").textContent.length > 10 && /coming soon/.test(document.querySelector('#settings option[value="mining"]').textContent)), `${label}: Industry is a dropdown with the chosen one's description under it`);
   await page.screenshot({ path: `/tmp/settings-${label}.png` });
   await page.check('#settings input[name="units"][value="imperial"]');
   await page.click('#settings [data-colour="#00a0b0"]');
