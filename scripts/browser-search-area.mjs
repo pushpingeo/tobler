@@ -36,7 +36,7 @@ const firsts = [];
 function model(body) {
   const sys = (Array.isArray(body.system) ? body.system.map((b) => b.text).join("") : body.system) || "";
   const n = body.messages.length;
-  if (/sealed non-technical risk/.test(sys)) {
+  if (/running one sealed screen/.test(sys)) {
     if (n === 1) { firsts.push(String(body.messages[0].content)); return toolUse(["find_data", { text: "protection", area: "Cnoc Buidhe" }], ["find_data", { text: "monument", area: "Cnoc Buidhe" }]); }
     if (n === 3) return toolUse(["get_data", { dataset: "D1", place: "Cnoc Buidhe", theme: "biodiversity" }], ["get_data", { dataset: "D2", place: "Cnoc Buidhe", theme: "heritage" }]);
     return text(RESULT);

@@ -642,7 +642,7 @@ const host = {
 };
 // Screening runs: sealed NTR runs with their own tools; the conversation gets the headline, the card the detail.
 let distTable = null;
-// The industry profile in use (Settings → Industry; catalogue/industries/). Only Energy is ready so far.
+// The industry profile in use (Settings → Industry; catalogue/industries/). Only Environment and Energy is ready so far.
 let industries = null, profile = null;
 host.profile = () => profile;
 const assetPicks = () => profile?.asset_picks || null;
@@ -957,7 +957,7 @@ function showRun(record) {
   runs.set(r.id, entry);
   card.dataset.run = r.id;
   card.querySelector(".site").textContent = r.site.name;
-  card.querySelector(".meta").textContent = `${r.id} · NTR ${r.skill.version} · ${new Date(r.finished_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}${r.screen_seconds ? ` · took ${r.screen_seconds} s` : ""}`;
+  card.querySelector(".meta").textContent = `${r.id} · method ${r.skill.version} · ${new Date(r.finished_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}${r.screen_seconds ? ` · took ${r.screen_seconds} s` : ""}`;
   card.querySelector(".setup").textContent = [
     `${r.site.asset_label[0].toUpperCase()}${r.site.asset_label.slice(1)}${r.site.asset_assumed ? " (assumed)" : ""}`, r.site.stage, r.site.setting, r.site.footprint,
   ].filter(Boolean).join(" · ");
@@ -1531,7 +1531,7 @@ function traceLine(ev) {
   }
 }
 
-// One chip, "Screen this location for risks", shown only while there's a place to screen. It fills the input with
+// One chip, "Screen for environmental constraints" (the profile's wording), shown only while there's a place to screen. It fills the input with
 // the place in focus (or the latest place), ready to send or add to. Finding is typing; drawing is the Draw button.
 function focusedOrLatest() {
   return (focusName && placeByName(focusName)) || [...places.values()].at(-1) || null;
@@ -1543,7 +1543,7 @@ document.querySelector(".chip[data-screen]").addEventListener("click", () => {
   const p = focusedOrLatest();
   if (!p || busy) return;
   if (!p.assetType) { askAssetType(p.name); return; }
-  say.value = `Screen ${p.name} for risks`; grow(); say.focus();
+  say.value = `Screen ${p.name} for environmental constraints`; grow(); say.focus();
   say.setSelectionRange(say.value.length, say.value.length);
 });
 

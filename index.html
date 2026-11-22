@@ -22,7 +22,7 @@
   "./js/confidence.js": "./js/confidence.js?v=ad22f5c6",
   "./js/config.js": "./js/config.js?v=7752ed50",
   "./js/config.js?v=m2b": "./js/config.js?v=7752ed50",
-  "./js/converse.js": "./js/converse.js?v=f3b86e88",
+  "./js/converse.js": "./js/converse.js?v=4d3c328b",
   "./js/coords.js": "./js/coords.js?v=66f3eded",
   "./js/datatools.js": "./js/datatools.js?v=4291d91e",
   "./js/disclaimer.js": "./js/disclaimer.js?v=8cfa6424",
@@ -37,9 +37,9 @@
   "./js/geometry.js": "./js/geometry.js?v=6bc3cd92",
   "./js/industry.js": "./js/industry.js?v=46df5282",
   "./js/licence.js": "./js/licence.js?v=cf8fd6ef",
-  "./js/ntrrun.js": "./js/ntrrun.js?v=fb69ff71",
+  "./js/ntrrun.js": "./js/ntrrun.js?v=2ee58bac",
   "./js/outofdate.js": "./js/outofdate.js?v=661f9c26",
-  "./js/placetools.js": "./js/placetools.js?v=11e828d4",
+  "./js/placetools.js": "./js/placetools.js?v=5fdd86db",
   "./js/reference.js": "./js/reference.js?v=b21a38d8",
   "./js/seavalues.js": "./js/seavalues.js?v=2949ddce",
   "./js/share.js": "./js/share.js?v=aa3eb862",
@@ -50,7 +50,7 @@
   "./js/units.js": "./js/units.js?v=77029a89",
   "./js/vendor/draw.js": "./js/vendor/draw.js?v=d46ad546",
   "./js/vendor/turf.js": "./js/vendor/turf.js?v=bae079f8",
-  "./js/workspace.js": "./js/workspace.js?v=c4237e88",
+  "./js/workspace.js": "./js/workspace.js?v=e4da7e16",
   "@turf/turf": "./js/vendor/turf.js?v=bae079f8",
   "osmtogeojson": "./js/vendor/osmtogeojson.js?v=75ffea00"
  }
@@ -70,8 +70,8 @@
  "catalogue/anchors.json": "catalogue/anchors.json?v=4239096c",
  "catalogue/catalogue.json": "catalogue/catalogue.json?v=1fae6aef",
  "catalogue/distances.json": "catalogue/distances.json?v=0373f482",
- "catalogue/industries/energy.json": "catalogue/industries/energy.json?v=2d4916f1",
- "catalogue/industries/index.json": "catalogue/industries/index.json?v=68e2b890",
+ "catalogue/industries/energy.json": "catalogue/industries/energy.json?v=64c64b53",
+ "catalogue/industries/index.json": "catalogue/industries/index.json?v=3e703a5e",
  "catalogue/trusted.json": "catalogue/trusted.json?v=49864a30",
  "data/ref/coastline.json": "data/ref/coastline.json?v=e913d7a4",
  "data/ref/countries.json": "data/ref/countries.json?v=bd02bffd",
@@ -118,7 +118,7 @@
     <p class="activity" id="activity" role="status"><svg class="globe" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M5 7.5h14M5 16.5h14"/><g class="spin"><ellipse class="m1" cx="12" cy="12" rx="9" ry="9"/><ellipse class="m2" cx="12" cy="12" rx="9" ry="9"/><ellipse class="m3" cx="12" cy="12" rx="9" ry="9"/></g></svg><span class="activity-text"></span></p>
     <!-- Shown only once there's a place to screen; it fills in the place in focus. -->
     <div class="chips" role="group" aria-label="What to do" hidden>
-      <button type="button" class="chip" data-screen>Screen this location for risks</button>
+      <button type="button" class="chip" data-screen>Screen for environmental constraints</button>
     </div>
     <nav class="tools" id="tools" aria-label="Drawing tools" hidden>
       <button type="button" data-mode="point" aria-pressed="false" title="Drop a point">
@@ -155,7 +155,7 @@
     <fieldset>
       <legend>Industry</legend>
       <div class="industry-choices" role="radiogroup" aria-label="Industry"></div>
-      <p class="hint-line">Decides the screening method, the quick picks and the examples. Energy is ready; the others are on the way.</p>
+      <p class="hint-line">Decides the screening method, the quick picks and the examples. Environment and Energy is ready; the others are on the way.</p>
     </fieldset>
     <fieldset>
       <legend>Data the analyst may use</legend>
@@ -194,7 +194,7 @@
     </fieldset>
     <fieldset>
       <legend>About</legend>
-      <p class="about">Tobler screens sites for non-technical risk from open data, with written-down methods. Coming next: net developable area, and constraints and access.</p>
+      <p class="about">Tobler does the desk screening before the desk study: what's on or near a site, who says so, and what still needs checking.</p>
       <p class="links"><a href="lab-results.html">How the risk screening was tested</a><a href="lab.html">Earlier agent page</a><a href="https://github.com/pushpingeo/tobler">Code</a></p>
     </fieldset>
     <p class="foot">Settings are saved in this browser only.</p>
@@ -294,6 +294,6 @@
   </article>
 </template>
 
-<script type="module" src="js/workspace.js?v=c4237e88"></script>
+<script type="module" src="js/workspace.js?v=e4da7e16"></script>
 </body>
 </html>

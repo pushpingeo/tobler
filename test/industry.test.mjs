@@ -39,8 +39,8 @@ await test("every ready profile names a skill that exists, picks the distances t
 await test("the analyst is told the industry and what's coming; energy's baseline is the trusted list", () => {
   const energy = read("catalogue/industries/energy.json");
   const line = industryNote(energy, index);
-  assert.match(line, /^Industry: Energy/);
-  assert.match(line, /Coming soon: Construction and property; Retail and site selection/);
+  assert.match(line, /^Industry: Environment and Energy \(screening method: environmental constraints and E&S risk/);
+  assert.match(line, /Coming soon: Construction; Infrastructure; Property; Mining; Data centres\./);
   assert.equal(industryNote(null, index), "");
   assert.equal(baselineFor(energy, trusted), trusted.baseline);
   const own = [{ atlas_id: "x", where: [-8, 49, 2, 61] }];

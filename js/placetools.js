@@ -152,7 +152,7 @@ export function placeToolDefs(skills) {
     },
     {
       name: "screen_site",
-      description: "Screen a place for non-technical risk (NTR: land and livelihoods, biodiversity, Indigenous Peoples, cultural heritage, community health and safety, operating context). Runs the NTR method as its own sealed run with the data tools, then shows a run card (flags first, evidence on the map, the distances used with a slider, gaps) and returns the headline. Use it for any request to screen a site or ask what risks, sensitivities or constraints it raises. The place must already exist (find or build it first). Distances come from the asset type and size unless the person gives their own. Takes 30 to 90 seconds.",
+      description: "Screen a place for environmental constraints and environmental and social (E&S) risk (themes: land and livelihoods, biodiversity, Indigenous Peoples, cultural heritage, community health and safety, operating context). Runs the screening method as its own sealed run with the data tools, then shows a run card (flags first, evidence on the map, the distances used with a slider, gaps) and returns the headline. Use it for any request to screen a site or ask what risks, sensitivities or constraints it raises. The place must already exist (find or build it first). Distances come from the asset type and size unless the person gives their own. Takes 30 to 90 seconds.",
       input_schema: {
         type: "object",
         properties: {

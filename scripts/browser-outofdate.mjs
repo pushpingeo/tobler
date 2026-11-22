@@ -35,7 +35,7 @@ const asked = [];
 function model(body) {
   const sys = (Array.isArray(body.system) ? body.system.map((b) => b.text).join("") : body.system) || "";
   const n = body.messages.length;
-  if (/sealed non-technical risk/.test(sys)) {
+  if (/running one sealed screen/.test(sys)) {
     if (n === 1) { screens++; return toolUse(["find_data", { text: "school", area: "Area 1" }]); }
     if (n === 3) return toolUse(["get_data", { dataset: "D1", place: "Area 1", theme: "community" }]);
     return text(result());

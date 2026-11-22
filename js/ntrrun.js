@@ -89,7 +89,7 @@ export function footprintOf(feature, d) {
 }
 
 export function systemFor(skill) {
-  return `You are Tobler's screening analyst, running one sealed non-technical risk (NTR) screen of one site. Nobody is chatting with you: do the screen, then write the result.
+  return `You are Tobler's screening analyst, running one sealed screen of one site for environmental constraints and environmental and social (E&S) risk. Nobody is chatting with you: do the screen, then write the result.
 
 - ${FENCE_RULE}
 - The site, its footprint, the asset type, the stage and the distances are fixed by this run and given in the first message. Use them as given; don't ask about them and don't change them. If the stage or asset type was assumed, say so in the summary.

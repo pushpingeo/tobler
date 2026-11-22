@@ -1,25 +1,43 @@
 {
-  "about": "The industries Tobler offers (Settings → Industry). An industry is a profile: which screening method runs, its themes, quick picks, distances, must-check layers, welcome examples and wording. Tools and the atlas are shared. Only profiles with status 'ready' can be chosen; the rest show as 'coming soon'. Designed 20 Nov 2026 (plan, 'Industries').",
+  "about": "The industries Tobler offers (Settings → Industry). An industry is a profile: which screening method runs, its themes, quick picks, distances, must-check layers, welcome examples and wording. Tools and the atlas are shared. Only profiles with status 'ready' can be chosen; the rest show as 'coming soon'. Designed 20 Nov 2026; the list is Rob's sector table (22 Nov). The ready profile keeps the id 'energy' so stored choices, run records and share links stay valid.",
   "default": "energy",
   "industries": [
     {
       "id": "energy",
-      "label": "Energy",
+      "label": "Environment and Energy",
       "status": "ready",
       "file": "catalogue/industries/energy.json",
-      "about": "Oil and gas, renewables, mining, power and grid"
+      "about": "Environmental constraints and E&S risk for renewables, oil and gas, and other sites"
     },
     {
       "id": "construction",
-      "label": "Construction and property",
+      "label": "Construction",
       "status": "coming soon",
-      "about": "Site appraisal for logistics and housing"
+      "about": "Site suitability and development constraints"
     },
     {
-      "id": "retail",
-      "label": "Retail and site selection",
+      "id": "infrastructure",
+      "label": "Infrastructure",
       "status": "coming soon",
-      "about": "Finding and comparing sites"
+      "about": "Route and corridor screening"
+    },
+    {
+      "id": "property",
+      "label": "Property",
+      "status": "coming soon",
+      "about": "Land acquisition screening"
+    },
+    {
+      "id": "mining",
+      "label": "Mining",
+      "status": "coming soon",
+      "about": "Initial environmental and social risk"
+    },
+    {
+      "id": "data-centres",
+      "label": "Data centres",
+      "status": "coming soon",
+      "about": "Power, water, land and environmental constraints"
     }
   ]
 }

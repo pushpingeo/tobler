@@ -1,19 +1,19 @@
 {
-  "about": "Energy's profile (20 Nov 2026): the first and only full one. What's here was spread across the page and catalogue before; the screening method, distances and baseline layers stay in their own files and are named here. Picks: the buttons shown when someone screens a place without saying what's planned (order matters: the first `first` that suit the setting show as buttons, the rest under More…; each type must be an asset in the distances table; `onshore`/`offshore` give a different type by setting; `only` limits a pick to one setting). Themes are shared across industries and mapped to IFC's Performance Standards where they fit.",
+  "about": "The Environment and Energy profile (20 Nov 2026; renamed from Energy on 22 Nov): the first and only full one. Framed as an environmental consultant screening a site: renewables, oil and gas, or anything else. What's here was spread across the page and catalogue before; the screening method, distances and baseline layers stay in their own files and are named here. Picks: the buttons shown when someone screens a place without saying what's planned (order matters: the first `first` that suit the setting show as buttons, the rest under More…; each type must be an asset in the distances table; `onshore`/`offshore` give a different type by setting; `only` limits a pick to one setting). Themes are shared across industries and mapped to IFC's Performance Standards where they fit.",
   "id": "energy",
-  "label": "Energy",
-  "version": "1",
+  "label": "Environment and Energy",
+  "version": "2",
   "skill": "ntr-screening",
   "skill_file": "skills/ntr-screening/SKILL.md",
   "distances": "catalogue/distances.json",
   "baseline": {
     "from": "catalogue/trusted.json",
-    "about": "Energy uses every must-check layer in trusted.json 'baseline' (each limited to its own bounding box, 'where'). Another profile can list its own layers here in the same shape, with a 'where' per country or region."
+    "about": "This profile uses every must-check layer in trusted.json 'baseline' (each limited to its own bounding box, 'where'). Another profile can list its own layers here in the same shape, with a 'where' per country or region."
   },
   "wording": {
-    "screen_chip": "Screen this location for risks",
-    "findings": "risks",
-    "method": "non-technical risk screening for energy projects"
+    "screen_chip": "Screen for environmental constraints",
+    "findings": "constraints and risks",
+    "method": "environmental constraints and E&S risk screening, for renewables, oil and gas, and other sites"
   },
   "themes": [
     {

@@ -44,7 +44,7 @@ function model(body) {
   const sys = (Array.isArray(body.system) ? body.system.map((b) => b.text).join("") : body.system) || "";
   const n = body.messages.length;
   const first = String(body.messages[0]?.content || "");
-  if (/sealed non-technical risk/.test(sys)) {
+  if (/running one sealed screen/.test(sys)) {
     if (/^Re-assess/.test(first)) return text(REASSESS);
     if (n === 1) return toolUse(["find_data", { text: "pipeline", area: "Area 1" }], ["find_data", { text: "wreck", area: "Area 1" }]);
     if (n === 3) return toolUse(["get_data", { dataset: "D1", place: "Area 1", within_km: 5, theme: "community" }], ["get_data", { dataset: "D2", place: "Area 1", theme: "heritage" }]);
@@ -116,7 +116,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await page.waitForSelector(".asset-pick");
   const chip = await page.evaluate(() => ({ shown: !document.querySelector(".chips").hidden, text: document.querySelector(".chip[data-screen]").textContent,
     picks: [...document.querySelectorAll(".asset-pick .picks button")].map((b) => b.textContent) }));
-  check(chip.shown && chip.text === "Screen this location for risks" && chip.picks[0] === "Offshore wind" && chip.picks.length === 8 && chip.picks.includes("More…") && chip.picks.at(-1) === "Just a general screen",
+  check(chip.shown && chip.text === "Screen for environmental constraints" && chip.picks[0] === "Offshore wind" && chip.picks.length === 8 && chip.picks.includes("More…") && chip.picks.at(-1) === "Just a general screen",
     `${label}: one chip once there's a place; it asks what's planned, with picks for the sea (${chip.picks.join(", ")})`);
   await page.evaluate(() => document.querySelector(".asset-pick").remove());
   let c = await card();
@@ -265,8 +265,10 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await page.click("#gear");
   await page.waitForSelector("#settings[open]");
   check(await page.evaluate(() => document.querySelectorAll('#settings .links a[href="lab-results.html"]').length === 1), `${label}: About in settings links to how the screening was tested`);
+  const about = await page.evaluate(() => document.querySelector("#settings p.about").textContent);
+  check(about === "Tobler does the desk screening before the desk study: what's on or near a site, who says so, and what still needs checking.", `${label}: About says what Tobler does, in Rob's words, with no "Coming next"`);
   const ind = await page.evaluate(() => [...document.querySelectorAll('#settings input[name="industry"]')].map((r) => `${r.value}:${r.checked ? "on" : ""}:${r.disabled ? "soon" : ""}`));
-  check(ind.join(",") === "energy:on:,construction::soon,retail::soon", `${label}: Settings → Industry: Energy chosen, the others coming soon (${ind.join(", ")})`);
+  check(ind.join(",") === "energy:on:,construction::soon,infrastructure::soon,property::soon,mining::soon,data-centres::soon", `${label}: Settings → Industry: Environment and Energy chosen, the five sectors coming soon (${ind.join(", ")})`);
   await page.screenshot({ path: `/tmp/settings-${label}.png` });
   await page.check('#settings input[name="units"][value="imperial"]');
   await page.click('#settings [data-colour="#00a0b0"]');
