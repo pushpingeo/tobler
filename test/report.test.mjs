@@ -80,6 +80,8 @@ await test("the report: numbered labels on the features, one row per finding, fa
   assert.equal(evr.at(-1).result, "none in dataset");
   assert.deepEqual(sourcesOf(rec).map((x) => x.dataset), ["Cables", "Coral", "Wrecks"]);
   assert.deepEqual(decisionText(rec.tobler_run), { head: "Progress with targeted investigation.", why: "A wreck needs a survey." });
+  assert.deepEqual(decisionText({ decision: { value: "insufficient evidence", why: "Nothing found.", changed: "from progress: no biodiversity source could be checked" } }),
+    { head: "Insufficient evidence.", why: "Nothing found. Set by Tobler's rules, from progress: no biodiversity source could be checked." }, "a decision changed by the rules says so in the report");
   assert.deepEqual(summaryBlocks(rec.tobler_run.summary), [{ text: "Decision: progress." }, { list: true, items: ["Wreck at 1.2 km", "Cable on site"] }, { text: "More text." }]);
   assert.deepEqual(changeLog(rec.tobler_run), [{ at: "2026-11-20 10:05", within_km: 10, flags: 3, decision: "major issue" }]);
 });

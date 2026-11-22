@@ -13,7 +13,7 @@ import { aroundSiteKm2 } from "./datatools.js";
 import { siteChange } from "./outofdate.js";
 import { waterDepth, vesselTraffic, seaLines } from "./seavalues.js";
 import { elevationFrom, elevationSignificance, elevationLine } from "./elevation.js";
-import { baselineFor, readDecision } from "./industry.js";
+import { baselineFor, readDecision, settleDecision } from "./industry.js";
 import { placeRole, coverageIn, whereText, applySearchArea, reword, SEARCH_BAND, SEARCH_NOTE } from "./siterole.js";
 
 // The band for a piece of evidence: a wide area the site lies within is "around the site", not "on site".
@@ -413,7 +413,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
     tobler_run: {
       schema: RUN_SCHEMA, id: runId, kind: "ntr-screen", skill: { name: skill.name, version: skill.version }, model,
       industry: host.profile?.()?.id || null,
-      decision: readDecision(parsed.json?.decision, searchArea ? reword(parsed.json?.decision_why) : parsed.json?.decision_why, host.profile?.()?.decisions),
+      decision: settleDecision(readDecision(parsed.json?.decision, searchArea ? reword(parsed.json?.decision_why) : parsed.json?.decision_why, host.profile?.()?.decisions), { checked, flags }),
       started_at: started, finished_at: now(),
       site: {
         name: site.name, how_found: origin, confidence: site.origin?.method === "words" ? site.origin.confidence : "drawn",
@@ -430,7 +430,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
       method: inside
         ? "Inside the area only, at the person's request: features inside the area or touching its edge (distance 0), geodesic on WGS84; the surroundings weren't fetched. Coordinates WGS84 (EPSG:4326)."
         : searchArea
-          ? "The site's outline wasn't found, so it was screened as a search area: features inside it are reported by the share of it they cover (overlay in a Lambert azimuthal equal-area projection centred on it), not as on site, and their confidence is capped. Distances outside it geodesic on WGS84, measured from its edge; features fetched once out to the wider band. Coordinates WGS84 (EPSG:4326)."
+          ? "The site's outline wasn't found, so it was screened as a search area: features inside it are reported by the share of it they cover (overlay in a Lambert azimuthal equal-area projection centred on it), not as on site; under 10% covered is low confidence, 10% or more isn't capped, and points or lines inside are medium. Distances outside it geodesic on WGS84, measured from its edge; features fetched once out to the wider band. Coordinates WGS84 (EPSG:4326)."
           : "Distances geodesic on WGS84, measured from the footprint edge (0 = on site); features fetched once out to the wider band. Coordinates WGS84 (EPSG:4326).",
       flags, checked, data_gaps: Array.isArray(parsed.json?.data_gaps) ? parsed.json.data_gaps.map(String) : [],
       model_checked: Array.isArray(parsed.json?.checked) ? parsed.json.checked : [],
@@ -495,7 +495,7 @@ export async function reassess({ record, km, skill, callClaude: call, now = () =
   run.flags = traceFlags(parsed.json.flags, evidenceOf(record), d, { ...(run.sea || {}), elevation: run.elevation });
   const searchArea = run.site.role === "search_area";
   if (searchArea) run.flags = applySearchArea(run.flags, new Map(evidenceOf(record).map((f) => [f.properties.fid, f.properties])));
-  run.decision = readDecision(parsed.json.decision, searchArea ? reword(parsed.json.decision_why) : parsed.json.decision_why); // a decision written for the old distance no longer stands
+  run.decision = settleDecision(readDecision(parsed.json.decision, searchArea ? reword(parsed.json.decision_why) : parsed.json.decision_why), { checked: run.checked, flags: run.flags }); // a decision written for the old distance no longer stands
   run.data_gaps = Array.isArray(parsed.json.data_gaps) ? parsed.json.data_gaps.map(String) : run.data_gaps;
   run.summary = searchArea ? reword(parsed.summary) : parsed.summary;
   run.distances = d;

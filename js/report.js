@@ -82,7 +82,7 @@ export function sourcesOf(record) {
 export const gapsOf = (run) => groupGaps(run.data_gaps || [], run.checked || []);
 
 export function decisionText(run) {
-  return run.decision ? { head: `${cap(run.decision.value)}.`, why: run.decision.why || "" } : null;
+  return run.decision ? { head: `${cap(run.decision.value)}.`, why: [run.decision.why, run.decision.changed ? `Set by Tobler's rules, ${run.decision.changed}.` : ""].filter(Boolean).join(" ") } : null;
 }
 
 // The analyst's summary as paragraphs and lists (it writes light markdown).

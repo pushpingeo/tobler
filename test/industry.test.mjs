@@ -2,7 +2,7 @@
 // ready profile only names things that exist (its skill, asset types in the distances table, known themes).
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
-import { chooseIndustry, industryNote, baselineFor, readDecision, DECISIONS } from "../js/industry.js";
+import { chooseIndustry, industryNote, baselineFor, readDecision, settleDecision, biodiversityChecked, DECISIONS } from "../js/industry.js";
 import { parseSkill } from "../js/converse.js";
 import { THEME_CODE } from "../js/ntrrun.js";
 
@@ -46,6 +46,27 @@ await test("the analyst is told the industry and what's coming; energy's baselin
   const own = [{ atlas_id: "x", where: [-8, 49, 2, 61] }];
   assert.equal(baselineFor({ baseline: own }, trusted), own);
   assert.deepEqual(readDecision("MAJOR ISSUE", ""), { value: "major issue", why: "" });
+});
+
+await test("insufficient evidence only when no biodiversity source was checked at all (Rob, 22 Nov)", () => {
+  const bioOk = [{ evidence: "biodiversity", result: "none in dataset" }, { evidence: "biodiversity", result: "not checked", why: "timed out" }];
+  const bioNone = [{ evidence: "biodiversity", result: "not checked" }, { evidence: "heritage", result: "features" }];
+  assert.equal(biodiversityChecked(bioOk), true, "one layer failing doesn't count against the others");
+  assert.equal(biodiversityChecked(bioNone), false);
+  const ins = { value: "insufficient evidence", why: "EMODnet timed out." };
+  const a = settleDecision(ins, { checked: bioOk, flags: [{ severity: "medium", confidence: "high" }] });
+  assert.equal(a.value, "progress with targeted investigation");
+  assert.equal(a.why, "EMODnet timed out.");
+  assert.match(a.changed, /^from insufficient evidence: biodiversity sources were checked/);
+  assert.equal(settleDecision(ins, { checked: bioOk, flags: [{ severity: "high", confidence: "medium" }] }).value, "major issue");
+  assert.equal(settleDecision(ins, { checked: bioNone, flags: [] }), ins, "nothing on biodiversity: insufficient evidence stands");
+  const clean = settleDecision({ value: "progress", why: "Nothing found." }, { checked: bioNone, flags: [] });
+  assert.equal(clean.value, "insufficient evidence");
+  assert.match(clean.changed, /no biodiversity source could be checked/);
+  const major = { value: "major issue", why: "Pipeline on site." };
+  assert.equal(settleDecision(major, { checked: bioNone, flags: [] }), major, "a major issue stays: something serious was found");
+  assert.equal(settleDecision({ value: "progress", why: "" }, { checked: bioOk }).value, "progress");
+  assert.equal(settleDecision(null, { checked: [] }), null);
 });
 
 console.log(`${passed} industry tests passed`);

@@ -10,7 +10,7 @@ export const SEARCH_BAND = "in the search area";
 export const LOW_COVERAGE = 0.1;
 
 // Roles: "footprint" (a published outline of the asset, or a shape the person drew), "area" (an area the person asked
-// for round a found place: "3 km² round the Jackdaw platform"), "search_area" (a stand-in for an unknown outline,
+// for round a found place: "3 km² round the Jackdaw platform", or a site they defined by size and position), "search_area" (a stand-in for an unknown outline,
 // including the default footprint round a point), "point".
 export function placeRole(origin = {}, geometry = {}) {
   if (geometry.type === "Point") return { role: "point", why: "a point" };
@@ -24,6 +24,9 @@ export function placeRole(origin = {}, geometry = {}) {
     return { role: "footprint", why: `the published outline of ${anchor}` };
   }
   if (origin.match === "named_place") return { role: "area", why: `the area asked for round ${anchor}` };
+  // A site the person defined by size and position ("a 1 km² site 5 km west of Évora", Rob 22 Nov): nothing existing
+  // is being stood in for, so the shape is the site. Only for shapes with a size the person gave.
+  if (origin.site_defined && ["square", "circle", "rectangle"].includes(origin.shape)) return { role: "area", why: `the site as you described it, placed from ${anchor}` };
   return { role: "search_area", why: `built from clues round ${anchor}` };
 }
 
@@ -126,9 +129,10 @@ export function reword(text) {
     .replace(/\bon[- ]site\b|\bon the site\b|\bat the site itself\b/gi, (m) => keepCase(m, SEARCH_BAND));
 }
 
-// Flags on a search area: those whose nearest traced evidence lies inside it say so, and their confidence is capped
-// (medium; low when every area inside covers less than LOW_COVERAGE and no point or line sits inside). Severity stays:
-// it is how much the finding would matter if it is on the site.
+// Flags on a search area: those whose nearest traced evidence lies inside it say so, and their confidence may be capped
+// (Rob, 22 Nov). An area covering LOW_COVERAGE (10%) or more of the search area is uncapped: a layout would struggle to
+// avoid it. Low when every area inside covers less than that and no point or line sits inside. Medium otherwise: points
+// and lines have no share to measure. Severity stays: it is how much the finding would matter if it is on the site.
 export function applySearchArea(flags, evidenceByFid) {
   const ORDER = { high: 0, medium: 1, low: 2 };
   return flags.map((f) => {
@@ -138,8 +142,9 @@ export function applySearchArea(flags, evidenceByFid) {
     const areas = inside.filter((p) => p.coverage != null);
     const coverage = areas.length ? Math.max(...areas.map((p) => p.coverage)) : null;
     const small = areas.length === inside.length && coverage != null && coverage < LOW_COVERAGE;
-    const cap = small ? "low" : "medium";
-    const capped = ORDER[f.confidence] < ORDER[cap];
+    const big = coverage != null && coverage >= LOW_COVERAGE;
+    const cap = big ? null : small ? "low" : "medium";
+    const capped = cap != null && ORDER[f.confidence] < ORDER[cap];
     return { ...out, relation: SEARCH_BAND, ...(coverage != null ? { coverage: Math.round(coverage * 1000) / 1000 } : {}),
       ...(capped ? { confidence: cap, confidence_capped: `${f.confidence} → ${cap}: inside a search area, not a known site outline${small ? `, and covering under ${Math.round(LOW_COVERAGE * 100)}% of it` : ""}` } : {}) };
   });

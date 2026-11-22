@@ -27,3 +27,22 @@ export function readDecision(value, why, allowed = DECISIONS) {
   const v = String(value || "").trim().toLowerCase();
   return allowed.includes(v) ? { value: v, why: String(why || "").trim() } : null;
 }
+
+// "Insufficient evidence" only when no biodiversity source was checked at all (Rob, 22 Nov), not because one layer
+// failed. A source counts as checked when a tool reached it (features found or none in the dataset). Settled in code
+// after the analyst writes its decision, and the card says so when it changes. Without any biodiversity source, a
+// clean-looking "progress" becomes insufficient evidence; a major issue stays, because something serious was found.
+export const biodiversityChecked = (checked = []) => checked.some((c) => c?.evidence === "biodiversity" && c.result && c.result !== "not checked");
+export function settleDecision(decision, { checked = [], flags = [] } = {}) {
+  if (!decision) return decision;
+  const bio = biodiversityChecked(checked);
+  if (decision.value === "insufficient evidence" && bio) {
+    const major = flags.some((f) => f.severity === "high" && (f.confidence === "high" || f.confidence === "medium"));
+    const value = major ? "major issue" : "progress with targeted investigation";
+    return { ...decision, value, changed: `from insufficient evidence: biodiversity sources were checked, so the sources that failed are listed as gaps instead` };
+  }
+  if (!bio && (decision.value === "progress" || decision.value === "progress with targeted investigation")) {
+    return { ...decision, value: "insufficient evidence", changed: `from ${decision.value}: no biodiversity source could be checked` };
+  }
+  return decision;
+}

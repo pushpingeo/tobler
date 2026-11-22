@@ -164,7 +164,7 @@ function splitParts(geometry) {
 const withExtras = (p, geometry) => (p?.extraParts?.length && geometry.type === p.extraParts[0].type
   ? { type: `Multi${geometry.type}`, coordinates: [geometry.coordinates, ...p.extraParts.map((g) => g.coordinates)] } : geometry);
 
-// Scale is worked out, never asked: from the request if it says, else the shape's size; a point has no size,
+// Scale is worked out (the analyst asks only when it's genuinely unclear): from the request if it says, else the shape's size; a point has no size,
 // so a drawn point takes its scale from the zoom level when it was dropped. The person can change it on the card.
 function newPlace(id, feature, { status = "drawn", origin = { method: "drawn", at: new Date().toISOString() }, scale = null, extraParts = [], name = null, given = null } = {}) {
   const kind = kindOf(feature.geometry);
@@ -1199,7 +1199,8 @@ function paintRun(entry) {
   const dec = card.querySelector(".decision");
   dec.hidden = !r.decision;
   if (r.decision) {
-    dec.replaceChildren(el("b", `${r.decision.value.charAt(0).toUpperCase()}${r.decision.value.slice(1)}.`), document.createTextNode(r.decision.why ? ` ${r.decision.why}` : ""));
+    dec.replaceChildren(el("b", `${r.decision.value.charAt(0).toUpperCase()}${r.decision.value.slice(1)}.`), document.createTextNode(r.decision.why ? ` ${r.decision.why}` : ""),
+      ...(r.decision.changed ? [el("span", ` Set by Tobler's rules, ${r.decision.changed}.`, "changed")] : []));
     dec.title = "The analyst's overall reading of this screen. A screen, not a decision to build: see the disclaimer.";
   }
   card.querySelector(".dists").textContent = r.extent === "inside"
