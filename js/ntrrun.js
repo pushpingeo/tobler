@@ -10,6 +10,7 @@ import { bandFor, distancesLine, chooseDistances, ASSET_TYPES, MAX_KM } from "./
 import { nearestBoundaries } from "./boundaries.js";
 import { DISCLAIMER } from "./disclaimer.js";
 import { aroundSiteKm2 } from "./datatools.js";
+import { siteChange } from "./outofdate.js";
 import { waterDepth, vesselTraffic, seaLines } from "./seavalues.js";
 import { elevationFrom, elevationSignificance, elevationLine } from "./elevation.js";
 import { baselineFor, readDecision } from "./industry.js";
@@ -517,6 +518,7 @@ export function headline(record) {
     top_flags: r.flags.slice(0, 5).map((f) => ({ id: f.id, risk: f.risk, ...(f.severity ? { severity: f.severity } : {}), confidence: f.confidence, theme: f.theme, nearest_km: f.nearest_km })),
     evidence_features: evidenceOf(record).length, sources_checked: r.checked.length, not_checked: notChecked.map((c) => c.dataset).slice(0, 6), gaps: r.data_gaps.length,
     ...(r.parse_error ? { problem: r.parse_error } : {}),
+    ...(r.replaces ? { replaces: `${r.replaces.run}, because ${r.replaces.why}. Say in a sentence what changed in the flags or the decision compared with ${r.replaces.run} (get_run ${r.replaces.run} if you need it).` } : {}),
     ...(r.site.role === "search_area" ? { site_is: `a search area: ${r.site.role_why}. Findings inside it are "in the search area" with the share they cover, not "on site". Say this in your reply, and that the real outline (drawn, or from the application) would sharpen the screen.` } : {}),
     note: "The run card under your reply shows the decision, the flags (F-01…), evidence, next steps, distances (with a slider) and gaps, and the map shows the evidence. Reply in two or three sentences: the most serious flags and the main gaps. Don't repeat the card.",
   };
@@ -550,6 +552,18 @@ export function createScreening({ host, table, skill, callClaude, model = "", on
       if (i.extent === "inside" && !isArea(place.feature)) record.tobler_run.note_scope = "Inside only applies to areas, so this point or line was screened with its surroundings.";
       record.tobler_run.place_id = place.id ?? null;
       record.tobler_run.place_geometry_at_run = JSON.stringify(place.feature.geometry);
+      // What was asked, so the run can be repeated as it was once the site is edited (js/outofdate.js).
+      record.tobler_run.inputs = { asset_type: asset || "other", assumed: !asset || !!i.assumed, stage: i.stage || "", focus: i.focus || "",
+        ...(i.distances && Object.keys(i.distances).length ? { distances: i.distances } : {}) };
+      // A re-run after the site was edited: which run it replaces, and why. From the card's re-run button (replaces),
+      // or found here when the analyst screens a place again whose latest run is out of date.
+      const old = (i.replaces ? runs.get(String(i.replaces).trim().toUpperCase()) : null)
+        || [...runs.values()].reverse().find((o) => place.id != null && o.tobler_run.place_id === place.id && !o.tobler_run.replaced_by && siteChange(o, place));
+      if (old) {
+        const ch = siteChange(old, place);
+        record.tobler_run.replaces = { run: old.tobler_run.id, why: ch ? `the site was edited after it ran (${ch.text})` : "re-run" };
+        old.tobler_run.replaced_by = id;
+      }
       runs.set(id, record);
       onRun(record, place);
       return headline(record);
@@ -560,6 +574,7 @@ export function createScreening({ host, table, skill, callClaude, model = "", on
       const r = rec.tobler_run;
       return {
         run: r.id, site: r.site.name, scope: r.extent === "inside" ? "inside the area only" : "the site and its surroundings", asset: r.site.asset_label, stage: r.site.stage, distances: distancesLine(r.distances), assessed_within_km: r.assessed_within_km,
+        ...(r.replaces ? { replaces: r.replaces } : {}), ...(r.replaced_by ? { replaced_by: `${r.replaced_by} (this run is out of date: the site was edited after it)` } : {}),
         ...(r.decision ? { decision: r.decision } : {}),
         flags: r.flags.map((f) => ({ id: f.id, risk: f.risk, theme: THEME_CODE[f.theme] || f.theme, ...(f.severity ? { severity: f.severity } : {}), confidence: f.confidence, why: f.why, ...(f.next_step ? { next_step: f.next_step } : {}),
           evidence: f.evidence.map((e) => ({ name: e.name, distance_km: e.distance_km, band: e.band, dataset: e.dataset, publisher: e.publisher, traced: e.traced })) })),

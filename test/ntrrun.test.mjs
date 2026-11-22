@@ -9,6 +9,7 @@ import { parseSkill } from "../js/converse.js";
 import { chooseDistances, bandFor, distancesLine } from "../js/distances.js";
 import { forAnalyst, runScreening, createScreening, evidenceWithin, nearestByTheme, flagBeyond, reassess, parseResult, traceFlags, footprintOf, headline, RUN_SCHEMA } from "../js/ntrrun.js";
 import * as G from "../js/geometry.js";
+import { siteChange, rerunInput, runLines, outOfDateText } from "../js/outofdate.js";
 
 let passed = 0;
 const test = async (name, fn) => { await fn(); passed++; console.log("ok", name); };
@@ -273,6 +274,70 @@ await test("screen_site from the conversation: needs a place, runs sealed, retur
   assert.equal(g.run, "R1");
   assert.equal(g.flags[0].evidence[0].traced, true);
   assert.equal(g.flags[0].theme, "PS4");
+});
+
+await test("out-of-date runs: a re-run records its inputs and replaces the run made before the site was edited", async () => {
+  const h = host();
+  const p = { id: "p1", name: "Area 1", feature: square, origin: site.origin, status: "accepted", edits: [] };
+  h.places = () => [p];
+  h.findPlace = (n) => (String(n).toLowerCase() === "area 1" ? p : null);
+  const shown = [];
+  let model = standardScript(); // a fresh script for each screen
+  h.screening = createScreening({ host: h, table, skill, callClaude: (...a) => model(...a), onRun: (rec) => shown.push(rec) });
+  const t = createPlaceTools(h);
+  await t.exec("screen_site", { place: "Area 1", asset_type: "oil-gas-field", stage: "appraisal", distances: { near: 2 } });
+  const r1 = shown[0];
+  assert.equal(r1.tobler_run.place_id, "p1");
+  assert.deepEqual(r1.tobler_run.inputs, { asset_type: "oil-gas-field", assumed: false, stage: "appraisal", focus: "", distances: { near: 2 } });
+  assert.equal(siteChange(r1, p), null, "unchanged site: still current");
+  // The person drags the square 2 km north: the run is out of date and says what changed.
+  p.feature = G.roundCoords(G.move(square, 2, 0));
+  const ch = siteChange(r1, p);
+  assert.match(ch.text, /moved 2 km north/);
+  const input = rerunInput(r1);
+  assert.deepEqual(input, { asset_type: "oil-gas-field", stage: "appraisal", distances: { near: 2 }, replaces: "R1" });
+  model = standardScript();
+  const head = await h.screening.screen(input, p);
+  assert.equal(head.run, "R2");
+  assert.match(head.replaces, /^R1, because the site was edited after it ran \(moved 2 km north/);
+  assert.equal(r1.tobler_run.replaced_by, "R2");
+  assert.equal(shown[1].tobler_run.replaces.run, "R1");
+  assert.equal(siteChange(shown[1], p), null, "the new run is current");
+  assert.match((await t.exec("get_run", { run: "R1" })).replaced_by, /^R2/);
+  // The analyst screening an edited place itself (no replaces given) links the runs too.
+  p.feature = G.roundCoords(G.move(p.feature, 1, 90));
+  model = standardScript();
+  await t.exec("screen_site", { place: "Area 1", asset_type: "oil-gas-field" });
+  assert.equal(shown[2].tobler_run.replaces.run, "R2");
+  assert.equal(shown[1].tobler_run.replaced_by, "R3");
+  // Lines for the project summary.
+  const lines = runLines(shown.map((record) => ({ record, change: siteChange(record, p), replacedBy: record.tobler_run.replaced_by })));
+  assert.match(lines[0], /R1: Area 1.*\(replaced by R2\)/);
+  assert.match(lines[2], /R3: .*replaces R2 \(current\)/);
+});
+
+await test("out-of-date runs: undoing the edit clears it, a deleted site says so, and the share link carries it", async () => {
+  const p = { id: "p1", feature: square };
+  const rec = { type: "FeatureCollection", features: [], tobler_run: { id: "R1", place_geometry_at_run: JSON.stringify(square.geometry) } };
+  assert.equal(siteChange(rec, p), null);
+  const moved = { id: "p1", feature: G.roundCoords(G.move(square, 0.5, 90)) };
+  assert.ok(siteChange(rec, moved));
+  // Back where it was (to the 7-decimal rounding edits use): current again.
+  assert.equal(siteChange(rec, { id: "p1", feature: G.roundCoords(square) }), null);
+  const gone = siteChange(rec, null);
+  assert.equal(gone.deleted, true);
+  assert.match(outOfDateText(gone), /deleted after this screen/);
+  assert.match(outOfDateText({ text: "area 3 → 3.4 km²" }), /^Out of date: the site was edited after this screen \(area 3 → 3.4 km²\)/);
+  assert.match(outOfDateText({ text: "x" }, { replacedBy: "R2" }), /^Replaced by R2/);
+  // A run made before inputs were recorded still re-runs from its site fields.
+  assert.deepEqual(rerunInput({ tobler_run: { id: "R4", extent: "inside", site: { asset_type: "solar", asset_assumed: false, capacity_mw: 20, tip_height_m: null } } }),
+    { asset_type: "solar", capacity_mw: 20, extent: "inside", replaces: "R4" });
+  const { slimRun } = await import("../js/share.js");
+  const full = { type: "FeatureCollection", features: [{ type: "Feature", geometry: square.geometry, properties: { role: "site" } }],
+    tobler_run: { id: "R1", site: {}, flags: [], checked: [], data_gaps: [], out_of_date: { change: "moved 1 km east" }, replaces: { run: "R0", why: "x" } } };
+  const slim = slimRun(full).tobler_run;
+  assert.equal(slim.out_of_date.change, "moved 1 km east");
+  assert.equal(slim.replaces.run, "R0");
 });
 
 await test("a sealed run can't build places, and a missing JSON block is reported, not hidden", async () => {

@@ -715,9 +715,11 @@ export function placeName(i, a, f) {
 const pickD = (d) => ({ scale: d.scale, area_km2: d.area_km2, length_km: d.length_km, extent_km: d.extent_km, countries: d.countries, ...(d.touches_at_edge ? { touches_at_edge: d.touches_at_edge } : {}), offshore: d.offshore, coast_km: d.coast_km, centre: { lat: round(d.centroid[1], 4), lon: round(d.centroid[0], 4) } });
 
 // One line per place for the conversation agent's project summary. Coordinates stay out.
-export async function projectSummary(ref, places, focus, view = null) {
+// runs: one line per screening run (js/outofdate.js runLines), so the analyst knows which are out of date.
+export async function projectSummary(ref, places, focus, view = null, runs = []) {
   const viewLine = view ? `Map view: about ${Math.round(R.viewKm(view))} km across (${R.scaleForKm(R.viewKm(view))} scale).` : "";
-  if (!places.length) return ["No places yet.", viewLine].filter(Boolean).join("\n");
+  const runPart = runs.length ? ["Screening runs:", ...runs] : [];
+  if (!places.length) return ["No places yet.", ...runPart, viewLine].filter(Boolean).join("\n");
   const lines = [];
   for (const p of places) {
     const d = await R.describe(ref, p.feature);
@@ -726,6 +728,7 @@ export async function projectSummary(ref, places, focus, view = null) {
     const edits = p.edits?.length ? `; edited: ${p.edits.slice(-3).map((e) => e.change).join("; ")}` : "";
     lines.push(`- ${p.name}${p.name === focus ? " [in focus]" : ""} (${p.status}): ${R.summaryLine(d)}; scale ${p.scale || d.scale}${p.scaleFrom && p.scaleFrom !== "size" ? ` (from ${p.scaleFrom === "you" ? "the person" : p.scaleFrom})` : ""}; ${how}${role}${edits}`);
   }
+  lines.push(...runPart);
   if (viewLine) lines.push(viewLine);
   return lines.join("\n");
 }

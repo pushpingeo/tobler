@@ -73,6 +73,12 @@ function render(record) {
   else decision.append(el("span", "No overall decision was recorded for this run.", "none"));
   const searchArea = s.role === "search_area";
   const searchNote = searchArea ? el("p", U.localise(searchHeadline(s)), "search-note") : null;
+  // Out of date (js/outofdate.js): the site was edited after this run, or a later run replaced it. Said first.
+  const od = r.out_of_date;
+  const oldNote = od ? el("p", U.localise(od.replaced_by
+    ? `Replaced: the site was edited after this screen (${od.change}) and screened again as ${od.replaced_by}. This report shows the earlier outline's findings.`
+    : `Out of date: the site was edited after this screen (${od.change}). The findings are for the earlier outline.`), "outdated-note") : null;
+  const replNote = r.replaces ? el("p", `Replaces ${r.replaces.run}: ${r.replaces.why}.`, "replaces-note") : null;
   const summary = el("section", null, "summary");
   summary.append(el("h2", "Summary"));
   for (const b of summaryBlocks(r.summary)) {
@@ -182,7 +188,7 @@ function render(record) {
   const foot = el("footer");
   foot.append(el("p", r.disclaimer || DISCLAIMER, "disclaimer"), el("p", `Made with Tobler (asktobler.com) from run ${r.id}, ${when(r.finished_at)}.`, "made"));
 
-  main.replaceChildren(...head, decision, ...(searchNote ? [searchNote] : []), summary, siteSec, findSec, evSec, meth, src, foot);
+  main.replaceChildren(...head, ...(oldNote ? [oldNote] : []), decision, ...(replNote ? [replNote] : []), ...(searchNote ? [searchNote] : []), summary, siteSec, findSec, evSec, meth, src, foot);
   const site = record.features.find((f) => f.properties.role === "site");
   const evid = record.features.filter((f) => f.properties.role === "evidence");
   pending.push(drawMap(siteFig, { site, rings: r.extent === "inside" ? [] : [r.distances.near, r.distances.close, r.distances.wider], evidence: [], labels: null, searchArea }));

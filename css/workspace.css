@@ -275,6 +275,12 @@ a { color: var(--sea); }
 .run .decision { margin: 0 0 8px; padding: 6px 10px; border-left: 3px solid var(--ink); background: var(--paper); font-size: 14px; }
 .run .decision b { font-weight: 600; }
 /* A search area: the site's outline wasn't found, so nothing on the card is "on site" (Cnoc Buidhe, 20 Nov). */
+/* Out of date: the site was edited after the run (js/outofdate.js). Stands out without using the error red. */
+.run .outdated { margin: 0 0 8px; padding: 6px 10px; border-left: 3px solid var(--ink); background: rgba(0,0,0,.04); font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.run .outdated span { flex: 1 1 200px; }
+.run .outdated button { border: 1px solid var(--ink); background: var(--ink); color: #fff; border-radius: 8px; padding: 4px 10px; font-size: 13px; }
+.run .outdated button[disabled] { opacity: .6; cursor: wait; }
+.run.is-outdated .flags, .run.is-outdated .decision { opacity: .6; }
 .run .search-note { margin: 0 0 8px; padding: 6px 10px; border: 1px dashed var(--ink); border-radius: 4px; font-size: 13px; }
 .run .flag .dist { font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .run .flag.beyond .risk, .run .flag.beyond .conf { opacity: .5; }

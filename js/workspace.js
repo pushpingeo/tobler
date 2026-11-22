@@ -27,6 +27,7 @@ import { settlementNear } from "./gazetteer.js";
 import { coordinateNote } from "./coords.js";
 import { picksFor, pickMessage } from "./assetpicks.js";
 import { shareCode } from "./share.js";
+import { siteChange, rerunInput, outOfDateText, runLines } from "./outofdate.js";
 
 const $ = (id) => document.getElementById(id);
 // Version-stamped URLs for fetched files (written into the page by scripts/stamp.mjs).
@@ -264,7 +265,7 @@ function start() {
   draw.on("select", onSelect);
   draw.on("deselect", () => onSelect(null));
   setMode("select");
-  window.__ws = { map, draw, places, ref, host }; // for testing in the browser console
+  window.__ws = { map, draw, places, ref, host, runs }; // for testing in the browser console
 }
 
 // Terra Draw's styles, in the shape colour (rebuilt when the colour changes in settings).
@@ -508,6 +509,7 @@ function onFinish(id, ctx) {
   p.feature = feature;
   if (change) logEdit(p, `${change} (on the map)`);
   refreshCard(p);
+  checkRuns();
 }
 
 function onSelect(id) {
@@ -539,6 +541,7 @@ function onDeleted(id, by = null) {
   if (by) logEdit(p, `removed by the analyst: ${by.reason || "no reason given"}`);
   remember(by ? "assistant" : "user", by ? `(I removed ${p.name}: ${by.reason || ""})` : `(I deleted ${p.name}.)`);
   if (selectedId === id) onSelect(null);
+  checkRuns();
 }
 function removePlace(id, by = null) { onDeleted(id, by); draw.removeFeatures([id]); scheduleRefresh(); }
 
@@ -552,6 +555,7 @@ function applyGeometry(p, raw, words) {
   logEdit(p, words);
   refreshCard(p);
   scheduleRefresh();
+  checkRuns();
   return true;
 }
 
@@ -1044,6 +1048,80 @@ function showRun(record) {
   else $("conversation").append(card);
   showRunOnMap(record);
   expandSheet();
+  card.querySelector('[data-op="rerun"]').addEventListener("click", () => rerun(entry));
+  checkRuns();
+}
+
+// ---- out-of-date runs (js/outofdate.js) ---------------------------------------------------------------------
+// A run screens the site as it was. Once the place is edited (on the map, from its card or by the analyst) or
+// deleted, its cards say so; undoing the edit clears it. Re-running makes a new run beside the old one.
+function checkRuns() {
+  for (const entry of runs.values()) {
+    const r = entry.record.tobler_run;
+    const change = siteChange(entry.record, places.get(r.place_id) || null);
+    const state = `${change?.text || ""}|${r.replaced_by || ""}`;
+    if (state === entry.outdatedState) continue;
+    entry.outdatedState = state;
+    entry.change = change;
+    const strip = entry.card.querySelector(".outdated");
+    entry.card.classList.toggle("is-outdated", !!change || !!r.replaced_by);
+    strip.hidden = !change && !r.replaced_by;
+    // Travels with the report and share link, so a report made now says the site has changed since.
+    if (change || r.replaced_by) r.out_of_date = { noted_at: new Date().toISOString(), change: change?.text || "edited", ...(r.replaced_by ? { replaced_by: r.replaced_by } : {}) };
+    else delete r.out_of_date;
+    if (!strip.hidden) {
+      strip.querySelector("span").textContent = U.localise(outOfDateText(change, { replacedBy: r.replaced_by }));
+      const btn = strip.querySelector("button");
+      btn.hidden = !!r.replaced_by || !!change?.deleted;
+      if (!btn.disabled) btn.textContent = "Re-run on the edited site";
+    }
+    prepShare(entry);
+  }
+}
+function runSummaryLines() {
+  return runLines([...runs.values()].map((e) => ({ record: e.record, change: e.change, replacedBy: e.record.tobler_run.replaced_by })));
+}
+// The card's re-run: the same request on the place as it is now, without a model call to decide it. It still
+// costs a screen (a minute or two), shown with the usual progress block, and the conversation hears about it.
+async function rerun(entry) {
+  const r = entry.record.tobler_run;
+  const place = places.get(r.place_id);
+  const btn = entry.card.querySelector('[data-op="rerun"]');
+  if (!place || r.replaced_by || btn.disabled) return;
+  if (busy) { activity("The analyst is busy; re-run once it has answered."); return; }
+  busy = true; btn.disabled = true; btn.textContent = "Re-running…";
+  $("ask").classList.add("busy");
+  const reply = el("div", null, "msg analyst");
+  reply.append(el("p", `Screening ${place.name} again on its edited outline (${entry.change?.text || "changed"}), with the same settings as ${r.id}.`));
+  entry.card.after(reply);
+  pendingReply = reply;
+  const turnLog = { at: new Date().toISOString(), rerun: r.id, change: entry.change?.text || "", events: [] };
+  sessionLog.push(turnLog);
+  runLog = turnLog; runSteps = null;
+  try {
+    const input = rerunInput(entry.record);
+    turnLog.input = input;
+    const head = await host.screening.screen(input, place);
+    const rec = runs.get(head.run)?.record.tobler_run;
+    const was = r.flags.length, now = rec?.flags.length ?? 0;
+    const text = `${head.run} replaces ${r.id}: ${now} flag${now === 1 ? "" : "s"} (was ${was})${rec?.decision?.value ? `, decision: ${rec.decision.value}` : ""}${r.decision?.value && rec?.decision?.value && r.decision.value !== rec.decision.value ? ` (was ${r.decision.value})` : ""}.`;
+    reply.replaceChildren(el("p", text));
+    turnLog.reply = text;
+    remember("assistant", `(I re-ran ${r.id} on ${place.name}'s edited outline as ${head.run}. ${text})`);
+  } catch (err) {
+    btn.disabled = false; btn.textContent = "Re-run on the edited site";
+    reply.replaceChildren(el("p", err instanceof LimitReached ? err.message : `The re-run didn't work: ${err.message}. ${r.id} is unchanged.`));
+    reply.classList.add("error");
+    turnLog.error = String(err.message || err);
+  } finally {
+    turnLog.ms = Date.now() - Date.parse(turnLog.at);
+    sharer.share(turnLog);
+    stopProgress(null);
+    activity("");
+    busy = false; pendingReply = null; runLog = null;
+    $("ask").classList.remove("busy");
+    checkRuns();
+  }
 }
 
 // The run's report link (js/share.js), made as soon as the card is drawn and again after a re-assessment, so the
@@ -1359,7 +1437,7 @@ async function send(text, forModel = text) {
   const turnLog = { at: new Date().toISOString(), user: text, ...(forModel !== text ? { sent: forModel } : {}), events: [] };
   sessionLog.push(turnLog);
   try {
-    const summary = [await projectSummary(ref, host.places(), focusName, viewBounds()), U.unitsNote(), industryNote(profile, industries)].filter(Boolean).join("\n");
+    const summary = [await projectSummary(ref, host.places(), focusName, viewBounds(), runSummaryLines()), U.unitsNote(), industryNote(profile, industries)].filter(Boolean).join("\n");
     const skillList = conversationSkills();
     runLog = turnLog; runSteps = steps;
     const res = await runTurn({

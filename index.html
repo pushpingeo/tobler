@@ -9,7 +9,7 @@
 <link rel="icon" href="img/tobler.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/public-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="js/vendor/maplibre-gl.css">
-<link rel="stylesheet" href="css/workspace.css?v=7ce014b9">
+<link rel="stylesheet" href="css/workspace.css?v=8343c314">
 <script src="js/vendor/maplibre-gl.js"></script>
 <script type="importmap">
 {
@@ -37,11 +37,12 @@
   "./js/geometry.js": "./js/geometry.js?v=6bc3cd92",
   "./js/industry.js": "./js/industry.js?v=46df5282",
   "./js/licence.js": "./js/licence.js?v=cf8fd6ef",
-  "./js/ntrrun.js": "./js/ntrrun.js?v=09a06da0",
-  "./js/placetools.js": "./js/placetools.js?v=972490fa",
+  "./js/ntrrun.js": "./js/ntrrun.js?v=fb69ff71",
+  "./js/outofdate.js": "./js/outofdate.js?v=661f9c26",
+  "./js/placetools.js": "./js/placetools.js?v=11e828d4",
   "./js/reference.js": "./js/reference.js?v=b21a38d8",
   "./js/seavalues.js": "./js/seavalues.js?v=2949ddce",
-  "./js/share.js": "./js/share.js?v=132fa6a0",
+  "./js/share.js": "./js/share.js?v=aa3eb862",
   "./js/sharelog.js": "./js/sharelog.js?v=c41ca9c5",
   "./js/siterole.js": "./js/siterole.js?v=6f9263b2",
   "./js/tools.js": "./js/tools.js?v=e01d1756",
@@ -49,7 +50,7 @@
   "./js/units.js": "./js/units.js?v=77029a89",
   "./js/vendor/draw.js": "./js/vendor/draw.js?v=d46ad546",
   "./js/vendor/turf.js": "./js/vendor/turf.js?v=bae079f8",
-  "./js/workspace.js": "./js/workspace.js?v=0d9c6421",
+  "./js/workspace.js": "./js/workspace.js?v=86fb28de",
   "@turf/turf": "./js/vendor/turf.js?v=bae079f8",
   "osmtogeojson": "./js/vendor/osmtogeojson.js?v=75ffea00"
  }
@@ -262,6 +263,7 @@
       <span class="meta"></span>
     </header>
     <p class="setup"></p>
+    <p class="outdated" hidden><span></span> <button type="button" data-op="rerun"></button></p>
     <p class="search-note" hidden></p>
     <p class="sea" hidden></p>
     <p class="problem" hidden></p>
@@ -292,6 +294,6 @@
   </article>
 </template>
 
-<script type="module" src="js/workspace.js?v=0d9c6421"></script>
+<script type="module" src="js/workspace.js?v=86fb28de"></script>
 </body>
 </html>

@@ -63,6 +63,7 @@ export function slimRun(record, { tol = 0.0002, now = () => new Date().toISOStri
       evidence: f.evidence.map((e) => pick(e, ["name", "distance_km", "band", "dataset", "publisher", "licence", "checked", "traced", "fid", "from_values", "in_search_area", "coverage", "side"])) })),
     checked: r.checked.map((c) => ({ ...pick(c, ["evidence", "dataset", "publisher", "licence", "checked_at", "result", "count"]), ...(c.why ? { why: String(c.why).slice(0, 160) } : {}) })),
     data_gaps: r.data_gaps, summary: r.summary, disclaimer: r.disclaimer,
+    ...(r.replaces ? { replaces: r.replaces } : {}), ...(r.out_of_date ? { out_of_date: r.out_of_date } : {}),
     assessments: (r.assessments || []).map((a) => ({ at: a.at, within_km: a.within_km, flags: a.flags?.length ?? 0, decision: a.decision?.value ?? null })),
     evidence_total: evidence.length,
     shared: { at: now(), evidence: `the ${feats.length - 1} features behind the flags, of ${evidence.length} found; shapes simplified for display` },
