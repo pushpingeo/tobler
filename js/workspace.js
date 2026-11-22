@@ -10,7 +10,7 @@ import { parseSkill, systemPrompt, buildMessages, runTurn, activityFor } from ".
 import { callClaude, LimitReached } from "./claude.js";
 import { atlasViaWorker, firmsViaWorker, epsgViaWorker } from "./atlasclient.js";
 import { CONFIG } from "./config.js";
-import { THEMES, themeFor, bandOf, BAND_OPACITY, BIG_AREA_KM2, chooseLabels, ringDistances } from "./findings.js";
+import { THEMES, THEME_SHORT, themeFor, bandOf, BAND_OPACITY, BIG_AREA_KM2, chooseLabels, ringDistances } from "./findings.js";
 import { createScreening, evidenceOf, evidenceWithin, nearestByTheme, flagBeyond, reassess, isArea, THEME_CODE } from "./ntrrun.js";
 import { groupGaps, gapSummary, GAP_GROUPS } from "./gaps.js";
 import * as U from "./units.js";
@@ -18,7 +18,7 @@ import { pickExamples } from "./examples.js";
 import { chooseIndustry, industryNote } from "./industry.js";
 import { getUserKey, setUserKey } from "./claude.js";
 import { distancesLine, bandFor } from "./distances.js";
-import { DISCLAIMER } from "./disclaimer.js";
+import { DISCLAIMER, DISCLAIMER_SHORT } from "./disclaimer.js";
 import { seaShort, seaMatters } from "./seavalues.js";
 import { placeRole, whereText, searchHeadline, SEARCH_BAND } from "./siterole.js";
 import { elevationShort } from "./elevation.js";
@@ -964,11 +964,15 @@ function showRun(record) {
   runs.set(r.id, entry);
   card.dataset.run = r.id;
   card.querySelector(".site").textContent = r.site.name;
-  card.querySelector(".meta").textContent = `${r.id} · method ${r.skill.version} · ${new Date(r.finished_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}${r.screen_seconds ? ` · took ${r.screen_seconds} s` : ""}`;
+  // Run id and time only: the method version and how long it took are in the report's Method section (Rob, 22 Nov).
+  card.querySelector(".meta").textContent = `${r.id} · ${new Date(r.finished_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  card.querySelector(".meta").title = `Method ${r.skill.version}${r.screen_seconds ? `, took ${r.screen_seconds} s` : ""}`;
   card.querySelector(".setup").textContent = [
     `${r.site.asset_label[0].toUpperCase()}${r.site.asset_label.slice(1)}${r.site.asset_assumed ? " (assumed)" : ""}`, r.site.stage, r.site.setting, r.site.footprint,
   ].filter(Boolean).join(" · ");
-  card.querySelector(".disclaimer").textContent = DISCLAIMER;
+  // The short form on the card; the full wording is in the report and the downloaded run (Rob, 22 Nov).
+  card.querySelector(".disclaimer").textContent = `${DISCLAIMER_SHORT} The report has the full wording.`;
+  card.querySelector(".disclaimer").title = DISCLAIMER;
   card.querySelector(".disclaimer").before(feedbackRow({ on: "run", run: r.id, excerpt: `${r.id} ${r.site.name}: ${r.decision?.value || ""}, ${r.flags.length} flags`, send: sendFeedback }));
   { const o = card.querySelector(".outside"); o.hidden = !r.site.outside_profile; o.textContent = r.site.outside_profile || ""; }
   // A search area says so first: the site's outline wasn't found, so nothing on this card is "on site".
@@ -1031,6 +1035,8 @@ function showRun(record) {
     } finally { btn.disabled = false; activity(""); }
   });
   card.querySelector('[data-op="show"]').addEventListener("click", () => { slider.value = String(entry.km); showRunOnMap(record); });
+  // The More menu closes once something in it is used.
+  card.querySelectorAll(".more-menu button").forEach((b) => b.addEventListener("click", () => { card.querySelector(".more").open = false; }));
   // The report and the share link are the same page: the run, slimmed and compressed into the link (js/share.js).
   // Nothing is stored. The report opens in a new tab, where "Save as PDF" prints it.
   const shareNote = card.querySelector(".share-note");
@@ -1186,7 +1192,11 @@ function paintRun(entry) {
     const risk = el("span", null, "risk");
     if (f.id) risk.append(el("span", f.id, "fid"));
     risk.append(document.createTextNode(f.risk));
-    if (f.severity) risk.append(el("span", `${f.confidence} confidence${f.confidence_capped ? " (capped)" : ""}`, "cw"));
+    // Under the flag: its topic in words (people think "heritage", not a colour) and, with a severity, the confidence.
+    const sub = el("span", null, "sub");
+    sub.append(el("span", THEME_SHORT[f.theme] || THEMES[f.theme]?.label || "Context", "th"));
+    if (f.severity) sub.append(document.createTextNode(" · "), el("span", `${f.confidence} confidence${f.confidence_capped ? " (capped)" : ""}`, "cw"));
+    risk.append(sub);
     s.append(el("span", f.severity || f.confidence, f.severity ? "sev" : "conf"), sw, risk, el("span", f.relation === SEARCH_BAND ? "in search area" : f.nearest_km == null ? "" : fmtKm(f.nearest_km), "dist"));
     s.title = `${f.severity ? `Severity ${f.severity}, ` : ""}confidence ${f.confidence}`;
     const body = el("div", null, "body");
@@ -1207,7 +1217,7 @@ function paintRun(entry) {
     li.append(d);
     return li;
   }));
-  if (!r.flags.length && !r.parse_error) list.replaceChildren(el("li", "No flags raised. See what was checked and the gaps below.", "flag note"));
+  if (!r.flags.length && !r.parse_error) list.replaceChildren(el("li", "No flags raised. See what still needs checking below.", "flag note"));
   // The decision first (from the ESIA read, 20 Nov): what the screen suggests, in the analyst's words, and why.
   const dec = card.querySelector(".decision");
   dec.hidden = !r.decision;
@@ -1216,11 +1226,16 @@ function paintRun(entry) {
       ...(r.decision.changed ? [el("span", ` Set by Tobler's rules, ${r.decision.changed}.`, "changed")] : []));
     dec.title = "The analyst's overall reading of this screen. A screen, not a decision to build: see the disclaimer.";
   }
-  card.querySelector(".dists").textContent = r.extent === "inside"
+  // Distances in one line; the reasons open under it.
+  const dists = card.querySelector(".dists");
+  const why = r.distances.reasons?.length ? U.localise(`Why: ${r.distances.reasons.slice(0, 2).join("; ")}.`) : "";
+  dists.querySelector("summary").textContent = r.extent === "inside"
     ? "Inside the area only: findings inside it or touching its edge."
     : entry.area && r.assessed_within_km === 0
       ? U.localise(`Flags written for inside the area only. Findings were fetched out to ${r.fetched_to_km} km, so you can switch back to the surroundings.`)
-      : U.localise(`Distances from the site's edge: ${distancesLine(r.distances)}. ${r.distances.reasons[0] ? `Why: ${r.distances.reasons.slice(0, 2).join("; ")}.` : ""}`);
+      : U.localise(`Distances from the site's edge: ${distancesLine(r.distances)}.`);
+  dists.querySelector(".why-dists").textContent = why;
+  dists.classList.toggle("no-why", !why || r.extent === "inside" || (entry.area && r.assessed_within_km === 0));
   const checked = card.querySelector(".checked");
   const nc = r.checked.filter((c) => c.result === "not checked");
   checked.querySelector("summary").textContent = `What was checked: ${r.checked.length} source${r.checked.length === 1 ? "" : "s"}${nc.length ? `, ${nc.length} not checked` : ""}`;
@@ -1618,7 +1633,9 @@ const panel = $("panel"), handleBtn = $("handle");
 handleBtn.addEventListener("click", () => setSheet(panel.classList.contains("collapsed")));
 function setSheet(open) { panel.classList.toggle("collapsed", !open); handleBtn.setAttribute("aria-expanded", String(open)); }
 function expandSheet() { if (innerWidth <= 720) setSheet(true); }
-if (innerWidth <= 720) setSheet(false);
+// On a phone the sheet starts closed so the map shows, except on the first visit, when the welcome card is the
+// point: a newcomer otherwise sees an empty map and a handle (Rob, 22 Nov).
+if (innerWidth <= 720) { const first = !store.get("welcomed"); setSheet(first); store.set("welcomed", "yes"); }
 document.querySelectorAll(".tools [data-mode]").forEach((b) => b.addEventListener("click", () => {
   if (innerWidth <= 720 && b.dataset.mode !== "select") setSheet(false);
 }));
@@ -1659,7 +1676,7 @@ form.industry.addEventListener("change", () => {
   store.set("industry", id);
   loadIndustry(id).catch((e) => note(`That industry didn't load: ${e.message}`));
 });
-$("gear").addEventListener("click", () => { paintSettings(); dlg.showModal(); });
+$("gear").addEventListener("click", () => { paintSettings(); form.querySelector(".advanced").open = false; dlg.showModal(); });
 // Click outside the box closes it.
 dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
 form.esri.addEventListener("change", () => store.set("esriLicence", form.esri.checked ? "yes" : null));
@@ -1668,6 +1685,7 @@ form.shareSessions.addEventListener("change", () => store.set("shareSessions", f
 // "settings" in the welcome card's note opens the dialog at the sharing switch.
 document.querySelectorAll("[data-open-settings]").forEach((b) => b.addEventListener("click", () => {
   paintSettings(); dlg.showModal();
+  form.querySelector(".advanced").open = true; // the sharing switch lives under Advanced
   form.shareSessions.closest("fieldset").scrollIntoView({ block: "nearest" });
   form.shareSessions.focus();
 }));

@@ -28,6 +28,6 @@ const g = groupGaps(
 assert.deepEqual(g.couldnt, ["Scheduled monuments (Historic Environment Scotland): The publisher's service didn't answer: 500.", "Key Biodiversity Areas not checked"], "tool failures first, not repeated when the analyst named them");
 assert.deepEqual(g.nodata, ["No Indigenous Peoples data in the catalogue for Portugal"]);
 assert.deepEqual(g.caveat, ["Stage assumed"]);
-assert.equal(gapSummary(g), "Gaps: 2 couldn't check, 1 no data, 1 caveat");
-assert.equal(gapSummary(groupGaps([], [])), "Gaps: none");
+assert.equal(gapSummary(g), "What still needs checking: 2 couldn't check, 1 no data, 1 caveat");
+assert.equal(gapSummary(groupGaps([], [])), "What still needs checking: nothing flagged");
 console.log("gap tests passed");

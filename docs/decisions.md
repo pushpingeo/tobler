@@ -946,3 +946,29 @@ Judgement calls made while building, newest first. Bigger product decisions live
   to asktobler-lab.
 - **Tested:** `npm test`; browser-run-card (125), ux (26), cards (14), choice (8), desktop and phone; phone screenshot
   of Settings.
+
+## 22 Nov 2026: a designer's pass for consultants (Rob: "do it")
+- **Welcome:** "Screen more sites. Find the issues earlier." (Rob's line), then: tell me the site and what's planned;
+  I'll check public data, show my sources and list what still needs a specialist. The full three-part line is kept
+  for the landing page and the report footer, later.
+- **Phone:** the sheet opens on the first visit, so a newcomer sees the welcome card, not an empty map
+  (`tobler.welcomed`). After that it starts closed as before.
+- **One name: "constraints screen".** Run card "Constraints screen: <site>"; report title "Constraints screen"
+  (was "Geospatial Assessment", Rob's 20 Nov choice; "assessment" reads as an EIA to consultants).
+- **Run card order:** title, run and time; what was assumed; the decision; the flags; **what still needs checking**
+  (open, right under the flags, groups worded as work: "Not checked: check these yourself", "No data here: may need
+  a site visit or a local source", "Assumptions and caveats"); the distance slider; distances in one line (reasons
+  under it); depth and traffic; what was checked; actions. Method version and run time moved to a hover title
+  (they're in the report's Method section).
+- **Flags** name their topic in words under the title (Biodiversity, Land, Indigenous Peoples, Heritage, Community,
+  Context), beside the confidence.
+- **Actions:** Report (PDF) and Copy share link, then a More menu with Show on map and Download run (GeoJSON).
+- **Disclaimer on the card:** the short form plus "The report has the full wording". The full text stays in the
+  report and the downloaded run.
+- **Settings:** the Anthropic key and session sharing are under a closed Advanced section; the welcome note's
+  "settings" link opens it at the sharing switch.
+- **Left for Rob:** the report's first page as a one-page summary; the robot mark and "Hi, I'm Tobler".
+- **Tested:** `npm test`; all eight browser checks, desktop and phone (run-card 135, search-area 34, out-of-date 28,
+  ux 26, choice 8, coords 12, epsg 20, cards 14), including new checks for the card order, topic labels, the short
+  disclaimer, the More menu on one row and on screen, Advanced closed by default, and the phone's first visit; phone
+  and desktop screenshots looked at. **Not tested:** the live analyst's replies (unchanged).

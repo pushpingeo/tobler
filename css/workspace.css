@@ -255,7 +255,13 @@ a { color: var(--sea); }
 .run header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .run h2 { margin: 0; font-size: 15px; font-weight: 700; }
 .run .meta { font-size: 12px; color: var(--ink-2); }
-.run .setup, .run .sea, .run .dists { margin: 4px 0 8px; font-size: 13px; color: var(--ink-2); }
+.run .setup, .run .sea { margin: 4px 0 8px; font-size: 13px; color: var(--ink-2); }
+.run .setup { margin-top: 2px; font-size: 12.5px; }
+.run details.dists { margin: 4px 0 6px; font-size: 13px; color: var(--ink-2); }
+.run details.dists summary { color: var(--ink-2); }
+.run details.dists .why-dists { margin: 2px 0 0; }
+.run details.dists.no-why summary { list-style: none; cursor: default; }
+.run details.dists.no-why summary::-webkit-details-marker { display: none; }
 .run .problem { margin: 4px 0 8px; font-size: 13px; color: #9a3412; }
 .run .flags { list-style: none; margin: 0 0 10px; padding: 0; }
 .run .flag { border-top: 1px solid var(--rule); }
@@ -270,7 +276,8 @@ a { color: var(--sea); }
 .run .flag[data-sev="high"] .sev { background: var(--ink); color: #fff; }
 .run .flag[data-sev="medium"] .sev { background: #fff; color: var(--ink); }
 .run .flag[data-sev="low"] .sev { border-style: dashed; color: var(--ink-2); border-color: var(--ink-2); }
-.run .flag .cw { display: block; font-size: 12px; font-weight: 500; color: var(--ink-2); margin-top: 1px; }
+.run .flag .sub { display: block; font-size: 12px; font-weight: 500; color: var(--ink-2); margin-top: 1px; }
+.run .flag .th { color: var(--ink); }
 .run .flag .swatch { width: 12px; height: 12px; border-radius: 3px; align-self: center; }
 .run .flag .risk { font-size: 14px; font-weight: 600; }
 .run .flag .fid { font-weight: 500; color: var(--ink-2); font-variant-numeric: tabular-nums; margin-right: 6px; }
@@ -306,6 +313,9 @@ a { color: var(--sea); }
 .run .stale button { border: 1px solid var(--ink); background: var(--ink); color: #fff; border-radius: 8px; padding: 4px 10px; font-size: 13px; }
 .run .stale button[disabled] { opacity: .6; cursor: wait; }
 .run details.checked, .run details.gaps { font-size: 13px; margin: 2px 0; }
+/* What still needs checking: the consultant's remaining work, so it sits right under the flags, open. */
+.run details.gaps { margin: 0 0 10px; padding: 6px 10px; border-radius: 10px; background: var(--paper); }
+.run details.gaps > summary { color: var(--ink); font-weight: 600; }
 .run details summary { cursor: pointer; color: var(--sea); }
 .run details ul { margin: 4px 0 6px; padding-left: 18px; }
 .run details .nc { color: #9a3412; }
@@ -313,7 +323,14 @@ a { color: var(--sea); }
 .run .gap-group .gap-head { margin: 6px 0 0; font-weight: 600; color: var(--ink); }
 .run .gap-group.couldnt .gap-head { color: #9a3412; }
 .run .gap-group ul { margin: 2px 0 4px; padding-left: 18px; }
-.run .edit { margin-top: 8px; }
+.run .edit { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+.run .edit .more { position: relative; }
+.run .edit .more > summary { list-style: none; color: var(--ink); border: 1px solid var(--rule); background: var(--panel); border-radius: 8px; padding: 4px 9px; font-size: 13px; cursor: pointer; }
+.run .edit .more[open] > summary, .run .edit .more > summary:hover { border-color: var(--ink-2); }
+.run .edit .more > summary::-webkit-details-marker { display: none; }
+.run .edit .more > summary::after { content: " ▾"; font-size: 11px; }
+.run .edit .more-menu { position: absolute; z-index: 5; right: 0; bottom: calc(100% + 4px); display: grid; gap: 4px; padding: 6px; min-width: 210px; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; box-shadow: var(--shadow); }
+.run .edit .more-menu button { width: 100%; text-align: left; }
 .run .flag summary { color: var(--ink); }
 .shape .actions .card-delete:hover { color: var(--alert); }
 .shape.gone .card-delete { display: none; }
@@ -321,6 +338,9 @@ a { color: var(--sea); }
 .shape h2 .swatch, .shape header .badge { flex-shrink: 0; }
 .shape h2 .name { min-width: 0; }
 .run .disclaimer { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid var(--rule); font-size: 11.5px; line-height: 1.4; color: var(--ink-2); }
+/* Settings: the key and session sharing sit under Advanced, closed by default. */
+.settings details.advanced { border-top: 1px solid var(--rule); }
+.settings details.advanced > summary { cursor: pointer; padding: 10px 0; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); }
 
 /* ---- settings: the gear and its dialog ---- */
 .brand h1 .gear { margin-left: auto; width: 34px; height: 34px; padding: 6px; border: 1px solid transparent; border-radius: var(--radius-control); background: none; color: var(--ink-2); cursor: pointer; flex: none; }

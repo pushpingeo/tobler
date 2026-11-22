@@ -60,8 +60,8 @@ try {
 function render(record) {
   const r = record.tobler_run;
   const s = r.site;
-  document.title = `Geospatial Assessment: ${s.name} · Tobler`;
-  const title = el("h1", "Geospatial Assessment");
+  document.title = `Constraints screen: ${s.name} · Tobler`;
+  const title = el("h1", "Constraints screen");
   title.append(el("span", s.name, "site-name"));
   const head = [el("p", "Tobler", "kicker"), title,
     el("p", [cap(s.asset_label) + (s.asset_assumed ? " (assumed)" : ""), s.setting, `screened ${when(r.finished_at)}`, `run ${r.id}`].filter(Boolean).join(" · "), "meta")];

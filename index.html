@@ -9,7 +9,7 @@
 <link rel="icon" href="img/tobler.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/public-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="js/vendor/maplibre-gl.css">
-<link rel="stylesheet" href="css/workspace.css?v=78e9c899">
+<link rel="stylesheet" href="css/workspace.css?v=63e4639f">
 <script src="js/vendor/maplibre-gl.js"></script>
 <script type="importmap">
 {
@@ -32,8 +32,8 @@
   "./js/examples.js": "./js/examples.js?v=8fee0134",
   "./js/feedback.js": "./js/feedback.js?v=f09b2bc7",
   "./js/fence.js": "./js/fence.js?v=eee6e5f0",
-  "./js/findings.js": "./js/findings.js?v=b71c96c8",
-  "./js/gaps.js": "./js/gaps.js?v=0fa336a8",
+  "./js/findings.js": "./js/findings.js?v=961cf228",
+  "./js/gaps.js": "./js/gaps.js?v=f2c2a690",
   "./js/gazetteer.js": "./js/gazetteer.js?v=6eeefff7",
   "./js/geometry.js": "./js/geometry.js?v=6bc3cd92",
   "./js/industry.js": "./js/industry.js?v=e6824b93",
@@ -51,7 +51,7 @@
   "./js/units.js": "./js/units.js?v=77029a89",
   "./js/vendor/draw.js": "./js/vendor/draw.js?v=d46ad546",
   "./js/vendor/turf.js": "./js/vendor/turf.js?v=bae079f8",
-  "./js/workspace.js": "./js/workspace.js?v=0f391b75",
+  "./js/workspace.js": "./js/workspace.js?v=f79e1a66",
   "@turf/turf": "./js/vendor/turf.js?v=bae079f8",
   "osmtogeojson": "./js/vendor/osmtogeojson.js?v=75ffea00"
  }
@@ -104,8 +104,8 @@
 
   <div class="conversation" id="conversation" aria-live="polite">
     <div class="msg analyst welcome">
-      <p class="lead">Check a site before you commit to it.</p>
-      <p>Tell me where and what's planned: a field, a wind farm, a dam. Roughly is fine. I'll pin it down, screen it for environmental constraints and show my working.</p>
+      <p class="lead">Screen more sites. Find the issues earlier.</p>
+      <p>Tell me the site and what's planned. Roughly is fine. I'll check it against public data, show my sources, and list what still needs a specialist.</p>
       <ul class="examples">
         <li><button data-example>Screen a 5 ha housing site on the edge of Linlithgow</button></li>
         <li><button data-example>Screen a 10 km² area 6 km south-east of Gifford, East Lothian, for the proposed Newlands Hill wind farm</button></li>
@@ -186,6 +186,8 @@
       </div>
       <p class="hint-line">Findings use green, ochre, violet, pink, blue and grey, so a colour away from those reads best.</p>
     </fieldset>
+    <details class="advanced">
+    <summary>Advanced</summary>
     <fieldset>
       <legend>Your own Anthropic key</legend>
       <div class="keyrow"><label for="own-key" class="sr">Anthropic API key</label><input id="own-key" name="key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…"><button type="button" data-op="key-save">Use</button><button type="button" data-op="key-clear">Clear</button></div>
@@ -195,6 +197,7 @@
       <legend>Helping improve Tobler</legend>
       <label class="switch"><input type="checkbox" name="shareSessions"> <span><b>Share my sessions</b>Saves what you type, what the analyst did and the places you look at, so we can see what people ask and where it goes wrong. Kept for 90 days. Your own API key is never included.</span></label>
     </fieldset>
+    </details>
     <fieldset>
       <legend>About</legend>
       <p class="about">Tobler does the desk screening before the desk study: what's on or near a site, who says so, and what still needs checking.</p>
@@ -261,17 +264,17 @@
 <template id="run-card">
   <article class="msg analyst run">
     <header>
-      <h2>Risk screen: <span class="site"></span></h2>
+      <h2>Constraints screen: <span class="site"></span></h2>
       <span class="meta"></span>
     </header>
     <p class="setup"></p>
     <p class="outside" hidden></p>
     <p class="outdated" hidden><span></span> <button type="button" data-op="rerun"></button></p>
     <p class="search-note" hidden></p>
-    <p class="sea" hidden></p>
     <p class="problem" hidden></p>
     <p class="decision" hidden></p>
     <ol class="flags"></ol>
+    <details class="gaps" open><summary></summary><ul></ul></details>
     <div class="reach">
       <div class="scope" role="radiogroup" aria-label="What to look at" hidden>
         <button type="button" role="radio" data-scope="around">Area and surroundings</button>
@@ -283,20 +286,24 @@
       <p class="nearest"></p>
       <p class="stale" hidden><span></span> <button type="button" data-op="reassess" class="primary"></button></p>
     </div>
-    <p class="dists"></p>
+    <details class="dists"><summary></summary><p class="why-dists"></p></details>
+    <p class="sea" hidden></p>
     <details class="checked"><summary></summary><ul></ul></details>
-    <details class="gaps"><summary></summary><ul></ul></details>
     <div class="edit">
       <button type="button" data-op="report" class="primary">Report (PDF)</button>
       <button type="button" data-op="share">Copy share link</button>
-      <button type="button" data-op="show">Show on map</button>
-      <button type="button" data-op="download">Download run (GeoJSON)</button>
+      <details class="more"><summary>More</summary>
+        <div class="more-menu">
+          <button type="button" data-op="show">Show on map</button>
+          <button type="button" data-op="download">Download run (GeoJSON)</button>
+        </div>
+      </details>
     </div>
     <p class="share-note" hidden></p>
     <p class="disclaimer"></p>
   </article>
 </template>
 
-<script type="module" src="js/workspace.js?v=0f391b75"></script>
+<script type="module" src="js/workspace.js?v=f79e1a66"></script>
 </body>
 </html>

@@ -13,6 +13,10 @@ export const THEMES = {
   community: { label: "Community health and safety", colour: "#2a78d6" },
   context: { label: "Operating context", colour: "#5f6b73" },
 };
+// Short topic names for the run card's flags, where space is tight; the full names are in the flag's detail and the
+// report.
+export const THEME_SHORT = { biodiversity: "Biodiversity", land: "Land", indigenous: "Indigenous Peoples", heritage: "Heritage", community: "Community", context: "Context" };
+
 export const THEME_IDS = Object.keys(THEMES);
 
 // When the analyst doesn't say which theme a search serves, take it from the feature type or the atlas concept.

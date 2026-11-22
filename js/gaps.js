@@ -35,17 +35,18 @@ export function groupGaps(dataGaps = [], checked = []) {
   return out;
 }
 
+// Worded as the work left to do (Rob, 22 Nov): these are what a consultant still has to check.
 export const GAP_GROUPS = [
-  ["couldnt", "Couldn't check"],
-  ["nodata", "No data"],
-  ["caveat", "Caveats"],
+  ["couldnt", "Not checked: check these yourself"],
+  ["nodata", "No data here: may need a site visit or a local source"],
+  ["caveat", "Assumptions and caveats"],
 ];
 
-// "Gaps: 2 couldn't check, 3 no data, 1 caveat"
+// "What still needs checking: 2 couldn't check, 3 no data, 1 caveat"
 export function gapSummary(groups) {
   const bits = [];
   if (groups.couldnt.length) bits.push(`${groups.couldnt.length} couldn't check`);
   if (groups.nodata.length) bits.push(`${groups.nodata.length} no data`);
   if (groups.caveat.length) bits.push(`${groups.caveat.length} caveat${groups.caveat.length === 1 ? "" : "s"}`);
-  return bits.length ? `Gaps: ${bits.join(", ")}` : "Gaps: none";
+  return bits.length ? `What still needs checking: ${bits.join(", ")}` : "What still needs checking: nothing flagged";
 }

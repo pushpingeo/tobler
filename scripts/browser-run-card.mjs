@@ -147,7 +147,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await page.$eval(".progress", (e) => e.scrollIntoView({ block: "end" }));
   await page.screenshot({ path: `/tmp/ux-${label}-progress.png` });
   await page.waitForSelector(".run .flag", { timeout: 30000 });
-  check(await page.evaluate(() => !document.querySelector(".progress") && /took \d+ s/.test(document.querySelector(".run .meta").textContent)), `${label}: progress gone, card says how long it took`);
+  check(await page.evaluate(() => !document.querySelector(".progress") && /^R1 · \d/.test(document.querySelector(".run .meta").textContent) && !/method/.test(document.querySelector(".run .meta").textContent) && /took \d+ s/.test(document.querySelector(".run .meta").title)), `${label}: progress gone; the card shows the run and time, the method and timing on hover`);
   await page.waitForTimeout(300);
   const lg = logs.find((l) => /Screen/.test(l.body.log?.user || ""));
   check(!!lg && lg.body.seq >= 0 && /^[0-9a-f-]{36}$/.test(lg.body.session) && lg.body.log.events.some((e) => e.tool === "screen_site") && lg.raw.length < 120_000 && !/"coordinates"/.test(lg.raw),
@@ -222,7 +222,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
     failed: document.querySelectorAll(".checked tr.failed").length, sources: document.querySelectorAll(".sources li").length,
     disclaimer: document.querySelector(".disclaimer")?.textContent || "",
   }));
-  check(!rep.error && rep.h1 === "Geospatial AssessmentArea 1" && /^Progress with targeted investigation\./.test(rep.decision), `${label}: report opens from the link with the site and decision (${rep.error || rep.h1}; ${rep.url} chars)`);
+  check(!rep.error && rep.h1 === "Constraints screenArea 1" && /^Progress with targeted investigation\./.test(rep.decision), `${label}: report opens from the link with the site and decision (${rep.error || rep.h1}; ${rep.url} chars)`);
   check(rep.rows.join(",") === "F-01,F-02,F-03" && /^Next step: Agree crossing/.test(rep.next), `${label}: report has one row per finding with its next step (${rep.rows.join(",")})`);
   check(rep.imgs.length === 2 && rep.imgs.every((n) => n > 5000), `${label}: both maps drawn and copied as pictures for print (${rep.imgs.join(", ")})`);
   check(rep.sources > 0 && /Indicative desk screening/.test(rep.disclaimer), `${label}: sources and disclaimer in the report (${rep.sources} sources)`);
@@ -252,7 +252,15 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   check(s.stale && s.beyond === 1, `${label}: re-assess offered, wreck flag dimmed as beyond (${s.beyond})`);
   check(/Nearest: community health and safety, Rosebank 9 inch Production flowline 1 \(on site\)/.test(s.nearest), `${label}: nearest-by-theme line (${s.nearest})`);
   check(/lies within a wide area: North West European waters\./.test(s.nearest) && !/Nearest:[^.]*North West European/.test(s.nearest), `${label}: a wide area around the site is counted apart, not as on site (${s.nearest})`);
-  check(/^Gaps: 3 couldn't check, 1 no data, 1 caveat$/.test(s.gaps) && s.gapHeads.join("|") === "Couldn't check|No data|Caveats", `${label}: gaps grouped (${s.gaps}; ${s.gapHeads.join(", ")})`);
+  check(/^What still needs checking: 3 couldn't check, 1 no data, 1 caveat$/.test(s.gaps) && s.gapHeads.join("|") === "Not checked: check these yourself|No data here: may need a site visit or a local source|Assumptions and caveats", `${label}: what still needs checking, grouped (${s.gaps}; ${s.gapHeads.join(", ")})`);
+  check(await page.evaluate(() => { const c = document.querySelector(".run"); const order = [...c.children].map((e) => e.className.split(" ")[0]); return document.querySelector(".run .gaps").open && order.indexOf("gaps") === order.indexOf("flags") + 1 && document.querySelector(".run .flag .th")?.textContent.length > 2; }), `${label}: still-to-check sits open right under the flags; each flag names its topic`);
+  check(await page.evaluate(() => /^Indicative desk screening from public data\./.test(document.querySelector(".run .disclaimer").textContent) && document.querySelector(".run .disclaimer").textContent.length < 200 && !document.querySelector('.run [data-op="download"]').checkVisibility()), `${label}: short disclaimer on the card; download is under More`);
+  await page.evaluate(() => { document.querySelector(".run .more").open = true; document.querySelector(".run .disclaimer").scrollIntoView({ block: "end" }); });
+  await page.waitForTimeout(200);
+  check(await page.evaluate(() => document.querySelector('.run [data-op="download"]').checkVisibility()), `${label}: More opens with Show on map and Download`);
+  check(await page.evaluate(() => { const r = document.querySelector(".run"); const tops = [r.querySelector('[data-op="report"]'), r.querySelector('[data-op="share"]'), r.querySelector(".more > summary")].map((e) => Math.round(e.getBoundingClientRect().top)); const m = r.querySelector(".more-menu").getBoundingClientRect(); return new Set(tops).size === 1 && m.left >= 0 && m.right <= innerWidth; }), `${label}: Report, Copy share link and More on one row; the menu stays on screen`);
+  await page.screenshot({ path: `/tmp/run-card-${label}-foot.png` });
+  await page.evaluate(() => { document.querySelector(".run .more").open = false; });
   await page.evaluate(() => { document.querySelector(".run .gaps").open = true; document.querySelector(".run .nearest").scrollIntoView(); });
   await page.locator(".run .reach").screenshot({ path: `/tmp/run-card-${label}-reach.png` });
   await page.locator(".run .gaps").screenshot({ path: `/tmp/run-card-${label}-gaps.png` });
@@ -300,6 +308,8 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await page.check('#settings input[name="units"][value="imperial"]');
   await page.click('#settings [data-colour="#00a0b0"]');
   await page.check('#settings input[name="esri"]');
+  check(await page.evaluate(() => !document.querySelector("#settings .advanced").open), `${label}: the key and sharing sit under a closed Advanced section`);
+  await page.click("#settings .advanced > summary");
   await page.uncheck('#settings input[name="shareSessions"]');
   const set = await page.evaluate(() => ({
     out: document.querySelector(".run .reach output").textContent, dists: document.querySelector(".run .dists").textContent,
