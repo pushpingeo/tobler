@@ -160,6 +160,7 @@ export function placeToolDefs(skills) {
           place: { type: "string", description: "Place name, e.g. Jackdaw 3 km² or Area 1" },
           asset_type: { type: "string", enum: ASSET_TYPES, description: "What would be built or done there. Use 'other' if unknown." },
           assumed: { type: "boolean", description: "True if the person didn't say the asset type and you inferred it (e.g. an oil field's name)." },
+          planned: { type: "string", description: "With asset_type other: what the person said is planned, in their words, when it isn't one of the asset types (housing, a warehouse, offices). The screen runs at once as a general screen, and the card says the method wasn't built for it." },
           stage: { type: "string", enum: ["greenfield", "expansion", "existing asset"], description: "Only if the person said; otherwise leave out (greenfield is assumed and said)." },
           capacity_mw: { type: "number", description: "Only if the person gave it" },
           tip_height_m: { type: "number", description: "Wind turbine tip height, only if the person gave it" },

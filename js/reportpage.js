@@ -93,7 +93,7 @@ function render(record) {
   const fact = (k, v) => { if (v) facts.append(el("dt", k), el("dd", cap(v))); };
   fact("Site", U.localise(s.summary));
   fact("How it was found", s.how_found);
-  fact("Planned", `${s.asset_label}${s.asset_assumed ? " (assumed)" : ""}; stage ${s.stage}`);
+  fact("Planned", `${s.asset_label}${s.asset_assumed ? " (assumed)" : ""}; stage ${s.stage}${s.outside_profile ? `. ${s.outside_profile}` : ""}`);
   fact("Screened", r.extent === "inside" ? "Inside the area only (the surroundings weren't screened)." : U.localise(`${s.footprint}; distances from the site's edge: ${distancesLine(r.distances)}.`));
   fact("Why these distances", (r.distances?.reasons || []).slice(0, 3).join("; "));
   if (seaMatters(r)) fact("At sea", U.localise(seaLines(r.sea).join(" ")));

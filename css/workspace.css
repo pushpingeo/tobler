@@ -282,6 +282,7 @@ a { color: var(--sea); }
 .run .outdated button[disabled] { opacity: .6; cursor: wait; }
 .run.is-outdated .flags, .run.is-outdated .decision { opacity: .6; }
 .run .search-note { margin: 0 0 8px; padding: 6px 10px; border: 1px dashed var(--ink); border-radius: 4px; font-size: 13px; }
+.run .outside { margin: 0 0 8px; padding: 6px 10px; border-left: 3px solid var(--ink-2); background: var(--paper); font-size: 13px; }
 .run .flag .dist { font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .run .flag.beyond .risk, .run .flag.beyond .conf { opacity: .5; }
 .run .flag .body { padding: 0 0 8px 20px; font-size: 13px; }

@@ -13,7 +13,8 @@
   "wording": {
     "screen_chip": "Screen for environmental constraints",
     "findings": "constraints and risks",
-    "method": "environmental constraints and E&S risk screening, for renewables, oil and gas, and other sites"
+    "method": "environmental constraints and E&S risk screening, for renewables, oil and gas, and other sites",
+    "outside": "A general screen: the method is built for environmental and energy sites, not for this kind of development, so treat it as a first look."
   },
   "themes": [
     {
@@ -53,7 +54,7 @@
     "major issue",
     "insufficient evidence"
   ],
-  "other_requests": "If the person asks to screen something the energy method isn't built for (housing, a warehouse, offices, a shop), say in one sentence that the screening method is built for energy projects, offer a general screen (asset_type other) with that caveat, and mention that construction and property is coming.",
+  "other_requests": "If the person asks to screen something this method isn't built for (housing, a warehouse, offices, a shop), screen it straight away with asset_type other and planned set to their words for it; don't offer first. The run card and report carry the caveat; in your reply, say in one sentence that it's a general screen, a first look, because the method was built for environmental and energy sites, and that construction and property are coming.",
   "asset_picks": {
     "first": 6,
     "picks": [

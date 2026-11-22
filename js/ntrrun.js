@@ -9,6 +9,8 @@ import { createPlaceTools, placeToolDefs } from "./placetools.js";
 import { bandFor, distancesLine, chooseDistances, ASSET_TYPES, MAX_KM } from "./distances.js";
 import { nearestBoundaries } from "./boundaries.js";
 import { DISCLAIMER } from "./disclaimer.js";
+// The caveat for a screen of something the profile isn't built for, when the profile doesn't give its own words.
+export const OUTSIDE_PROFILE = "A general screen: the method wasn't built for this kind of development, so treat it as a first look.";
 import { aroundSiteKm2 } from "./datatools.js";
 import { siteChange } from "./outofdate.js";
 import { waterDepth, vesselTraffic, seaLines } from "./seavalues.js";
@@ -116,6 +118,7 @@ export function firstMessage({ siteName, describe, inputs, distances, footprintN
     searchArea ? `This is a search area, not the site's outline: ${searchArea}. Nobody knows where on it the ${inputs.asset_label} would go. So nothing is "on site": a feature with distance 0 is "in the search area", and the tools say how much of the area it covers (in_search_area). Say "in the search area" and give that share; a small share on the edge is something a layout could avoid. Severity is how much it would matter if it is on the site; the run caps the confidence of findings inside a search area. Put one line in data_gaps saying the site's outline wasn't found.` : null,
     `Setting: ${describe.offshore ? "offshore" : "onshore"}${describe.coast_km != null && describe.coast_km < 10 ? " (coastal: screen both ways)" : ""}.`,
     `Asset type: ${inputs.asset_label}${inputs.asset_assumed ? " (assumed: say so)" : ""}. Stage: ${inputs.stage || "greenfield (assumed: say so)"}.`,
+    inputs.outside_profile ? `This is outside what the method was built for, so do a general screen with the same themes and say once in the summary that it's a first look. The card already carries this caveat: ${inputs.outside_profile}` : null,
     inputs.capacity_mw ? `Capacity: ${inputs.capacity_mw} MW.` : null,
     inputs.tip_height_m ? `Turbine tip height: ${inputs.tip_height_m} m.` : null,
     inside
@@ -421,7 +424,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
         footprint: inside ? "inside the area only (the surroundings weren't screened)" : searchArea ? searchNote : fp.note || `screened on the ${/Line/.test(site.feature.geometry.type) ? "line" : "area"} itself`,
         role: searchArea ? "search_area" : role.role, role_why: role.why, ...(siteKm2 ? { area_km2: round(siteKm2, 3) } : {}),
         setting: offshore ? "offshore" : "onshore", summary: R.summaryLine(describe),
-        asset_type: inputs.asset_type, asset_label: inputs.asset_label, asset_assumed: !!inputs.asset_assumed,
+        asset_type: inputs.asset_type, asset_label: inputs.asset_label, asset_assumed: !!inputs.asset_assumed, ...(inputs.outside_profile ? { outside_profile: inputs.outside_profile } : {}),
         stage: inputs.stage || "greenfield (assumed)", capacity_mw: inputs.capacity_mw ?? null, tip_height_m: inputs.tip_height_m ?? null,
       },
       ...(Object.keys(seaVals).length ? { sea: seaVals } : {}),
@@ -537,6 +540,9 @@ export function createScreening({ host, table, skill, callClaude, model = "", on
       if (!sk?.body || !tb?.assets) throw new Error("The screening method or the distance table hasn't loaded yet; try again in a moment.");
       const d0 = await R.describe(host.ref, place.feature);
       const asset = ASSET_TYPES.includes(i.asset_type) && i.asset_type !== "other" ? i.asset_type : null;
+      // Something the profile isn't built for (housing, a warehouse): screened at once as a general screen, and the
+      // caveat travels with the run so the card and report say it, not only the chat (Rob, 22 Nov).
+      const planned = !asset && typeof i.planned === "string" && i.planned.trim() ? i.planned.replace(/\s+/g, " ").trim().slice(0, 60) : null;
       const num = (v) => (Number.isFinite(+v) && +v > 0 ? +v : null);
       const site = { asset_type: asset, offshore: !!d0.offshore, capacity_mw: num(i.capacity_mw), tip_height_m: num(i.tip_height_m), area_km2: d0.area_km2 ?? null };
       const distances = chooseDistances(tb, site, i.distances || {});
@@ -546,14 +552,15 @@ export function createScreening({ host, table, skill, callClaude, model = "", on
         inside: i.extent === "inside" && /Polygon/.test(place.feature.geometry.type), wider_km: distances.wider });
       const record = await runScreening({
         host, site: { name: place.name, feature: place.feature, origin: place.origin }, distances, skill: sk, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}),
-        inputs: { asset_type: asset || "other", asset_label: asset ? tb.assets[asset].label : "site of unknown type", asset_assumed: !asset || !!i.assumed,
+        inputs: { asset_type: asset || "other", asset_label: asset ? tb.assets[asset].label : planned || "site of unknown type", asset_assumed: asset ? !!i.assumed : !planned,
+          ...(planned ? { outside_profile: host.profile?.()?.wording?.outside || OUTSIDE_PROFILE } : {}),
           stage: i.stage || "", capacity_mw: site.capacity_mw, tip_height_m: site.tip_height_m, focus: i.focus || "", extent: i.extent === "inside" ? "inside" : "around" },
       });
       if (i.extent === "inside" && !isArea(place.feature)) record.tobler_run.note_scope = "Inside only applies to areas, so this point or line was screened with its surroundings.";
       record.tobler_run.place_id = place.id ?? null;
       record.tobler_run.place_geometry_at_run = JSON.stringify(place.feature.geometry);
       // What was asked, so the run can be repeated as it was once the site is edited (js/outofdate.js).
-      record.tobler_run.inputs = { asset_type: asset || "other", assumed: !asset || !!i.assumed, stage: i.stage || "", focus: i.focus || "",
+      record.tobler_run.inputs = { asset_type: asset || "other", assumed: asset ? !!i.assumed : !planned, ...(planned ? { planned } : {}), stage: i.stage || "", focus: i.focus || "",
         ...(i.distances && Object.keys(i.distances).length ? { distances: i.distances } : {}) };
       // A re-run after the site was edited: which run it replaces, and why. From the card's re-run button (replaces),
       // or found here when the analyst screens a place again whose latest run is out of date.

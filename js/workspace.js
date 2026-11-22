@@ -962,6 +962,7 @@ function showRun(record) {
     `${r.site.asset_label[0].toUpperCase()}${r.site.asset_label.slice(1)}${r.site.asset_assumed ? " (assumed)" : ""}`, r.site.stage, r.site.setting, r.site.footprint,
   ].filter(Boolean).join(" · ");
   card.querySelector(".disclaimer").textContent = DISCLAIMER;
+  { const o = card.querySelector(".outside"); o.hidden = !r.site.outside_profile; o.textContent = r.site.outside_profile || ""; }
   // A search area says so first: the site's outline wasn't found, so nothing on this card is "on site".
   if (r.site.role === "search_area") {
     const sn = card.querySelector(".search-note"); sn.hidden = false;

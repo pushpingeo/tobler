@@ -276,6 +276,31 @@ await test("screen_site from the conversation: needs a place, runs sealed, retur
   assert.equal(g.flags[0].theme, "PS4");
 });
 
+await test("outside the profile (housing): screened at once as a general screen; the caveat is in the run, the analyst's brief and a re-run", async () => {
+  const h = host();
+  const p = { id: "p1", name: "Area 1", feature: square, origin: site.origin, status: "accepted", edits: [] };
+  h.places = () => [p];
+  h.findPlace = (n) => (String(n).toLowerCase() === "area 1" ? p : null);
+  h.profile = () => ({ id: "energy", wording: { outside: "A general screen: built for environmental and energy sites." } });
+  const shown = [], firsts = [];
+  const script = standardScript();
+  h.screening = createScreening({ host: h, table, skill, callClaude: (req) => { if (req.messages.length === 1) firsts.push(String(req.messages[0].content)); return script(req); }, onRun: (rec) => shown.push(rec) });
+  const t = createPlaceTools(h);
+  const out = await t.exec("screen_site", { place: "Area 1", asset_type: "other", planned: "  housing   estate " });
+  assert.equal(out.asset, "housing estate");
+  const r = shown[0].tobler_run;
+  assert.equal(r.site.asset_label, "housing estate");
+  assert.equal(r.site.asset_assumed, false, "the person said what's planned");
+  assert.equal(r.site.outside_profile, "A general screen: built for environmental and energy sites.");
+  assert.equal(r.inputs.planned, "housing estate");
+  assert.match(firsts[0], /outside what the method was built for/);
+  assert.equal(rerunInput(shown[0]).planned, "housing estate", "a re-run keeps it");
+  // A general screen with nothing planned stays as before: no caveat.
+  await t.exec("screen_site", { place: "Area 1", asset_type: "other" });
+  assert.equal(shown[1].tobler_run.site.outside_profile, undefined);
+  assert.equal(shown[1].tobler_run.site.asset_label, "site of unknown type");
+});
+
 await test("out-of-date runs: a re-run records its inputs and replaces the run made before the site was edited", async () => {
   const h = host();
   const p = { id: "p1", name: "Area 1", feature: square, origin: site.origin, status: "accepted", edits: [] };
