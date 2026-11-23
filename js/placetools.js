@@ -2,7 +2,7 @@
 // The model works with ids (C3 for a found candidate, "Area 1" for a place); geometry stays here.
 // A host object supplies the project's places and reference data, so the same code runs in the page and in the evaluation.
 import { placeRole } from "./siterole.js";
-import { placesFromFile, fileSummary, fileOriginText } from "./fileimport.js";
+import { placesFromFile, fileSummary, fileOriginText, builtinToWgs84 } from "./fileimport.js";
 import * as turf from "./vendor/turf.js";
 import * as G from "./geometry.js";
 import * as R from "./reference.js";
@@ -250,17 +250,49 @@ export function createPlaceTools(host) {
   // Coordinates the person typed (decimal degrees, degrees-minutes-seconds, British National Grid), read in code
   // (js/coords.js) and kept as a candidate like any found feature. Rob, 20 Nov: "55.522759, -5.650122" went to the
   // place-name search and came back as the county centre 100 km away.
+  // Grid references (British National Grid) arrive on their own datum (OSGB36). They're converted to WGS84 the same
+  // way as site files (Rob, 23 Nov): the transformation is chosen from the EPSG registry for where they are and applied
+  // by js/transform.js. Done once per reference before any tool runs (exec below), and kept here.
+  const typedWgs = new Map(); // input → { lon, lat, datum, transformation } | { ask }
+  async function readTyped(q) {
+    const c = parseCoordinates(q);
+    if (!c?.grid || typedWgs.has(c.input)) return;
+    let why = "the EPSG registry isn't connected here";
+    const g = epsgTools.fileGeodesy;
+    if (g?.available) {
+      try {
+        const pl = await g.plan({ source: c.grid.epsg, lonlat: [c.lon, c.lat] });
+        if (pl.kind === "apply") {
+          const [[lat, lon]] = pl.apply([[c.lat, c.lon]]);
+          const o = pl.operation;
+          typedWgs.set(c.input, { lon, lat, transformation: o, datum: `OSGB36, converted to WGS84 with EPSG:${o.code}, ${o.name} (good to about ${o.accuracy_m} m), chosen from the EPSG registry for where it is` });
+          return;
+        }
+        if (pl.kind === "ask") { typedWgs.set(c.input, { ask: pl.why, options: pl.options }); return; }
+        if (pl.kind === "none") { typedWgs.set(c.input, { lon: c.lon, lat: c.lat, datum: "already on WGS84" }); return; }
+      } catch (e) { why = `the EPSG registry couldn't be reached (${String(e.message || e).slice(0, 80)})`; }
+    }
+    const [lon, lat] = await builtinToWgs84(c.grid.epsg, [c.grid.e, c.grid.n]);
+    typedWgs.set(c.input, { lon, lat, fallback: true, datum: `OSGB36, converted to WGS84 with Tobler's built-in shift (good to a few metres), because ${why}` });
+  }
+
   function typedCandidate(q) {
     const c = parseCoordinates(q);
     if (!c) return null;
+    let { lon, lat, datum } = c;
+    if (c.grid) {
+      const w = typedWgs.get(c.input);
+      if (!w || w.ask) return null; // not converted (yet), or it needs a decision: never use the unshifted position
+      ({ lon, lat, datum } = w);
+    }
     const cand = candidate({
-      name: c.read, type: "coordinates you typed", geometry: { type: "Point", coordinates: [c.lon, c.lat] },
+      name: c.grid ? `${c.input} (${formatLatLon(lon, lat)})` : c.read, type: "coordinates you typed", geometry: { type: "Point", coordinates: [lon, lat] },
       source: { id: "typed", title: "coordinates you typed", publisher: "You", licence: "your own" },
-      extra: { typed: c.input, read_as: c.system, ...(c.order ? { order: c.order } : {}), datum: c.datum,
+      extra: { typed: c.input, read_as: c.system, ...(c.order ? { order: c.order } : {}), datum,
         ...(c.easting != null ? { easting: c.easting, northing: c.northing } : {}), ...(c.precision_m ? { grid_square_m: c.precision_m } : {}),
         ...(c.alternative ? { other_reading: `${c.alternative.read}, if the numbers were the other way round` } : {}) },
     });
-    cand.lonlat = [c.lon, c.lat]; // exactly as typed, not rounded
+    cand.lonlat = [lon, lat]; // exactly as typed (or as converted), not rounded
     return cand;
   }
 
@@ -359,6 +391,12 @@ export function createPlaceTools(host) {
       const typed = [];
       for (const q of asked) { const c = typedCandidate(q); if (c) typed.push(c); }
       const names = asked.filter((q) => !parseCoordinates(q));
+      const undecided = asked.map((q) => parseCoordinates(q)).filter((c) => c?.grid && typedWgs.get(c.input)?.ask)
+        .map((c) => `${c.input}: ${typedWgs.get(c.input).ask}`);
+      if (undecided.length && !typed.length && !names.length) {
+        return { searched_for: asked, candidates: [], needs_decision: undecided,
+          note: "The grid reference couldn't be converted to WGS84 without a decision. Load the coordinate-reference skill, tell the person the options, and don't place it until they choose." };
+      }
       if (typed.length && !names.length) {
         // Two numbers that could be either way round: decided in code where land and sea tell them apart (a site
         // typed longitude first lands in the ocean read the usual way); otherwise both go back for the person to pick.
@@ -697,8 +735,10 @@ export function createPlaceTools(host) {
   };
   // Coordinate reference (EPSG registry via the Worker): js/epsgtools.js.
   // transform takes the person's own numbers only: a typed-coordinates candidate, never a place already in WGS 84.
-  const typedAt = (ref) => { try { const r = resolve(ref); return r.cand?.source?.id === "typed" ? r.cand.lonlat : null; } catch { return null; } };
-  Object.assign(run, createEpsgTools(host, (ref) => resolve(ref).lonlat, typedAt));
+  // A grid reference is already converted to WGS84 when it becomes a candidate, so it isn't the person's raw numbers.
+  const typedAt = (ref) => { try { const r = resolve(ref); return r.cand?.source?.id === "typed" && !/National Grid/.test(r.cand.extra?.read_as || "") ? r.cand.lonlat : null; } catch { return null; } };
+  const epsgTools = createEpsgTools(host, (ref) => resolve(ref).lonlat, typedAt);
+  Object.assign(run, epsgTools);
   // Each transformed point becomes a candidate, so make_place can use it and the place keeps how it was transformed.
   const transformTool = run.transform;
   run.transform = async (i) => {
@@ -728,6 +768,9 @@ export function createPlaceTools(host) {
     useDataset: data.keepDataset,
     async exec(name, input) {
       if (!run[name]) throw new Error(`Unknown tool ${name}`);
+      // Grid references anywhere in the input are converted first, so every tool sees them in WGS84.
+      const strings = Object.values(input || {}).flatMap((v) => (typeof v === "string" ? [v] : Array.isArray(v) ? v.filter((x) => typeof x === "string") : []));
+      for (const v of strings) await readTyped(v);
       return run[name](input || {});
     },
   };

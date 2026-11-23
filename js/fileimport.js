@@ -77,6 +77,15 @@ export function converterFor(proj4, text, { name, ed50 } = {}) {
   };
 }
 
+// The built-in shift, for when the EPSG registry can't be reached (a known breach of invariant 1, kept by Rob's
+// decision of 23 Nov until there's a local copy of the registry). Grid coordinates in, WGS84 [lon, lat] out.
+export async function builtinToWgs84(epsgCode, [x, y]) {
+  const { proj4 } = await load();
+  const d = epsgDef(epsgCode);
+  if (!d) throw new Error(`No built-in conversion for EPSG:${epsgCode}.`);
+  return converterFor(proj4, d.def, d).convert([x, y]);
+}
+
 // No .prj: longitude and latitude if every number fits, British National Grid if they fit that, otherwise ask.
 function guessConverter(proj4, coords) {
   const xs = coords.map((c) => c[0]), ys = coords.map((c) => c[1]);

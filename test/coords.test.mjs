@@ -1,7 +1,7 @@
 // Coordinates typed into the chat (js/coords.js), from Rob's log of 20 Nov: "55.522759, -5.650122" went to the
 // place-name search and came back as the Argyll and Bute county centre, 100 km away.
 import assert from "node:assert/strict";
-import { parseCoordinates, osgbToWgs84, gridRefToEN, coordinateNote } from "../js/coords.js";
+import { parseCoordinates, osgbToLatLon, gridRefToEN, coordinateNote } from "../js/coords.js";
 
 let passed = 0;
 const test = (name, fn) => { fn(); passed++; console.log(`ok ${name}`); };
@@ -36,14 +36,17 @@ test("degrees, minutes and seconds", () => {
 });
 
 test("British National Grid: the Ordnance Survey's own worked example, letters and numbers", () => {
-  // OS guide to coordinate systems: TG 51409 13177 = 651409, 313177; WGS84 52°39'28.723"N 1°42'57.787"E.
+  // OS guide to coordinate systems: TG 51409 13177 = 651409.903, 313177.270; OSGB36 52°39'27.2531"N 1°43'4.5177"E.
+  // Projection only: the datum shift to WGS84 is chosen from the EPSG registry later (js/placetools.js).
   const g = gridRefToEN("TG", "5140913177");
   assert.deepEqual([Math.floor(g.e), Math.floor(g.n), g.square_m], [651409, 313177, 1]);
-  const [lon, lat] = osgbToWgs84(651409.903, 313177.27);
-  near(lat, 52.657979, 2e-5, "lat (Helmert, a few metres)"); near(lon, 1.716052, 3e-5, "lon");
+  const [lon, lat] = osgbToLatLon(651409.903, 313177.27);
+  near(lat, 52 + 39 / 60 + 27.2531 / 3600, 1e-6, "OSGB36 lat (projection only, to a few cm)"); near(lon, 1 + 43 / 60 + 4.5177 / 3600, 1e-6, "OSGB36 lon");
   const c = at("TG 51409 13177");
   assert.equal(c.system, "British National Grid reference");
-  assert.match(c.datum, /OSGB36, converted to WGS84/);
+  assert.match(c.datum, /OSGB36/);
+  assert.deepEqual(c.grid, { epsg: 27700, e: 651409.5, n: 313177.5 });
+  assert.match(coordinateNote("screen NT 002 774"), /British National Grid reference, E 300250, N 677450\. Pass "NT 002 774" to find_place .* converted to WGS84 there/);
   // Six figures: the centre of a 100 m square. Linlithgow Palace.
   const p = at("NT 002 774");
   assert.equal(p.precision_m, 100);

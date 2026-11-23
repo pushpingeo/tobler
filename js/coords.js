@@ -1,7 +1,8 @@
 // Coordinates typed or pasted into the chat, read in code (Rob, 20 Nov: "55.522759, -5.650122" went to the place-name
 // search, came back as the Argyll and Bute county centre 100 km away, and the analyst told him to drop the pin
 // himself). Reads decimal degrees, degrees-minutes-seconds and British National Grid (letters or eastings and
-// northings). Everything comes back as WGS84 longitude/latitude with how it was read. No DOM, no network.
+// northings). Degrees come back as WGS84 longitude/latitude; grid references come back as eastings and northings with
+// their OSGB36 latitude and longitude, for js/placetools.js to convert to WGS84 through the EPSG registry. No DOM, no network.
 
 const RAD = Math.PI / 180;
 const num = (s) => parseFloat(String(s).replace(/[−–]/g, "-"));
@@ -28,9 +29,11 @@ export function gridRefToEN(letters, digits) {
   return { e, n, square_m: size };
 }
 
-// OSGB36 eastings and northings to WGS84 longitude/latitude: inverse Transverse Mercator on the Airy 1830 ellipsoid,
-// then a Helmert transformation (good to about 5 m; OSTN15 would be better, and screening doesn't need it).
-export function osgbToWgs84(E, N) {
+// OSGB36 eastings and northings to OSGB36 latitude and longitude: inverse Transverse Mercator on the Airy 1830
+// ellipsoid. Projection only, on the grid's own datum. The datum transformation to WGS84 is chosen from the EPSG
+// registry (js/epsgtools.js) and applied by js/transform.js, as for any other coordinates (invariant 1, CLAUDE.md);
+// js/placetools.js does that when the grid reference becomes a candidate.
+export function osgbToLatLon(E, N) {
   const a = 6377563.396, b = 6356256.909, F0 = 0.9996012717, lat0 = 49 * RAD, lon0 = -2 * RAD, N0 = -100000, E0 = 400000;
   const e2 = 1 - (b * b) / (a * a), n = (a - b) / (a + b), n2 = n * n, n3 = n2 * n;
   const M = (phi) => b * F0 * ((1 + n + 1.25 * n2 + 1.25 * n3) * (phi - lat0)
@@ -49,18 +52,7 @@ export function osgbToWgs84(E, N) {
   const dE = E - E0;
   const lat = phi - VII * dE ** 2 + VIII * dE ** 4 - IX * dE ** 6;
   const lon = lon0 + X * dE - XI * dE ** 3 + XII * dE ** 5 - XIIA * dE ** 7;
-  // Airy 1830 geographic → cartesian → Helmert (OSGB36 → WGS84) → WGS84 geographic.
-  const sl = Math.sin(lat), cl = Math.cos(lat);
-  const nuA = a / Math.sqrt(1 - e2 * sl * sl);
-  const x = nuA * cl * Math.cos(lon), y = nuA * cl * Math.sin(lon), z = (1 - e2) * nuA * sl;
-  const tx = 446.448, ty = -125.157, tz = 542.06, sc = -20.4894e-6;
-  const rx = (0.1502 / 3600) * RAD, ry = (0.247 / 3600) * RAD, rz = (0.8421 / 3600) * RAD;
-  const x2 = tx + x * (1 + sc) - y * rz + z * ry, y2 = ty + x * rz + y * (1 + sc) - z * rx, z2 = tz - x * ry + y * rx + z * (1 + sc);
-  const aW = 6378137, bW = 6356752.314245, e2W = 1 - (bW * bW) / (aW * aW);
-  const p = Math.hypot(x2, y2);
-  let latW = Math.atan2(z2, p * (1 - e2W)), prev;
-  do { prev = latW; const sn = Math.sin(latW); const nuW = aW / Math.sqrt(1 - e2W * sn * sn); latW = Math.atan2(z2 + e2W * nuW * sn, p); } while (Math.abs(latW - prev) > 1e-12);
-  return [Math.atan2(y2, x2) / RAD, latW / RAD];
+  return [lon / RAD, lat / RAD];
 }
 
 // ---- reading text ----------------------------------------------------------------------------
@@ -129,9 +121,9 @@ export function parseCoordinates(text) {
     if (!m[1] || m[2].length === m[3].length) {
       const g = gridRefToEN(letters, digits);
       if (g) {
-        const [lon, lat] = osgbToWgs84(g.e, g.n);
+        const [lon, lat] = osgbToLatLon(g.e, g.n);
         return { lon, lat, input: m[0].trim(), system: "British National Grid reference", easting: Math.round(g.e), northing: Math.round(g.n),
-          precision_m: g.square_m, datum: "OSGB36, converted to WGS84 (Helmert, about 5 m)", read: formatLatLon(lon, lat) };
+          precision_m: g.square_m, grid: { epsg: 27700, e: g.e, n: g.n }, datum: "OSGB36 (latitude and longitude on OSGB36 until converted to WGS84)", read: `E ${Math.round(g.e)}, N ${Math.round(g.n)}` };
       }
     }
   }
@@ -140,9 +132,9 @@ export function parseCoordinates(text) {
     // Unlabelled, both must look like grid metres (six figures or more); "E … N …" may be shorter (the far west).
     const labelled = /^[Ee]/.test(m[0].trim());
     if (e <= 700000 && n <= 1300000 && (labelled || (Math.floor(e) >= 100000 && Math.floor(n) >= 100000))) {
-      const [lon, lat] = osgbToWgs84(e, n);
+      const [lon, lat] = osgbToLatLon(e, n);
       if (inGB(lon, lat)) return { lon, lat, input: m[0].trim(), system: "British National Grid eastings and northings", easting: e, northing: n,
-        datum: "OSGB36, converted to WGS84 (Helmert, about 5 m)", read: formatLatLon(lon, lat) };
+        grid: { epsg: 27700, e, n }, datum: "OSGB36 (latitude and longitude on OSGB36 until converted to WGS84)", read: `E ${e}, N ${n}` };
     }
   }
   return null;
@@ -152,5 +144,6 @@ export function parseCoordinates(text) {
 export function coordinateNote(text) {
   const c = parseCoordinates(text);
   if (!c) return null;
+  if (c.grid) return `(Read by the page: "${c.input}" is a ${c.system}, ${c.read}. Pass "${c.input}" to find_place to use it as a place; it's converted to WGS84 there.)`;
   return `(Read by the page: "${c.input}" is ${c.read}, ${c.system}${c.alternative ? `; or ${c.alternative.read} if the numbers were the other way round` : ""}. Pass "${c.input}" to find_place to use it as a place.)`;
 }

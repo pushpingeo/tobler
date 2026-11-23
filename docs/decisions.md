@@ -2,6 +2,25 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 23 Nov 2026 (late): typed grid references go through the EPSG registry (Rob: "move to the registry")
+- **Before:** `js/coords.js` converted British National Grid references to WGS84 with a hard-coded OSGB36 Helmert
+  shift (about 5 m). That was a known breach of invariant 1.
+- **Now:** `js/coords.js` does the projection only (grid to OSGB36 latitude and longitude) and returns the eastings and
+  northings. `js/placetools.js` converts each grid reference once, before any tool runs: `fileGeodesy.plan` picks
+  the transformation from the registry for where it is (EPSG:1314, 2 m, across Britain) and `js/transform.js`
+  applies it. The candidate is named after what was typed ("NT 002 774") and records the transformation.
+- **Judgement and failure:** if only grid-file transformations cover it, there's no candidate and `find_place` says a
+  decision is needed (coordinate-reference skill). If the registry can't be reached, the built-in shift from
+  `js/fileimport.js` (the one remaining known breach) is used, and the candidate says so. The unshifted position is
+  never used.
+- **The analyst's note** for a typed grid reference now gives the eastings and northings, not a provisional
+  latitude and longitude.
+- `transform` won't take an already-converted grid candidate as raw numbers, so it can't be shifted twice.
+- Tested: `npm test` (coords test now checks the projection against the OS worked example's OSGB36 values; new
+  fileimport test for registry, fallback and decision cases); `browser-coords` 18/18 with a grid reference placed
+  within 5e-5° of an independent proj4 value; all other browser checks pass. `js/coords.js` is off the known-breach
+  list. **Not tested:** the live registry from the real page.
+
 ## 23 Nov 2026 (night): invariants, CLAUDE.md and their tests (Rob: "how do you build applications with intent?")
 - **Why:** principles written only as prose drift. The site-file table on 23 Nov was a reasonable-looking shortcut
   that bent "one way for geodesy" without asking.

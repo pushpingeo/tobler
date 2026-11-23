@@ -23,7 +23,6 @@ const pageCode = files.filter((f) => /^js\/.*\.js$/.test(f));
 // Known breaches, waiting for Rob's decision. Each entry: file → why it's allowed for now.
 const KNOWN = {
   geodesy: {
-    "js/coords.js": "typed British National Grid references use a hard-coded OSGB36 Helmert shift (about 5 m), not the registry (since 20 Nov)",
     "js/fileimport.js": "site files fall back to built-in shifts (OSGB36, TM65, ED50 general) when the EPSG registry can't be reached (23 Nov)",
   },
   cdn: {

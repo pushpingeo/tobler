@@ -6,7 +6,8 @@ import { proj4 } from "../js/vendor/fileread.js";
 import { readFiles, placesFromFile, fileSummary, fileOriginText, converterFor, resolveLayer, epsgFromPrj } from "../js/fileimport.js";
 import { createEpsgTools } from "../js/epsgtools.js";
 import { fakeEpsg, TF } from "./fake-epsg.mjs";
-import { osgbToWgs84 } from "../js/coords.js";
+// Independent reference for British National Grid → WGS84 (proj4 with the OSGB36 Helmert parameters of EPSG:1314).
+const osgbToWgs84 = (e, n) => proj4("+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +towgs84=446.448,-125.157,542.06,0.15,0.247,0.842,-20.489 +units=m", "WGS84", [e, n]);
 import { placeRole } from "../js/siterole.js";
 import * as R from "../js/reference.js";
 import { createPlaceTools, projectSummary } from "../js/placetools.js";
@@ -234,6 +235,24 @@ await test("the analyst settles a waiting layer with set_file_transformation", a
   assert.match(out.how, /EPSG:1314.*as you chose/);
   const made = await t.exec("use_file_features", { features: ["all"] });
   assert.equal(made.made.length, 1);
+});
+
+// ---- typed grid references go the same way (Rob, 23 Nov: move them to the registry path) ----
+await test("a typed grid reference: converted with the registry's EPSG:1314, never the unshifted position", async () => {
+  const ref = R.createReference(async (n) => JSON.parse(readFileSync(new URL(`../data/ref/${n}.json`, import.meta.url))));
+  const toolsWith = (epsg) => createPlaceTools({ ref, headers: {}, places: () => [], findPlace: () => null, epsg, transformationChoice: () => "choose",
+    fetchFn: async () => ({ ok: true, status: 200, json: async () => ({}), text: async () => "{}" }) });
+  const out = await toolsWith(fakeEpsg()).exec("find_place", { query: "E 300200 N 677400" });
+  const c = out.candidates[0];
+  assert.match(c.details.datum, /EPSG:1314.*about 2 m.*EPSG registry/);
+  assert.ok(metres([c.lon, c.lat], osgbToWgs84(300200, 677400)) < 15, "within the 4 dp the analyst sees");
+  // Registry down: the built-in shift, and it says so.
+  const down = await toolsWith(async () => { throw new Error("EPSG answered 503"); }).exec("find_place", { query: "NT 002 774" });
+  assert.match(down.candidates[0].details.datum, /built-in shift.*couldn't be reached/);
+  // Only grid transformations cover it: no candidate, a decision for the person.
+  const ask = await toolsWith(fakeEpsg({ 5339: TF[5339], 7710: TF[7710] })).exec("find_place", { query: "NT 002 774" });
+  assert.equal(ask.candidates.length, 0);
+  assert.match(ask.needs_decision[0], /NT 002 774: .*grid file/);
 });
 
 console.log(`${passed} fileimport tests passed`);
