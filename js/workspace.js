@@ -810,7 +810,9 @@ function makeCard(p) {
 let siteFile = null; // { file, card, picked: Set of fids, width }
 // Datum transformations for files come from the live EPSG registry, chosen in code by where the data is, as for typed
 // coordinates (js/epsgtools.js). Only a real judgement goes to the analyst and the coordinate-reference skill.
-const fileGeodesy = createEpsgTools({ epsg: epsgViaWorker, transformationChoice: () => "choose" }, () => null).fileGeodesy;
+// Registry lookups are counted and timed per drop and shown on the card (Rob, 23 Nov: is a local copy worth it?).
+let fileLookups = 0;
+const fileGeodesy = createEpsgTools({ epsg: (q) => { fileLookups++; return epsgViaWorker(q); }, transformationChoice: () => "choose" }, () => null).fileGeodesy;
 const kindWord = (k, n) => `${k}${n === 1 ? "" : "s"}`;
 const fileSize = (f) => (f.size.area_ha != null ? U.area(f.size.area_ha / 100) : f.size.length_km != null ? U.dist(f.size.length_km) : f.size.points > 1 ? `${f.size.points} points` : "a point");
 
@@ -819,7 +821,8 @@ async function openSiteFile(files) {
   closeSiteFile("replaced");
   activity("Reading your file…", true);
   let file;
-  try { file = await readFiles(files, { geodesy: fileGeodesy }); }
+  const t0 = performance.now(), n0 = fileLookups;
+  try { file = await readFiles(files, { geodesy: fileGeodesy }); file.lookup = { calls: fileLookups - n0, ms: Math.round(performance.now() - t0) }; }
   catch (e) { activity(""); note(`That file couldn't be read: ${e.message}`); expandSheet(); return; }
   activity("");
   const problems = [...file.skipped, ...file.notes];
@@ -882,7 +885,7 @@ function paintFileCard() {
   if (!siteFile) return;
   const { file, card, picked, width } = siteFile;
   const crsLine = card.querySelector(".crs");
-  crsLine.textContent = `Coordinates: ${[...new Set(file.layers.map((l) => l.crs.how))].join("; ")}.${file.layers.some((l) => l.crs.pending) ? " Waiting for your answer in the chat." : ""}`;
+  crsLine.textContent = `Coordinates: ${[...new Set(file.layers.map((l) => l.crs.how))].join("; ")}.${file.layers.some((l) => l.crs.pending) ? " Waiting for your answer in the chat." : ""}${file.lookup?.calls ? ` (Read in ${(file.lookup.ms / 1000).toFixed(1)} s, with ${file.lookup.calls} registry lookups.)` : ""}`;
   crsLine.classList.toggle("warn", file.layers.some((l) => l.crs.guessed || l.crs.warning || l.crs.pending || l.crs.fallback));
   card.querySelectorAll(".feats input").forEach((b) => { b.checked = picked.has(b.value); });
   const chosen = file.features.filter((f) => picked.has(f.fid));
