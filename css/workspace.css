@@ -174,6 +174,27 @@ a { color: var(--sea); }
 .choices.done .nav, .choices.done .pick { display: none; }
 .choices.done { opacity: .75; }
 
+/* site files: dropped anywhere, read in the browser, picked from a list */
+.drop-overlay { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: rgba(21, 48, 60, .35); pointer-events: none; }
+.drop-overlay.on { display: flex; }
+.drop-overlay p { margin: 0; max-width: 320px; padding: 18px 22px; border: 2px dashed var(--pole); border-radius: var(--radius-panel); background: var(--panel); font-size: 14px; color: var(--ink-2); text-align: center; }
+.drop-overlay strong { display: block; color: var(--ink); font-size: 16px; margin-bottom: 4px; }
+.filecard .crs { margin: 0 0 6px; }
+.filecard .crs.warn { color: #9a3412; }
+.filecard .feats { list-style: none; margin: 0 0 6px; padding: 0; max-height: 220px; overflow: auto; }
+.filecard .feats li { padding: 0; margin: 0; }
+.filecard .feats label { display: flex; gap: 8px; align-items: baseline; padding: 4px 2px; cursor: pointer; font-size: 14px; }
+.filecard .feats .size { margin-left: auto; color: var(--ink-2); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.filecard .width p { margin: 4px 0; font-size: 14px; }
+.filecard .widths { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+.filecard .widths button { border: 1px solid var(--rule); background: var(--panel); border-radius: 999px; padding: 3px 12px; font-size: 13.5px; }
+.filecard .widths button.on { background: var(--pole); border-color: var(--pole); color: #fff; }
+.filecard .widths input { width: 76px; padding: 3px 6px; border: 1px solid var(--rule); border-radius: 8px; font: inherit; font-size: 13.5px; }
+.filecard .notes:empty { display: none; }
+.filecard .pick button:disabled { opacity: .45; }
+.filecard.done .feats, .filecard.done .width, .filecard.done .more, .filecard.done .notes { display: none; }
+.filecard .result { margin: 6px 0 0; }
+
 /* the analyst's replies */
 .msg.analyst ul { margin: 4px 0 6px; padding-left: 20px; }
 .msg.analyst li { margin: 2px 0; }

@@ -132,6 +132,7 @@ export function activityFor(name, input = {}) {
     case "get_data": return `Fetching ${input.theme ? `${input.theme} ` : ""}data for ${input.place}`;
     case "get_elevation": return `Reading the elevation over ${input.place}`;
     case "remove_place": return `Removing ${input.place}`;
+    case "use_file_features": return "Making the site from your file";
     case "screen_site": return `Screening ${input.place} for environmental constraints and E&S risk (this takes a minute)`;
     case "get_run": return `Reading the screen ${input.run || ""}`.trim();
     case "show_on_map": return input.clear ? "Clearing the map" : "Showing the findings on the map";

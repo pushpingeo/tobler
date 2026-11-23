@@ -5,7 +5,7 @@ import { copyFileSync, mkdirSync } from "node:fs";
 
 mkdirSync("js/vendor", { recursive: true });
 mkdirSync("fonts", { recursive: true });
-for (const name of ["turf", "draw", "osmtogeojson"]) {
+for (const name of ["turf", "draw", "osmtogeojson", "fileread"]) {
   await build({ entryPoints: [`scripts/vendor/${name}.mjs`], bundle: true, format: "esm", minify: true,
     outfile: `js/vendor/${name}.js`, legalComments: "eof", logLevel: "warning" });
 }

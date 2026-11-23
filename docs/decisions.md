@@ -2,6 +2,37 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 23 Nov 2026: site boundaries from the person's own files (Rob asked to fast-track it)
+- **Why:** to test Tobler against EIA sites using the red-line boundaries published with them (it also unblocks the
+  "site boundaries" part of the example-site evaluation).
+- **What it is (Rob):** a way to define the site, not a data layer. The person picks features from the file; they're
+  copied into places (WGS84) and the file is forgotten. Nothing is uploaded or kept: it's read in the browser, and
+  the vendored reader (`js/vendor/fileread.js`: shpjs, proj4, fflate; 150 KB) loads only when a file arrives.
+- **How files arrive:** dropped anywhere on the page (a folder, loose files together, or a .zip), or picked with the
+  new file button in the drawing tray (the way on a phone). A browser can't fetch a .shp's neighbours, so the .dbf
+  and .prj must come in the same drop. .shx isn't needed. GeoJSON too, including the old `crs` member for common codes.
+- **Coordinates:** from the .prj with proj4. British National Grid and Irish Grid get proj4's 7-parameter shifts
+  (BNG checked against Tobler's own OSGB36 maths, under 1 m). ED50 gets EPSG's general shift (1133, about 10 m),
+  applied with `js/transform.js`; North Sea work may need a regional one, and the card says so. ETRS89/GRS80 data is
+  treated as WGS84. An unrecognised datum is converted with no shift and flagged in amber. No .prj: lon/lat or BNG is
+  guessed from the numbers and the guess is said; anything else is refused with a reason. *My call:* this uses a small
+  built-in table rather than the live EPSG registry the typed-coordinate tools use, to keep the drop instant and
+  offline; revisit if non-UK files need it.
+- **Picking:** one polygon is the site at once. Otherwise a card lists the features (by a name-like field) and the map
+  shows them; tick or tap to pick. Several picked: "one site in parts" (a multi-part place) or "separate sites".
+  Points and lines need a width (1, 30 or 100 m, or typed; 0.5 m to 50 km), buffered in metres on the ground.
+  The analyst can also pick in words with `use_file_features`; it sees labels and sizes, never coordinates, and
+  asks for a width rather than choosing one.
+- **Roles and provenance:** polygons are a footprint (high confidence, like a drawn outline); buffered points and
+  lines are an area. `origin.method: "file"` keeps the file name, feature labels, the coordinate conversion, any
+  width and any simplification (outlines over 5,000 corners are simplified, with the shift said). Holes are filled,
+  as for other places. The run record's "how it was found" and the report carry it.
+- Tested: `npm test` (12 new tests in `test/fileimport.test.mjs`, fixtures built by `test/fixtures/import/make.py`);
+  new `scripts/browser-sitefile.mjs` 38/38 (desktop and phone: zip, dropped loose files, guessed CRS, parts,
+  corridor width, picking in words, an orphan .dbf, nothing uploaded); the other browser checks all pass.
+  **Not tested:** dragging a real folder from a file manager (can't be simulated headless); a real phone's file
+  picker; a real EIA download; the live Haiku analyst with `use_file_features`.
+
 ## 22 Nov 2026: out-of-date runs ("energy is done" item 2; Rob chose it as next)
 - **What makes a run out of date:** its place's outline no longer matches the one it was screened on (compared to
   about a centimetre, the 7-decimal rounding edits use). Any edit counts: a drag on the map, the card's rotate or

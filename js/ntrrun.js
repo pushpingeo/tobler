@@ -6,6 +6,7 @@ import * as R from "./reference.js";
 import { FENCE_RULE } from "./fence.js";
 import { runTurn } from "./converse.js";
 import { createPlaceTools, placeToolDefs } from "./placetools.js";
+import { fileOriginText } from "./fileimport.js";
 import { bandFor, distancesLine, chooseDistances, ASSET_TYPES, MAX_KM } from "./distances.js";
 import { nearestBoundaries } from "./boundaries.js";
 import { DISCLAIMER } from "./disclaimer.js";
@@ -356,6 +357,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
   const baselineCalls = calls.length;
   const origin = site.origin?.method === "words"
     ? `from the words "${site.origin.words}", anchored on ${site.origin.anchor?.name || site.origin.anchor?.place || "a found feature"}${site.origin.anchor?.source?.publisher ? ` (${site.origin.anchor.source.publisher})` : ""}, ${site.origin.confidence} confidence`
+    : site.origin?.method === "file" ? fileOriginText(site.origin)
     : "drawn on the map by the person";
   const res = await runTurn({
     system: systemFor(skill),
@@ -419,7 +421,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
       decision: settleDecision(readDecision(parsed.json?.decision, searchArea ? reword(parsed.json?.decision_why) : parsed.json?.decision_why, host.profile?.()?.decisions), { checked, flags }),
       started_at: started, finished_at: now(),
       site: {
-        name: site.name, how_found: origin, confidence: site.origin?.method === "words" ? site.origin.confidence : "drawn",
+        name: site.name, how_found: origin, confidence: site.origin?.method === "words" ? site.origin.confidence : site.origin?.method === "file" ? "from the person's file" : "drawn",
         anchor_source: site.origin?.anchor?.source ? { title: site.origin.anchor.source.title, publisher: site.origin.anchor.source.publisher, licence: site.origin.anchor.source.licence } : null,
         footprint: inside ? "inside the area only (the surroundings weren't screened)" : searchArea ? searchNote : fp.note || `screened on the ${/Line/.test(site.feature.geometry.type) ? "line" : "area"} itself`,
         role: searchArea ? "search_area" : role.role, role_why: role.why, ...(siteKm2 ? { area_km2: round(siteKm2, 3) } : {}),

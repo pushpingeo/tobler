@@ -29,6 +29,8 @@ import { coordinateNote } from "./coords.js";
 import { picksFor, pickMessage } from "./assetpicks.js";
 import { shareCode } from "./share.js";
 import { siteChange, rerunInput, outOfDateText, runLines } from "./outofdate.js";
+import { readFiles, placesFromFile, LIST_MAX } from "./fileimport.js";
+import { setupFileDrop } from "./filedrop.js";
 
 const $ = (id) => document.getElementById(id);
 // Version-stamped URLs for fetched files (written into the page by scripts/stamp.mjs).
@@ -203,6 +205,17 @@ function start() {
   map.addSource("cands", { type: "geojson", data: turf.featureCollection([]) });
   map.addLayer({ id: "cands-line", type: "line", source: "cands", filter: ["!=", ["geometry-type"], "Point"], paint: { "line-color": C.sea, "line-width": 1.2, "line-dasharray": [2, 2] } });
   map.addLayer({ id: "cands-pt", type: "circle", source: "cands", filter: ["==", ["geometry-type"], "Point"], paint: { "circle-radius": 4, "circle-color": C.white, "circle-stroke-color": C.sea, "circle-stroke-width": 2 } });
+  // A dropped site file, before the person picks from it: every feature quiet, the picked ones in ranging-pole red.
+  map.addSource("sitefile", { type: "geojson", data: turf.featureCollection([]) });
+  const picked = ["==", ["get", "picked"], true];
+  map.addLayer({ id: "sitefile-fill", type: "fill", source: "sitefile", filter: ["in", ["geometry-type"], ["literal", ["Polygon", "MultiPolygon"]]], paint: { "fill-color": ["case", picked, C.pole, C.sea], "fill-opacity": ["case", picked, 0.18, 0.06] } });
+  map.addLayer({ id: "sitefile-line", type: "line", source: "sitefile", filter: ["!=", ["geometry-type"], "Point"], paint: { "line-color": ["case", picked, C.pole, C.sea], "line-width": ["case", picked, 3, 1.6] } });
+  map.addLayer({ id: "sitefile-pt", type: "circle", source: "sitefile", filter: ["==", ["geometry-type"], "Point"], paint: { "circle-radius": ["case", picked, 7, 5], "circle-color": ["case", picked, C.pole, C.white], "circle-stroke-color": ["case", picked, C.white, C.sea], "circle-stroke-width": 2 } });
+  for (const id of ["sitefile-fill", "sitefile-line", "sitefile-pt"]) {
+    map.on("click", id, (e) => { const fid = e.features?.[0]?.properties?.fid; if (fid) toggleFileFeature(fid); });
+    map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; });
+  }
   // Findings: features from data searches, drawn by screening theme (js/findings.js). They stay for the session,
   // until the person clears them; a later search never wipes them (Rosebank, 17 Nov). Big areas sit underneath,
   // quiet; distance from the site sets the emphasis.
@@ -233,6 +246,7 @@ function start() {
     const text = { "text-size": 12, "text-font": ["Noto Sans Bold"], "text-offset": [0, 1.3], "text-anchor": "top", "text-optional": true };
     map.addLayer({ id: "find-label", type: "symbol", source: "findings", filter: ["==", ["get", "label_on"], true], layout: { ...text, "text-field": ["get", "label"], "text-size": 11 }, paint: { "text-color": C.ink, "text-halo-color": C.white, "text-halo-width": 1.6 } });
     map.addLayer({ id: "rings-label", type: "symbol", source: "rings", layout: { "symbol-placement": "line", "text-field": ["get", "label"], "text-size": 10, "text-font": ["Noto Sans Bold"] }, paint: { "text-color": C.ink, "text-opacity": 0.6, "text-halo-color": C.white, "text-halo-width": 1.4 } });
+    map.addLayer({ id: "sitefile-label", type: "symbol", source: "sitefile", layout: { ...text, "text-field": ["get", "label"], "text-size": 11.5 }, paint: { "text-color": C.ink, "text-halo-color": C.white, "text-halo-width": 1.6 } });
     map.addLayer({ id: "cands-label", type: "symbol", source: "cands", layout: { ...text, "text-field": ["get", "label"], "text-size": 11 }, paint: { "text-color": C.sea, "text-halo-color": C.white, "text-halo-width": 1.4 } });
     map.addLayer({ id: "aoi-label", type: "symbol", source: "aoi", layout: { ...text, "text-field": ["get", "label"] }, paint: { "text-color": C.ink, "text-halo-color": C.white, "text-halo-width": 1.6 } });
   }
@@ -608,13 +622,16 @@ const host = {
   showFindings,
   clearFindings,
   offerChoices: (o) => makeChoiceCard(o),
-  addPlace({ feature, origin, scale, name, given }) {
+  // A file the person dropped, waiting for them to pick the site from it; forgotten once used.
+  loadedFile: () => siteFile?.file || null,
+  fileUsed: () => closeSiteFile("used"),
+  addPlace({ feature, origin, scale, name, given, status = "proposed" }) {
     const id = crypto.randomUUID();
     const mode = feature.geometry.type === "Point" ? "point" : /LineString/.test(feature.geometry.type) ? "linestring" : "polygon";
     const { main, extra } = splitParts(feature.geometry);
     const bad = draw.addFeatures([{ id, type: "Feature", geometry: main, properties: { mode } }]).find((v) => !v.valid);
     if (bad) throw new Error(`The shape couldn't be drawn: ${bad.reason}`);
-    const p = newPlace(id, feature, { status: "proposed", origin, scale, extraParts: extra, name, given });
+    const p = newPlace(id, feature, { status, origin, scale, extraParts: extra, name, given });
     if (extra.length) logEdit(p, `Published in ${extra.length + 1} parts; the map's edit handles move the largest part only.`);
     zoomTo(p);
     return p;
@@ -777,6 +794,132 @@ function makeCard(p) {
 }
 
 // A carousel of candidates: flick through them on the map, each with its source; the pick is your reply.
+// ---- site files (Rob, 23 Nov) ------------------------------------------------------------------------------
+// A shapefile or GeoJSON dropped anywhere on the page (or picked from the drawing tray) is read in the browser,
+// shown on the map, and the person picks the site from it. The picked features are copied into places; the file is
+// then forgotten. One polygon is the site straight away. Points and lines need a width.
+let siteFile = null; // { file, card, picked: Set of fids, width }
+const kindWord = (k, n) => `${k}${n === 1 ? "" : "s"}`;
+const fileSize = (f) => (f.size.area_ha != null ? U.area(f.size.area_ha / 100) : f.size.length_km != null ? U.dist(f.size.length_km) : f.size.points > 1 ? `${f.size.points} points` : "a point");
+
+async function openSiteFile(files) {
+  openTray(false);
+  closeSiteFile("replaced");
+  activity("Reading your file…", true);
+  let file;
+  try { file = await readFiles(files); }
+  catch (e) { activity(""); note(`That file couldn't be read: ${e.message}`); expandSheet(); return; }
+  activity("");
+  const problems = [...file.skipped, ...file.notes];
+  if (!file.features.length) {
+    const m = el("div", null, "msg analyst");
+    m.append(el("p", `Nothing in ${file.name} could be used as a site.`));
+    if (problems.length) { const ul = el("ul"); problems.forEach((t) => ul.append(el("li", t))); m.append(ul); }
+    $("conversation").append(m); expandSheet(); m.scrollIntoView({ block: "end", behavior: "smooth" });
+    return;
+  }
+  showFileCard(file, problems);
+}
+
+function showFileCard(file, problems) {
+  const card = $("file-card").content.firstElementChild.cloneNode(true);
+  siteFile = { file, card, picked: new Set(), width: null };
+  const counts = {};
+  for (const f of file.features) counts[f.kind] = (counts[f.kind] || 0) + 1;
+  const contents = Object.entries(counts).map(([k, n]) => `${n} ${kindWord(k, n)}`).join(", ");
+  card.querySelector(".question").textContent = file.features.length === 1 ? `${file.name}: one ${file.features[0].kind}.`
+    : `${file.name}: ${contents}. Which is the site? Tick them here or tap them on the map.`;
+  const crs = [...new Set(file.layers.map((l) => l.crs.how))];
+  const crsLine = card.querySelector(".crs");
+  crsLine.textContent = `Coordinates: ${crs.join("; ")}.`;
+  if (file.layers.some((l) => l.crs.guessed || l.crs.warning)) crsLine.classList.add("warn");
+  const ul = card.querySelector(".feats");
+  for (const f of file.features.slice(0, LIST_MAX)) {
+    const box = Object.assign(document.createElement("input"), { type: "checkbox", value: f.fid });
+    box.addEventListener("change", () => toggleFileFeature(f.fid, box.checked));
+    const label = el("label");
+    label.append(box, el("span", f.label), el("span", `${f.kind === "polygon" ? "" : `${f.kind}, `}${fileSize(f)}`, "size"));
+    const li = el("li"); li.append(label); ul.append(li);
+  }
+  if (file.features.length > LIST_MAX) {
+    const more = card.querySelector(".more");
+    more.hidden = false;
+    more.textContent = `${file.features.length - LIST_MAX} more aren't listed. Tell me which you want in words (by name or by a field's value).`;
+  }
+  card.querySelector(".notes").textContent = problems.join(" ");
+  const widthIn = card.querySelector(".widths input");
+  card.querySelectorAll("[data-w]").forEach((b) => b.addEventListener("click", () => { siteFile.width = +b.dataset.w; widthIn.value = ""; paintFileCard(); }));
+  widthIn.addEventListener("input", () => { const v = parseFloat(widthIn.value); siteFile.width = v >= 0.5 && v <= 50000 ? v : null; paintFileCard(); });
+  card.querySelector('[data-op="parts"]').addEventListener("click", () => usePicked("parts"));
+  card.querySelector('[data-op="separate"]').addEventListener("click", () => usePicked("separate"));
+  card.querySelector('[data-op="cancel"]').addEventListener("click", () => closeSiteFile("cancelled"));
+  $("conversation").append(card);
+  expandSheet();
+  const fc = turf.featureCollection(file.features.map((f) => ({ type: "Feature", geometry: f.geometry, properties: {} })));
+  map.fitBounds(turf.bbox(fc), { padding: fitPadding(), maxZoom: 16, duration: 0 });
+  if (file.features.length === 1) siteFile.picked.add(file.features[0].fid);
+  paintFileCard();
+  card.scrollIntoView({ block: "end", behavior: "smooth" });
+  // One outline is the site: nothing to choose.
+  if (file.features.length === 1 && file.features[0].kind === "polygon") usePicked("parts");
+}
+
+function paintFileCard() {
+  if (!siteFile) return;
+  const { file, card, picked, width } = siteFile;
+  card.querySelectorAll(".feats input").forEach((b) => { b.checked = picked.has(b.value); });
+  const chosen = file.features.filter((f) => picked.has(f.fid));
+  const thin = [...new Set(chosen.filter((f) => f.kind !== "polygon").map((f) => `${f.kind}s`))];
+  card.querySelector(".width").hidden = !thin.length;
+  card.querySelector(".width .what").textContent = thin.join(" and ");
+  card.querySelectorAll("[data-w]").forEach((b) => b.classList.toggle("on", +b.dataset.w === width));
+  const ready = chosen.length > 0 && (!thin.length || width > 0);
+  const parts = card.querySelector('[data-op="parts"]'), sep = card.querySelector('[data-op="separate"]');
+  parts.disabled = sep.disabled = !ready;
+  parts.textContent = chosen.length > 1 ? "Use as one site in parts" : "Use as the site";
+  sep.hidden = chosen.length < 2;
+  map.getSource("sitefile")?.setData(turf.featureCollection(file.features.map((f) => ({ type: "Feature", geometry: f.geometry, properties: { fid: f.fid, label: f.label, picked: picked.has(f.fid) } }))));
+}
+
+function toggleFileFeature(fid, on) {
+  if (!siteFile) return;
+  const has = siteFile.picked.has(fid);
+  if (on ?? !has) siteFile.picked.add(fid); else siteFile.picked.delete(fid);
+  paintFileCard();
+}
+
+function usePicked(combine) {
+  if (!siteFile) return;
+  if (busy) { siteFile.card.querySelector(".notes").textContent = "The analyst is busy; try again in a moment."; return; }
+  const { file, picked, width, card } = siteFile;
+  let built;
+  try { built = placesFromFile(file, { fids: [...picked], combine, buffer_m: width }); }
+  catch (e) { card.querySelector(".notes").textContent = e.message; return; }
+  const made = built.map((b) => host.addPlace({ ...b, status: "accepted" }));
+  const sizes = made.map((p) => `${p.name} (${/Polygon/.test(p.feature.geometry.type) ? U.area(turf.area(p.feature) / 1e6) : "a point"})`);
+  const result = card.querySelector(".result");
+  result.hidden = false;
+  result.textContent = `${made.length > 1 ? `${made.length} sites` : "Site"} set from ${file.name}: ${sizes.join(", ")}.${built.some((b) => b.origin.steps.some((t) => /simplified|filled/.test(t))) ? ` ${built.flatMap((b) => b.origin.steps.filter((t) => /simplified|filled/.test(t))).join("; ")}.` : ""} Ask me to screen ${made.length > 1 ? "them" : "it"} when you're ready.`;
+  closeSiteFile("used");
+}
+
+function closeSiteFile(why) {
+  if (!siteFile) return;
+  const { card } = siteFile;
+  siteFile = null;
+  map?.getSource("sitefile")?.setData(turf.featureCollection([]));
+  if (!card) return;
+  card.classList.add("done");
+  const result = card.querySelector(".result");
+  if (why !== "used" || result.hidden) {
+    result.hidden = false;
+    result.textContent = why === "cancelled" ? "Cancelled; nothing was kept." : why === "replaced" ? "Replaced by the next file you dropped." : "Used: see the reply below.";
+  }
+}
+
+setupFileDrop({ overlay: $("drop-overlay"), input: $("site-file"), onFiles: openSiteFile, onError: (e) => note(`The files couldn't be read: ${e.message || e}`) });
+document.querySelector('.tools [data-action="file"]').addEventListener("click", () => $("site-file").click());
+
 function makeChoiceCard({ choices, recommended, reason, question }) {
   const card = $("choice-card").content.firstElementChild.cloneNode(true);
   let i = 0;
@@ -1308,6 +1451,15 @@ function paintStatus(p, card = p.card) {
 
 function paintOrigin(p, card = p.card) {
   const o = p.origin, box = card.querySelector(".origin");
+  if (o?.method === "file") {
+    box.querySelector("summary").textContent = `From your file ${o.file}`;
+    const body = box.querySelector("div");
+    body.append(el("p", `Features: ${o.features.map((f) => f.label).join(", ")}${o.buffer_m ? `, ${o.buffer_m} m wide` : ""}.`));
+    body.append(el("p", `Coordinates: ${o.crs?.how || "as given"}.`, o.crs?.warning || o.crs?.guessed ? "warn" : "quiet"));
+    if (o.steps?.length) body.append(el("p", `Built: ${o.steps.join(", then ")}.`, "quiet"));
+    body.append(el("p", "Read in your browser; the file wasn't uploaded or kept.", "quiet"));
+    return;
+  }
   if (o?.method !== "words") { box.remove(); return; }
   const a = o.anchor || {};
   const src = a.source ? Object.assign(el("a", `${a.source.publisher}, ${a.source.title}`), { href: a.source.url, target: "_blank", rel: "noopener" }) : null;
@@ -1477,7 +1629,7 @@ async function send(text, forModel = text) {
   const turnLog = { at: new Date().toISOString(), user: text, ...(forModel !== text ? { sent: forModel } : {}), events: [] };
   sessionLog.push(turnLog);
   try {
-    const summary = [await projectSummary(ref, host.places(), focusName, viewBounds(), runSummaryLines()), U.unitsNote(), industryNote(profile, industries)].filter(Boolean).join("\n");
+    const summary = [await projectSummary(ref, host.places(), focusName, viewBounds(), runSummaryLines(), host.loadedFile()), U.unitsNote(), industryNote(profile, industries)].filter(Boolean).join("\n");
     const skillList = conversationSkills();
     runLog = turnLog; runSteps = steps;
     const res = await runTurn({

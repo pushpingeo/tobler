@@ -2,6 +2,7 @@
 // The model works with ids (C3 for a found candidate, "Area 1" for a place); geometry stays here.
 // A host object supplies the project's places and reference data, so the same code runs in the page and in the evaluation.
 import { placeRole } from "./siterole.js";
+import { placesFromFile, fileSummary, fileOriginText } from "./fileimport.js";
 import * as turf from "./vendor/turf.js";
 import * as G from "./geometry.js";
 import * as R from "./reference.js";
@@ -143,6 +144,20 @@ export function placeToolDefs(skills) {
       name: "get_place",
       description: "Full details of a place: size, where it is, how it was made and its edit history.",
       input_schema: { type: "object", properties: { place: { type: "string" } }, required: ["place"] },
+    },
+    {
+      name: "use_file_features",
+      description: "Make the site from a file the person dropped on the map (a shapefile, zip or GeoJSON; read in their browser, never uploaded). Only when the project summary says a file is loaded, and the person has said in words which features to use (they can also pick on the card themselves). The features are copied into places and the file is then forgotten. Polygons become the site's outline. Points and lines need width_m (metres either side: 1 m for the line itself, 30 m for a cable corridor); if the person hasn't said, ask them, don't choose. Several features: combine 'parts' makes one site in pieces (a wind farm's separate areas), 'separate' makes one place each; if they haven't said which, ask.",
+      input_schema: {
+        type: "object",
+        properties: {
+          features: { type: "array", items: { type: "string" }, description: "Feature ids from the file summary (F1, F2…), or [\"all\"]" },
+          combine: { type: "string", enum: ["parts", "separate"] },
+          width_m: { type: "number", description: "For points and lines only: the width round them in metres, as the person gave it" },
+          name: { type: "string", description: "Optional: the site's name, if the person gave one" },
+        },
+        required: ["features"],
+      },
     },
     ...DATA_TOOL_DEFS,
     ...EPSG_TOOL_DEFS,
@@ -563,6 +578,20 @@ export function createPlaceTools(host) {
       return { removed: p.name, places_left: host.places().map((x) => x.name) };
     },
 
+    async use_file_features({ features, combine, width_m, name }) {
+      const file = host.loadedFile?.();
+      if (!file) throw new Error("No file is waiting. Ask the person to drop the site's file on the map (a shapefile folder or zip, or GeoJSON).");
+      const fids = !features?.length || features.some((f) => String(f).toLowerCase() === "all") ? "all" : features;
+      let built;
+      try { built = placesFromFile(file, { fids, combine: combine || "parts", buffer_m: width_m ?? null, name: name || null }); }
+      catch (e) { if (e.needs_width) return { needs_width: true, next: e.message }; throw e; }
+      const made = [];
+      for (const b of built) made.push(await placeSummary(host.addPlace({ ...b, status: "accepted" })));
+      host.fileUsed?.();
+      return { made, coordinates: file.layers.map((l) => l.crs.how), how: built.map((b) => b.origin.steps.join(", ")).filter(Boolean),
+        next: "The site is on the map, from the person's own file (high confidence: it's their outline). Say what was made in one line; mention the coordinate conversion only if it was guessed or flagged." };
+    },
+
     async ask_asset_type({ place, question }) {
       if (!host.findPlace(place)) throw new Error(`No place called "${place}".`);
       if (!host.askAssetType) return { not_available: "Ask in words which asset type, or offer a general screen (asset_type other)." };
@@ -598,7 +627,7 @@ export function createPlaceTools(host) {
       const d = await R.describe(host.ref, p.feature);
       return {
         place: p.name, status: p.status, summary: R.summaryLine(d), ...pickD(d),
-        how_made: p.origin?.method === "words" ? { words: p.origin.words, anchor: p.origin.anchor?.name || p.origin.anchor?.place, source: p.origin.anchor?.source?.title, steps: p.origin.steps, confidence: p.origin.confidence } : { method: "drawn on the map" },
+        how_made: p.origin?.method === "words" ? { words: p.origin.words, anchor: p.origin.anchor?.name || p.origin.anchor?.place, source: p.origin.anchor?.source?.title, steps: p.origin.steps, confidence: p.origin.confidence } : p.origin?.method === "file" ? { file: p.origin.file, features: p.origin.features, coordinates: p.origin.crs?.how, ...(p.origin.buffer_m ? { width_m: p.origin.buffer_m } : {}), steps: p.origin.steps } : { method: "drawn on the map" },
         what_it_is: (({ role, why }) => `${role === "search_area" ? "search area" : role}: ${why}`)(placeRole(p.origin, p.feature.geometry)),
         edits: (p.edits || []).map((e) => e.change),
       };
@@ -718,14 +747,16 @@ const pickD = (d) => ({ scale: d.scale, area_km2: d.area_km2, length_km: d.lengt
 
 // One line per place for the conversation agent's project summary. Coordinates stay out.
 // runs: one line per screening run (js/outofdate.js runLines), so the analyst knows which are out of date.
-export async function projectSummary(ref, places, focus, view = null, runs = []) {
+export async function projectSummary(ref, places, focus, view = null, runs = [], file = null) {
   const viewLine = view ? `Map view: about ${Math.round(R.viewKm(view))} km across (${R.scaleForKm(R.viewKm(view))} scale).` : "";
   const runPart = runs.length ? ["Screening runs:", ...runs] : [];
+  // A file the person dropped, shown on the map and waiting for them to pick the site from it (use_file_features).
+  if (file) runPart.push(`A file is loaded and waiting for the person to pick the site from it (card shown; or use use_file_features if they say which in words): ${JSON.stringify(fileSummary(file))}`);
   if (!places.length) return ["No places yet.", ...runPart, viewLine].filter(Boolean).join("\n");
   const lines = [];
   for (const p of places) {
     const d = await R.describe(ref, p.feature);
-    const how = p.origin?.method === "words" ? `from words "${p.origin.words}" (anchor: ${p.origin.anchor?.name || p.origin.anchor?.place}, ${p.origin.confidence} confidence)` : "drawn on the map";
+    const how = p.origin?.method === "words" ? `from words "${p.origin.words}" (anchor: ${p.origin.anchor?.name || p.origin.anchor?.place}, ${p.origin.confidence} confidence)` : p.origin?.method === "file" ? fileOriginText(p.origin) : "drawn on the map";
     const role = placeRole(p.origin, p.feature.geometry).role === "search_area" ? "; a search area (the site's outline wasn't found)" : "";
     const edits = p.edits?.length ? `; edited: ${p.edits.slice(-3).map((e) => e.change).join("; ")}` : "";
     lines.push(`- ${p.name}${p.name === focus ? " [in focus]" : ""} (${p.status}): ${R.summaryLine(d)}; scale ${p.scale || d.scale}${p.scaleFrom && p.scaleFrom !== "size" ? ` (from ${p.scaleFrom === "you" ? "the person" : p.scaleFrom})` : ""}; ${how}${role}${edits}`);
