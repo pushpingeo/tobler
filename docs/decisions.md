@@ -2,6 +2,20 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 23 Nov 2026 (night): invariants, CLAUDE.md and their tests (Rob: "how do you build applications with intent?")
+- **Why:** principles written only as prose drift. The site-file table on 23 Nov was a reasonable-looking shortcut
+  that bent "one way for geodesy" without asking.
+- **What:** `CLAUDE.md` (loaded at the start of every build session) lists nine invariants and when to ask Rob first.
+  `test/invariants.test.mjs` (in `npm test`) checks five of them: one way for geodesy, no geometry for the model
+  (tool inputs and the summaries it reads), no CDN, files stay in the browser, one model setting. Each check was
+  shown to fail when broken on purpose.
+- **Known breaches, for Rob to decide** (listed in the test's `KNOWN`, which must shrink when they're fixed):
+  `js/coords.js` (typed BNG references use a hard-coded OSGB36 shift, since 20 Nov); `js/fileimport.js` (built-in
+  fallback shifts when the registry is down); `lab.html` and `tools.html` (load MapLibre from unpkg; moving to the lab).
+- **Registry timing:** not measurable from the build environment. The site-file card now shows the time and number of
+  registry lookups for each drop. The live registry lists 9 OSGB36 and 37 ED50 transformations to WGS 84, so a first
+  ED50 drop makes about 90 lookups. Options for a local copy are in `claude/epsg-local-copy-proposal.md`.
+
 ## 23 Nov 2026 (later): site files choose transformations from the EPSG registry (Rob: "go ahead")
 - **Why:** the first version used a small built-in table, so Tobler had two ways of choosing a datum transformation,
   and the file way skipped the coordinate-reference skill's rules. Now files go the same way as typed coordinates.
