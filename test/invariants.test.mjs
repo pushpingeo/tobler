@@ -4,7 +4,9 @@
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { placeToolDefs } from "../js/placetools.js";
+import { placeToolDefs, projectSummary } from "../js/placetools.js";
+import { readFiles, fileSummary } from "../js/fileimport.js";
+import * as R from "../js/reference.js";
 
 let passed = 0;
 const test = async (name, fn) => { await fn(); passed++; console.log(`ok ${name}`); };
@@ -40,7 +42,7 @@ await test("I1 geodesy: only epsgtools.js and transform.js hold datum shifts or 
   for (const f of Object.keys(KNOWN.geodesy)) assert.ok(hits.includes(f), `${f} no longer breaks I1: remove it from KNOWN`);
 });
 
-await test("I3 the model never does geometry: no tool takes or gives coordinate lists (one exception, the person's own typed points)", () => {
+await test("I3 the model never does geometry: no tool takes coordinate lists (one exception, the person's own typed points), and the summaries carry none", async () => {
   const defs = placeToolDefs([]);
   const takesGeometry = (schema, path = "") => Object.entries(schema?.properties || {}).flatMap(([k, v]) => {
     const p = `${path}${k}`;
@@ -51,6 +53,15 @@ await test("I3 the model never does geometry: no tool takes or gives coordinate 
   const found = defs.flatMap((d) => takesGeometry(d.input_schema).map((p) => `${d.name}.${p}`));
   // transform.points: latitude and longitude the person typed, copied exactly; the maths is done in code.
   assert.deepEqual(found, ["transform.points"]);
+  // And what the analyst sees each turn: the project summary and a dropped file's summary carry no coordinate pairs.
+  const PAIR = /\[\s*-?\d+\.\d+\s*,\s*-?\d+\.\d+\s*\]/;
+  const fix = (n) => ({ name: n, bytes: new Uint8Array(readFileSync(join(ROOT, "test/fixtures/import", n))) });
+  const file = await readFiles([fix("areas.shp"), fix("areas.dbf")]);
+  const ref = R.createReference(async (n) => JSON.parse(read(`data/ref/${n}.json`)));
+  const place = { name: "Area A", status: "accepted", feature: { type: "Feature", properties: {}, geometry: file.features[0].geometry }, origin: { method: "drawn" }, edits: [] };
+  const summary = await projectSummary(ref, [place], "Area A", null, [], file);
+  assert.ok(!PAIR.test(summary), "coordinates in the project summary");
+  assert.ok(!PAIR.test(JSON.stringify(fileSummary(file))), "coordinates in the file summary");
 });
 
 await test("I6 no CDN at run time: pages load only vendored files", () => {

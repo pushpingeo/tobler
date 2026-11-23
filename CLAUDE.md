@@ -17,14 +17,15 @@ test's `KNOWN` list or loosen a check without his say-so. Explaining it afterwar
 2. **WGS84 in storage; true measures.** Places and findings are stored as WGS84 longitude and latitude. Distances
    and areas are geodesic (turf) or worked out in a local equal-area projection, never in raw degrees. Web
    Mercator is for display only. *Checked by review and the place tests.*
-3. **The model never does geometry** (*tested*). The analyst sees names, sizes and at most a centre, never
-   coordinate lists. All geometry is done by tools in code. The one exception is `transform.points`: numbers the
+3. **The model never does geometry** (*tested*: tool inputs and the summaries it reads). The analyst sees names,
+   sizes and at most a centre, never coordinate lists. All geometry is done by tools in code. The one exception is `transform.points`: numbers the
    person typed, copied as given.
 4. **Honest about gaps.** A source that failed or wasn't checked is reported as "not checked", never "none found".
    A licence that isn't stated stays "unknown". *Tested in `data.test.mjs` and `ntrrun.test.mjs` (not checked,
    licence classes, non-commercial and Esri data left out by default).*
 5. **Provenance travels.** Every place records how it was made (`origin.method`: words, drawn or file), and every
-   run feature carries its source, licence and date. Nothing is shown that the run record can't trace.
+   run feature carries its source, licence and date. Known gaps in tracing are listed in the plan's small fixes;
+   don't add new ones.
 6. **No CDN at run time** (*tested*). Pages load only vendored files.
 7. **The person's files stay in their browser** (*tested*). Site files are read in the page. Only EPSG codes and
    registry lookups go to the Worker.
