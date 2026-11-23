@@ -5,18 +5,23 @@
 // Run: python3 -m http.server 8000 (in the repo), then node scripts/browser-sitefile.mjs [chrome path].
 import { chromium } from "playwright-core";
 import { readFileSync } from "node:fs";
+import { fakeEpsg } from "../test/fake-epsg.mjs";
 
 const CHROME = process.argv[2] || "/usr/bin/google-chrome";
 const FIX = new URL("../test/fixtures/import/", import.meta.url).pathname;
 const toolUse = (name, input) => ({ id: "m", type: "message", role: "assistant", stop_reason: "tool_use", content: [{ type: "tool_use", id: `t${Date.now()}`, name, input }], usage: { input_tokens: 100, output_tokens: 10 } });
 const text = (t) => ({ id: "m", type: "message", role: "assistant", stop_reason: "end_turn", content: [{ type: "text", text: t }], usage: { input_tokens: 100, output_tokens: 10 } });
 let lastSummary = "";
+const asked = [];
+const epsg = fakeEpsg();
 function model(body) {
   const last = body.messages.at(-1);
   if (typeof last.content === "string" || last.content.some((b) => b.type === "text")) {
     const t = typeof last.content === "string" ? last.content : last.content.map((b) => b.text || "").join("\n");
     lastSummary = t;
     if (/use Area B/i.test(t)) return toolUse("use_file_features", { features: ["F2"] });
+    if (/coordinates need a decision/.test(t)) { asked.push(t); return text("Its datum isn't one I can match in EPSG. Use it with no datum shift (could be out by tens of metres)?"); }
+    if (/without a shift/i.test(t)) return toolUse("set_file_transformation", { layer: "odd_grid", operation: "none" });
     return text("OK.");
   }
   const res = last.content.find((b) => b.type === "tool_result");
@@ -47,10 +52,19 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   const errors = [], uploads = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/Failed to load resource|tiles|openfreemap/i.test(m.text())) errors.push(m.text()); });
-  page.on("request", (r) => { if (r.method() === "POST" && !/v1\/messages|\/logs/.test(r.url())) uploads.push(r.url()); });
+  // Registry lookups (/epsg) carry an EPSG code or a record path, never the file or its coordinates.
+  page.on("request", (r) => {
+    if (r.method() !== "POST" || /v1\/messages|\/logs/.test(r.url())) return;
+    if (/\/epsg$/.test(r.url()) && !/coordinates|\d+\.\d{4,}/.test(r.postData() || "") && (r.postData() || "").length < 300) return;
+    uploads.push(`${r.url()} ${(r.postData() || "").slice(0, 80)}`);
+  });
   await page.route(/openfreemap|overpass|wikidata/, (r) => r.abort());
   await page.route(/nominatim/, (r) => r.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: /reverse/.test(r.request().url()) ? JSON.stringify({ address: { town: "Linlithgow" } }) : "[]" }));
   await page.route(/tobler-api.*\/v1\/messages/, (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(model(JSON.parse(r.request().postData()))) }));
+  await page.route(/tobler-api.*\/epsg/, async (r) => {
+    try { const j = await epsg(JSON.parse(r.request().postData())); r.fulfill({ status: 200, contentType: "application/json", body: typeof j === "string" ? j : JSON.stringify(j) }); }
+    catch (e) { r.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ message: e.message }) }); }
+  });
   await page.route(/tobler-api.*\/(atlas|logs)/, (r) => r.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}' }));
   await page.goto("http://localhost:8000/");
   await page.waitForFunction(() => window.__ws?.draw, null, { timeout: 40000 });
@@ -64,7 +78,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   let ps = await places(page);
   check(ps[0].name === "Linlithgow test site" && ps[0].method === "file" && ps[0].role === "footprint" && ps[0].status === "accepted", `${label}: zip → one accepted footprint (${JSON.stringify(ps[0])})`);
   let card = await lastCard(page);
-  check(card?.done && /Site set from redline\.zip: Linlithgow test site \(4(\.0)? ha\)/.test(card.text) && /7-parameter datum shift/.test(card.text), `${label}: the card says what was made and how the coordinates were converted (${card?.text.slice(-260)})`);
+  check(card?.done && /Site set from redline\.zip: Linlithgow test site \(4(\.0)? ha\)/.test(card.text) && /EPSG:1314, OSGB36 to WGS 84 \(6\), good to about 2 m, chosen from the EPSG registry/.test(card.text), `${label}: the card says what was made and how the coordinates were converted (${card?.text.slice(-260)})`);
   const origin = await page.evaluate(() => document.querySelector(".shape .origin summary")?.textContent || "");
   check(/From your file redline\.zip/.test(origin), `${label}: the place card says it came from the file`);
   if (label === "phone") await page.screenshot({ path: `/tmp/sitefile-${label}-1-zip.png` });
@@ -74,7 +88,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await page.waitForFunction(() => document.querySelectorAll(".filecard").length === 2, null, { timeout: 15000 });
   check(await page.evaluate(() => window.__overlayShown), `${label}: dragging files over the page shows the drop overlay`);
   card = await lastCard(page);
-  check(/areas\.shp: 3 polygons\. Which is the site\?/.test(card.text) && /British National Grid, so it was assumed/.test(card.text), `${label}: the card lists the file and says the coordinate system was guessed`);
+  check(/areas\.shp: 3 polygons\. Which is the site\?/.test(card.text) && /British National Grid \(EPSG:27700\) was assumed from the numbers/.test(card.text), `${label}: the card lists the file and says the coordinate system was guessed`);
   check(await page.evaluate(() => [...document.querySelectorAll(".filecard")].at(-1).querySelector('[data-op="parts"]').disabled), `${label}: nothing picked yet, so nothing to use`);
   await page.evaluate(() => { const c = [...document.querySelectorAll(".filecard")].at(-1); c.querySelectorAll(".feats input")[0].click(); c.querySelectorAll(".feats input")[2].click(); });
   const btn = await page.evaluate(() => { const c = [...document.querySelectorAll(".filecard")].at(-1); return [c.querySelector('[data-op="parts"]').textContent, c.querySelector('[data-op="separate"]').hidden]; });
@@ -110,7 +124,24 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   card = await lastCard(page);
   check(ps[3].name === "Area B" && ps[3].status === "accepted" && card.done, `${label}: Area B made from words, and the card closed`);
 
-  // 5. Something unusable is explained.
+  // 5. A datum EPSG can't be matched: the analyst asks in words (coordinate-reference skill), then settles it.
+  await page.setInputFiles("#site-file", ["odd_grid.shp", "odd_grid.dbf", "odd_grid.prj"].map((n) => FIX + n));
+  await page.waitForFunction(() => document.querySelectorAll(".filecard").length === 5, null, { timeout: 15000 });
+  await page.waitForFunction(() => !document.querySelector("#ask.busy"), null, { timeout: 15000 });
+  card = await lastCard(page);
+  check(!card.done && /needs a decision.*Waiting for your answer in the chat/.test(card.text), `${label}: a layer needing a judgement waits on the card (${card.text.slice(0, 160)})`);
+  check(/coordinate-reference skill/.test(asked.at(-1) || "") && /I've dropped odd_grid/.test(await page.evaluate(() => [...document.querySelectorAll(".msg.user")].at(-1).textContent)), `${label}: the analyst is asked to put the question, with the skill`);
+  await page.waitForTimeout(800);
+  if (label === "phone") await page.screenshot({ path: `/tmp/sitefile-${label}-2b-decision.png` });
+  await page.fill("#say", "go ahead without a shift");
+  await page.click("#ask button[type=submit]");
+  await page.waitForFunction(() => window.__ws.host.places().length === 5, null, { timeout: 15000 });
+  await page.waitForFunction(() => !document.querySelector("#ask.busy"), null, { timeout: 15000 });
+  ps = await places(page);
+  const oddCrs = await page.evaluate(() => window.__ws.host.places().at(-1).origin.crs);
+  check(ps[4].name === "Odd block" && /no datum shift/.test(oddCrs.warning || "") && oddCrs.chosen_by === "the person", `${label}: settled in words, made the site, and flagged (${JSON.stringify(oddCrs).slice(0, 120)})`);
+
+  // 6. Something unusable is explained.
   await drop(page, ["areas.dbf"]);
   await page.waitForFunction(() => /Nothing in/.test(document.querySelector("#conversation").lastElementChild.textContent), null, { timeout: 15000 });
   const last = await page.evaluate(() => document.querySelector("#conversation").lastElementChild.textContent);

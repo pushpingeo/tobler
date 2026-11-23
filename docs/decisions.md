@@ -2,6 +2,27 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 23 Nov 2026 (later): site files choose transformations from the EPSG registry (Rob: "go ahead")
+- **Why:** the first version used a small built-in table, so Tobler had two ways of choosing a datum transformation,
+  and the file way skipped the coordinate-reference skill's rules. Now files go the same way as typed coordinates.
+- **How:** the .prj gives an EPSG code (its own AUTHORITY/ID, a well-known Esri name, or an exact name match in the
+  registry). proj4 does the projection only, onto the file's own datum. `transformation_options` (now also callable
+  with a position) picks the transformation for where the data is, and `prepareOperation` (shared with `transform`)
+  applies it with `js/transform.js`. WGS 84-based CRSs need nothing. Only the EPSG code and record paths go to the
+  Worker; the file and its coordinates stay in the browser.
+- **The analyst only for judgements:** when the best applicable option is worse than 25 m, only grid files cover the
+  site, or the CRS can't be matched to an EPSG code, the layer waits. The page sends "I've dropped <file>" with a note
+  telling the analyst to load the coordinate-reference skill and ask one question; the answer is applied with the
+  new `set_file_transformation` tool (an EPSG code, or "none", which is flagged). Until then the features show on the
+  map with the built-in conversion but can't be used.
+- **Fallback:** if the registry can't be reached, the built-in shifts are used and the card says so.
+- **Seen in tests:** BNG at Linlithgow gets EPSG:1314 (2 m; OSTN15 is better but needs a grid file). ED50 in the
+  North Sea gets EPSG:1311 (1 m) instead of the general 1133 (10 m); at the test block the two differ by 1.8 m, so the
+  gain is mostly in the stated accuracy and the record, not a big shift. ETRS89 gets EPSG:1149.
+- Tested: `npm test` (7 new fileimport tests, fake registry extended with ED50, ETRS89 and UTM records);
+  `browser-sitefile` 44/44 (adds the registry choice on the card and an unmatched datum settled in words); all other
+  browser checks pass. **Not tested:** the live registry with real files; the live analyst putting the question.
+
 ## 23 Nov 2026: site boundaries from the person's own files (Rob asked to fast-track it)
 - **Why:** to test Tobler against EIA sites using the red-line boundaries published with them (it also unblocks the
   "site boundaries" part of the example-site evaluation).

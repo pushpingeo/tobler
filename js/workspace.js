@@ -29,7 +29,8 @@ import { coordinateNote } from "./coords.js";
 import { picksFor, pickMessage } from "./assetpicks.js";
 import { shareCode } from "./share.js";
 import { siteChange, rerunInput, outOfDateText, runLines } from "./outofdate.js";
-import { readFiles, placesFromFile, LIST_MAX } from "./fileimport.js";
+import { readFiles, placesFromFile, resolveLayer, LIST_MAX } from "./fileimport.js";
+import { createEpsgTools } from "./epsgtools.js";
 import { setupFileDrop } from "./filedrop.js";
 
 const $ = (id) => document.getElementById(id);
@@ -625,6 +626,14 @@ const host = {
   // A file the person dropped, waiting for them to pick the site from it; forgotten once used.
   loadedFile: () => siteFile?.file || null,
   fileUsed: () => closeSiteFile("used"),
+  async resolveFileLayer(layer, operation) {
+    if (!siteFile) throw new Error("No file is waiting.");
+    const r = await resolveLayer(siteFile.file, layer, operation, { geodesy: fileGeodesy });
+    paintFileCard();
+    const { file } = siteFile;
+    if (file.features.length === 1 && file.features[0].kind === "polygon" && !file.layers.some((l) => l.crs.pending)) usePicked("parts", { force: true });
+    return r;
+  },
   addPlace({ feature, origin, scale, name, given, status = "proposed" }) {
     const id = crypto.randomUUID();
     const mode = feature.geometry.type === "Point" ? "point" : /LineString/.test(feature.geometry.type) ? "linestring" : "polygon";
@@ -799,6 +808,9 @@ function makeCard(p) {
 // shown on the map, and the person picks the site from it. The picked features are copied into places; the file is
 // then forgotten. One polygon is the site straight away. Points and lines need a width.
 let siteFile = null; // { file, card, picked: Set of fids, width }
+// Datum transformations for files come from the live EPSG registry, chosen in code by where the data is, as for typed
+// coordinates (js/epsgtools.js). Only a real judgement goes to the analyst and the coordinate-reference skill.
+const fileGeodesy = createEpsgTools({ epsg: epsgViaWorker, transformationChoice: () => "choose" }, () => null).fileGeodesy;
 const kindWord = (k, n) => `${k}${n === 1 ? "" : "s"}`;
 const fileSize = (f) => (f.size.area_ha != null ? U.area(f.size.area_ha / 100) : f.size.length_km != null ? U.dist(f.size.length_km) : f.size.points > 1 ? `${f.size.points} points` : "a point");
 
@@ -807,7 +819,7 @@ async function openSiteFile(files) {
   closeSiteFile("replaced");
   activity("Reading your file…", true);
   let file;
-  try { file = await readFiles(files); }
+  try { file = await readFiles(files, { geodesy: fileGeodesy }); }
   catch (e) { activity(""); note(`That file couldn't be read: ${e.message}`); expandSheet(); return; }
   activity("");
   const problems = [...file.skipped, ...file.notes];
@@ -829,10 +841,6 @@ function showFileCard(file, problems) {
   const contents = Object.entries(counts).map(([k, n]) => `${n} ${kindWord(k, n)}`).join(", ");
   card.querySelector(".question").textContent = file.features.length === 1 ? `${file.name}: one ${file.features[0].kind}.`
     : `${file.name}: ${contents}. Which is the site? Tick them here or tap them on the map.`;
-  const crs = [...new Set(file.layers.map((l) => l.crs.how))];
-  const crsLine = card.querySelector(".crs");
-  crsLine.textContent = `Coordinates: ${crs.join("; ")}.`;
-  if (file.layers.some((l) => l.crs.guessed || l.crs.warning)) crsLine.classList.add("warn");
   const ul = card.querySelector(".feats");
   for (const f of file.features.slice(0, LIST_MAX)) {
     const box = Object.assign(document.createElement("input"), { type: "checkbox", value: f.fid });
@@ -860,20 +868,29 @@ function showFileCard(file, problems) {
   if (file.features.length === 1) siteFile.picked.add(file.features[0].fid);
   paintFileCard();
   card.scrollIntoView({ block: "end", behavior: "smooth" });
-  // One outline is the site: nothing to choose.
-  if (file.features.length === 1 && file.features[0].kind === "polygon") usePicked("parts");
+  const waiting = file.layers.filter((l) => l.crs.pending);
+  // One outline is the site: nothing to choose, unless its coordinates need a decision first.
+  if (!waiting.length && file.features.length === 1 && file.features[0].kind === "polygon") { usePicked("parts"); return; }
+  // A real judgement about the coordinates: the analyst asks, following the coordinate-reference skill.
+  if (waiting.length && !busy) {
+    const lines = waiting.map((l) => `${l.name}: ${l.crs.name}. ${l.crs.pending.why}${l.crs.pending.options?.length ? ` Options: ${l.crs.pending.options.map((o) => `EPSG:${o.code} ${o.name} (${o.accuracy_m ?? "?"} m${o.can_apply ? "" : ", can't be applied here"})`).join("; ")}.` : ""}`);
+    send(`I've dropped ${file.name}.`, `I've dropped ${file.name}.\n[The page read the file but its coordinates need a decision before it can be used: ${lines.join(" | ")} Load the coordinate-reference skill and follow its section 4: ask the person one short question in words (recommended option first, with its accuracy; "none" means using it with no datum shift, flagged). When they answer, call set_file_transformation. Don't use the file's features until then.]`);
+  }
 }
 
 function paintFileCard() {
   if (!siteFile) return;
   const { file, card, picked, width } = siteFile;
+  const crsLine = card.querySelector(".crs");
+  crsLine.textContent = `Coordinates: ${[...new Set(file.layers.map((l) => l.crs.how))].join("; ")}.${file.layers.some((l) => l.crs.pending) ? " Waiting for your answer in the chat." : ""}`;
+  crsLine.classList.toggle("warn", file.layers.some((l) => l.crs.guessed || l.crs.warning || l.crs.pending || l.crs.fallback));
   card.querySelectorAll(".feats input").forEach((b) => { b.checked = picked.has(b.value); });
   const chosen = file.features.filter((f) => picked.has(f.fid));
   const thin = [...new Set(chosen.filter((f) => f.kind !== "polygon").map((f) => `${f.kind}s`))];
   card.querySelector(".width").hidden = !thin.length;
   card.querySelector(".width .what").textContent = thin.join(" and ");
   card.querySelectorAll("[data-w]").forEach((b) => b.classList.toggle("on", +b.dataset.w === width));
-  const ready = chosen.length > 0 && (!thin.length || width > 0);
+  const ready = chosen.length > 0 && (!thin.length || width > 0) && !chosen.some((f) => file.layers.find((l) => l.name === f.layer)?.crs.pending);
   const parts = card.querySelector('[data-op="parts"]'), sep = card.querySelector('[data-op="separate"]');
   parts.disabled = sep.disabled = !ready;
   parts.textContent = chosen.length > 1 ? "Use as one site in parts" : "Use as the site";
@@ -888,9 +905,9 @@ function toggleFileFeature(fid, on) {
   paintFileCard();
 }
 
-function usePicked(combine) {
+function usePicked(combine, { force = false } = {}) {
   if (!siteFile) return;
-  if (busy) { siteFile.card.querySelector(".notes").textContent = "The analyst is busy; try again in a moment."; return; }
+  if (busy && !force) { siteFile.card.querySelector(".notes").textContent = "The analyst is busy; try again in a moment."; return; }
   const { file, picked, width, card } = siteFile;
   let built;
   try { built = placesFromFile(file, { fids: [...picked], combine, buffer_m: width }); }

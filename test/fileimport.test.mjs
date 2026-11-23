@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as turf from "../js/vendor/turf.js";
 import { proj4 } from "../js/vendor/fileread.js";
-import { readFiles, placesFromFile, fileSummary, fileOriginText, converterFor } from "../js/fileimport.js";
+import { readFiles, placesFromFile, fileSummary, fileOriginText, converterFor, resolveLayer, epsgFromPrj } from "../js/fileimport.js";
+import { createEpsgTools } from "../js/epsgtools.js";
+import { fakeEpsg, TF } from "./fake-epsg.mjs";
 import { osgbToWgs84 } from "../js/coords.js";
 import { placeRole } from "../js/siterole.js";
 import * as R from "../js/reference.js";
@@ -145,6 +147,93 @@ await test("the analyst can pick in words: use_file_features makes accepted plac
   assert.equal(loaded, null);
   assert.match(await projectSummary(ref, list, null), /from your file .*"Area A"/);
   await assert.rejects(() => t.exec("use_file_features", { features: ["F1"] }), /No file is waiting/);
+});
+
+// ---- the EPSG registry chooses the transformation (Rob, 23 Nov: one way of choosing, as for typed coordinates) ----
+const geodesyWith = (tfs) => createEpsgTools({ epsg: fakeEpsg(tfs), transformationChoice: () => "choose" }, () => null).fileGeodesy;
+const geodesy = geodesyWith();
+
+await test("a .prj's EPSG code: its own authority, or a well-known Esri name", () => {
+  assert.equal(epsgFromPrj(readFileSync(new URL("redline.prj", DIR), "utf8")).code, 27700);
+  assert.equal(epsgFromPrj(readFileSync(new URL("block_ed50.prj", DIR), "utf8")).code, 23031);
+  assert.equal(epsgFromPrj(readFileSync(new URL("wgs_utm30.prj", DIR), "utf8")).code, 32630);
+  assert.equal(epsgFromPrj('PROJCS["x",GEOGCS["y",AUTHORITY["EPSG","4277"]],AUTHORITY["EPSG","27700"]]').code, 27700);
+  assert.equal(epsgFromPrj(readFileSync(new URL("odd_grid.prj", DIR), "utf8")), null);
+});
+
+await test("British National Grid: the registry picks EPSG:1314 (2 m) for Linlithgow; the 1 m grids can't be applied here", async () => {
+  const f = await readFiles(shp("redline"), { geodesy });
+  const crs = f.layers[0].crs;
+  assert.equal(crs.transformation.code, 1314);
+  assert.equal(crs.transformation.accuracy_m, 2);
+  assert.match(crs.how, /EPSG:1314.*about 2 m.*EPSG registry/);
+  assert.ok(metres(f.features[0].geometry.coordinates[0][0], osgbToWgs84(300200, 677400)) < 1);
+  const [p] = placesFromFile(f, {});
+  assert.equal(p.origin.crs.transformation.code, 1314);
+});
+
+await test("ED50 in the North Sea: the registry's 1 m EPSG:1311, not the general 10 m shift", async () => {
+  const f = await readFiles(shp("block_ed50"), { geodesy });
+  assert.equal(f.layers[0].crs.transformation.code, 1311);
+  const corner = f.features[0].geometry.coordinates[0][0];
+  const ref = proj4("+proj=utm +zone=31 +ellps=intl +towgs84=-89.5,-93.8,-123.1,0,0,-0.156,1.2 +units=m", "WGS84", [500000, 6200000]);
+  assert.ok(metres(corner, ref) < 0.5, `1311 corner ${corner} vs ${ref}`);
+  const general = (await readFiles(shp("block_ed50"))).features[0].geometry.coordinates[0][0];
+  assert.ok(metres(corner, general) > 1, `differs from the general shift (${metres(corner, general)} m)`);
+});
+
+await test("WGS 84 / UTM needs no transformation; ETRS89 / UTM gets the registry's ETRS89 to WGS 84", async () => {
+  const w = await readFiles(shp("wgs_utm30"), { geodesy });
+  assert.match(w.layers[0].crs.how, /no datum transformation was needed/);
+  assert.ok(metres(w.features[0].geometry.coordinates[0][0], proj4("+proj=utm +zone=30 +datum=WGS84", "WGS84", [400000, 6200000])) < 0.01);
+  const e = await readFiles(shp("etrs_utm31"), { geodesy });
+  assert.equal(e.layers[0].crs.transformation.code, 1149);
+});
+
+await test("only grid transformations cover the site: the layer waits for the person, and nothing can be used yet", async () => {
+  let f = await readFiles(shp("redline"), { geodesy: geodesyWith({ 5339: TF[5339], 7710: TF[7710] }) });
+  const crs = f.layers[0].crs;
+  assert.ok(crs.pending);
+  assert.match(crs.pending.why, /grid file/);
+  assert.match(crs.how, /needs a decision/);
+  assert.equal(fileSummary(f).waiting_for_a_decision[0].layer, "redline");
+  assert.throws(() => placesFromFile(f, {}), (e) => e.needs_decision === true);
+  // The person says go ahead without a shift: converted, flagged, usable.
+  const r = await resolveLayer(f, "redline", "none", { geodesy });
+  assert.match(r.warning, /no datum shift/);
+  assert.ok(metres(f.features[0].geometry.coordinates[0][0], osgbToWgs84(300200, 677400)) > 50, "unshifted is visibly off");
+  assert.equal(placesFromFile(f, {})[0].origin.crs.chosen_by, "the person");
+  // Or names another applicable transformation between the same CRSs.
+  f = await readFiles(shp("redline"), { geodesy: geodesyWith({ 5339: TF[5339], 7710: TF[7710] }) });
+  await resolveLayer(f, "redline", "1314", { geodesy });
+  assert.ok(metres(f.features[0].geometry.coordinates[0][0], osgbToWgs84(300200, 677400)) < 1);
+  await assert.rejects(() => resolveLayer(f, "redline", "1314", { geodesy }), /doesn't need a decision/);
+});
+
+await test("a datum the registry can't be matched to waits for the person; an unreachable registry falls back and says so", async () => {
+  const odd = await readFiles(shp("odd_grid"), { geodesy });
+  assert.match(odd.layers[0].crs.pending.why, /couldn't be matched to an EPSG code/);
+  const down = { ...geodesy, plan: async () => { throw new Error("EPSG answered 503"); } };
+  const f = await readFiles(shp("redline"), { geodesy: down });
+  assert.ok(!f.layers[0].crs.pending);
+  assert.match(f.layers[0].crs.how, /registry couldn't be reached.*built-in shift/);
+  assert.ok(metres(f.features[0].geometry.coordinates[0][0], osgbToWgs84(300200, 677400)) < 1);
+});
+
+await test("the analyst settles a waiting layer with set_file_transformation", async () => {
+  const ref = R.createReference(async (n) => JSON.parse(readFileSync(new URL(`../data/ref/${n}.json`, import.meta.url))));
+  const loaded = await readFiles(shp("redline"), { geodesy: geodesyWith({ 5339: TF[5339], 7710: TF[7710] }) });
+  const list = [];
+  const host = { ref, headers: {}, places: () => list, findPlace: () => null, loadedFile: () => loaded,
+    addPlace({ feature, origin, name, status }) { const p = { name, feature, origin, status, edits: [] }; list.push(p); return p; },
+    resolveFileLayer: (layer, op) => resolveLayer(loaded, layer, op, { geodesy }) };
+  const t = createPlaceTools(host);
+  const early = await t.exec("use_file_features", { features: ["all"] });
+  assert.equal(early.needs_decision, true);
+  const out = await t.exec("set_file_transformation", { layer: "redline", operation: "1314" });
+  assert.match(out.how, /EPSG:1314.*as you chose/);
+  const made = await t.exec("use_file_features", { features: ["all"] });
+  assert.equal(made.made.length, 1);
 });
 
 console.log(`${passed} fileimport tests passed`);

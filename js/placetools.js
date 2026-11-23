@@ -159,6 +159,18 @@ export function placeToolDefs(skills) {
         required: ["features"],
       },
     },
+    {
+      name: "set_file_transformation",
+      description: "Settle the coordinates of a dropped file's layer that is waiting for a decision (the project summary lists it under waiting_for_a_decision, with its options). Only after the person has answered in their own words. operation: the EPSG code of the transformation they chose (one of the options, or another between the same CRSs that can be applied here), or \"none\" to use the coordinates with no datum shift (flagged; only if they accept that). Load the coordinate-reference skill first and follow its section 4.",
+      input_schema: {
+        type: "object",
+        properties: {
+          layer: { type: "string", description: "The layer's name, from the summary" },
+          operation: { type: "string", description: "An EPSG transformation code, e.g. '1314', or 'none'" },
+        },
+        required: ["layer", "operation"],
+      },
+    },
     ...DATA_TOOL_DEFS,
     ...EPSG_TOOL_DEFS,
     {
@@ -584,12 +596,19 @@ export function createPlaceTools(host) {
       const fids = !features?.length || features.some((f) => String(f).toLowerCase() === "all") ? "all" : features;
       let built;
       try { built = placesFromFile(file, { fids, combine: combine || "parts", buffer_m: width_m ?? null, name: name || null }); }
-      catch (e) { if (e.needs_width) return { needs_width: true, next: e.message }; throw e; }
+      catch (e) { if (e.needs_width) return { needs_width: true, next: e.message }; if (e.needs_decision) return { needs_decision: true, next: e.message }; throw e; }
       const made = [];
       for (const b of built) made.push(await placeSummary(host.addPlace({ ...b, status: "accepted" })));
       host.fileUsed?.();
       return { made, coordinates: file.layers.map((l) => l.crs.how), how: built.map((b) => b.origin.steps.join(", ")).filter(Boolean),
         next: "The site is on the map, from the person's own file (high confidence: it's their outline). Say what was made in one line; mention the coordinate conversion only if it was guessed or flagged." };
+    },
+
+    async set_file_transformation({ layer, operation }) {
+      if (!host.loadedFile?.()) throw new Error("No file is waiting.");
+      if (!host.resolveFileLayer) return { not_available: "This can't be settled here." };
+      const r = await host.resolveFileLayer(layer, operation);
+      return { ...r, next: "Settled. Tell the person in one line what was applied. If the file has one outline it's now the site; otherwise they pick the site from the card (or say which and use use_file_features)." };
     },
 
     async ask_asset_type({ place, question }) {

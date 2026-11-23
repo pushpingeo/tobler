@@ -190,7 +190,70 @@ export function createEpsgTools(host, locate, typedAt = () => null) {
     return { datum: { code: dref.Code, name: dref.Name }, ellipsoid: { code: e.Code, name: e.Name }, E: ellipsoidFromRecord(e, u) };
   }
 
-  return {
+  // An EPSG transformation, read once and ready to apply to any number of points ([lat, lon] in degrees). Used by
+  // transform and by site files (js/fileimport.js), so both go through the same registry records and maths.
+  async function prepareOperation(op, src, tgt) {
+    let rec;
+    try { rec = await get(`Transformation/${op}`); }
+    catch (e) { return { error: `EPSG:${op}: ${e.message}`, hint: "Is it a transformation code? Use transformation_options to find one." }; }
+    const mcode = rec.Method?.Code;
+    const grid = (rec.ParameterValues || []).some((p) => p.ParamValueFileRef);
+    if (grid || !canApply(mcode)) return { error: `EPSG:${op} (${rec.Name}) uses ${rec.Method?.Name || "a method"} ${grid ? "with a grid file" : ""}, which can't be applied here.`, can_apply: false, applied: false };
+    const rs = rec.SourceCrs?.Code, rt = rec.TargetCrs?.Code;
+    let reverse;
+    if (rs === src && rt === tgt) reverse = false;
+    else if (rs === tgt && rt === src) reverse = true;
+    else return { error: `EPSG:${op} runs between EPSG:${rs} (${rec.SourceCrs?.Name}) and EPSG:${rt} (${rec.TargetCrs?.Name}), not ${src} and ${tgt}. For a projected CRS give its base geographic CRS (crs_lookup says which).` };
+    if (reverse && (rec.ParameterValues || []).some((p) => p.SignReversible === false)) return { error: `EPSG:${op} isn't reversible, so it can't be run from ${src} to ${tgt}.` };
+    let params, from, to, version, extent;
+    try {
+      const units = Object.fromEntries((await Promise.all(unitCodes(rec.ParameterValues).map(async (c) => [c, await unit(c)]))).filter(([, u]) => u));
+      params = readParameters(rec.ParameterValues, units);
+      [from, to, version, extent] = await Promise.all([ellipsoidOfCrs(rs), ellipsoidOfCrs(rt), epsgVersion(),
+        rec.Usage?.[0]?.Extent?.Code ? get(`Extent/${rec.Usage[0].Extent.Code}`).catch(() => null) : null]);
+    } catch (e) { return { error: `Couldn't read what EPSG:${op} needs: ${e.message}`, applied: false }; }
+    return {
+      rec, mcode, from, to, reverse, version, extent,
+      apply: (pts) => applyTransformation(pts, { method: mcode, params, from: from.E, to: to.E, reverse }),
+      record: { code: op, name: rec.Name, accuracy_m: typeof rec.Accuracy === "number" ? rec.Accuracy : null, direction: reverse ? "reverse" : "forward",
+        area_of_use: extent ? extent.Name : rec.Usage?.[0]?.Extent?.Name || null, epsg_version: version?.version ?? null },
+    };
+  }
+
+  // What to do with data in EPSG:source at lonlat, as the skill's section 4 says, all in code: no change needed,
+  // a transformation chosen and ready to apply, or a decision for the person (the analyst asks). For site files.
+  async function plan({ source, lonlat }) {
+    const r = await tools.transformation_options({ source: String(source), target: "4326", lonlat });
+    if (r.not_checked || r.error) throw new Error(r.not_checked || r.error);
+    if (r.same_base) return { kind: "none", source: r.source };
+    const options = (r.options || []).slice(0, 5).map((o) => ({ code: o.code, name: o.name, accuracy_m: o.accuracy_m, can_apply: o.can_apply, area: o.area }));
+    if (r.ask || !r.chosen) return { kind: "ask", source: r.source, why: r.why, recommended: r.recommended, options };
+    const prep = await prepareOperation(r.chosen, r.source.base, r.target.base);
+    if (prep.error) return { kind: "ask", source: r.source, why: prep.error, recommended: r.recommended, options };
+    return { kind: "apply", source: r.source, apply: prep.apply, operation: prep.record, why: r.why, options };
+  }
+  // One the person chose (from the options, or any applicable code between the same CRSs).
+  async function useOperation({ source, operation }) {
+    const base = await baseOf(source);
+    const prep = await prepareOperation(+operation, base.base, 4326);
+    if (prep.error) throw new Error(prep.error);
+    return { kind: "apply", source: base, apply: prep.apply, operation: prep.record };
+  }
+  async function baseOf(c) {
+    c = codeOf(c);
+    const r = await get(`CoordRefSystem/${c}`);
+    if (r.Kind === "projected") { const p = await get(`ProjectedCoordRefSystem/${c}`); return { given: c, given_name: r.Name, base: p.BaseCoordRefSystem.Code, base_name: p.BaseCoordRefSystem.Name }; }
+    return { given: c, given_name: r.Name, base: c, base_name: r.Name };
+  }
+  // A CRS by name, for .prj files that carry no EPSG code: only an exact name match (spaces and underscores aside) counts.
+  async function findByName(name) {
+    const norm = (t) => String(t || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const j = await get("CoordRefSystem", { keywords: String(name).replace(/_/g, " "), pageSize: 12 });
+    const hit = (j.Results || []).find((r) => !r.Deprecated && norm(r.Name) === norm(name));
+    return hit ? { code: hit.Code, name: hit.Name } : null;
+  }
+
+  const tools = {
     async transform({ operation, source, target = "4326", at, points }) {
       if (!epsg) return missing;
       const op = codeOf(operation), src = codeOf(source), tgt = codeOf(target);
@@ -210,28 +273,10 @@ export function createEpsgTools(host, locate, typedAt = () => null) {
       const bad = pts.find(([la, lo]) => Math.abs(la) > 90 || Math.abs(lo) > 180);
       if (bad) return { error: `${bad[0]}, ${bad[1]} isn't a latitude and longitude in degrees. Projected coordinates (eastings, northings) need converting first.` };
 
-      let rec;
-      try { rec = await get(`Transformation/${op}`); }
-      catch (e) { return { error: `EPSG:${op}: ${e.message}`, hint: "Is it a transformation code? Use transformation_options to find one." }; }
-      const mcode = rec.Method?.Code;
-      const grid = (rec.ParameterValues || []).some((p) => p.ParamValueFileRef);
-      if (grid || !canApply(mcode)) return { error: `EPSG:${op} (${rec.Name}) uses ${rec.Method?.Name || "a method"} ${grid ? "with a grid file" : ""}, which can't be applied here.`, can_apply: false, applied: false };
-      const rs = rec.SourceCrs?.Code, rt = rec.TargetCrs?.Code;
-      let reverse;
-      if (rs === src && rt === tgt) reverse = false;
-      else if (rs === tgt && rt === src) reverse = true;
-      else return { error: `EPSG:${op} runs between EPSG:${rs} (${rec.SourceCrs?.Name}) and EPSG:${rt} (${rec.TargetCrs?.Name}), not ${src} and ${tgt}. For a projected CRS give its base geographic CRS (crs_lookup says which).` };
-      if (reverse && (rec.ParameterValues || []).some((p) => p.SignReversible === false)) return { error: `EPSG:${op} isn't reversible, so it can't be run from ${src} to ${tgt}.` };
-
-      let params, from, to, version, extent;
-      try {
-        const units = Object.fromEntries((await Promise.all(unitCodes(rec.ParameterValues).map(async (c) => [c, await unit(c)]))).filter(([, u]) => u));
-        params = readParameters(rec.ParameterValues, units);
-        [from, to, version, extent] = await Promise.all([ellipsoidOfCrs(rs), ellipsoidOfCrs(rt), epsgVersion(),
-          rec.Usage?.[0]?.Extent?.Code ? get(`Extent/${rec.Usage[0].Extent.Code}`).catch(() => null) : null]);
-      } catch (e) { return { error: `Couldn't read what EPSG:${op} needs: ${e.message}`, applied: false }; }
-
-      const out = applyTransformation(pts, { method: mcode, params, from: from.E, to: to.E, reverse });
+      const prep = await prepareOperation(op, src, tgt);
+      if (prep.error) return prep;
+      const { rec, mcode, from, to, reverse, version, extent } = prep;
+      const out = prep.apply(pts);
       const Eout = reverse ? from.E : to.E;
       const r8 = (x) => Math.round(x * 1e8) / 1e8, r3 = (x) => (x == null ? null : Math.round(x * 1000) / 1000);
       const rows = pts.map((p, i) => {
@@ -283,12 +328,12 @@ export function createEpsgTools(host, locate, typedAt = () => null) {
       };
     },
 
-    async transformation_options({ source, target = "4326", at }) {
+    async transformation_options({ source, target = "4326", at, lonlat: given }) {
       if (!epsg) return missing;
       let src = codeOf(source), tgt = codeOf(target);
       if (!src || !tgt) return { error: "source and target must be EPSG codes. Use crs_lookup to find one by name." };
-      let lonlat;
-      try { lonlat = locate(at); } catch (e) { return { error: e.message }; }
+      let lonlat = given;
+      if (!lonlat) { try { lonlat = locate(at); } catch (e) { return { error: e.message }; } }
       if (!lonlat) return { error: `Couldn't place "${at}".` };
 
       // Transformations are between geographic CRSs: a projected CRS goes through its base.
@@ -373,4 +418,7 @@ export function createEpsgTools(host, locate, typedAt = () => null) {
       };
     },
   };
+  // For site files only (not a tool the analyst sees): kept off the enumerable keys so it isn't copied into the tools.
+  Object.defineProperty(tools, "fileGeodesy", { value: { plan, useOperation, findByName, available: !!epsg }, enumerable: false });
+  return tools;
 }

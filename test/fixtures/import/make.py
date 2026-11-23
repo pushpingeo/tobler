@@ -32,4 +32,11 @@ write("block_ed50", shapefile.POLYGON, [[sq(500000, 6200000, 1000)]], [("NAME", 
 json.dump({"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {"name": "Evora solar"}, "geometry": {"type": "Polygon", "coordinates": [[[-7.98, 38.57], [-7.97, 38.57], [-7.97, 38.58], [-7.98, 38.58], [-7.98, 38.57]]]}}]}, open("evora.geojson", "w"))
 json.dump({"type": "FeatureCollection", "crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::27700"}},
            "features": [{"type": "Feature", "properties": {"name": "BNG polygon"}, "geometry": {"type": "Polygon", "coordinates": [sq(300200, 677400, 200)]}}]}, open("bng.geojson", "w"))
+# 6. Registry cases: WGS 84 / UTM 30N (no datum change), ETRS89 / UTM 31N, and a datum EPSG can't be matched to.
+WGSUTM = 'PROJCS["WGS_1984_UTM_Zone_30N",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",-3.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]'
+ETRS = 'PROJCS["ETRS_1989_UTM_Zone_31N",GEOGCS["GCS_ETRS_1989",DATUM["D_ETRS_1989",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",3.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]'
+ODD = 'PROJCS["Odd_Local_Grid",GEOGCS["GCS_Odd",DATUM["D_Odd",SPHEROID["Clarke_1880",6378249.145,293.465]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",3.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]'
+write("wgs_utm30", shapefile.POLYGON, [[sq(400000, 6200000, 1000)]], [("NAME", "C", 40)], [["UTM block"]], WGSUTM)
+write("etrs_utm31", shapefile.POLYGON, [[sq(500000, 6200000, 1000)]], [("NAME", "C", 40)], [["ETRS block"]], ETRS)
+write("odd_grid", shapefile.POLYGON, [[sq(500000, 6200000, 1000)]], [("NAME", "C", 40)], [["Odd block"]], ODD)
 print("fixtures written")

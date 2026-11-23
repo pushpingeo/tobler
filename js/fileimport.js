@@ -81,18 +81,99 @@ export function converterFor(proj4, text, { name, ed50 } = {}) {
 function guessConverter(proj4, coords) {
   const xs = coords.map((c) => c[0]), ys = coords.map((c) => c[1]);
   const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-  if (x0 >= -180 && x1 <= 180 && y0 >= -90 && y1 <= 90) return { ...converterFor(proj4, EPSG[4326], { name: "WGS 84" }), guessed: true, how: "no coordinate system given; the numbers are longitudes and latitudes, so WGS 84 was assumed" };
+  if (x0 >= -180 && x1 <= 180 && y0 >= -90 && y1 <= 90) return { ...converterFor(proj4, EPSG[4326], { name: "WGS 84" }), guessed: true, code: 4326, text: EPSG[4326], how: "no coordinate system given; the numbers are longitudes and latitudes, so WGS 84 was assumed" };
   if (x0 >= 0 && x1 <= 700000 && y0 >= 0 && y1 <= 1300000) {
-    return { ...converterFor(proj4, EPSG[27700], { name: "British National Grid" }), guessed: true,
+    return { ...converterFor(proj4, EPSG[27700], { name: "British National Grid" }), guessed: true, code: 27700, text: EPSG[27700],
       how: "no coordinate system given; the numbers fit British National Grid, so it was assumed and converted to WGS 84 (if this is Irish or other data, add its .prj file)" };
   }
   return null;
 }
 
+// The EPSG code a .prj names: its own AUTHORITY/ID (the last one is the whole CRS's), or a well-known Esri name.
+const ESRI_NAMES = {
+  british_national_grid: 27700, osgb_1936_british_national_grid: 27700, gcs_osgb_1936: 4277, tm65_irish_grid: 29903,
+  irenet95_irish_transverse_mercator: 2157, gcs_wgs_1984: 4326, gcs_etrs_1989: 4258, gcs_european_1950: 4230,
+  wgs_1984_web_mercator_auxiliary_sphere: 3857,
+};
+export function epsgFromPrj(text) {
+  const t = String(text || "");
+  const ids = [...t.matchAll(/(?:AUTHORITY|ID)\s*\[\s*"EPSG"\s*,\s*"?(\d{4,6})"?\s*\]/gi)];
+  if (ids.length) return { code: +ids.at(-1)[1], how: "read from the .prj" };
+  const name = (t.match(/^\s*\w+\s*\[\s*"([^"]+)"/)?.[1] || "").toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  if (ESRI_NAMES[name]) return { code: ESRI_NAMES[name], how: "read from the .prj" };
+  let m;
+  if ((m = name.match(/^wgs_1984_utm_zone_(\d{1,2})([ns])$/))) return { code: (m[2] === "n" ? 32600 : 32700) + +m[1], how: "read from the .prj" };
+  if ((m = name.match(/^etrs_1989_utm_zone_(\d{2})n$/)) && +m[1] >= 28 && +m[1] <= 38) return { code: 25800 + +m[1], how: "read from the .prj" };
+  if ((m = name.match(/^ed_1950_utm_zone_(\d{2})n$/)) && +m[1] >= 28 && +m[1] <= 38) return { code: 23000 + +m[1], how: "read from the .prj" };
+  return null;
+}
+
+// Projection only: grid coordinates to longitude and latitude on the file's own datum, with no datum shift, so the
+// shift can be chosen from the registry and applied once with Tobler's own maths (js/transform.js).
+function projectionOnly(proj4, text) {
+  try {
+    proj4.defs("TOBLER_FILE_SRC", text);
+    const def = { ...proj4.defs("TOBLER_FILE_SRC"), datumCode: "none" };
+    delete def.datum_params; delete def.towgs84; delete def.nadgrids;
+    const src = proj4.Proj(def);
+    const t = proj4(src, proj4.Proj(`+proj=longlat +a=${src.a} +b=${src.b} +no_defs`));
+    return (c) => t.forward([c[0], c[1]]);
+  } catch { return null; }
+}
+// Apply a registry transformation ([lat, lon] in, [lat, lon] out) to a geometry in [lon, lat].
+function applyGeographic(g, apply) {
+  const pts = coordsOf(g);
+  const out = apply(pts.map(([lon, lat]) => [lat, lon]));
+  let i = 0;
+  return mapCoords(g, () => { const [la, lo] = out[i++]; return [lo, la]; });
+}
+const onEarth = (g) => coordsOf(g).every(([x, y]) => Number.isFinite(x) && Number.isFinite(y) && Math.abs(x) <= 180 && Math.abs(y) <= 90);
+function centreOf(geoms) {
+  if (!geoms.length) return null;
+  const [w, s2, e, n] = turf.bbox(turf.featureCollection(geoms.map((g) => ({ type: "Feature", properties: {}, geometry: g }))));
+  return [(w + e) / 2, (s2 + n) / 2];
+}
+const sizeOf = (kind, geometry) => {
+  const f = { type: "Feature", properties: {}, geometry };
+  return kind === "polygon" ? { area_ha: round(turf.area(f) / 1e4, 2) } : kind === "line" ? { length_km: round(turf.length(f), 3) } : { points: geometry.type === "MultiPoint" ? geometry.coordinates.length : 1 };
+};
+
+// The person's answer to a layer waiting for a decision: an EPSG transformation code (one of the options, or another
+// between the same CRSs that can be applied here), or "none" (use it with no datum shift, flagged). Converts that
+// layer's features again from the file's own coordinates.
+export async function resolveLayer(file, layerName, choice, { geodesy = null } = {}) {
+  const { proj4 } = await load();
+  const layer = file?.layers.find((l) => l.name === layerName) || (file?.layers.length === 1 ? file.layers[0] : null);
+  if (!layer) throw new Error(`No layer called "${layerName}" in the file.`);
+  if (!layer.crs.pending) throw new Error(`${layer.name} doesn't need a decision.`);
+  const projOnly = layer._src.text ? projectionOnly(proj4, layer._src.text) : null;
+  if (!projOnly) throw new Error("The file's coordinate system couldn't be read, so it can only be used if the .prj is fixed.");
+  let convert, crs;
+  if (String(choice).toLowerCase() === "none") {
+    convert = (g) => mapCoords(g, projOnly);
+    crs = { name: layer.crs.name, epsg: layer.crs.epsg, datum: "as WGS 84, unshifted", accuracy_m: null, chosen_by: "the person",
+      how: `${layer.crs.name}: used with no datum transformation, as you chose. Positions could be out by tens to hundreds of metres`, warning: "no datum shift applied (the person's choice)" };
+  } else {
+    if (!geodesy || !layer.crs.epsg) throw new Error("The EPSG registry isn't available here, so only \"none\" can be chosen.");
+    const pl = await geodesy.useOperation({ source: layer.crs.epsg, operation: choice });
+    const o = pl.operation;
+    convert = (g) => applyGeographic(mapCoords(g, projOnly), pl.apply);
+    crs = { name: layer.crs.name, epsg: layer.crs.epsg, datum: pl.source.base_name, accuracy_m: o.accuracy_m, transformation: o, chosen_by: "the person",
+      how: `converted from ${layer.crs.name} to WGS 84 with EPSG:${o.code}, ${o.name}, good to about ${o.accuracy_m ?? "an unknown number of"} m, as you chose` };
+  }
+  for (const f of file.features.filter((x) => x.layer === layer.name)) { f.geometry = convert(f.raw); f.size = sizeOf(f.kind, f.geometry); }
+  layer.crs = crs;
+  return { layer: layer.name, how: crs.how, ...(crs.warning ? { warning: crs.warning } : {}) };
+}
+
 // ---- reading ------------------------------------------------------------------------------------------------
 // files: [{ name, bytes: Uint8Array }] (names may include folder paths). Returns { name, layers, features, notes,
 // skipped }. Features: { fid, layer, label, kind, geometry (WGS84), props, size }.
-export async function readFiles(files) {
+// geodesy (optional; the page passes the EPSG tools' fileGeodesy): { plan, useOperation, findByName }. With it, the
+// datum transformation is chosen from the live EPSG registry for where the data is, as for typed coordinates, and a
+// layer that needs a judgement waits for the person (the analyst asks, following the coordinate-reference skill).
+// Without it, or when the registry can't be reached, the built-in shifts above are used and that's said.
+export async function readFiles(files, { geodesy = null } = {}) {
   const { proj4, parseShp, parseDbf, unzipSync, strFromU8 } = await load();
   const total = files.reduce((n, f) => n + f.bytes.byteLength, 0);
   if (total > MAX_BYTES) throw new Error(`That's ${Math.round(total / 1e6)} MB. Site files are usually far smaller: try just the boundary layer (up to ${MAX_BYTES / 1e6} MB).`);
@@ -115,7 +196,7 @@ export async function readFiles(files) {
   const text = (b) => (b ? strFromU8(b) : null);
   for (const g of groups.values()) {
     const P = g.parts;
-    let rows = null, conv = null, kindName;
+    let rows = null, conv = null, kindName, crsText = null, code = null, codeHow = null;
     try {
       if (P.shp) {
         kindName = "shapefile";
@@ -124,18 +205,29 @@ export async function readFiles(files) {
         if (P.dbf) { try { attrs = parseDbf(P.dbf, text(P.cpg) || undefined); } catch { notes.push(`${g.name}: its attribute table (.dbf) couldn't be read, so features have no names`); } }
         else notes.push(`${g.name}: no .dbf, so features have no names or attributes`);
         rows = shapes.map((geometry, i) => ({ geometry, props: attrs[i] || {} }));
-        if (P.prj) conv = converterFor(proj4, text(P.prj));
+        if (P.prj) {
+          crsText = text(P.prj);
+          conv = converterFor(proj4, crsText);
+          const id = epsgFromPrj(crsText);
+          if (id) ({ code, how: codeHow } = id);
+          else if (geodesy?.findByName) {
+            const name = String(crsText).match(/^\s*\w+\s*\[\s*"([^"]+)"/)?.[1];
+            const hit = name ? await geodesy.findByName(name).catch(() => null) : null;
+            if (hit) { code = hit.code; codeHow = `matched by name to EPSG:${hit.code} (${hit.name})`; }
+          }
+        }
       } else if (P.geojson || P.json) {
         kindName = "GeoJSON";
         const gj = JSON.parse(text(P.geojson || P.json));
         const list = gj.type === "FeatureCollection" ? gj.features : gj.type === "Feature" ? [gj] : gj.type && gj.coordinates ? [{ type: "Feature", geometry: gj, properties: {} }] : null;
         if (!list) { skipped.push(`${g.name}: not GeoJSON features`); continue; }
         rows = list.map((f) => ({ geometry: f.geometry, props: f.properties || {} }));
-        const code = crsCode(gj);
-        if (code) {
-          const d = epsgDef(code);
-          if (!d) { skipped.push(`${g.name}: it says its coordinates are EPSG:${code}, which this page can't convert yet. Save it as WGS 84 (EPSG:4326) and drop it again`); continue; }
+        const named = crsCode(gj);
+        if (named) {
+          const d = epsgDef(named);
+          if (!d) { skipped.push(`${g.name}: it says its coordinates are EPSG:${named}, which this page can't convert yet. Save it as WGS 84 (EPSG:4326) and drop it again`); continue; }
           conv = converterFor(proj4, d.def, d);
+          crsText = d.def; code = +named; codeHow = "named in the GeoJSON";
         }
       } else {
         const has = Object.keys(P).filter((e) => !["shx", "cpg", "prj", "qmd", "xml", "sbn", "sbx", "qix", "fix", "aih", "ain", "atx", "lock"].includes(e));
@@ -150,22 +242,50 @@ export async function readFiles(files) {
     if (!conv) {
       conv = guessConverter(proj4, rows.flatMap((r) => coordsOf(r.geometry)).slice(0, 5000));
       if (!conv) { skipped.push(`${g.name}: there's no .prj and the coordinates aren't longitude and latitude or British National Grid, so they can't be placed. Drop the .prj file with it`); continue; }
+      crsText = conv.text; code = conv.code; codeHow = "guessed from the numbers";
     }
-    // Convert every coordinate (2D: heights and measures are dropped), then check it lands on the Earth.
+    // Built-in conversion first: it places the features for the map, and is the fallback if the registry can't help.
+    const raws = rows.map((r) => mapCoords(r.geometry, (c) => [c[0], c[1]]));
+    let geoms = raws.map((g2) => mapCoords(g2, (c) => conv.convert(c)));
+    let crs = { name: conv.name, how: conv.how, datum: conv.datum, accuracy_m: conv.accuracy_m, ...(conv.guessed ? { guessed: true } : {}), ...(conv.transformation ? { transformation: conv.transformation } : {}), ...(conv.warning ? { warning: conv.warning } : {}), ...(code ? { epsg: code, epsg_how: codeHow } : {}) };
+    if (geodesy) {
+      const at = centreOf(geoms.filter(onEarth));
+      const projOnly = crsText ? projectionOnly(proj4, crsText) : null;
+      if (!code || !at || !projOnly) {
+        crs = { ...crs, pending: { why: code ? "The file's coordinates couldn't be placed to choose a transformation." : "The file's coordinate system couldn't be matched to an EPSG code, so no transformation could be chosen from the registry.", options: [], recommended: null } };
+      } else {
+        let pl = null;
+        try { pl = await geodesy.plan({ source: code, lonlat: at }); } catch (e) { crs = { ...crs, fallback: `the EPSG registry couldn't be reached (${String(e.message || e).slice(0, 80)}), so the built-in conversion was used`, how: `${crs.how}. The EPSG registry couldn't be reached, so this used Tobler's built-in shift` }; }
+        if (pl) {
+          const src = pl.source;
+          const named = `${src.given_name} (EPSG:${src.given})`;
+          const guess = conv.guessed ? `no coordinate system was given, so ${named} was assumed from the numbers (if that's wrong, add the .prj); ` : "";
+          if (pl.kind === "none") {
+            geoms = raws.map((g2) => mapCoords(g2, projOnly));
+            crs = { name: named, epsg: src.given, epsg_how: codeHow, datum: src.base_name, accuracy_m: 0, how: `${guess}${named}${codeHow === "read from the .prj" || guess ? "" : `, ${codeHow}`}: already on WGS 84, so no datum transformation was needed`, ...(conv.guessed ? { guessed: true } : {}) };
+          } else if (pl.kind === "apply") {
+            geoms = raws.map((g2) => applyGeographic(mapCoords(g2, projOnly), pl.apply));
+            const o = pl.operation;
+            crs = { name: named, epsg: src.given, epsg_how: codeHow, datum: src.base_name, accuracy_m: o.accuracy_m, transformation: o,
+              how: `${guess}converted from ${named}${codeHow === "read from the .prj" || guess ? "" : ` (${codeHow})`} to WGS 84 with EPSG:${o.code}, ${o.name}, good to about ${o.accuracy_m} m, chosen from the EPSG registry for where the data is`, ...(conv.guessed ? { guessed: true } : {}) };
+          } else {
+            crs = { ...crs, name: named, epsg: src.given, epsg_how: codeHow, pending: { why: pl.why, options: pl.options, recommended: pl.recommended } };
+          }
+        }
+      }
+      if (crs.pending) crs.how = `${crs.name}: needs a decision before it can be used. ${crs.pending.why} Shown for now with ${conv.datum === "unknown" ? "no datum shift" : "Tobler's built-in conversion"}`;
+    }
+    // Every coordinate converted (2D: heights and measures are dropped); anything off the Earth is left out.
     let bad = 0;
-    const layer = { name: g.name, type: kindName, crs: { name: conv.name, how: conv.how, datum: conv.datum, accuracy_m: conv.accuracy_m, ...(conv.guessed ? { guessed: true } : {}), ...(conv.transformation ? { transformation: conv.transformation } : {}), ...(conv.shift ? { shift: conv.shift } : {}), ...(conv.warning ? { warning: conv.warning } : {}) }, count: 0 };
-    for (const r of rows) {
-      const geometry = mapCoords(r.geometry, (c) => conv.convert([c[0], c[1]]));
-      if (!coordsOf(geometry).every(([x, y]) => Number.isFinite(x) && Number.isFinite(y) && Math.abs(x) <= 180 && Math.abs(y) <= 90)) { bad++; continue; }
+    const layer = { name: g.name, type: kindName, crs, count: 0, _src: { text: crsText, code } };
+    rows.forEach((r, i) => {
+      const geometry = geoms[i];
+      if (!onEarth(geometry)) { bad++; return; }
       const kind = kindOf(geometry.type);
       const n = features.length + 1;
-      const f = { type: "Feature", properties: {}, geometry };
-      features.push({
-        fid: `F${n}`, layer: g.name, kind, geometry, props: r.props, label: labelOf(r.props, g.name, layer.count + 1),
-        size: kind === "polygon" ? { area_ha: round(turf.area(f) / 1e4, 2) } : kind === "line" ? { length_km: round(turf.length(f), 3) } : { points: geometry.type === "MultiPoint" ? geometry.coordinates.length : 1 },
-      });
+      features.push({ fid: `F${n}`, layer: g.name, kind, geometry, props: r.props, label: labelOf(r.props, g.name, layer.count + 1), size: sizeOf(kind, geometry), raw: raws[i] });
       layer.count++;
-    }
+    });
     if (bad) notes.push(`${g.name}: ${bad} feature${bad > 1 ? "s" : ""} landed off the Earth after conversion and ${bad > 1 ? "were" : "was"} left out (wrong coordinate system?)`);
     if (layer.count) layers.push(layer);
   }
@@ -202,6 +322,7 @@ export function fileSummary(file, limit = 40) {
     file: file.name,
     contents: Object.entries(counts).map(([k, n]) => `${n} ${k}${n > 1 ? "s" : ""}`).join(", "),
     coordinates: file.layers.map((l) => `${l.name}: ${l.crs.how}`),
+    ...(file.layers.some((l) => l.crs.pending) ? { waiting_for_a_decision: file.layers.filter((l) => l.crs.pending).map((l) => ({ layer: l.name, crs: l.crs.name, why: l.crs.pending.why, recommended: l.crs.pending.recommended, options: l.crs.pending.options })) } : {}),
     features: file.features.slice(0, limit).map((f) => ({ fid: f.fid, label: f.label, kind: f.kind, ...f.size, ...(file.layers.length > 1 ? { layer: f.layer } : {}) })),
     ...(file.features.length > limit ? { not_listed: `${file.features.length - limit} more not listed; fields: ${Object.keys(file.features[0]?.props || {}).slice(0, 15).join(", ")}` } : {}),
     ...(file.notes?.length ? { notes: file.notes } : {}),
@@ -219,6 +340,12 @@ export function placesFromFile(file, { fids, combine = "parts", buffer_m = null,
     return f;
   });
   if (!pick.length) throw new Error("Pick at least one feature.");
+  const waiting = [...new Set(pick.map((f) => file.layers.find((l) => l.name === f.layer)).filter((l) => l?.crs.pending))];
+  if (waiting.length) {
+    const e = new Error(`The coordinates of ${waiting.map((l) => l.name).join(", ")} need a decision first: ${waiting[0].crs.pending.why} Ask the person (coordinate-reference skill), then call set_file_transformation.`);
+    e.needs_decision = true;
+    throw e;
+  }
   const needWidth = pick.filter((f) => f.kind !== "polygon");
   if (needWidth.length && !(buffer_m > 0)) {
     const e = new Error(`${needWidth.length === pick.length ? "These are" : "Some of these are"} ${[...new Set(needWidth.map((f) => `${f.kind}s`))].join(" and ")}, so they need a width to become a site: ask how wide (e.g. 1 m for the line itself, 30 m for a cable corridor).`);
@@ -257,7 +384,7 @@ export function placesFromFile(file, { fids, combine = "parts", buffer_m = null,
     const crs = crsOf(feats[0]);
     const origin = {
       method: "file", file: file.name, layer: layers.join(", "), features: feats.map((f) => ({ fid: f.fid, label: f.label })),
-      crs: { name: crs?.name, how: crs?.how, ...(crs?.guessed ? { guessed: true } : {}), ...(crs?.transformation ? { transformation: crs.transformation } : {}), ...(crs?.warning ? { warning: crs.warning } : {}) },
+      crs: { name: crs?.name, how: crs?.how, ...(crs?.epsg ? { epsg: crs.epsg } : {}), ...(crs?.guessed ? { guessed: true } : {}), ...(crs?.transformation ? { transformation: crs.transformation } : {}), ...(crs?.fallback ? { fallback: crs.fallback } : {}), ...(crs?.warning ? { warning: crs.warning } : {}), ...(crs?.chosen_by ? { chosen_by: crs.chosen_by } : {}) },
       ...(buffer_m && !allPolygons ? { buffer_m } : {}), steps,
       role: allPolygons ? "footprint" : "area",
       role_why: allPolygons ? `the outline from your file ${file.name}` : `the site as you defined it: ${buffer_m} m round ${feats.length > 1 ? "the features" : `${feats[0].label}`} from your file`,
