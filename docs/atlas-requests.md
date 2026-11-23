@@ -4,6 +4,20 @@ Tobler and the atlas are worked on in separate chats (decided 17 Nov). Tobler do
 What Tobler can rely on is written down in the atlas repo's `docs/mcp-tools.md`. When Tobler needs something
 new from the atlas, add it here (newest first), tell Rob, and he passes it to the atlas chat.
 
+- **23 Nov: the UK pack, broadened beyond nature sites.** Adds to the 22 Nov request. Published decisions on UK
+  wind, solar and battery sites were decided mostly by landscape, heritage, peat and farmland quality, not by
+  protected nature sites, and Tobler has no checks for these yet. Asks: trusted records that return features
+  (`fetch_features` with a bbox), licence and attribution verbatim, for: (1) **landscape:** National Parks, National
+  Landscapes (AONBs), National Scenic Areas, Wild Land Areas, Dark Sky Parks, and regional or local landscape
+  designations where councils publish them; (2) **heritage:** scheduled monuments, listed buildings, World Heritage
+  Sites, registered parks and gardens, HES Inventory of Gardens and Designed Landscapes, Inventory of Historic
+  Battlefields (and the Cadw and HED equivalents); (3) **NatureScot Carbon and Peatland 2016 map**; (4)
+  **Agricultural Land Classification** (England provisional and post-1988; Scotland's Land Capability for
+  Agriculture); (5) **flood zones** (EA Flood Map for Planning, SEPA flood maps); (6) **Natural England SSSI Impact
+  Risk Zones** (OGL; `services.arcgis.com/JJzESW51TqeY9uat/.../SSSI_Impact_Risk_Zones_England/FeatureServer/0`) and
+  please find and document how the 13-digit `irzcode` in its `IRZURL` field decodes into development categories.
+  Tobler will turn each into a check (topic, layers per region, reach per scale).
+
 - **22 Nov: UK protected sites as must-check layers, and three faults from a Dogger Bank screen.** Tobler's first
   audience is now environmental consultants (Rob, 22 Nov), and a screen of a 100 km² offshore wind site north of
   R4 Project 1 (Dogger Bank South West) found no protected areas at all, though Dogger Bank is a designated SAC.

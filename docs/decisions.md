@@ -972,3 +972,22 @@ Judgement calls made while building, newest first. Bigger product decisions live
   ux 26, choice 8, coords 12, epsg 20, cards 14), including new checks for the card order, topic labels, the short
   disclaimer, the More menu on one row and on screen, Advanced closed by default, and the phone's first visit; phone
   and desktop screenshots looked at. **Not tested:** the live analyst's replies (unchanged).
+
+## 23 Nov 2026: the conceptual model, and what changes (Rob)
+A review of the built product against the conceptual model (six nouns: place, data, tool, check, skill, profile,
+plus frameworks). Place, data and tool already fit. Checks don't exist yet, the profile sets distances by asset type
+rather than by scale, and IFC is wired in as the only framework. Landscape, water, ground and soil, and land use
+have no topic at all, though landscape, peat and farmland quality decided most of the UK example cases.
+- **Report headings:** UK EIA practice chapter names by default (Ecology, Ornithology, Landscape and Visual,
+  Cultural Heritage, Hydrology, Geology and Soils, and so on); IFC Performance Standard titles for global or lender
+  work. The person can switch. IFC's text isn't reproduced (its terms of use); the titles are named.
+- **Scale bands confirmed,** including global 10–20 km (it closes the gap between 0–10 and 20–50 km). Local 0–50 m,
+  50–250 m, 250–500 m, 500 m–2 km; regional 0–2, 2–5, 5–10, 10–20 km; global 0–10, 10–20, 20–50, 50–100 km. The
+  asset type extends a check's reach only with a stated reason.
+- **Run record `tobler-run/2`:** neutral topics in place of PS codes. Old share links stay readable (PS codes are
+  mapped to topics when read).
+- **Aviation, radar, telecoms links and existing infrastructure:** one neutral topic (`material-assets`, the EIA
+  regulations' word), headed "Aviation and existing infrastructure" in the UK EIA framework, as consultants title it.
+- **Order of work:** checks as data; ten neutral topics and frameworks; scale bands in the profile; split the
+  screening skill (judgement only); a broadened UK pack; an evaluation on the example sites.
+- Nothing built yet.
