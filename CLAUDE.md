@@ -4,6 +4,21 @@ Tobler is an AI-first geospatial screening tool for environmental consultants (a
 the plan, `tobler-workspace-plan.md` in the claude.ai project ("Where things are", "Next", "Decisions that stand"),
 and the latest entries in `docs/decisions.md`.
 
+## Where new code goes
+
+The conceptual model in six nouns (full version, with what's built: `docs/conceptual-model.md`). Put new work under
+the noun it belongs to. Don't build a noun ahead of the plan, or bend working code to fit a part that isn't built.
+
+- **Tools do.** Deterministic and generic, no judgement (`js/placetools.js`, `js/datatools.js`, `js/geometry.js`,
+  `js/epsgtools.js`, `js/transform.js`).
+- **Checks measure.** One report line each, always found, none found or not checked; data, not code. *Not built*
+  (plan item 1); `baseline` in `catalogue/trusted.json` stands in.
+- **Skills judge.** Which checks matter, severity, the decision, the write-up (`skills/*/SKILL.md`).
+- **The profile sets defaults** (`catalogue/industries/`); the project holds the consultant's overrides (*not built*).
+- **A place says where** (role set in code, how it was made recorded); **data says what exists** (the atlas, with
+  publisher and licence).
+- **Frameworks map topics to report headings.** *IFC only, hard-wired* (plan item 2).
+
 ## Invariants
 
 These must always be true. `test/invariants.test.mjs` checks the ones marked *tested*, and `npm test` runs it. If a
