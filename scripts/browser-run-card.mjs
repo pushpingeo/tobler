@@ -164,6 +164,11 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
     checked: document.querySelector(".run .checked summary").textContent,
     gaps: document.querySelector(".run .gaps summary").textContent,
     gapHeads: [...document.querySelectorAll(".run .gaps .gap-head")].map((e) => e.textContent),
+    gapLines: [...document.querySelectorAll(".run .gaps .gap-group.couldnt li")].map((e) => e.textContent),
+    checks: (() => { const c = document.querySelector(".run .checks"); if (!c || c.hidden) return null;
+      return { summary: c.querySelector(":scope > summary").textContent, open: c.open, heads: [...c.querySelectorAll(".check-head")].map((e) => e.textContent),
+        lines: [...c.querySelectorAll("li.check")].map((e) => ({ text: e.textContent, cls: e.className })), nocheck: c.querySelector(".nocheck summary").textContent,
+        nocheckShown: !c.querySelector(".nocheck").hidden, visible: c.getBoundingClientRect().width > 0 }; })(),
     dists: document.querySelector(".run .dists").textContent,
     sea: document.querySelector(".run .sea").hidden ? "" : document.querySelector(".run .sea").textContent,
     scopeShown: !document.querySelector(".run .scope").hidden,
@@ -252,7 +257,22 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   check(s.stale && s.beyond === 1, `${label}: re-assess offered, wreck flag dimmed as beyond (${s.beyond})`);
   check(/Nearest: community health and safety, Rosebank 9 inch Production flowline 1 \(on site\)/.test(s.nearest), `${label}: nearest-by-theme line (${s.nearest})`);
   check(/lies within a wide area: North West European waters\./.test(s.nearest) && !/Nearest:[^.]*North West European/.test(s.nearest), `${label}: a wide area around the site is counted apart, not as on site (${s.nearest})`);
-  check(/^What still needs checking: 3 couldn't check, 1 no data, 1 caveat$/.test(s.gaps) && s.gapHeads.join("|") === "Not checked: check these yourself|No data here: may need a site visit or a local source|Assumptions and caveats", `${label}: what still needs checking, grouped (${s.gaps}; ${s.gapHeads.join(", ")})`);
+  // Checks (plan item 1): UK waters, so SACs and SPAs are pending (not "none found" from the EU layer); the run's
+  // checks by topic in three states; the topics nothing checks yet in one line; open on a desktop, closed on a phone.
+  const ck = s.checks;
+  await page.evaluate(() => { const c = document.querySelector(".run .checks"); c.open = true; c.querySelector(".nocheck").open = true; });
+  await page.locator(".run .checks").screenshot({ path: `/tmp/run-card-${label}-checks.png` }).catch(() => {});
+  await page.evaluate((open) => { const c = document.querySelector(".run .checks"); c.open = open; c.querySelector(".nocheck").open = false; }, ck?.open ?? false);
+  check(ck && /^Checks: \d+ \(\d+ found, \d+ none found, \d+ not checked\)$/.test(ck.summary), `${label}: checks section with its summary (${ck?.summary})`);
+  check(ck && ck.heads.join("|") === "Biodiversity|Material assets|Topography and bathymetry|Context", `${label}: checks grouped by topic in order (${ck?.heads.join(", ")})`);
+  check(ck && ck.lines.some((l) => /^Special Areas of Conservation\s*must: not checked: the UK list \(JNCC\)/.test(l.text) && /\bnc\b/.test(l.cls))
+    && ck.lines.some((l) => /^MARPOL special areas: the site is inside North West European waters/.test(l.text) && /found/.test(l.cls))
+    && ck.lines.some((l) => /^Water depth: about 120 m/.test(l.text))
+    && ck.lines.some((l) => /none found within/.test(l.text) && /\bnone\b/.test(l.cls)), `${label}: one check of each state (${ck?.lines.map((l) => l.text.slice(0, 40)).join(" | ")})`);
+  check(ck && ck.nocheckShown && /^\d+ topics have no standard check yet$/.test(ck.nocheck), `${label}: topics with no check in one summary line (${ck?.nocheck})`);
+  check(ck && ck.open === (label === "desktop"), `${label}: checks open on a desktop, closed on a phone (${ck?.open})`);
+  check(s.gapLines.some((l) => /^No standard check yet for water, ground and soil/.test(l)) && s.gapLines.some((l) => /Special Areas of Conservation \(UK\): the UK list \(JNCC\)/.test(l)), `${label}: pending checks and unchecked topics in what still needs checking`);
+  check(/^What still needs checking: 6 couldn't check, 1 no data, 1 caveat$/.test(s.gaps) && s.gapHeads.join("|") === "Not checked: check these yourself|No data here: may need a site visit or a local source|Assumptions and caveats", `${label}: what still needs checking, grouped (${s.gaps}; ${s.gapHeads.join(", ")})`);
   check(await page.evaluate(() => { const c = document.querySelector(".run"); const order = [...c.children].map((e) => e.className.split(" ")[0]); return document.querySelector(".run .gaps").open && order.indexOf("gaps") === order.indexOf("flags") + 1 && document.querySelector(".run .flag .th")?.textContent.length > 2; }), `${label}: still-to-check sits open right under the flags; each flag names its topic`);
   check(await page.evaluate(() => /^Indicative desk screening from public data\./.test(document.querySelector(".run .disclaimer").textContent) && document.querySelector(".run .disclaimer").textContent.length < 200 && !document.querySelector('.run [data-op="download"]').checkVisibility()), `${label}: short disclaimer on the card; download is under More`);
   await page.evaluate(() => { document.querySelector(".run .more").open = true; document.querySelector(".run .disclaimer").scrollIntoView({ block: "end" }); });

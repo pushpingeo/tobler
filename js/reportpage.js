@@ -9,7 +9,7 @@ import { DISCLAIMER } from "./disclaimer.js";
 import { seaLines, seaMatters } from "./seavalues.js";
 import { whereText, searchHeadline, SEARCH_BAND } from "./siterole.js";
 import { elevationLine } from "./elevation.js";
-import { findingLabels, findingRows, evidenceRows, sourcesOf, gapsOf, decisionText, summaryBlocks, changeLog } from "./report.js";
+import { findingLabels, findingRows, evidenceRows, sourcesOf, gapsOf, checksOf, decisionText, summaryBlocks, changeLog } from "./report.js";
 
 const $ = (id) => document.getElementById(id);
 const BASEMAP = "https://tiles.openfreemap.org/styles/positron";
@@ -145,6 +145,31 @@ function render(record) {
     findSec.append(t);
   }
 
+  // 3b. Checks (plan item 1): one line per check, by topic, found, none found or not checked. Runs from before checks
+  // (old share links) have none, and the section is left out.
+  const cv = checksOf(r);
+  const ckSec = cv ? el("section", null, "checks") : null;
+  if (cv) {
+    ckSec.append(el("h2", "Checks"));
+    ckSec.append(el("p", `${cv.summary.replace(/^Checks: (\d+)/, (m, n) => `${n} check${n === "1" ? "" : "s"}`)}, run in code before the analyst started, at ${cv.scale || "the"} scale. Each looks out to its own distance from the site's edge. "Must" marks a check its topic can't be called clear without. "Not checked" is not the same as "none found".`));
+    const t = el("table", null, "checks");
+    const hr = el("tr"); [["Check", ""], ["Result", ""], ["Source", "src"]].forEach(([h, c]) => hr.append(el("th", h, c)));
+    t.append(el("thead"), el("tbody")); t.tHead.append(hr);
+    for (const g of cv.groups) {
+      const gr = el("tr", null, "topic"); const td = el("td", g.label); td.colSpan = 3; gr.append(td); t.tBodies[0].append(gr);
+      for (const c of g.items) {
+        const tr = el("tr", null, c.state === "not_checked" ? "failed" : c.state);
+        const name = el("td", c.label); if (c.must) name.append(el("span", " must", "must"));
+        if (c.source) name.append(el("div", c.source, "made src-inline")); // the source column folds in here on a phone
+        const res = el("td", U.localise(c.line), "res"); if (c.partly) res.append(el("div", U.localise(c.partly), "made"));
+        tr.append(name, res, el("td", c.source, "made src"));
+        t.tBodies[0].append(tr);
+      }
+    }
+    ckSec.append(t);
+    if (cv.noCheck) ckSec.append(el("p", `${cv.noCheck.line}. They are listed under "Couldn't check" below.`, "made"));
+  }
+
   // 4. Evidence and gaps.
   const evSec = el("section");
   evSec.append(el("h2", "Evidence and gaps"));
@@ -188,7 +213,7 @@ function render(record) {
   const foot = el("footer");
   foot.append(el("p", r.disclaimer || DISCLAIMER, "disclaimer"), el("p", `Made with Tobler (asktobler.com) from run ${r.id}, ${when(r.finished_at)}.`, "made"));
 
-  main.replaceChildren(...head, ...(oldNote ? [oldNote] : []), decision, ...(replNote ? [replNote] : []), ...(searchNote ? [searchNote] : []), summary, siteSec, findSec, evSec, meth, src, foot);
+  main.replaceChildren(...head, ...(oldNote ? [oldNote] : []), decision, ...(replNote ? [replNote] : []), ...(searchNote ? [searchNote] : []), summary, siteSec, findSec, ...(ckSec ? [ckSec] : []), evSec, meth, src, foot);
   const site = record.features.find((f) => f.properties.role === "site");
   const evid = record.features.filter((f) => f.properties.role === "evidence");
   pending.push(drawMap(siteFig, { site, rings: r.extent === "inside" ? [] : [r.distances.near, r.distances.close, r.distances.wider], evidence: [], labels: null, searchArea }));

@@ -11,8 +11,8 @@ the noun it belongs to. Don't build a noun ahead of the plan, or bend working co
 
 - **Tools do.** Deterministic and generic, no judgement (`js/placetools.js`, `js/datatools.js`, `js/geometry.js`,
   `js/epsgtools.js`, `js/transform.js`).
-- **Checks measure.** One report line each, always found, none found or not checked; data, not code. *Not built*
-  (plan item 1); `baseline` in `catalogue/trusted.json` stands in.
+- **Checks measure.** One report line each, always found, none found or not checked; data, not code
+  (`catalogue/checks.json`, read by `js/checks.js`). A new must-check is a line there, not code in the run.
 - **Skills judge.** Which checks matter, severity, the decision, the write-up (`skills/*/SKILL.md`).
 - **The profile sets defaults** (`catalogue/industries/`); the project holds the consultant's overrides (*not built*).
 - **A place says where** (role set in code, how it was made recorded); **data says what exists** (the atlas, with

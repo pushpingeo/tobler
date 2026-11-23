@@ -15,8 +15,9 @@ export const OUTSIDE_PROFILE = "A general screen: the method wasn't built for th
 import { aroundSiteKm2 } from "./datatools.js";
 import { siteChange } from "./outofdate.js";
 import { waterDepth, vesselTraffic, seaLines } from "./seavalues.js";
-import { elevationFrom, elevationSignificance, elevationLine } from "./elevation.js";
-import { baselineFor, readDecision, settleDecision } from "./industry.js";
+import { elevationFrom, elevationSignificance, elevationLine, elevationShort } from "./elevation.js";
+import { readDecision, settleDecision } from "./industry.js";
+import * as K from "./checks.js";
 import { placeRole, coverageIn, whereText, applySearchArea, reword, SEARCH_BAND, SEARCH_NOTE } from "./siterole.js";
 
 // The band for a piece of evidence: a wide area the site lies within is "around the site", not "on site".
@@ -24,7 +25,8 @@ export const AROUND = "around the site";
 // Inside a search area (a stand-in for an outline nobody found), distance 0 is "in the search area", not "on site".
 const bandOf = (p, d) => (p.surrounds ? AROUND : p.in_search_area && !(p.distance_km > 0) ? SEARCH_BAND : bandFor(p.distance_km, d));
 
-export const RUN_SCHEMA = "tobler-run/1";
+// tobler-run/2 (23 Nov): adds the checks. Old share links (tobler-run/1, no checks) still open.
+export const RUN_SCHEMA = "tobler-run/2";
 export const SCREEN_TOOLS = ["get_place", "find_data", "get_data", "find_features_near", "get_elevation"];
 const THEME_OF = { PS4: "community", PS5: "land", PS6: "biodiversity", PS7: "indigenous", PS8: "heritage", context: "context" };
 export const THEME_CODE = Object.fromEntries(Object.entries(THEME_OF).map(([k, v]) => [v, k]));
@@ -128,7 +130,7 @@ export function firstMessage({ siteName, describe, inputs, distances, footprintN
     inputs.focus ? `The person asked especially about: ${inputs.focus}.` : null,
     describe.offshore && describe.coast_km != null && describe.coast_km > reach
       ? `No land ${inside ? "inside the area" : "within the wider band"} (the coast is about ${Math.round(describe.coast_km)} km away): settlements, schools, clinics, roads and other onshore receptors are out of reach. Don't search for them and don't list them as gaps; coastal communities matter only as spill reach beyond the bands.` : null,
-    baseline ? `Already checked by the run before you started (don't fetch these again; they are evidence like anything you fetch, and failures are gaps):\n${baseline}` : null,
+    baseline ? `Already checked by the run before you started, by topic (don't fetch these again; they are evidence like anything you fetch). Each check is found, none found, or not checked with the reason; "must" marks a check its topic can't be called clear without. Not-checked lines are already on the card as gaps, so don't repeat them in data_gaps unless you have something to add:\n${baseline}` : null,
     `Refer to the site as "${siteName}" in tool calls.`,
   ];
   return lines.filter(Boolean).join("\n");
@@ -272,7 +274,8 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
   const defs = placeToolDefs([]).filter((t) => SCREEN_TOOLS.includes(t.name));
   const checked = [];
   const calls = [];
-  const exec = async (name, input) => {
+  const lastOut = new Map(); // dataset id → the tool's own output, for the checks (the analyst sees a slimmer copy)
+  const exec = async (name, input, meta = {}) => {
     if (!SCREEN_TOOLS.includes(name)) throw new Error(`${name} isn't available in a screening run.`);
     const i = { ...input };
     // Fetch once, out to the wider band, so the card's slider can work inside it without new queries.
@@ -282,7 +285,8 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
     try {
       const out = await tools.exec(name, i);
       calls.push({ tool: name, input: i, ms: Date.now() - t0 });
-      const c = checkedFrom(name, i, out); if (c) checked.push(c);
+      const c = checkedFrom(name, i, out); if (c) checked.push(meta.check ? { ...c, check: meta.check } : c);
+      if (name === "get_data") lastOut.set(i.dataset, out);
       return forAnalyst(name, searchArea ? markInArea(name, out, inArea) : out);
     } catch (e) {
       calls.push({ tool: name, input: i, ms: Date.now() - t0, error: String(e.message || e).slice(0, 200) });
@@ -294,37 +298,69 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
   };
   const describe = await R.describe(host.ref, fp.feature);
   const offshore = !!describe.offshore;
-  // Baseline, in code, before the analyst starts: boundaries (land and maritime) and the layers every screen must
-  // check (catalogue/trusted.json "baseline"), so the essentials never depend on a lucky catalogue search.
+  // Checks, in code, before the analyst starts (catalogue/checks.json; js/checks.js): every check that applies to
+  // this site, at this scale, comes back found, none found or not checked with the reason, so the essentials never
+  // depend on a lucky catalogue search and a topic with no data shows as a gap, never as silence.
   const sea = offshore || (describe.coast_km != null && describe.coast_km <= reach);
-  const baselineLines = [];
-  const summarise = (c) => {
-    const near = evidence.filter((f) => f.properties.dataset === c.dataset).sort((a, b) => a.properties.distance_km - b.properties.distance_km).slice(0, 3)
-      .map((f) => `${f.properties.name}${f.properties.details?.sides ? ` [${f.properties.details.sides}${f.properties.details.line_type ? `, ${f.properties.details.line_type}` : ""}]` : ""} ${f.properties.surrounds ? "(around the site: a wide area it lies within)" : `${f.properties.distance_km} km`}`);
-    return `- ${c.dataset} (${c.publisher || "?"}): ${c.result === "features" ? `${c.count} ${inside ? "inside or touching the area" : `within ${reach} km`}; nearest ${near.join("; ")}` : c.result}${c.why ? ` (${c.why})` : ""}`;
-  };
-  try {
-    const tb = Date.now();
-    const nb = await nearestBoundaries({ ref: host.ref, site: fp.feature, withinKm: reach, atlas: host.atlas || null, sea, now });
-    onEvent({ type: "tool", name: "nearest_boundaries", input: { within_km: reach, sea }, ms: Date.now() - tb, baseline: true,
-      output: { found: nb.evidence.map((e) => `${e.name} (${e.type}) ${e.distance_km} km`), checked: nb.checked.map((c) => `${c.dataset}: ${c.result}${c.why ? ` (${c.why})` : ""}`) } });
-    capture(nb.evidence, { theme: "context" });
-    for (const c of nb.checked) { checked.push(c); baselineLines.push(summarise(c)); }
-  } catch (e) { checked.push({ evidence: "transboundary", dataset: "boundaries", result: "not checked", why: String(e.message || e).slice(0, 160) }); }
+  const catalogue = host.checks || { checks: [], topics: [], scales: {} };
+  const scale = K.screenScale(distances, siteKm2);
+  const edges = catalogue.scales?.[scale] || [];
   const sb = turf.bbox(fp.feature);
-  const layers = baselineFor(host.profile?.(), host.trusted).filter((b) => (b.setting !== "sea" || sea) && !(sb[2] < b.where[0] || sb[0] > b.where[2] || sb[3] < b.where[1] || sb[1] > b.where[3]));
-  const before = checked.length;
-  // Values read off rasters (catalogue/trusted.json "values"): elevation over the footprint on every site (shown as
-  // water depth at sea; on land only when it matters: low-lying or high altitude); AIS vessel traffic when the sea is
-  // within the close band. Alongside the baseline layers, in parallel.
+  const plans = K.planChecks(catalogue, { bbox: sb, countries: describe.countries || [], offshore, sea }, scale, { inside });
+  const results = new Map();
+  const featsOf = new Map(); // check id → the evidence properties it counted, for the analyst's nearest names
+  for (const p of plans) {
+    const u = K.unsourced(p);
+    if (!u) continue;
+    results.set(p.check.id, u);
+    // In the run's list of sources too, so "what still needs checking" picks it up.
+    checked.push({ evidence: p.check.topic, dataset: `${p.check.label}${p.source?.region ? ` (${p.source.region})` : ""}`, result: "not checked", why: u.why, check: p.check.id });
+  }
+  const fetchKm = (p) => Math.min(MAX_KM, Math.max(p.reach_km || 0, reach));
+  const asFeats = (list) => list.map((x) => ({ name: x.name, distance_km: x.distance_km, around_site: !!(x.surrounds || x.around_site) }));
+  const toolPlan = (tool) => plans.find((p) => p.source?.tool === tool && !results.has(p.check.id));
+  const bp = toolPlan("boundaries");
+  if (bp) {
+    try {
+      const tb = Date.now();
+      const nb = await nearestBoundaries({ ref: host.ref, site: fp.feature, withinKm: fetchKm(bp), atlas: host.atlas || null, sea, now });
+      onEvent({ type: "tool", name: "nearest_boundaries", input: { within_km: fetchKm(bp), sea }, ms: Date.now() - tb, baseline: true,
+        output: { found: nb.evidence.map((e) => `${e.name} (${e.type}) ${e.distance_km} km`), checked: nb.checked.map((c) => `${c.dataset}: ${c.result}${c.why ? ` (${c.why})` : ""}`) } });
+      capture(nb.evidence, { theme: K.mapTheme(bp.check.topic) });
+      for (const c of nb.checked) checked.push({ ...c, check: bp.check.id });
+      const failed = nb.checked.filter((c) => c.result === "not checked");
+      if (nb.checked.length && failed.length === nb.checked.length) results.set(bp.check.id, K.notChecked(bp, failed.map((c) => `${c.dataset}: ${c.why}`).join("; ")));
+      else {
+        const r = K.fromFeatures(bp, asFeats(nb.evidence), edges, { dataset: nb.checked.map((c) => c.dataset).join("; "), publisher: [...new Set(nb.checked.map((c) => c.publisher).filter(Boolean))].join("; "),
+          licence: [...new Set(nb.checked.map((c) => c.licence).filter(Boolean))].join("; "), checked_at: now(), fetched_km: fetchKm(bp) });
+        if (failed.length) r.partly = failed.map((c) => `${c.dataset}: not checked (${c.why})`).join("; ");
+        results.set(bp.check.id, r);
+        featsOf.set(bp.check.id, nb.evidence.map((e) => ({ name: e.name, distance_km: e.distance_km, details: e.extra, surrounds: e.around_site })));
+      }
+    } catch (e) {
+      checked.push({ evidence: "transboundary", dataset: "boundaries", result: "not checked", why: String(e.message || e).slice(0, 160), check: bp.check.id });
+      results.set(bp.check.id, K.notChecked(bp, String(e.message || e)));
+    }
+  }
+  const layers = plans.filter((p) => p.source?.atlas_id && !results.has(p.check.id));
+  // Values read off rasters (catalogue/trusted.json "values"): elevation over the footprint on every site on land,
+  // water depth offshore, and AIS vessel traffic when the sea is within the close band. In parallel with the layers.
   const vals = host.trusted?.values || {};
   const elevSources = vals.elevation || [];
-  const wantDepth = offshore && elevSources.length > 0;
-  const wantElev = !offshore && elevSources.length > 0;
-  const wantTraffic = !inside && !!vals.traffic && (offshore || (describe.coast_km != null && describe.coast_km <= distances.close));
+  const depthPlan = toolPlan("depth"), elevPlan = toolPlan("elevation"), trafficPlan = toolPlan("traffic");
+  const wantDepth = !!depthPlan && offshore && elevSources.length > 0;
+  const wantElev = !!elevPlan && !offshore && elevSources.length > 0;
+  const wantTraffic = !!trafficPlan && !inside && !!vals.traffic && (offshore || (describe.coast_km != null && describe.coast_km <= distances.close));
   const fetchFn = host.fetchFn || globalThis.fetch;
   const seaVals = {};
   let elevation = null, elevSig = null;
+  const valueResult = (plan, got, ok) => {
+    if (!plan || !got) return;
+    if (got.checked.result === "not checked") { results.set(plan.check.id, K.notChecked(plan, got.checked.why, got.checked)); return; }
+    const text = ok();
+    if (text) results.set(plan.check.id, K.fromValue(plan, { text, meta: got.checked }));
+    else results.set(plan.check.id, { ...K.notChecked(plan, got.checked.why || "no reading on the site", got.checked), reason: "failed" });
+  };
   const seaJob = (wantDepth || wantElev || wantTraffic) ? (async () => {
     const t0 = Date.now();
     const [d, e, t] = await Promise.all([
@@ -332,29 +368,74 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
       wantElev ? elevationFrom(elevSources, { feature: fp.feature, fetchFn, now }) : null,
       wantTraffic ? vesselTraffic({ site: fp.feature, closeKm: distances.close, source: vals.traffic, fetchFn, now }) : null,
     ]);
-    if (d) { checked.push(d.checked); if (d.depth) seaVals.depth = d.depth; if (d.elevation) elevation = d.elevation; }
-    if (e) { checked.push(e.checked); if (e.elevation) { elevation = e.elevation; elevSig = elevationSignificance(elevation); } }
-    if (t) { checked.push(t.checked); if (t.traffic) seaVals.traffic = t.traffic; capture(t.evidence, { theme: "community" }); }
+    if (d) { checked.push({ ...d.checked, check: depthPlan.check.id }); if (d.depth) seaVals.depth = d.depth; if (d.elevation) elevation = d.elevation; }
+    if (e) { checked.push({ ...e.checked, check: elevPlan.check.id }); if (e.elevation) { elevation = e.elevation; elevSig = elevationSignificance(elevation); } }
+    if (t) { checked.push({ ...t.checked, check: trafficPlan.check.id }); if (t.traffic) seaVals.traffic = t.traffic; capture(t.evidence, { theme: K.mapTheme(trafficPlan.check.topic) }); }
+    // The card's short line for each value (the source goes beside it, from the check's record).
+    valueResult(depthPlan, d, () => (seaVals.depth ? seaLines({ depth: seaVals.depth })[0].split(". ")[0].replace(/^Water depth /, "") : null));
+    valueResult(elevPlan, e, () => (elevation ? elevationShort(elevation, elevSig).replace(/ \(NOAA\)\.$/, "").replace(/^Elevation /, "") : null));
+    const tv = seaVals.traffic;
+    valueResult(trafficPlan, t, () => (tv ? seaLines({ traffic: tv })[0].replace(` ${tv.dataset} (${tv.publisher}).`, "").replace(/\.$/, "").replace(/^Vessel traffic \(AIS, (\d{4} annual average)\): /, "$1: ") : null));
     const lines = [...(elevSig ? [elevationLine(elevation, elevSig)] : []), ...seaLines(seaVals)];
-    // Tell the analyst about depth or traffic that didn't come back; elevation on land only if it couldn't be checked.
     const notChecked = [d, t, e && e.checked.result === "not checked" ? e : null].filter((x) => x && x.checked.result !== "features")
       .map((x) => `${x.checked.dataset}: ${x.checked.result}${x.checked.why ? ` (${x.checked.why})` : ""}`);
     onEvent({ type: "tool", name: "sea_values", input: { depth: wantDepth, elevation: wantElev, traffic: wantTraffic }, ms: Date.now() - t0, baseline: true, output: { lines, not_found: notChecked } });
     return { lines, notChecked };
   })() : null;
   onEvent({ type: "baseline", layers: layers.length + (seaJob ? 1 : 0) });
-  await Promise.allSettled(layers.map(async (b) => {
-    const id = tools.useDataset({ id: b.atlas_id, title: b.title, publisher: b.publisher, licence: b.licence, capabilities: ["query"], concepts: [] }, "B");
-    const input = { dataset: id, place: site.name, theme: b.theme };
+  await Promise.allSettled(layers.map(async (p) => {
+    const rec = p.source.record || {};
+    const id = tools.useDataset({ id: p.source.atlas_id, title: rec.title || p.check.label, publisher: rec.publisher || "", licence: rec.licence || "", capabilities: ["query"], concepts: [] }, "B");
+    const input = { dataset: id, place: site.name, theme: K.mapTheme(p.check.topic), within_km: fetchKm(p) };
     const t0 = Date.now();
     onEvent({ type: "tool_start", name: "get_data", input });
-    try { const output = await exec("get_data", input); onEvent({ type: "tool", name: "get_data", input, output, ms: Date.now() - t0, baseline: true }); }
-    catch (e) { onEvent({ type: "tool", name: "get_data", input, error: String(e.message || e), ms: Date.now() - t0, baseline: true }); }
+    try {
+      const output = await exec("get_data", input, { check: p.check.id });
+      onEvent({ type: "tool", name: "get_data", input, output, ms: Date.now() - t0, baseline: true });
+      const raw = lastOut.get(id);
+      if (!raw || raw.not_checked) { results.set(p.check.id, K.notChecked(p, raw?.not_checked || "no reply", raw || {})); return; }
+      const feats = evidence.filter((f) => f.properties.dataset === raw.dataset).map((f) => f.properties);
+      featsOf.set(p.check.id, feats);
+      results.set(p.check.id, K.fromFeatures(p, asFeats(feats), edges, { dataset: raw.dataset, publisher: raw.publisher, licence: raw.licence, checked_at: raw.checked_at, capped: !!raw.capped, fetched_km: raw.within_km }));
+    } catch (e) {
+      onEvent({ type: "tool", name: "get_data", input, error: String(e.message || e), ms: Date.now() - t0, baseline: true });
+      results.set(p.check.id, K.notChecked(p, String(e.message || e)));
+    }
   }));
   const seaRes = seaJob ? await seaJob.catch((e) => ({ lines: [], notChecked: [`elevation, water depth and vessel traffic: not checked (${String(e.message || e).slice(0, 120)})`] })) : null;
-  for (const c of checked.slice(before)) if (!/^(water depth|vessel traffic|elevation)/.test(c.evidence)) baselineLines.push(summarise(c));
-  if (seaRes) for (const l of [...seaRes.lines, ...seaRes.notChecked.map((x) => `${x}.`)]) baselineLines.push(`- ${l}`);
+  if (seaRes && seaJob) for (const p of [depthPlan, elevPlan, trafficPlan]) if (p && !results.has(p.check.id) && ((p === depthPlan && wantDepth) || (p === elevPlan && wantElev) || (p === trafficPlan && wantTraffic))) results.set(p.check.id, K.notChecked(p, seaRes.notChecked[0] || "no reading"));
+  // In plan order (the catalogue's order), only checks that ran or were found wanting: a value check that didn't
+  // apply here (no sea in the close band, inside only) is left out, as checks that don't apply are.
+  const checkResults = plans.map((p) => results.get(p.check.id)).filter(Boolean);
+  // A search area is never "on site": the checks say "in the search area" (js/siterole.js).
+  if (searchArea) for (const r of checkResults) {
+    r.search_area = true;
+    if (r.text) r.text = reword(r.text);
+    for (const b of r.bands || []) if (b.label === "on site") b.label = SEARCH_BAND;
+  }
+  const noCheck = K.uncheckedTopics(catalogue, checkResults, scale);
+  // The analyst's lines, by topic: each check's answer, with the nearest few by name, and the values' full lines.
+  const nameOf = (f) => `${f.name}${f.details?.sides ? ` [${f.details.sides}${f.details.line_type ? `, ${f.details.line_type}` : ""}]` : ""} ${f.surrounds ? "(around the site: a wide area it lies within)" : `${f.distance_km} km`}`;
+  const baselineLines = [`Scale of this screen: ${scale} (bands ${edges.join(", ")} km; each check looks out to its own reach).`];
+  for (const g of K.byTopic(catalogue, checkResults)) {
+    baselineLines.push(`${g.label}:`);
+    for (const r of g.results) {
+      const near = r.state === "found" && r.answer === "count_by_band" ? (featsOf.get(r.id) || []).filter((f) => f.distance_km <= (r.reach_km ?? 0) + 1e-9 || f.surrounds)
+        .sort((a, b) => a.distance_km - b.distance_km).slice(0, 3).map(nameOf) : [];
+      const src = r.answer === "value_at_site" && r.state === "found" ? "" : r.source?.dataset ? ` [${r.source.dataset}${r.source.publisher ? `, ${r.source.publisher}` : ""}]` : "";
+      baselineLines.push(`- ${r.label}${r.must ? " (must)" : ""}: ${K.checkLine(r, { nearest: !near.length })}${near.length ? `; nearest ${near.join("; ")}` : ""}${r.partly ? ` (partly: ${r.partly})` : ""}${src}`);
+    }
+  }
+  if (seaRes) for (const l of seaRes.lines) baselineLines.push(`- ${l}`);
+  const ncLine = K.noCheckLine(catalogue, noCheck);
+  if (ncLine) baselineLines.push(`${ncLine}. Search for these yourself where they matter for this site; the card already lists them as not checked.`);
   const baselineCalls = calls.length;
+  // One line per source the tools reached, for the repair prompt when a write-up is cut off.
+  const summarise = (c) => {
+    const near = evidence.filter((f) => f.properties.dataset === c.dataset).sort((x, y) => x.properties.distance_km - y.properties.distance_km).slice(0, 3)
+      .map((f) => nameOf({ ...f.properties }));
+    return `- ${c.dataset} (${c.publisher || "?"}): ${c.result === "features" ? `${c.count} ${inside ? "inside or touching the area" : `within ${reach} km`}; nearest ${near.join("; ")}` : c.result}${c.why ? ` (${c.why})` : ""}`;
+  };
   const origin = site.origin?.method === "words"
     ? `from the words "${site.origin.words}", anchored on ${site.origin.anchor?.name || site.origin.anchor?.place || "a found feature"}${site.origin.anchor?.source?.publisher ? ` (${site.origin.anchor.source.publisher})` : ""}, ${site.origin.confidence} confidence`
     : site.origin?.method === "file" ? fileOriginText(site.origin)
@@ -418,7 +499,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
     tobler_run: {
       schema: RUN_SCHEMA, id: runId, kind: "ntr-screen", skill: { name: skill.name, version: skill.version }, model,
       industry: host.profile?.()?.id || null,
-      decision: settleDecision(readDecision(parsed.json?.decision, searchArea ? reword(parsed.json?.decision_why) : parsed.json?.decision_why, host.profile?.()?.decisions), { checked, flags }),
+      decision: settleDecision(readDecision(parsed.json?.decision, searchArea ? reword(parsed.json?.decision_why) : parsed.json?.decision_why, host.profile?.()?.decisions), { checked, flags, checks: checkResults, topicLabel: (t) => K.topicLabel(catalogue, t) }),
       started_at: started, finished_at: now(),
       site: {
         name: site.name, how_found: origin, confidence: site.origin?.method === "words" ? site.origin.confidence : site.origin?.method === "file" ? "from the person's file" : "drawn",
@@ -440,7 +521,10 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
       flags, checked, data_gaps: Array.isArray(parsed.json?.data_gaps) ? parsed.json.data_gaps.map(String) : [],
       model_checked: Array.isArray(parsed.json?.checked) ? parsed.json.checked : [],
       summary: parsed.summary, ...(parsed.json ? {} : { parse_error: "The analyst's result had no readable JSON block, so there are no structured flags. The summary is kept as written." }),
-      baseline: { layers: layers.map((b) => b.title), calls: baselineCalls }, disclaimer: DISCLAIMER,
+      checks: checkResults, checks_scale: scale, checks_version: catalogue.version || null, ...(noCheck.length ? { no_check_topics: noCheck } : {}),
+      // Topic names travel with the run, so a share link can show them without the catalogue.
+      topic_labels: Object.fromEntries((catalogue.topics || []).filter((t) => noCheck.includes(t.id) || checkResults.some((c) => c.topic === t.id)).map((t) => [t.id, t.label])),
+      baseline: { layers: layers.map((p) => p.source.record?.title || p.check.label), calls: baselineCalls }, disclaimer: DISCLAIMER,
       calls, usage, ...(parsed.json && !repaired ? {} : { debug }), ...(repaired ? { note: "The first result was cut off; the structured result was asked for again from the same evidence." } : {}), assessments: [],
     },
     features: [siteFeature, ...evidence],
@@ -500,7 +584,7 @@ export async function reassess({ record, km, skill, callClaude: call, now = () =
   run.flags = traceFlags(parsed.json.flags, evidenceOf(record), d, { ...(run.sea || {}), elevation: run.elevation });
   const searchArea = run.site.role === "search_area";
   if (searchArea) run.flags = applySearchArea(run.flags, new Map(evidenceOf(record).map((f) => [f.properties.fid, f.properties])));
-  run.decision = settleDecision(readDecision(parsed.json.decision, searchArea ? reword(parsed.json.decision_why) : parsed.json.decision_why), { checked: run.checked, flags: run.flags }); // a decision written for the old distance no longer stands
+  run.decision = settleDecision(readDecision(parsed.json.decision, searchArea ? reword(parsed.json.decision_why) : parsed.json.decision_why), { checked: run.checked, flags: run.flags, ...(run.checks ? { checks: run.checks } : {}) }); // a decision written for the old distance no longer stands
   run.data_gaps = Array.isArray(parsed.json.data_gaps) ? parsed.json.data_gaps.map(String) : run.data_gaps;
   run.summary = searchArea ? reword(parsed.summary) : parsed.summary;
   run.distances = d;
@@ -523,7 +607,8 @@ export function headline(record) {
     top_flags: r.flags.slice(0, 5).map((f) => ({ id: f.id, risk: f.risk, ...(f.severity ? { severity: f.severity } : {}), confidence: f.confidence, theme: f.theme, nearest_km: f.nearest_km })),
     evidence_features: evidenceOf(record).length, sources_checked: r.checked.length, not_checked: notChecked.map((c) => c.dataset).slice(0, 6), gaps: r.data_gaps.length,
     ...(r.parse_error ? { problem: r.parse_error } : {}),
-    ...(r.replaces ? { replaces: `${r.replaces.run}, because ${r.replaces.why}. Say in a sentence what changed in the flags or the decision compared with ${r.replaces.run} (get_run ${r.replaces.run} if you need it).` } : {}),
+    ...(r.replaces ? { replaces: `${r.replaces.run}, because ${r.replaces.why}. Say in a sentence what changed in the flags or the decision compared with ${r.replaces.run} (get_run ${r.replaces.run} if you need it).${r.replaces.checks_changed ? ` Checks that changed: ${r.replaces.checks_changed.length ? r.replaces.checks_changed.join("; ") : "none"}.` : ""}` } : {}),
+    ...(r.checks ? { checks: K.checksSummary(r.checks).replace(/^Checks: /, "") } : {}),
     ...(r.site.role === "search_area" ? { site_is: `a search area: ${r.site.role_why}. Findings inside it are "in the search area" with the share they cover, not "on site". Say this in your reply, and that the real outline (drawn, or from the application) would sharpen the screen.` } : {}),
     note: "The run card under your reply shows the decision, the flags (F-01…), evidence, next steps, distances (with a slider) and gaps, and the map shows the evidence. Reply in two or three sentences: the most serious flags and the main gaps. Don't repeat the card.",
   };
@@ -571,6 +656,8 @@ export function createScreening({ host, table, skill, callClaude, model = "", on
       if (old) {
         const ch = siteChange(old, place);
         record.tobler_run.replaces = { run: old.tobler_run.id, why: ch ? `the site was edited after it ran (${ch.text})` : "re-run" };
+        // Which checks moved, so the card and the reply can say why the flags did.
+        if (record.tobler_run.checks) record.tobler_run.replaces.checks_changed = K.checksChanged(old.tobler_run.checks || [], record.tobler_run.checks);
         old.tobler_run.replaced_by = id;
       }
       runs.set(id, record);
@@ -589,6 +676,7 @@ export function createScreening({ host, table, skill, callClaude, model = "", on
           evidence: f.evidence.map((e) => ({ name: e.name, distance_km: e.distance_km, band: e.band, dataset: e.dataset, publisher: e.publisher, traced: e.traced })) })),
         checked: r.checked.map((c) => ({ dataset: c.dataset, publisher: c.publisher, result: c.result, ...(c.count ? { count: c.count } : {}), ...(c.why ? { why: c.why.slice(0, 160) } : {}) })),
         data_gaps: r.data_gaps,
+        ...(r.checks ? { checks: r.checks.map((c) => `${c.label}${c.must ? " (must)" : ""}: ${K.checkLine(c)}`) } : {}),
         ...(r.sea ? { sea: seaLines(r.sea) } : {}),
         ...(r.elevation ? { elevation: elevationLine(r.elevation, r.elevation.significance) } : {}),
       };

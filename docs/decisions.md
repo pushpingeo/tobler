@@ -1076,3 +1076,44 @@ have no topic at all, though landscape, peat and farmland quality decided most o
 - **Order of work:** checks as data; ten neutral topics and frameworks; scale bands in the profile; split the
   screening skill (judgement only); a broadened UK pack; an evaluation on the example sites.
 - Nothing built yet.
+
+## 23 Nov 2026 (night): checks as data, first step (plan item 1; design note agreed by Rob)
+- **Rob's answers on the design note:** the schema as drafted (`answer`: count by band, value at site or inside;
+  `must`); the first-cut reach values as defaults to tune on the example sites; topics with no check shown as one
+  summary line that opens into the list; build order as proposed (what exists first, then the Dogger Bank checks,
+  then the UK pack).
+- **Twelve topics, not eleven (Rob):** a new **topography and bathymetry** topic holds the elevation and water-depth
+  value checks (and slope later). Low-lying land moved there from hazards, depth from context. The check measures;
+  the analyst judges whether a value is a hazard (flooding) or a constraint (too deep for fixed foundations).
+  MARPOL special areas stay under material assets. Indigenous Peoples is its own line at global scale only.
+- **Built:** `catalogue/checks.json` (replaces `baseline` in `trusted.json`), `js/checks.js` (selection, bands,
+  states, the decision rule's topics, what changed between runs), the run (`js/ntrrun.js`), the card's Checks
+  section (open on a desktop, closed on a phone), the report's Checks table, share links, `tobler-run/2`. Old links
+  (`tobler-run/1`) open without a Checks section. Skill text: `ntr-screening` 3.9-draft (step 0 only).
+- **Judgement calls (mine):**
+  - **Scale, until item 3:** read off the distances the run already picks (wider band up to 10 km local, up to 25 km
+    regional, beyond that global; a site of 100 km² or more is global). So offshore fields and wind farms (50 km) are
+    global, solar and onshore wind (20 km) regional, small general screens local.
+  - **Fetch reach:** each check fetches to the larger of its own reach and the run's wider band (so the slider still
+    works) but counts only within its own reach. Reaches over 50 km are cut to 50 km, the furthest the tools fetch,
+    and the line says so ("within 50 km (of 100 km…)").
+  - **UK sources first:** SACs and SPAs in the UK (by country on land, by box at sea) are **not checked: the UK list
+    (JNCC) isn't in Tobler's data yet**, rather than "none found" from the EU layer, which hasn't held UK sites since
+    2021. That's more honest but adds two lines to every UK screen until the atlas hands back the JNCC ids.
+  - **Checks that don't apply aren't listed** (coral reefs outside the tropics, NMFS outside the US, sea checks
+    inland, marine mammal areas at local scale). A check that applies but has no source here is listed as not
+    checked (e.g. nationally designated sites outside Europe).
+  - **Provenance:** the atlas contract has no record-by-id lookup, so each source keeps its record's title,
+    publisher and licence as the atlas gave them (`as_of`); the run adds the time it was checked. Licence classes
+    are still worked out at run time, so WDPA stays off unless non-commercial data is on.
+  - **Elevation on land is always reported** now (it's a check); the long line with the reason still goes to the
+    analyst only when it matters (low-lying, upland, high altitude).
+  - **Decision rule:** "insufficient evidence" when every must-check for a topic came back not checked (pending and
+    no-source count as not checked). Today only biodiversity has must-checks. Re-assessed v1 runs keep the old rule.
+- **Tested:** `npm test` (new `test/checks.test.mjs`, 8 tests; run, report and industry tests updated); browser
+  checks, desktop and phone: run-card 147 (new: the Checks section, one check of each state, the summary line,
+  open/closed by device, pending checks in what still needs checking), search-area 34, out-of-date 28, ux 26,
+  choice 8, coords 18, epsg 20, cards 14, site files 44. Phone and desktop screenshots of the card's checks and the
+  report looked at.
+- **Not tested:** the live analyst with the new lines (try-requests: Dogger Bank and two onshore example sites);
+  real atlas answers for the eight layers (faked in tests, as before).

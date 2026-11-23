@@ -344,6 +344,17 @@ a { color: var(--sea); }
 .run .gap-group .gap-head { margin: 6px 0 0; font-weight: 600; color: var(--ink); }
 .run .gap-group.couldnt .gap-head { color: #9a3412; }
 .run .gap-group ul { margin: 2px 0 4px; padding-left: 18px; }
+/* Checks: one line each, by topic. Found in ink, none found quieter, not checked in the gap colour. */
+.run details.checks { font-size: 13px; margin: 0 0 8px; }
+.run details.checks > ul { list-style: none; padding-left: 0; }
+.run .check-head { margin: 6px 0 0; font-weight: 600; color: var(--ink); }
+.run .check-topic ul { margin: 2px 0 4px; padding-left: 18px; }
+.run li.check.none { color: var(--ink-2); }
+.run li.check .check-name { color: var(--ink); }
+.run li.check.nc .check-name { color: inherit; }
+.run li.check .must { margin-left: 5px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-2); border: 1px solid var(--rule); border-radius: 4px; padding: 0 3px; }
+.run details.nocheck { margin: 4px 0 2px; }
+.run details.nocheck p { margin: 2px 0 4px 18px; color: var(--ink-2); }
 .run .edit { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
 .run .edit .more { position: relative; }
 .run .edit .more > summary { list-style: none; color: var(--ink); border: 1px solid var(--rule); background: var(--panel); border-radius: 8px; padding: 4px 9px; font-size: 13px; cursor: pointer; }

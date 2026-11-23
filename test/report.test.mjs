@@ -2,7 +2,7 @@
 // what the report shows from it.
 import assert from "node:assert/strict";
 import { slimRun, encodeRun, decodeRun, shareCode, simplifyGeometry, SHARE_PREFIX } from "../js/share.js";
-import { findingLabels, findingRows, evidenceRows, sourcesOf, summaryBlocks, decisionText, changeLog } from "../js/report.js";
+import { findingLabels, findingRows, evidenceRows, sourcesOf, summaryBlocks, decisionText, changeLog, checksOf, gapsOf } from "../js/report.js";
 
 let passed = 0;
 const test = async (name, fn) => { await fn(); passed++; console.log("ok", name); };
@@ -84,6 +84,34 @@ await test("the report: numbered labels on the features, one row per finding, fa
     { head: "Insufficient evidence.", why: "Nothing found. Set by Tobler's rules, from progress: no biodiversity source could be checked." }, "a decision changed by the rules says so in the report");
   assert.deepEqual(summaryBlocks(rec.tobler_run.summary), [{ text: "Decision: progress." }, { list: true, items: ["Wreck at 1.2 km", "Cable on site"] }, { text: "More text." }]);
   assert.deepEqual(changeLog(rec.tobler_run), [{ at: "2026-11-20 10:05", within_km: 10, flags: 3, decision: "major issue" }]);
+});
+
+await test("checks travel in a share link and the report shows them by topic; old links have none", async () => {
+  const rec = record();
+  assert.equal(checksOf(rec.tobler_run), null, "a tobler-run/1 link: no checks section");
+  Object.assign(rec.tobler_run, {
+    schema: "tobler-run/2", checks_scale: "global", no_check_topics: ["heritage", "water"],
+    topic_labels: { biodiversity: "Biodiversity", heritage: "Heritage", water: "Water", topography: "Topography and bathymetry" },
+    checks: [
+      { id: "topo.water-depth", topic: "topography", label: "Water depth", must: false, answer: "value_at_site", scale: "global", state: "found", text: "about 30 m", source: { tool: "depth", dataset: "DEM", publisher: "NOAA" } },
+      { id: "bio.sac", topic: "biodiversity", label: "Special Areas of Conservation", must: true, answer: "count_by_band", scale: "global", reach_km: 50, state: "found", count: 2,
+        bands: [{ from_km: 0, to_km: 10, label: "0–10 km", count: 1 }, { from_km: 10, to_km: 20, label: "10–20 km", count: 1 }], nearest: { name: "Dogger Bank SAC", distance_km: 4 },
+        source: { atlas_id: "2764f9d94e700980", dataset: "Natura 2000", publisher: "EEA", licence: "attribution", checked_at: "2026-11-23T10:00:00Z" }, why_reach: "long text that stays in the full run" },
+      { id: "bio.spa", topic: "biodiversity", label: "Special Protection Areas (birds)", must: true, answer: "count_by_band", scale: "global", reach_km: 50, state: "not_checked", reason: "pending", why: "JNCC SPAs, asked of the atlas" },
+    ],
+  });
+  const back = (await decodeRun(`#${await encodeRun(slimRun(rec))}`)).tobler_run;
+  assert.equal(back.checks.length, 3);
+  assert.equal(back.checks[1].source.atlas_id, "2764f9d94e700980");
+  assert.equal(back.checks[1].why_reach, undefined, "only what the report needs travels");
+  const v = checksOf(back);
+  assert.equal(v.summary, "Checks: 3 (2 found, 1 not checked)");
+  assert.deepEqual(v.groups.map((g) => g.label), ["Biodiversity", "Topography and bathymetry"], "the catalogue's topic order");
+  assert.equal(v.groups[0].items[0].line, "2 within 50 km (1 at 0–10 km, 1 at 10–20 km); nearest Dogger Bank SAC, 4 km");
+  assert.equal(v.groups[0].items[0].source, "Natura 2000 (EEA)");
+  assert.equal(v.groups[0].items[1].line, "not checked: JNCC SPAs, asked of the atlas");
+  assert.match(v.noCheck.line, /^2 topics have no standard check yet: heritage, water$/);
+  assert.match(gapsOf(back).couldnt[0], /^No standard check yet for heritage, water/);
 });
 
 console.log(`${passed} report tests passed`);

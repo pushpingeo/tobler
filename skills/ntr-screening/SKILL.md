@@ -1,6 +1,6 @@
 ---
 name: ntr-screening
-version: 3.8-draft
+version: 3.9-draft
 description: Screen a site, onshore or offshore, for non-technical risk (NTR) from published spatial data. Flags anything that could become a risk, concern or delay (land and livelihoods, biodiversity, Indigenous Peoples, cultural heritage, community health and safety, and the operating context), with traced evidence and what wasn't checked. Use when someone asks what risks, sensitivities or constraints a site, block, field, route or area might raise.
 ---
 
@@ -30,7 +30,7 @@ Distances are measured from the footprint edge. When the screen runs as its own 
 State the distances used at the top of the result, and offer to change them.
 
 ## Steps
-0. **Start from the baseline.** When the run has already checked boundaries and the must-check layers before you start, use those results as evidence and don't fetch them again; spend your searches on what's specific to this site. At sea the baseline also gives the water depth over the site and, in European waters, AIS vessel traffic at and around it. On land it gives the elevation only when it matters (low-lying, upland or high altitude); you can read elevation yourself for any place with the elevation operation.
+0. **Start from the checks.** The run has already carried out the standard checks before you start, grouped by topic: each is found, none found, or not checked with the reason, and "must" marks a check its topic can't be called clear without. Use them as evidence and don't fetch them again; spend your searches on what's specific to this site, and on the topics the run says have no standard check yet where they matter here. At sea the checks include the water depth over the site and, in European waters, AIS vessel traffic at and around it; on land, the elevation. Judge whether a value matters (low-lying land is a flooding hazard; deep water rules out fixed foundations); the check only measures it. You can read elevation yourself for any place with the elevation operation.
 1. **Confirm the site:** location, onshore/offshore, asset type, stage, footprint and distances used.
 2. **Plan the evidence.** For each theme below, decide which kinds of evidence apply to this site (onshore, offshore or both).
 3. **Find the data.** For each kind of evidence, search for datasets with short, distinctive words (the "search words" below), two or three wordings at a time. Choose, in this order: trusted services and national or intergovernmental publishers; open licences; datasets whose features can be fetched; the most specific coverage (a national layer beats a global one where both exist). Use the everyday feature search for settlements, schools, hospitals, places of worship and cemeteries.
@@ -98,7 +98,7 @@ Confidence: **high** = a mapped feature on site or in the near band, from a trus
 - **Satellite detections are recent only** (days, not years): say "none detected in the last N days", never "none".
 - A theme with no flags and no gaps is rare; if it happens, say what was checked.
 
-**The decision.** End with one overall decision for the site as screened, and one line saying why: **progress** (nothing found that should hold it up), **progress with targeted investigation** (flags that specialist checks could clear or manage), **major issue** (at least one high-severity flag with medium or high confidence), or **insufficient evidence** (too many key sources not checked, or no data, to say). Not checked is not the same as nothing found: if the themes that matter most here couldn't be checked, the decision is insufficient evidence, however clean the rest looks.
+**The decision.** End with one overall decision for the site as screened, and one line saying why: **progress** (nothing found that should hold it up), **progress with targeted investigation** (flags that specialist checks could clear or manage), **major issue** (at least one high-severity flag with medium or high confidence), or **insufficient evidence** (too many key sources not checked, or no data, to say). Not checked is not the same as nothing found: if the themes that matter most here couldn't be checked, the decision is insufficient evidence, however clean the rest looks. (The run also settles this in code: when every must-check for a topic came back not checked, a "progress" becomes insufficient evidence.)
 
 ## Data rules
 - Prefer trusted services, national and intergovernmental publishers, and open licences. Data under Esri's Master License Agreement is not used unless the person holds an Esri licence; if the only source is one of those, say so as a gap.

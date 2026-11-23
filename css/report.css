@@ -71,6 +71,18 @@ tr { break-inside: avoid; }
 .untraced { color: var(--alert); }
 .checked td.res, .checked td.when { white-space: nowrap; }
 .checked tr.failed td.res { color: var(--alert); font-weight: 600; }
+table.checks tr.topic td { padding-top: 12px; font-weight: 600; border-top: 0; }
+table.checks td:first-child { padding-left: 14px; }
+table.checks tr.topic td:first-child { padding-left: 8px; }
+table.checks .must { font-size: 11px; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: .03em; }
+table.checks tr.found td.res { font-weight: 600; }
+table.checks tr.failed td.res { color: var(--alert); font-weight: 600; }
+table.checks .src-inline { display: none; }
+@media (max-width: 720px) {
+  table.checks .src, table.checks th.src { display: none; }
+  table.checks .src-inline { display: block; margin-top: 2px; }
+  table.checks td:first-child { width: 42%; }
+}
 .gaps h3 { margin-top: 10px; }
 .gaps ul, .sources ul { margin: 0; padding-left: 18px; font-size: 13.5px; }
 .method p, .sources p { margin: 0 0 6px; font-size: 13.5px; }

@@ -13,6 +13,7 @@ import { CONFIG } from "./config.js";
 import { THEMES, THEME_SHORT, themeFor, bandOf, BAND_OPACITY, BIG_AREA_KM2, chooseLabels, ringDistances } from "./findings.js";
 import { createScreening, evidenceOf, evidenceWithin, nearestByTheme, flagBeyond, reassess, isArea, THEME_CODE } from "./ntrrun.js";
 import { groupGaps, gapSummary, GAP_GROUPS } from "./gaps.js";
+import { checksView, noCheckGap } from "./checks.js";
 import * as U from "./units.js";
 import { pickExamples } from "./examples.js";
 import { chooseIndustry, industryNote } from "./industry.js";
@@ -597,6 +598,7 @@ function logEdit(p, words) {
 const skills = {};
 let anchors = [];
 let trusted = { services: [], publishers: { patterns: [] } };
+let checksCatalogue = { checks: [], topics: [], scales: {} };
 const host = {
   ref,
   get anchors() { return anchors; },
@@ -609,6 +611,8 @@ const host = {
   // ask when the best option is worse than 25 m. The old "Ask me" setting is gone.
   transformationChoice: () => "choose",
   get trusted() { return trusted; },
+  // The checks every screen runs before the analyst starts (catalogue/checks.json, plan item 1).
+  get checks() { return checksCatalogue; },
   // Settings (the gear): whether the person holds an Esri licence, so Esri-licensed layers can be used.
   esriLicence: () => store.get("esriLicence") === "yes",
   // Non-commercial data (e.g. WDPA): off by default; on only for people whose use allows it (Rob, 18 Nov).
@@ -722,6 +726,7 @@ Promise.all([
   ...["skills/place-finding/SKILL.md", "skills/ntr-screening/SKILL.md", "skills/coordinate-reference/SKILL.md"].map((f) => fetch(asset(f)).then((r) => r.text()).then((t) => { const s = parseSkill(t); skills[s.name] = s; })),
   fetch(asset("catalogue/anchors.json")).then((r) => r.json()).then((j) => { anchors = j.sources; }),
   fetch(asset("catalogue/trusted.json")).then((r) => r.json()).then((j) => { trusted = j; }),
+  fetch(asset("catalogue/checks.json")).then((r) => r.json()).then((j) => { checksCatalogue = j; }),
   fetch(asset("catalogue/distances.json")).then((r) => r.json()).then((j) => { distTable = j; }),
   loadIndustry(store.get("industry")),
 ]).catch((e) => note(`Something the analyst needs didn't load: ${e.message}`));
@@ -1293,7 +1298,8 @@ async function rerun(entry) {
     const head = await host.screening.screen(input, place);
     const rec = runs.get(head.run)?.record.tobler_run;
     const was = r.flags.length, now = rec?.flags.length ?? 0;
-    const text = `${head.run} replaces ${r.id}: ${now} flag${now === 1 ? "" : "s"} (was ${was})${rec?.decision?.value ? `, decision: ${rec.decision.value}` : ""}${r.decision?.value && rec?.decision?.value && r.decision.value !== rec.decision.value ? ` (was ${r.decision.value})` : ""}.`;
+    const moved = rec?.replaces?.checks_changed;
+    const text = `${head.run} replaces ${r.id}: ${now} flag${now === 1 ? "" : "s"} (was ${was})${rec?.decision?.value ? `, decision: ${rec.decision.value}` : ""}${r.decision?.value && rec?.decision?.value && r.decision.value !== rec.decision.value ? ` (was ${r.decision.value})` : ""}.${moved ? ` Checks that changed: ${moved.length ? moved.join("; ") : "none"}.` : ""}`;
     reply.replaceChildren(el("p", text));
     turnLog.reply = text;
     remember("assistant", `(I re-ran ${r.id} on ${place.name}'s edited outline as ${head.run}. ${text})`);
@@ -1409,7 +1415,7 @@ function paintRun(entry) {
   }));
   // Gaps in three groups: couldn't check (tools and the analyst), no data, caveats.
   const gaps = card.querySelector(".gaps");
-  const groups = groupGaps(r.data_gaps, r.checked);
+  const groups = groupGaps(r.data_gaps, r.checked, [noCheckGap(r)]);
   gaps.querySelector("summary").textContent = gapSummary(groups);
   gaps.querySelector("ul").replaceChildren(...GAP_GROUPS.filter(([k]) => groups[k].length).map(([k, label]) => {
     const li = el("li", null, `gap-group ${k}`);
@@ -1419,6 +1425,31 @@ function paintRun(entry) {
     return li;
   }));
   gaps.hidden = !GAP_GROUPS.some(([k]) => groups[k].length);
+  // Checks (plan item 1): one line per check, by topic, in three states; the topics nothing checks yet in one line
+  // that opens into the list (Rob, 23 Nov). Open on a desktop, closed on a phone. Runs from before checks have none.
+  const cv = checksView(r);
+  const ck = card.querySelector(".checks");
+  ck.hidden = !cv;
+  if (cv) {
+    ck.querySelector(":scope > summary").textContent = cv.summary;
+    ck.querySelector(":scope > ul").replaceChildren(...cv.groups.map((g) => {
+      const li = el("li", null, "check-topic");
+      const ul = el("ul");
+      ul.append(...g.items.map((c) => {
+        const item = el("li", null, `check ${c.state === "not_checked" ? "nc" : c.state}`);
+        item.append(el("span", c.label, "check-name"), ...(c.must ? [el("span", "must", "must")] : []), document.createTextNode(`: ${U.localise(c.line)}`));
+        if (c.source && c.state !== "not_checked") item.title = c.source;
+        return item;
+      }));
+      li.append(el("p", g.label, "check-head"), ul);
+      return li;
+    }));
+    const nc = ck.querySelector(".nocheck");
+    nc.hidden = !cv.noCheck;
+    if (cv.noCheck) { nc.querySelector("summary").textContent = cv.noCheck.line.split(":")[0]; const list = cv.noCheck.topics.map((t, i) => (i ? t.toLowerCase() : t)).join(", ");
+      nc.querySelector("p").textContent = `${list}. Not checked by Tobler yet: search for these where they matter.`; }
+    if (!ck.dataset.painted) { ck.open = !phone; ck.dataset.painted = "1"; }
+  }
   card.querySelector('input[type="range"]').value = String(entry.km);
   paintReach(entry);
 }

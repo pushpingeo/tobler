@@ -18,8 +18,9 @@ const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").tr
 
 // Sources the tools couldn't check go first under "couldn't check", unless the analyst already wrote a line
 // naming them (a line that contains the dataset's name, or the first few words of it).
-export function groupGaps(dataGaps = [], checked = []) {
-  const out = { couldnt: [], nodata: [], caveat: [] };
+// also: lines that go first under "couldn't check" (the topics nothing checks yet, from js/checks.js noCheckGap).
+export function groupGaps(dataGaps = [], checked = [], also = []) {
+  const out = { couldnt: also.filter(Boolean), nodata: [], caveat: [] };
   const lines = dataGaps.map(String).filter((g) => g.trim());
   const said = lines.map(norm).join(" | ");
   for (const c of checked.filter((x) => x.result === "not checked")) {

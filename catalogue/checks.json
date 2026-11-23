@@ -1,0 +1,143 @@
+{
+  "about": "Checks as data (plan item 1; design note claude/checks-design.md, agreed by Rob 23 Nov 2026). A check is one line on the report: a neutral topic, the layers that answer it in each region, the kind of answer, and how far it looks at each scale. The run carries out every check that applies, in code, before the analyst starts, and each comes back as found, none found, or not checked with the reason. Replaces 'baseline' in trusted.json. Edit by hand; js/checks.js reads it and test/checks.test.mjs and the invariants test check it.",
+  "version": "1",
+  "fields": {
+    "answer": "count_by_band (features per distance band, plus the nearest), value_at_site (a reading over the site: elevation, depth, traffic) or inside (whether the site is inside or touching one)",
+    "reach_km": "how far the check looks at each scale, from the footprint edge. null means the check doesn't apply at that scale. Value checks have no reach (they read the site). Reach values are a first cut from research-reach-evidence.md, defaults to tune on the example sites.",
+    "applies": "setting: any, land (onshore), offshore, or sea (offshore or the coast within reach). where: a [west, south, east, north] box the site must overlap for the check to apply at all (e.g. tropical coral reefs); without it, the check applies everywhere in that setting.",
+    "must": "a check whose topic can't be called clear without it; drives the decision rule (js/industry.js settleDecision)",
+    "sources": "per region, first match wins. countries (onshore: the site must be in one), not_countries, and where (a box the site must overlap; offshore sites match on the box). atlas_id: an AI Living World Atlas record; record holds its title, publisher and licence as the atlas gave them on as_of (the atlas contract has no record-by-id lookup, so the run doesn't fetch them). tool: a Tobler tool instead of an atlas layer (boundaries, elevation, depth, traffic). pending: a layer we know exists but can't use yet (not checked, with this reason). If no source matches, the answer is not checked: no source for this region."
+  },
+  "scales": {
+    "about": "Distance bands per scale (agreed 23 Nov; docs/conceptual-model.md). Until plan item 3 puts them in the profile, the run picks the scale from the screening distances already chosen (js/checks.js screenScale).",
+    "local": [0.05, 0.25, 0.5, 2],
+    "regional": [2, 5, 10, 20],
+    "global": [10, 20, 50, 100]
+  },
+  "topics": [
+    { "id": "biodiversity", "label": "Biodiversity" },
+    { "id": "water", "label": "Water" },
+    { "id": "ground-soil", "label": "Ground and soil" },
+    { "id": "land-use", "label": "Land use" },
+    { "id": "heritage", "label": "Heritage" },
+    { "id": "landscape-visual", "label": "Landscape and visual" },
+    { "id": "community-health", "label": "Community and health" },
+    { "id": "air-climate", "label": "Air and climate" },
+    { "id": "hazards", "label": "Hazards" },
+    { "id": "material-assets", "label": "Material assets" },
+    { "id": "topography", "label": "Topography and bathymetry" },
+    { "id": "context", "label": "Context" },
+    { "id": "indigenous", "label": "Indigenous Peoples", "only_scale": "global", "about": "its own line for global and lender work" }
+  ],
+  "checks": [
+    {
+      "id": "bio.sac", "topic": "biodiversity", "label": "Special Areas of Conservation",
+      "answer": "count_by_band", "reach_km": { "local": 2, "regional": 10, "global": 50 },
+      "reach_why": "International sites: 10 km in UK practice (CIEEM preliminary ecological appraisal desk studies; wind and solar scoping reports)",
+      "applies": { "setting": "any", "where": [-32, 27, 45, 72] }, "must": true,
+      "sources": [
+        { "region": "UK", "countries": ["United Kingdom"], "where": [-12, 49.8, 2.5, 61.5], "pending": "the UK list (JNCC) isn't in Tobler's data yet (asked of the atlas, 22 Nov)" },
+        { "region": "EU (not UK since 2021)", "not_countries": ["United Kingdom"], "where": [-32, 27, 45, 72], "atlas_id": "2764f9d94e700980",
+          "record": { "title": "Natura 2000: Habitats Directive Sites (pSCI, SCI or SAC)", "publisher": "European Environment Agency", "licence": "© EEA, Copenhagen, 2021 (EEA reuse policy: attribution)", "as_of": "2026-11-18" } }
+      ]
+    },
+    {
+      "id": "bio.spa", "topic": "biodiversity", "label": "Special Protection Areas (birds)",
+      "answer": "count_by_band", "reach_km": { "local": 2, "regional": 10, "global": 50 },
+      "reach_why": "International sites: 10 km in UK practice; bird SPAs further for wind (functional linkage), set by the asset type later with a reason",
+      "applies": { "setting": "any", "where": [-32, 27, 45, 72] }, "must": true,
+      "sources": [
+        { "region": "UK", "countries": ["United Kingdom"], "where": [-12, 49.8, 2.5, 61.5], "pending": "the UK list (JNCC) isn't in Tobler's data yet (asked of the atlas, 22 Nov)" },
+        { "region": "EU (not UK since 2021)", "not_countries": ["United Kingdom"], "where": [-32, 27, 45, 72], "atlas_id": "68cb5df76ffaecad",
+          "record": { "title": "Natura 2000: Birds Directive Sites (SPA)", "publisher": "European Environment Agency", "licence": "© EEA, Copenhagen, 2021 (EEA reuse policy: attribution)", "as_of": "2026-11-18" } }
+      ]
+    },
+    {
+      "id": "bio.national-sites", "topic": "biodiversity", "label": "Nationally designated sites",
+      "answer": "count_by_band", "reach_km": { "local": 2, "regional": 5, "global": 20 },
+      "reach_why": "National sites (SSSI and equivalents): 2 to 5 km in UK practice",
+      "applies": { "setting": "any" }, "must": true,
+      "sources": [
+        { "region": "Europe (CDDA)", "where": [-32, 27, 45, 72], "atlas_id": "26326b863be227ce",
+          "record": { "title": "Nationally designated areas (CDDA)", "publisher": "European Environment Agency", "licence": "© European Environment Agency (EEA reuse policy: attribution)", "as_of": "2026-11-18" } }
+      ]
+    },
+    {
+      "id": "bio.marine-protected", "topic": "biodiversity", "label": "Marine and coastal protected areas",
+      "answer": "count_by_band", "reach_km": { "local": 2, "regional": 10, "global": 50 },
+      "reach_why": "As for international sites; WDPA holds marine protected areas that national lists may not",
+      "applies": { "setting": "sea" }, "must": true,
+      "sources": [
+        { "region": "European seas and coasts (WDPA via EMODnet)", "where": [-45, 24, 50, 85], "atlas_id": "154dfce48e32f9ee",
+          "record": { "title": "World Database on Protected Areas (European seas and coasts, via EMODnet)", "publisher": "EMODnet Human Activities (data: UNEP-WCMC and IUCN)", "licence": "WDPA terms: no commercial use without a licence from UNEP-WCMC (data via EMODnet, CC-BY 4.0)", "as_of": "2026-11-18" },
+          "note": "Non-commercial: not checked unless non-commercial data is switched on in Settings." }
+      ]
+    },
+    {
+      "id": "bio.marine-mammal-areas", "topic": "biodiversity", "label": "Important Marine Mammal Areas",
+      "answer": "count_by_band", "reach_km": { "local": null, "regional": 20, "global": 50 },
+      "reach_why": "Wide-ranging species: underwater noise and vessel effects reach tens of kilometres",
+      "applies": { "setting": "sea" }, "must": false,
+      "sources": [
+        { "region": "World", "where": [-180, -90, 180, 90], "atlas_id": "f89a739e0de5befe",
+          "record": { "title": "IUCN Important Marine Mammal Areas", "publisher": "UN Environment Programme World Conservation Monitoring Centre", "licence": "IUCN Joint SSC/WCPA Marine Mammal Protected Areas Task Force: check terms before commercial use", "as_of": "2026-11-18" } }
+      ]
+    },
+    {
+      "id": "bio.coral-reefs", "topic": "biodiversity", "label": "Warm-water coral reefs",
+      "answer": "count_by_band", "reach_km": { "local": null, "regional": 10, "global": 50 },
+      "reach_why": "Sediment plumes and spill reach",
+      "applies": { "setting": "sea", "where": [-180, -35, 180, 35] }, "must": false,
+      "sources": [
+        { "region": "Tropics", "where": [-180, -35, 180, 35], "atlas_id": "26712d28f51a6645",
+          "record": { "title": "Global Distribution of Coral Reefs (2003)", "publisher": "UN Environment Programme World Conservation Monitoring Centre", "licence": "UNEP-WCMC (2003): check terms before commercial use", "as_of": "2026-11-18" } }
+      ]
+    },
+    {
+      "id": "bio.us-critical-habitat", "topic": "biodiversity", "label": "US critical habitat (NMFS)",
+      "answer": "count_by_band", "reach_km": { "local": 2, "regional": 10, "global": 50 },
+      "reach_why": "As for international sites",
+      "applies": { "setting": "any", "where": [-180, 15, -60, 72] }, "must": false,
+      "sources": [
+        { "region": "US waters and coasts", "where": [-180, 15, -60, 72], "atlas_id": "06ab03dddac3cdd2",
+          "record": { "title": "Critical Habitat Areas by NMFS", "publisher": "NOAA (National Marine Fisheries Service)", "licence": "US federal government work: public domain", "as_of": "2026-11-18" } }
+      ]
+    },
+    {
+      "id": "material.marpol-special-areas", "topic": "material-assets", "label": "MARPOL special areas",
+      "answer": "inside", "reach_km": { "local": null, "regional": 0, "global": 0 },
+      "reach_why": "Rules for ships apply inside the area; distance doesn't matter",
+      "applies": { "setting": "sea" }, "must": false,
+      "sources": [
+        { "region": "World", "where": [-180, -90, 180, 90], "atlas_id": "751ddc65885f897d",
+          "record": { "title": "Special Areas under MARPOL", "publisher": "UN Environment Programme World Conservation Monitoring Centre (data: IMO)", "licence": "International Maritime Organization: check terms before commercial use", "as_of": "2026-11-18" } }
+      ]
+    },
+    {
+      "id": "material.vessel-traffic", "topic": "material-assets", "label": "Vessel traffic (AIS)",
+      "answer": "value_at_site", "reach_km": null,
+      "reach_why": "Read on the site and out to the close band",
+      "applies": { "setting": "sea" }, "must": false,
+      "sources": [ { "region": "EU waters and neighbouring seas", "where": [-45, 24, 50, 85], "tool": "traffic" } ]
+    },
+    {
+      "id": "topo.elevation", "topic": "topography", "label": "Elevation",
+      "answer": "value_at_site", "reach_km": null,
+      "applies": { "setting": "land" }, "must": false,
+      "sources": [ { "region": "World", "where": [-180, -90, 180, 90], "tool": "elevation" } ]
+    },
+    {
+      "id": "topo.water-depth", "topic": "topography", "label": "Water depth",
+      "answer": "value_at_site", "reach_km": null,
+      "applies": { "setting": "offshore" }, "must": false,
+      "sources": [ { "region": "World", "where": [-180, -90, 180, 90], "tool": "depth" } ]
+    },
+    {
+      "id": "context.boundaries", "topic": "context", "label": "National and maritime boundaries",
+      "answer": "count_by_band", "reach_km": { "local": 2, "regional": 20, "global": 100 },
+      "reach_why": "Transboundary effects and permitting: another country within reach changes who must be consulted",
+      "applies": { "setting": "any" }, "must": false,
+      "sources": [ { "region": "World", "where": [-180, -90, 180, 90], "tool": "boundaries" } ]
+    }
+  ]
+}

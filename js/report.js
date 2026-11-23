@@ -6,6 +6,7 @@ import * as turf from "./vendor/turf.js";
 import { THEMES } from "./findings.js";
 import { THEME_CODE } from "./ntrrun.js";
 import { groupGaps } from "./gaps.js";
+import { noCheckGap, checksView } from "./checks.js";
 
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : "");
 export const themeLabel = (t) => `${THEMES[t]?.label || "Operating context"}${THEME_CODE[t] && THEME_CODE[t] !== "context" ? ` (${THEME_CODE[t]})` : ""}`;
@@ -79,7 +80,9 @@ export function sourcesOf(record) {
   return [...seen.values()].sort((a, b) => a.dataset.localeCompare(b.dataset));
 }
 
-export const gapsOf = (run) => groupGaps(run.data_gaps || [], run.checked || []);
+export const gapsOf = (run) => groupGaps(run.data_gaps || [], run.checked || [], [noCheckGap(run)]);
+// The checks table (null for runs from before checks): the table a consultant would otherwise build by hand.
+export const checksOf = (run) => checksView(run);
 
 export function decisionText(run) {
   return run.decision ? { head: `${cap(run.decision.value)}.`, why: [run.decision.why, run.decision.changed ? `Set by Tobler's rules, ${run.decision.changed}.` : ""].filter(Boolean).join(" ") } : null;

@@ -16,7 +16,8 @@ const test = async (name, fn) => { await fn(); passed++; console.log("ok", name)
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
 const table = JSON.parse(read("../catalogue/distances.json"));
 const trusted = JSON.parse(read("../catalogue/trusted.json"));
-const BASELINE_IDS = new Set(trusted.baseline.map((b) => b.atlas_id));
+const checksCat = JSON.parse(read("../catalogue/checks.json"));
+const BASELINE_IDS = new Set(checksCat.checks.flatMap((c) => c.sources.map((s) => s.atlas_id)).filter(Boolean));
 const skill = parseSkill(read("../skills/ntr-screening/SKILL.md"));
 const ref = R.createReference(async (n) => JSON.parse(read(`../data/ref/${n}.json`)));
 
@@ -60,7 +61,7 @@ async function atlas(tool, args) {
   if (tool === "fetch_features" && BASELINE_IDS.has(args.id)) return { returned: 0, features: [] };
   throw new Error(`unexpected ${tool} ${JSON.stringify(args)}`);
 }
-const host = (nonCommercial = true) => ({ ref, anchors: [], headers: {}, atlas, firms: null, trusted, esriLicence: () => false, nonCommercial: () => nonCommercial, fetchFn: async () => ({ ok: true, json: async () => [] }), places: () => [], findPlace: () => null, skillText: () => "" });
+const host = (nonCommercial = true) => ({ ref, anchors: [], headers: {}, atlas, firms: null, trusted, checks: checksCat, esriLicence: () => false, nonCommercial: () => nonCommercial, fetchFn: async () => ({ ok: true, json: async () => [] }), places: () => [], findPlace: () => null, skillText: () => "" });
 
 const RESULT = (extra = "") => `Rosebank screened as an offshore oil field (assumed greenfield).
 
@@ -185,7 +186,7 @@ await test("sealed run: fetches out to the wider band, records evidence with pro
   assert.equal(nwe.band, "around the site");
   assert.equal(nwe.surrounds, true);
   assert.ok(nwe.area_km2 > 1000);
-  assert.match(model.calls[0].messages[0].content, /North West European waters \(around the site/);
+  assert.match(model.calls[0].messages[0].content, /North West European waters \(a wide area it lies within\)/);
   assert.match(model.calls[0].system, /around_site/);
   for (const f of ev) for (const k of ["fid", "dataset", "publisher", "licence", "checked_at", "theme", "band", "distance_km"]) assert.ok(f.properties[k] != null && f.properties[k] !== "", `${k} on ${f.properties.name}`);
   assert.equal(ev.find((f) => /TROLDFOS/.test(f.properties.name)).properties.theme, "heritage");
@@ -327,6 +328,10 @@ await test("out-of-date runs: a re-run records its inputs and replaces the run m
   assert.match(head.replaces, /^R1, because the site was edited after it ran \(moved 2 km north/);
   assert.equal(r1.tobler_run.replaced_by, "R2");
   assert.equal(shown[1].tobler_run.replaces.run, "R1");
+  // Which checks moved: the square moved 2 km north, so the WDPA sponge belt is 2 km nearer.
+  assert.ok(Array.isArray(shown[1].tobler_run.replaces.checks_changed));
+  assert.ok(shown[1].tobler_run.replaces.checks_changed.some((l) => /^Marine and coastal protected areas: .* → .*Faroe-Shetland Sponge Belt/.test(l)), JSON.stringify(shown[1].tobler_run.replaces.checks_changed));
+  assert.match(head.replaces, /Checks that changed: Marine and coastal protected areas/);
   assert.equal(siteChange(shown[1], p), null, "the new run is current");
   assert.match((await t.exec("get_run", { run: "R1" })).replaced_by, /^R2/);
   // The analyst screening an edited place itself (no replaces given) links the runs too.
@@ -495,7 +500,9 @@ await test("baseline before the analyst: boundaries and the must-check layers, a
   const first = model.calls[0].messages[0].content;
   assert.match(first, /Already checked by the run/);
   assert.match(first, /Faeroe \(Denmark\) - United Kingdom \[Faeroe \/ United Kingdom, Treaty\] 1[12]\.\d+ km/);
-  assert.match(first, /IUCN Important Marine Mammal Areas .*: none in dataset/);
+  assert.match(first, /Important Marine Mammal Areas: none found within 50 km \[IUCN Important Marine Mammal Areas/);
+  assert.match(first, /MARPOL special areas: the site is inside North West European waters \(a wide area it lies within\)/);
+  assert.match(first, /Special Areas of Conservation \(must\): not checked: the UK list \(JNCC\)/, "UK waters: SACs pending, not 'none found' from the EU layer");
   assert.match(r.disclaimer, /not evidence of absence/);
   // The analyst may name the boundary by the territories either side; it still traces.
   const t = traceFlags([{ risk: "Maritime boundary close", theme: "context", confidence: "medium", evidence: [{ name: "Faeroe / United Kingdom (Treaty)", distance_km: 12, dataset: "Maritime Boundaries (v12, world, 2023)" }] }], ev, d);
@@ -548,7 +555,7 @@ await test("offshore depth and traffic services down: not checked, and the analy
   assert.equal(r.sea, undefined);
   assert.equal(r.checked.find((c) => c.evidence === "water depth").result, "not checked");
   assert.equal(r.checked.find((c) => c.evidence === "vessel traffic (AIS)").result, "not checked");
-  assert.match(model.calls[0].messages[0].content, /DEM Global Mosaic.*: not checked \(network down\)/);
+  assert.match(model.calls[0].messages[0].content, /Water depth: not checked: network down \[DEM Global Mosaic/);
 });
 
 await test("on land, elevation is recorded every time but reported only when it matters (low-lying, high altitude)", async () => {
@@ -565,7 +572,10 @@ await test("on land, elevation is recorded every time but reported only when it 
   assert.equal(plain.r.elevation.typical_m, 25);
   assert.equal(plain.r.elevation.significance, undefined);
   assert.equal(plain.r.sea, undefined);
-  assert.doesNotMatch(plain.first, /Elevation about/, "nothing said when it doesn't matter");
+  // A check measures every time: the value is reported, and the analyst judges whether it matters.
+  assert.match(plain.first, /Topography and bathymetry:\n- Elevation: about 25 m, 20–30 m across the site\n/);
+  assert.doesNotMatch(plain.first, /Elevation about 25 m above sea level/, "the long line only when it matters");
+  assert.equal(plain.r.checks.find((c) => c.id === "topo.elevation").state, "found");
   assert.equal(plain.r.checked.find((c) => c.evidence === "elevation").result, "features");
   const low = await run([1, 3, 4, 6]);
   assert.equal(low.r.elevation.significance.kind, "low-lying");
@@ -577,7 +587,7 @@ await test("on land, elevation is recorded every time but reported only when it 
   assert.equal(high.r.elevation.significance.kind, "very high altitude");
   assert.match(high.first, /very high altitude: much less oxygen/);
   const down = await (async () => { const model = standardScript(); const fetchFn = async (url) => { if (/getSamples/.test(url)) throw new Error("timed out"); return { ok: true, json: async () => [] }; }; await runScreening({ host: { ...host(), fetchFn }, site: land, distances: d, skill, callClaude: model, inputs: { asset_type: "solar", asset_label: "solar farm" } }); return model.calls[0].messages[0].content; })();
-  assert.match(down, /DEM Global Mosaic.*: not checked \(timed out\)/, "a failed elevation read is said, not hidden");
+  assert.match(down, /Elevation: not checked: timed out \[DEM Global Mosaic/, "a failed elevation read is said, not hidden");
 });
 
 await test("onshore far from the sea: no maritime call, a neighbouring country is measured from the reference", async () => {
@@ -603,7 +613,7 @@ await test("a mistyped dataset id isn't reported as a source not checked; offsho
   assert.ok(!rec.tobler_run.checked.some((c) => c.dataset === "C1" || c.dataset === undefined), JSON.stringify(rec.tobler_run.checked.map((c) => c.dataset)));
   assert.match(model.calls[0].messages[0].content, /No land within the wider band \(the coast is about \d+ km away\)/);
   assert.ok(events.some((e) => e.type === "tool" && e.name === "nearest_boundaries" && e.baseline));
-  assert.ok(events.filter((e) => e.type === "tool" && e.name === "get_data" && e.baseline).length >= 5);
+  assert.ok(events.filter((e) => e.type === "tool" && e.name === "get_data" && e.baseline).length >= 4, "CDDA, WDPA, IMMA and MARPOL (SACs and SPAs are pending in UK waters)");
 });
 
 
@@ -761,6 +771,35 @@ await test("display units: conversions, text in km shown in miles or nautical mi
   U.setUnits("bogus");
   assert.equal(U.getUnits(), "metric");
   assert.equal(U.unitsNote(), "");
+});
+
+await test("the run record (tobler-run/2) carries every check with its source, and the decision rule reads them", async () => {
+  const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
+  const rec = await runScreening({ host: host(), site, distances: d, skill, callClaude: standardScript(), inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
+  const r = rec.tobler_run;
+  assert.equal(r.schema, "tobler-run/2");
+  assert.equal(r.checks_scale, "global");
+  const by = Object.fromEntries(r.checks.map((c) => [c.id, c]));
+  assert.equal(by["bio.sac"].state, "not_checked");
+  assert.equal(by["bio.sac"].reason, "pending");
+  assert.equal(by["bio.marine-protected"].state, "found");
+  assert.equal(by["bio.marine-protected"].source.atlas_id, "154dfce48e32f9ee");
+  assert.match(by["bio.marine-protected"].source.licence, /WDPA/);
+  assert.ok(by["bio.marine-protected"].source.checked_at);
+  assert.equal(by["bio.national-sites"].state, "none");
+  assert.equal(by["material.marpol-special-areas"].inside, true);
+  assert.equal(by["context.boundaries"].reach_km, 50, "100 km wanted, the tools fetch 50");
+  assert.ok(!by["bio.coral-reefs"] && !by["bio.us-critical-habitat"], "checks that don't apply aren't listed");
+  assert.ok(r.no_check_topics.includes("heritage") && r.no_check_topics.includes("indigenous"));
+  // Pending UK sources show up in what still needs checking.
+  assert.ok(r.checked.some((c) => c.check === "bio.sac" && c.result === "not checked" && /JNCC/.test(c.why)));
+  // Every biodiversity must-check failing: insufficient evidence, said on the card.
+  const down = async (tool, args) => { if (tool === "fetch_features" && BASELINE_IDS.has(args.id) && args.id !== "751ddc65885f897d") throw new Error("atlas: fetch failed"); return atlas(tool, args); };
+  const model = scriptedModel([final('Nothing much.\n```json\n{"decision":"progress","decision_why":"clear","flags":[],"checked":[],"data_gaps":[]}\n```')]);
+  const bad = (await runScreening({ host: { ...host(), atlas: down }, site, distances: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } })).tobler_run;
+  assert.equal(bad.decision.value, "insufficient evidence");
+  assert.match(bad.decision.changed, /none of the must-checks for biodiversity could be checked/);
+  assert.equal(bad.checks.find((c) => c.id === "bio.national-sites").reason, "failed");
 });
 
 console.log(`${passed} ntrrun tests passed`);

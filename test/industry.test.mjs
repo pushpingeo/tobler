@@ -2,7 +2,7 @@
 // ready profile only names things that exist (its skill, asset types in the distances table, known themes).
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
-import { chooseIndustry, industryNote, baselineFor, readDecision, settleDecision, biodiversityChecked, DECISIONS } from "../js/industry.js";
+import { chooseIndustry, industryNote, readDecision, settleDecision, biodiversityChecked, DECISIONS } from "../js/industry.js";
 import { parseSkill } from "../js/converse.js";
 import { THEME_CODE } from "../js/ntrrun.js";
 
@@ -36,15 +36,14 @@ await test("every ready profile names a skill that exists, picks the distances t
   for (const entry of index.industries.filter((i) => i.status !== "ready")) assert.ok(entry.label && entry.about);
 });
 
-await test("the analyst is told the industry and what's coming; energy's baseline is the trusted list", () => {
+await test("the analyst is told the industry and what's coming; energy's checks are the checks catalogue", () => {
   const energy = read("catalogue/industries/energy.json");
   const line = industryNote(energy, index);
   assert.match(line, /^Industry: Environment and Energy \(screening method: environmental constraints and E&S risk/);
   assert.match(line, /Coming soon: Construction; Infrastructure; Property; Mining; Data centres\./);
   assert.equal(industryNote(null, index), "");
-  assert.equal(baselineFor(energy, trusted), trusted.baseline);
-  const own = [{ atlas_id: "x", where: [-8, 49, 2, 61] }];
-  assert.equal(baselineFor({ baseline: own }, trusted), own);
+  assert.equal(energy.checks.from, "catalogue/checks.json");
+  assert.equal(trusted.baseline, undefined, "the baseline layers moved to catalogue/checks.json");
   assert.deepEqual(readDecision("MAJOR ISSUE", ""), { value: "major issue", why: "" });
 });
 

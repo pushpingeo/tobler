@@ -1,14 +1,14 @@
 {
-  "about": "The Environment and Energy profile (20 Nov 2026; renamed from Energy on 22 Nov): the first and only full one. Framed as an environmental consultant screening a site: renewables, oil and gas, or anything else. What's here was spread across the page and catalogue before; the screening method, distances and baseline layers stay in their own files and are named here. Picks: the buttons shown when someone screens a place without saying what's planned (order matters: the first `first` that suit the setting show as buttons, the rest under More…; each type must be an asset in the distances table; `onshore`/`offshore` give a different type by setting; `only` limits a pick to one setting). Themes are shared across industries and mapped to IFC's Performance Standards where they fit.",
+  "about": "The Environment and Energy profile (20 Nov 2026; renamed from Energy on 22 Nov): the first and only full one. Framed as an environmental consultant screening a site: renewables, oil and gas, or anything else. What's here was spread across the page and catalogue before; the screening method, distances and checks stay in their own files and are named here. Picks: the buttons shown when someone screens a place without saying what's planned (order matters: the first `first` that suit the setting show as buttons, the rest under More…; each type must be an asset in the distances table; `onshore`/`offshore` give a different type by setting; `only` limits a pick to one setting). Themes are shared across industries and mapped to IFC's Performance Standards where they fit.",
   "id": "energy",
   "label": "Environment and Energy",
   "version": "2",
   "skill": "ntr-screening",
   "skill_file": "skills/ntr-screening/SKILL.md",
   "distances": "catalogue/distances.json",
-  "baseline": {
-    "from": "catalogue/trusted.json",
-    "about": "This profile uses every must-check layer in trusted.json 'baseline' (each limited to its own bounding box, 'where'). Another profile can list its own layers here in the same shape, with a 'where' per country or region."
+  "checks": {
+    "from": "catalogue/checks.json",
+    "about": "Every check in checks.json that applies to the site (23 Nov; replaces the baseline layers in trusted.json). Scale bands and per-profile reach come with plan item 3."
   },
   "wording": {
     "screen_chip": "Screen for environmental constraints",
