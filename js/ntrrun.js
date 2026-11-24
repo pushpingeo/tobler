@@ -325,6 +325,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
   const fetchKm = (p) => Math.min(MAX_KM, Math.max(p.reach_km || 0, reach));
   const asFeats = (list) => list.map((x) => ({ name: x.name, distance_km: x.distance_km, around_site: !!(x.surrounds || x.around_site) }));
   const toolPlan = (tool) => plans.find((p) => p.source?.tool === tool && !results.has(p.check.id));
+  let boundaryFids = [];
   const bp = toolPlan("boundaries");
   if (bp) {
     try {
@@ -332,7 +333,9 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
       const nb = await nearestBoundaries({ ref: host.ref, site: fp.feature, withinKm: fetchKm(bp), atlas: host.atlas || null, sea, now });
       onEvent({ type: "tool", name: "nearest_boundaries", input: { within_km: fetchKm(bp), sea }, ms: Date.now() - tb, baseline: true,
         output: { found: nb.evidence.map((e) => `${e.name} (${e.type}) ${e.distance_km} km`), checked: nb.checked.map((c) => `${c.dataset}: ${c.result}${c.why ? ` (${c.why})` : ""}`) } });
+      const e0 = evidence.length;
       capture(nb.evidence, { theme: K.mapTheme(bp.check.topic) });
+      boundaryFids = evidence.slice(e0).map((f) => f.properties.fid);
       for (const c of nb.checked) checked.push({ ...c, check: bp.check.id });
       const failed = nb.checked.filter((c) => c.result === "not checked");
       if (nb.checked.length && failed.length === nb.checked.length) results.set(bp.check.id, K.notChecked(bp, failed.map((c) => `${c.dataset}: ${c.why}`).join("; ")));
@@ -353,11 +356,11 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
   const layerPlans = plans.filter((p) => !results.has(p.check.id) && p.sources.some((x) => x.atlas_id));
   const layerFetch = new Map(); // atlas_id → { source, km, fields, name_field }
   for (const p of layerPlans) for (const x of p.sources.filter((y) => y.atlas_id)) {
-    const l = layerFetch.get(x.atlas_id) || { source: x, km: 0, fields: new Set(), name_field: x.name_field || null, coverage: false, own: true };
-    if (p.check.answer === "count_by_band" && !x.dense) l.own = false;
-    // Class and inside checks, and dense layers, fetch only to their own reach (a flood or farmland layer to the wider
-    // band would be thousands of polygons, and a layer gives at most 100); the rest out to the wider band too, for the slider.
-    l.km = Math.max(l.km, p.check.answer === "count_by_band" && !x.dense ? fetchKm(p) : Math.max(0, p.reach_km || 0));
+    const l = layerFetch.get(x.atlas_id) || { source: x, km: 0, fields: new Set(), name_field: x.name_field || null, coverage: false };
+    // Every check layer fetches only to its own reach, up to 500 features (24 Nov): fetched out to the wider band, a
+    // busy layer filled its limit with features far away and undercounted the ones in reach (15+ scheduled monuments
+    // round Linlithgow). The analyst's own searches still go to the wider band, for the slider.
+    l.km = Math.max(l.km, Math.min(MAX_KM, Math.max(0, p.reach_km || 0)));
     if (p.check.answer === "classes") l.coverage = true;
     for (const f of [x.code_field, x.filter?.field, x.class_field, ...(x.keep_fields || [])].filter(Boolean)) l.fields.add(f);
     layerFetch.set(x.atlas_id, l);
@@ -410,11 +413,11 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
     const x = l.source, rec = x.record || {};
     const id = tools.useDataset({ id: x.atlas_id, title: rec.title || x.atlas_id, publisher: rec.publisher || "", licence: rec.licence || "", capabilities: ["query"], concepts: [] }, "B");
     const check = layerPlans.find((p) => p.sources.includes(x));
-    const input = { dataset: id, place: site.name, theme: K.mapTheme(check.check.topic), within_km: l.km, ...(l.fields.size ? { fields: [...l.fields] } : {}), ...(l.name_field ? { name_field: l.name_field } : {}) };
+    const input = { dataset: id, place: site.name, theme: K.mapTheme(check.check.topic), within_km: l.km, limit: 500, ...(l.fields.size ? { fields: [...l.fields] } : {}), ...(l.name_field ? { name_field: l.name_field } : {}) };
     const t0 = Date.now();
     onEvent({ type: "tool_start", name: "get_data", input });
     try {
-      const output = await exec("get_data", input, { check: check.check.id, ownReach: l.own });
+      const output = await exec("get_data", input, { check: check.check.id, ownReach: true });
       onEvent({ type: "tool", name: "get_data", input, output, ms: Date.now() - t0, baseline: true });
       const raw = lastOut.get(id);
       if (!raw || raw.not_checked) { layerAnswers.set(x.atlas_id, { not_checked: raw?.not_checked || "no reply", meta: raw || {} }); return; }
@@ -442,7 +445,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
     }
     results.set(p.check.id, r);
     // The analyst's nearest names: the features this check counted, from its own sources (after each source's filter).
-    const keep = (a) => (f) => f.dataset === a.meta?.dataset && (!a.source.filter || a.source.filter.values.includes(String(f.details?.[a.source.filter.field] ?? "")));
+    const keep = (a) => (f) => f.dataset === a.meta?.dataset && K.passes(a.source, f);
     const ev = evidence.map((f) => f.properties);
     featsOf.set(p.check.id, answers.filter((a) => a.meta?.dataset && !a.not_checked).flatMap((a) => ev.filter(keep(a))));
     // A pending source beside answered ones is still a gap to list.
@@ -458,6 +461,22 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
     r.search_area = true;
     if (r.text) r.text = reword(r.text);
     for (const b of r.bands || []) if (b.label === "on site") b.label = SEARCH_BAND;
+  }
+  // Each check's features as map ids, nearest first, so the card can list them and drive the map (24 Nov).
+  const fidOf = new Map(evidence.map((f) => [`${norm(f.properties.dataset)}|${norm(f.properties.name)}|${round(f.properties.distance_km, 2)}`, f.properties]));
+  for (const r of checkResults) {
+    if (r.members) {
+      r.features = r.members.map((m) => {
+        const p = fidOf.get(`${norm(m.dataset)}|${norm(m.name)}|${round(m.distance_km, 2)}`);
+        return { ...(p ? { fid: p.fid } : {}), name: m.name, distance_km: m.around_site ? null : m.distance_km, ...(m.around_site ? { around: true } : {}),
+          ...(m.coverage ? { coverage: Math.round(m.coverage * 1000) / 1000 } : {}), ...(m.detail ? { detail: m.detail } : {}), ...(m.publisher ? { publisher: m.publisher } : {}) };
+      });
+      delete r.members;
+    } else if (r.id === "context.boundaries" && r.state === "found") {
+      r.features = evidence.filter((f) => boundaryFids.includes(f.properties.fid) && (f.properties.surrounds || f.properties.distance_km <= (r.reach_km ?? 0) + 1e-9))
+        .sort((a, b) => a.properties.distance_km - b.properties.distance_km)
+        .map((f) => ({ fid: f.properties.fid, name: f.properties.name, distance_km: f.properties.distance_km, ...(f.properties.details?.sides ? { detail: f.properties.details.sides } : {}) }));
+    }
   }
   const noCheck = K.uncheckedTopics(catalogue, checkResults, scale);
   // The analyst's lines, by topic: each check's answer, with the nearest few by name, and the values' full lines.

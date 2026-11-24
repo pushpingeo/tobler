@@ -402,6 +402,7 @@ function showFindings(ids) {
   return { shown: feats.length, on_map: findings.size };
 }
 // The map key: one row per theme on the map, with a count and a switch; doubles as the list of what's shown.
+let keyOpen = null;
 function drawKey() {
   const key = $("key");
   if (!key) return;
@@ -417,8 +418,20 @@ function drawKey() {
     box.type = "checkbox"; box.checked = !hiddenThemes.has(k);
     box.addEventListener("change", () => { box.checked ? hiddenThemes.delete(k) : hiddenThemes.add(k); drawFindings(); });
     const sw = document.createElement("span"); sw.className = "swatch"; sw.style.background = t.colour;
-    label.append(box, sw, document.createTextNode(` ${t.label} `), Object.assign(document.createElement("span"), { className: "count", textContent: counts.get(k) }));
-    li.append(label);
+    label.append(box, sw);
+    // The theme's name opens its findings by distance from the site, nearest first (24 Nov).
+    const name = el("button", null, "key-name");
+    name.type = "button";
+    name.append(document.createTextNode(`${t.label} `), Object.assign(document.createElement("span"), { className: "count", textContent: counts.get(k) }));
+    name.setAttribute("aria-expanded", String(keyOpen === k));
+    name.addEventListener("click", () => { keyOpen = keyOpen === k ? null : k; drawKey(); });
+    li.append(label, name);
+    if (keyOpen === k) {
+      const items = [...findings.values()].filter((f) => f.properties.theme === k)
+        .sort((a, b) => (a.properties.surrounds ? 1e9 : a.properties.distance_km ?? 1e9) - (b.properties.surrounds ? 1e9 : b.properties.distance_km ?? 1e9))
+        .map((f) => ({ id: f.properties.id, name: f.properties.label, distance_km: f.properties.distance_km, around: !!f.properties.surrounds, dataset: f.properties.dataset }));
+      li.append(featureList(items, { record: shownRun ? runs.get(shownRun)?.record : null, label: t.label }));
+    }
     return li;
   }));
 }
@@ -426,20 +439,100 @@ function drawKey() {
 $("key-clear")?.addEventListener("click", () => clearFindings());
 if (phone) $("key")?.removeAttribute("open");
 
-// Tap a finding: its name, theme, distance and source.
+// Tap a finding: its name, theme, distance and source, and which checks counted it.
+let popup = null;
 function findingPopup(e) {
   if (draw && draw.getMode() !== "select") return;
   const f = e.features?.[0];
   if (!f) return;
-  const p = f.properties;
+  openPopup(f.properties, e.lngLat);
+}
+function openPopup(p, lngLat) {
   const box = document.createElement("div");
   box.className = "finding-pop";
   const name = document.createElement("b"); name.textContent = p.label || "Unnamed feature";
   const what = document.createElement("span");
   const km = p.surrounds ? "around the site (a wide area it lies within) · " : p.in_search_area ? `${whereText(p)} · ` : p.distance_km == null || p.distance_km === "null" ? "" : +p.distance_km === 0 ? "on site · " : `${U.dist(+p.distance_km)} from the site · `;
-  what.textContent = `${THEMES[p.theme]?.label || ""} · ${km}${p.dataset}${p.publisher ? ` (${p.publisher})` : ""}`;
+  // The publisher only when the layer's title doesn't already name it ("... (JNCC)").
+  const pub = p.publisher && !/\([^)]*\)\s*$/.test(p.dataset || "") && !String(p.dataset || "").includes(p.publisher) ? ` (${p.publisher})` : "";
+  what.textContent = `${THEMES[p.theme]?.label || ""} · ${km}${p.dataset}${pub}`;
   box.append(name, what);
-  new maplibregl.Popup({ closeButton: true, maxWidth: "280px" }).setLngLat(e.lngLat).setDOMContent(box).addTo(map);
+  // Which of the run's checks counted it: the way back from the map to the card.
+  const [runId, fid] = String(p.id || "").split(":");
+  const counted = fid ? (runs.get(runId)?.record.tobler_run.checks || []).filter((c) => c.features?.some((x) => x.fid === fid)).map((c) => c.label) : [];
+  if (counted.length) box.append(el("span", `Counted in: ${counted.join("; ")}`, "counted"));
+  popup?.remove();
+  popup = new maplibregl.Popup({ closeButton: true, maxWidth: "280px" }).setLngLat(lngLat).setDOMContent(box).addTo(map);
+}
+
+// A list of features by distance from the site (a check's, or one row of the map key's), the nearest ten first, with
+// "Show all" and a way to put them all on the map. Tapping a row flies the map to it and opens its popup. items:
+// { id (a findings id, when it's on the map), name, distance_km, around, coverage, detail, publisher | dataset }.
+const LIST_FIRST = 10;
+function featureList(items, { record = null, label = "" } = {}) {
+  const box = el("div", null, "feat-list");
+  const ol = el("ol");
+  const row = (f) => {
+    const li = el("li");
+    const b = el("button", null, "feat");
+    b.type = "button";
+    const where = f.around ? "around the site" : f.coverage ? `${Math.max(1, Math.round(f.coverage * 100))}% of the site` : f.distance_km == null ? "" : f.distance_km === 0 ? "on site" : U.dist(f.distance_km);
+    b.append(el("span", f.name || "Unnamed", "feat-name"), el("span", [where, f.detail, f.publisher || f.dataset].filter(Boolean).join(" · "), "feat-meta"));
+    if (!f.id) { b.disabled = true; b.title = "Not on the map in this view"; }
+    b.addEventListener("click", (e) => { e.stopPropagation(); flyToFinding(f.id, record); });
+    li.append(b);
+    return li;
+  };
+  let all = false;
+  const paint = () => {
+    ol.replaceChildren(...(all ? items : items.slice(0, LIST_FIRST)).map(row));
+    more.hidden = all || items.length <= LIST_FIRST;
+  };
+  const more = el("button", `Show all ${items.length}`, "feat-more");
+  more.type = "button";
+  more.addEventListener("click", (e) => { e.stopPropagation(); all = true; paint(); });
+  const onMap = el("button", "Show these on the map", "feat-map");
+  onMap.type = "button";
+  onMap.addEventListener("click", (e) => { e.stopPropagation(); if (innerWidth <= 720) setSheet(false); showFeatureSet(record, items.map((f) => f.id).filter(Boolean), { fit: true, ids: true }); });
+  box.setAttribute("aria-label", label ? `${label}: features by distance from the site` : "Features by distance from the site");
+  box.append(ol, more, onMap);
+  paint();
+  return box;
+}
+// Outline a set of findings on the map (a check's, or a key row's) and fit to them with the site.
+function showFeatureSet(record, idsOrFids, { fit = true, ids = false } = {}) {
+  if (record && shownRun !== record.tobler_run.id) showRunOnMap(record, { fit: false });
+  const keys = ids ? idsOrFids : idsOrFids.map((fid) => `${record.tobler_run.id}:${fid}`);
+  const feats = keys.map((k) => findings.get(k)).filter(Boolean);
+  map.getSource("hl")?.setData(turf.featureCollection(feats));
+  if (!fit || !feats.length) return;
+  const site = record?.features.find((f) => f.properties.role === "site");
+  map.fitBounds(turf.bbox(turf.featureCollection([...feats, ...(site ? [site] : [])])), { padding: fitPadding(), maxZoom: 15 });
+}
+// One feature: fly to it, outline it and open its popup. On a phone the sheet lowers so the map shows.
+function flyToFinding(id, record) {
+  if (!id) return;
+  if (record && shownRun !== record.tobler_run.id) showRunOnMap(record, { fit: false });
+  const f = findings.get(id);
+  if (!f) return;
+  if (innerWidth <= 720) setSheet(false);
+  hiddenThemes.delete(f.properties.theme);
+  if (f.properties.distance_km > findingLimit) { findingLimit = f.properties.distance_km; drawFindings(); }
+  map.getSource("hl")?.setData(turf.featureCollection([f]));
+  const at = f.geometry.type === "Point" ? f.geometry.coordinates : turf.pointOnFeature(f).geometry.coordinates;
+  // The feature with the site, so it's seen where it is relative to it (a wide area around the site: just centre on it).
+  const site = (record || (shownRun ? runs.get(shownRun)?.record : null))?.features.find((x) => x.properties.role === "site");
+  if (f.properties.surrounds) map.flyTo({ center: at, zoom: Math.max(map.getZoom(), 8) });
+  else map.fitBounds(turf.bbox(turf.featureCollection([f, ...(site ? [site] : [])])), { padding: fitPadding(), maxZoom: 15, duration: 600 });
+  openPopup(f.properties, at);
+}
+// Which check's list is open on a run card (one at a time).
+function paintChecksOpen(card, entry) {
+  card.querySelectorAll(".checks li.has-feats").forEach((li) => {
+    const open = li.dataset.check === entry.openCheck;
+    li.classList.toggle("open", open);
+    li.querySelector(".check-line")?.setAttribute("aria-expanded", String(open));
+  });
 }
 
 // ---- modes and hints ---------------------------------------------------------------
@@ -1443,8 +1536,28 @@ function paintRun(entry) {
       const ul = el("ul");
       ul.append(...g.items.map((c) => {
         const item = el("li", null, `check ${c.state === "not_checked" ? "nc" : c.state}`);
-        item.append(el("span", c.label, "check-name"), ...(c.must ? [el("span", "must", "must")] : []), document.createTextNode(`: ${U.localise(c.line)}`));
-        if (c.source && c.state !== "not_checked") item.title = c.source;
+        const line = el("div", null, "check-line");
+        line.append(el("span", c.label, "check-name"), ...(c.must ? [el("span", "must", "must")] : []), document.createTextNode(`: ${U.localise(c.line)}`));
+        if (c.source && c.state !== "not_checked") line.title = c.source;
+        item.append(line);
+        // A check that found something opens into its features, nearest first, and drives the map (24 Nov).
+        const feats = r.checks.find((x) => x.id === c.id)?.features || [];
+        if (feats.length) {
+          item.classList.add("has-feats");
+          line.setAttribute("role", "button"); line.tabIndex = 0;
+          const open = () => entry.openCheck === c.id;
+          line.setAttribute("aria-expanded", String(open()));
+          const toggle = () => {
+            entry.openCheck = open() ? null : c.id;
+            paintChecksOpen(card, entry);
+            if (open()) showFeatureSet(record, feats.map((f) => f.fid).filter(Boolean), { fit: !phone });
+            else map.getSource("hl")?.setData(turf.featureCollection([]));
+          };
+          line.addEventListener("click", toggle);
+          line.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+          item.append(featureList(feats.map((f) => ({ ...f, id: f.fid ? `${r.id}:${f.fid}` : null })), { record, label: c.label }));
+          item.dataset.check = c.id;
+        }
         return item;
       }));
       li.append(el("p", g.label, "check-head"), ul);
@@ -1455,6 +1568,7 @@ function paintRun(entry) {
     if (cv.noCheck) { nc.querySelector("summary").textContent = cv.noCheck.line.split(":")[0]; const list = cv.noCheck.topics.map((t, i) => (i ? t.toLowerCase() : t)).join(", ");
       nc.querySelector("p").textContent = `${list}. Not checked by Tobler yet: search for these where they matter.`; }
     if (!ck.dataset.painted) { ck.open = !phone; ck.dataset.painted = "1"; }
+    paintChecksOpen(card, entry);
   }
   card.querySelector('input[type="range"]').value = String(entry.km);
   paintReach(entry);

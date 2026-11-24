@@ -219,11 +219,10 @@ export function fromSources(plan, answers = [], edges = [], opts = {}) {
   const kept = [];
   const nm = (v) => String(v || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   for (const [si, a] of ok.entries()) {
-    const f = a.source.filter;
     for (const x of a.features || []) {
-      if (f && !f.values.includes(String(x.extra?.[f.field] ?? ""))) continue;
+      if (!passes(a.source, x)) continue;
       const code = a.source.code_field && x.extra?.[a.source.code_field] != null ? String(x.extra[a.source.code_field]).trim().toUpperCase() : null;
-      const y = { ...x, code, src: si };
+      const y = { ...x, code, src: si, dataset: a.meta?.dataset || "", publisher: whoOf(a), detail: detailOf(a.source, x) };
       const i = kept.findIndex((k) => (code && k.code === code) || (nm(k.name) && nm(k.name) === nm(y.name) && Math.abs((k.distance_km ?? 0) - (y.distance_km ?? 0)) <= 0.5)
         || (opts.sameShape && k.src !== si && sameExtent(k.bbox, y.bbox) && opts.sameShape(k.geometry, y.geometry)));
       if (i < 0) kept.push(y);
@@ -234,10 +233,31 @@ export function fromSources(plan, answers = [], edges = [], opts = {}) {
   const r = fromFeatures(plan, kept, edges, { capped: ok.some((a) => a.meta?.capped), ...(fetched.length ? { fetched_km: Math.min(...fetched) } : {}) });
   r.sources = sources;
   r.source = sources.find((x) => x.state === "answered");
+  // The features the check counted, nearest first, for the card's list (the run turns them into map ids).
+  r.members = kept.filter((x) => x.around_site || (x.distance_km != null && x.distance_km <= r.reach_km + 1e-9))
+    .sort((a, b) => (a.around_site ? 1e9 : a.distance_km) - (b.around_site ? 1e9 : b.distance_km));
   const matters = missing.filter((a) => !a.source.supplementary);
   if (matters.length) r.partly = matters.map((a) => `${whoOf(a)} ${shortWhy(a)}`).join("; ");
   if (r.state === "none" && matters.length) return { ...r, state: "not_checked", reason: "partly", why: `${r.partly} (none in the others)` };
   return r;
+}
+
+// Whether a source keeps a feature: its field filter (JNCC's designations, NI's listed grades) and its name filter
+// (World Heritage Site buffer zones apart from the sites themselves), case-insensitive.
+export function passes(source, x) {
+  const f = source.filter;
+  if (f && !f.values.includes(String(x.extra?.[f.field] ?? x.details?.[f.field] ?? ""))) return false;
+  const n = source.name_filter;
+  if (n?.include && !new RegExp(n.include, "i").test(x.name || "")) return false;
+  if (n?.exclude && new RegExp(n.exclude, "i").test(x.name || "")) return false;
+  return true;
+}
+// What a row in a check's list says beside the name: the grade, designation or class.
+export function detailOf(source, x) {
+  if (source.class || source.class_field) return classOf(source, x);
+  const f = source.keep_fields?.[0] || source.filter?.field;
+  const v = f ? x.extra?.[f] : null;
+  return v != null && String(v).trim() ? `${source.detail_prefix || ""}${String(v).trim()}` : null;
 }
 
 // A class answer (flood zones, farmland grade, peat): which classes are on the site, and the nearest of each within
@@ -256,9 +276,12 @@ export function classOf(source, x) {
 function classesFrom(plan, ok, missing, sources, edges) {
   const reach = plan.reach_km ?? 0;
   const by = new Map();
+  const members = [];
   for (const a of ok) for (const x of a.features || []) {
+    if (!passes(a.source, x)) continue;
     const label = classOf(a.source, x);
     if (!label || x.distance_km == null || x.distance_km > reach + 1e-9) continue;
+    members.push({ ...x, dataset: a.meta?.dataset || "", publisher: whoOf(a), detail: label });
     const onSite = !(x.distance_km > 0) && (x.coverage == null || x.coverage >= ON_SITE_MIN);
     const c = by.get(label) || { label, on_site: false, coverage: 0, nearest_km: null };
     if (onSite) { c.on_site = true; if (x.coverage != null) c.coverage = Math.min(1, c.coverage + x.coverage); }
@@ -271,7 +294,8 @@ function classesFrom(plan, ok, missing, sources, edges) {
     .sort((a, b) => rank(a.label) - rank(b.label) || a.label.localeCompare(b.label));
   const fetched = ok.map((a) => a.meta?.fetched_km).filter((v) => v != null);
   const r = { ...base(plan), reach_km: fetched.length ? Math.min(reach, ...fetched) : reach, classes, count: classes.length,
-    state: classes.length ? "found" : "none", sources, source: sources.find((x) => x.state === "answered"), ...(ok.some((a) => a.meta?.capped) ? { capped: true } : {}) };
+    state: classes.length ? "found" : "none", sources, source: sources.find((x) => x.state === "answered"), ...(ok.some((a) => a.meta?.capped) ? { capped: true } : {}),
+    members: members.sort((a, b) => (b.coverage || 0) - (a.coverage || 0) || a.distance_km - b.distance_km) };
   const matters = missing.filter((a) => !a.source.supplementary);
   if (matters.length) r.partly = matters.map((a) => `${whoOf(a)} ${shortWhy(a)}`).join("; ");
   if (r.state === "none" && matters.length) return { ...r, state: "not_checked", reason: "partly", why: `${r.partly} (none in the others)` };

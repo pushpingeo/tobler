@@ -4,6 +4,14 @@ Tobler and the atlas are worked on in separate chats (decided 17 Nov). Tobler do
 What Tobler can rely on is written down in the atlas repo's `docs/mcp-tools.md`. When Tobler needs something
 new from the atlas, add it here (newest first), tell Rob, and he passes it to the atlas chat.
 
+- **24 Nov: small corrections from the first live UK screens** (Linlithgow). (1) Historic Environment Scotland's World
+  Heritage Sites record (`0d622d81aa3431a4`) **does hold buffer zones** ("Antonine Wall World Heritage Site Buffer
+  Zone"); the contract note says it doesn't. Please correct the note, and say whether the other nations' WHS records do
+  too, and in which field (Tobler now splits them by name: "buffer zone" in the name). (2) Tobler's checks now ask
+  `fetch_features` for up to 500 features within each check's own reach; please say in the contract if any curated
+  UK record can't return 500 (HES can't page: does it return 500 in one go?). (3) For the coming ground and pollution
+  pack, see the reply in the project (`claude/contamination-tobler-reply.md`): fixed ids, named fields, licence,
+  data date, and a `coverage` of national or partial on each record.
 - **23 Nov: the UK pack, broadened beyond nature sites.** Adds to the 22 Nov request. Published decisions on UK
   wind, solar and battery sites were decided mostly by landscape, heritage, peat and farmland quality, not by
   protected nature sites, and Tobler has no checks for these yet. Asks: trusted records that return features

@@ -3,7 +3,7 @@
 // area) and fetch_features (one dataset, an area). Geometry stays here; the model gets names, distances,
 // a few attributes, the publisher and the licence. No DOM, so the page and the scripts share it.
 import * as turf from "./vendor/turf.js";
-import { atlasCandidate, pickName, edgeDistanceKm } from "./atlasfeatures.js";
+import { atlasCandidate, pickName, edgeDistanceKm, tidyName } from "./atlasfeatures.js";
 import { candidate } from "./gazetteer.js";
 import { classifyLicence, LICENCE_NOTE, licenceBlock } from "./licence.js";
 import { themeFor, THEME_IDS } from "./findings.js";
@@ -186,7 +186,9 @@ export function createDataTools(host) {
 
     // fields and name_field are for the run's checks, not the analyst (not in the tool's schema): attributes to keep on
     // every feature whatever they're called (a site code, a flood zone, a grade), and the field that holds the name.
-    async get_data({ dataset, place, within_km, name, days, theme, fields = [], name_field = null }) {
+    // limit: features per query for the checks (the atlas allows up to 500; the analyst's own calls keep 100).
+    async get_data({ dataset, place, within_km, name, days, theme, fields = [], name_field = null, limit = 100 }) {
+      const lim = Math.max(1, Math.min(500, +limit || 100));
       const d = datasets.get(String(dataset).trim().toUpperCase());
       if (!d) throw new Error(`"${dataset}" isn't a dataset id from find_data in this conversation. Use find_data first.`);
       const lic = d.service ? { class: d.licence_class, short: d.licence } : classifyLicence(d.licence);
@@ -208,7 +210,7 @@ export function createDataTools(host) {
       } else {
         const b = turf.bbox(turf.buffer(p.feature, Math.max(within, 0.05), { units: "kilometers", steps: 8 }));
         try {
-          g = await callWithRetry("fetch_features", { id: d.id, bbox: b.map((v) => round(v, 5)), limit: 100, ...(name ? { text: name } : {}) });
+          g = await callWithRetry("fetch_features", { id: d.id, bbox: b.map((v) => round(v, 5)), limit: lim, ...(name ? { text: name } : {}) });
         } catch (e) {
           return { ...head, not_checked: `The publisher's service didn't answer: ${String(e.message || e).slice(0, 160)}. Report it as not checked, not as nothing found.` };
         }
@@ -223,7 +225,7 @@ export function createDataTools(host) {
         try {
           c = d.service
             ? candidate({ name: d.service.title.split(",")[0], type: d.title, geometry: f.geometry, source: { id: "trusted", key: d.service.key, title: d.title, publisher: d.publisher, licence: d.licence, authoritative: true } })
-            : atlasCandidate(f, d, (name_field && f.properties?.[name_field] != null && String(f.properties[name_field]).trim()) || pickName(f.properties || {}) || d.title);
+            : atlasCandidate(f, d, tidyName((name_field && f.properties?.[name_field] != null && String(f.properties[name_field]).trim()) || pickName(f.properties || {}) || d.title));
         } catch { continue; }
         c.distance_km = round(dist, 2);
         const around = aroundSiteKm2(siteKm2, f.geometry, dist);
@@ -248,7 +250,7 @@ export function createDataTools(host) {
         ...(returned === 0 ? { service_note: "The service returned no features at all for this box. If you expected some (e.g. a field's own pipelines), the layer may be the wrong one (check its title and publisher) or may not cover this area; look for another." } : {}),
         nearest: kept.slice(0, 12).map((c) => ({ id: c.id, name: c.name, type: c.type, distance_km: c.distance_km, ...(c.around_site ? { around_site: true, area_km2: c.area_km2 } : {}), ...(Object.keys(c.extra).length ? { details: c.extra } : {}) })),
         ...(kept.length > 12 ? { more: kept.length - 12 } : {}),
-        ...(!d.service && returned >= 100 ? { capped: "The service returned its 100-feature limit for this box, so there may be more." } : {}),
+        ...(!d.service && returned >= lim ? { capped: `The service returned its ${lim}-feature limit for this box, so there may be more.` } : {}),
         ...(d.service?.time_aware ? { time_note: `Detections from the last ${extra.days_checked} days only, not a long record. Say so when reporting.` } : (d.capabilities || []).includes("time") ? { time_note: "A live, time-aware layer: it shows recent detections only (often the last 24 hours to 7 days). Say so when reporting." } : {}),
         ...(lic.class !== "open" ? { licence_note: LICENCE_NOTE[lic.class] } : {}),
       };

@@ -1209,3 +1209,27 @@ have no topic at all, though landscape, peat and farmland quality decided most o
 - **Tested:** `npm test` (checks 13, with the shape rules and the switch on and off); browser checks desktop and
   phone: run-card 151 (new: the switch on by default, switching it off is saved), search-area 46, out-of-date 28,
   ux 26, choice 8, coords 18, epsg 20, cards 14, site files 44. Settings screenshot on a phone looked at.
+
+## 24 Nov 2026: exploring the findings, and three fixes from Rob's Linlithgow screen
+- **Undercount fixed:** "15+ scheduled monuments within 5 km" round Linlithgow. Check layers fetched out to the
+  run's wider band (20 km) for the slider, and a query returns at most 100 features, so the 100 that came back were
+  spread over the whole box. Every check layer now fetches **only to its own reach, up to 500 features** (the atlas's
+  limit). The analyst's own searches still go to the wider band.
+- **World Heritage Site buffer zones** (HES's layer holds them, though the atlas note says not) are split from the
+  sites by name: a new `heritage.whs-buffer` inside check ("the site is inside … Buffer Zone"); the WHS check counts
+  the sites only. Passed to the atlas in `docs/atlas-requests.md`.
+- **Names tidied, not reworded** (`tidyName` in `js/atlasfeatures.js`): a space after each comma, and names written
+  all in capitals put in title case (short joining words lower case, Roman numerals and Mc names kept). Mixed-case
+  names keep their capitals. Tracing still works: flag evidence is matched without regard to case.
+- **Exploring the findings (Rob):** a check line that found something opens, on a tap, into its features by
+  distance from the site (nearest ten, "Show all N", "Show these on the map"), each row with the grade, designation or
+  class and the publisher. A row flies the map to the feature (with the site in view) and opens its popup; the popup
+  says which checks counted it. The map key's theme names open the same list. No underlines in the text: the whole
+  line is the button, with a chevron and a hover shade. On a phone a row lowers the sheet. Each check keeps its
+  features (`features` on the check in the run record; the nearest ten travel in a share link). One list open at a
+  time. No new queries: everything comes from the run.
+- **Tested:** `npm test` (checks 14, run 36: own reach and 500, buffer zones, names, rows with grades); browser checks
+  desktop and phone: run-card 159 (new: a check line opens its list and outlines it; a row flies and opens the popup
+  with "Counted in"; the sheet lowers on a phone; tapping again closes; the map key opens its list), search-area 46,
+  out-of-date 28, ux 26, choice 8, coords 18, epsg 20, cards 14, site files 44. Screenshots looked at.
+- **Not tested:** a live Linlithgow screen after the fix (the true counts need the real services).

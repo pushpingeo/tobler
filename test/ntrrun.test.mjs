@@ -175,8 +175,10 @@ await test("sealed run: fetches out to the wider band, records evidence with pro
     inputs: { asset_type: "oil-gas-field", asset_label: "offshore oil or gas field", asset_assumed: true }, now: () => "2026-11-18T05:00:00Z" });
   // The model asked for 5 and 10 km; the run fetched to 50 km both times.
   const fetches = atlasCalls.filter(([t]) => t === "fetch_features");
-  // Inside checks (MARPOL) look only at the site itself; everything else out to the wider band, for the slider.
-  for (const [, a] of fetches.filter(([, x]) => x.id !== "751ddc65885f897d")) {
+  // The analyst's own searches go out to the wider band, for the slider; the checks fetch only to their own reach
+  // (24 Nov: a busy layer fetched wide undercounted what was in reach), up to 500 features.
+  assert.ok(fetches.filter(([, x]) => BASELINE_IDS.has(x.id)).every(([, x]) => x.limit === 500));
+  for (const [, a] of fetches.filter(([, x]) => !BASELINE_IDS.has(x.id))) {
     const [w, , e] = a.bbox;
     assert.ok(turf.distance([w, FIELD[1]], [e, FIELD[1]]) > 100 + 10, `bbox wide enough: ${a.bbox}`);
   }
@@ -200,7 +202,7 @@ await test("sealed run: fetches out to the wider band, records evidence with pro
   assert.match(model.calls[0].messages[0].content, /North West European waters \(a wide area it lies within\)/);
   assert.match(model.calls[0].system, /around_site/);
   for (const f of ev) for (const k of ["fid", "dataset", "publisher", "licence", "checked_at", "theme", "band", "distance_km"]) assert.ok(f.properties[k] != null && f.properties[k] !== "", `${k} on ${f.properties.name}`);
-  assert.equal(ev.find((f) => /TROLDFOS/.test(f.properties.name)).properties.theme, "heritage");
+  assert.equal(ev.find((f) => /TROLDFOS/i.test(f.properties.name)).properties.theme, "heritage");
   assert.equal(ev.find((f) => /flowline/.test(f.properties.name)).properties.band, "on site");
   assert.equal(record.features[0].properties.role, "site");
   // Flags: sorted by confidence; traced evidence carries fids; the regional-knowledge item is honestly untraced.
@@ -229,7 +231,7 @@ await test("slider helpers: findings within a distance, nearest per theme, flags
   assert.equal(evidenceWithin(record, 50).length, 11, "with the UK layers (two sites, each from two sources)");
   assert.equal(evidenceWithin(record, 40).length, 10);
   assert.equal(evidenceWithin(record, 10).length, 4);
-  assert.deepEqual(nearestByTheme(record, 10).map((x) => `${x.theme} ${x.name} ${x.distance_km}`), ["community Rosebank 9 inch Production flowline 1 0", "heritage TROLDFOS (POSSIBLY) 2"]);
+  assert.deepEqual(nearestByTheme(record, 10).map((x) => `${x.theme} ${x.name} ${x.distance_km}`), ["community Rosebank 9 inch Production flowline 1 0", "heritage Troldfos (Possibly) 2"]);
   const [pipes, wreck, birds] = record.tobler_run.flags;
   assert.equal(flagBeyond(pipes, 1), false);
   assert.equal(flagBeyond(wreck, 1), true);
@@ -245,7 +247,7 @@ await test("re-assess on tap: one call, no tools, only the stored evidence withi
   assert.equal(model.calls[0].tools, undefined, "no tools");
   const sent = model.calls[0].messages[0].content;
   assert.match(sent, /Rosebank 9 inch Production flowline 1/);
-  assert.doesNotMatch(sent, /TROLDFOS|West of Shetland Pipeline/);
+  assert.doesNotMatch(sent, /TROLDFOS|West of Shetland Pipeline/i);
   const r = record.tobler_run;
   assert.equal(r.assessed_within_km, 1);
   assert.equal(r.flags.length, 1);
@@ -725,7 +727,7 @@ await test("re-assess inside the area (the card's switch): only inside evidence,
   await reassess({ record: rec, km: 0, skill, callClaude: model });
   const sent = model.calls[0].messages[0].content;
   assert.match(sent, /inside the area/);
-  assert.doesNotMatch(sent, /West of Shetland Pipeline|TROLDFOS/);
+  assert.doesNotMatch(sent, /West of Shetland Pipeline|TROLDFOS/i);
   assert.equal(rec.tobler_run.assessed_within_km, 0);
   assert.equal(rec.tobler_run.fetched_to_km, 50, "can switch back out");
   assert.equal(rec.tobler_run.flags[0].traced, 1);
@@ -872,7 +874,12 @@ await test("the UK pack on land: flood zones and farmland by share of the site, 
     const a = asked.find((x) => x.id === id);
     assert.ok(a && widthKm(a.bbox) < 6, `${id} fetched to its own reach (${a && widthKm(a.bbox).toFixed(1)} km across)`);
   }
-  assert.ok(widthKm(asked.find((x) => x.id === "0c53cecc65701f0c").bbox) > 30, "SSSIs still out to the wider band, for the slider");
+  assert.ok(widthKm(asked.find((x) => x.id === "0c53cecc65701f0c").bbox) < 15, "SSSIs to their own 5 km reach too (24 Nov)");
+  // Each check lists the features it counted, nearest first, with map ids, details and publishers.
+  const lb = by["heritage.listed-buildings"].features;
+  assert.deepEqual(lb.map((f) => [f.name, f.detail, f.publisher, !!f.fid]), [["Church of St Mary", "Grade I", "Historic England", true], ["Barn", "Grade II", "Historic England", true]]);
+  assert.ok(lb[0].distance_km < lb[1].distance_km);
+  assert.deepEqual(by["water.flood-zones"].features.map((f) => [f.detail, f.coverage]), [["Flood Zone 3", 0.5]]);
   // Topics left without a check: fewer now (heritage, landscape, water, land use, ground and soil are covered).
   assert.deepEqual(r.no_check_topics, ["community-health", "air-climate", "hazards", "material-assets"]);
 });

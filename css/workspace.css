@@ -77,6 +77,33 @@ a { color: var(--sea); }
 .finding-pop { font: 12.5px/1.4 var(--font); color: var(--ink); }
 .finding-pop b { display: block; }
 .finding-pop span { color: var(--ink-2); }
+.finding-pop span.counted { display: block; margin-top: 3px; color: var(--ink); }
+/* The map key's rows: the switch, then the theme's name, which opens its findings by distance. */
+.key li { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; }
+.key li > label { flex: none; }
+.key .key-name { flex: 1; display: flex; align-items: center; margin: 0; text-decoration: none; color: var(--ink); text-align: left; }
+.key .key-name:hover, .key .key-name[aria-expanded="true"] { color: var(--sea); }
+.key li > .feat-list { flex-basis: 100%; }
+.key { max-height: calc(100vh - 120px); overflow: auto; }
+
+/* Features by distance from the site: a check's, or a key row's. Quiet rows, no underlines; the whole row is the button. */
+.feat-list ol { list-style: none; margin: 4px 0 2px; padding: 0; }
+.feat-list li { margin: 0; }
+.feat-list .feat { display: flex; flex-direction: column; align-items: flex-start; width: 100%; margin: 0; padding: 4px 6px; border: 0; border-radius: 6px;
+  background: none; color: var(--ink); font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
+.feat-list .feat:hover, .feat-list .feat:focus-visible { background: var(--paper); }
+.feat-list .feat[disabled] { cursor: default; opacity: .7; }
+.feat-list .feat-name { font-size: 12.5px; }
+.feat-list .feat-meta { font-size: 11.5px; color: var(--ink-2); }
+.feat-list .feat-more, .feat-list .feat-map { margin: 2px 6px 4px 0; padding: 2px 6px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink);
+  font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; }
+/* A check line that has features: the whole line opens its list (a chevron, a hover shade; no link styling). */
+.run li.check .feat-list { display: none; }
+.run li.check.open .feat-list { display: block; padding-left: 4px; border-left: 2px solid var(--rule); margin: 2px 0 6px; }
+.run li.check.has-feats > .check-line { cursor: pointer; border-radius: 6px; margin-left: -4px; padding: 1px 4px; }
+.run li.check.has-feats > .check-line:hover, .run li.check.has-feats > .check-line:focus-visible { background: var(--paper); outline: none; }
+.run li.check.has-feats > .check-line::after { content: "›"; display: inline-block; margin-left: 5px; color: var(--ink-2); transition: transform .15s; }
+.run li.check.open > .check-line::after { transform: rotate(90deg); }
 
 /* ---- panel ---- */
 .panel {

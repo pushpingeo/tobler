@@ -1,12 +1,12 @@
 {
-  "about": "Checks as data (plan item 1; design note claude/checks-design.md, agreed by Rob 23 Nov 2026). A check is one line on the report: a neutral topic, the layers that answer it in each region, the kind of answer, and how far it looks at each scale. The run carries out every check that applies, in code, before the analyst starts, and each comes back as found, none found, or not checked with the reason. Replaces 'baseline' in trusted.json. Version 2 (24 Nov): the UK statutory sites from the atlas's fixed records (22 Nov). Version 3 (24 Nov): the UK pack (23 Nov): heritage, landscape, flood, farmland, peat and the SSSI Impact Risk Zones. Edit by hand; js/checks.js reads it and test/checks.test.mjs and the invariants test check it.",
-  "version": "3",
+  "about": "Checks as data (plan item 1; design note claude/checks-design.md, agreed by Rob 23 Nov 2026). A check is one line on the report: a neutral topic, the layers that answer it in each region, the kind of answer, and how far it looks at each scale. The run carries out every check that applies, in code, before the analyst starts, and each comes back as found, none found, or not checked with the reason. Replaces 'baseline' in trusted.json. Version 2 (24 Nov): the UK statutory sites from the atlas's fixed records (22 Nov). Version 3 (24 Nov): the UK pack (23 Nov): heritage, landscape, flood, farmland, peat and the SSSI Impact Risk Zones. Edit by hand; js/checks.js reads it and test/checks.test.mjs and the invariants test check it. Version 4 (24 Nov): checks fetch only to their own reach; World Heritage Site buffer zones apart from the sites.",
+  "version": "4",
   "fields": {
     "answer": "count_by_band (features per distance band, plus the nearest), value_at_site (a reading over the site: elevation, depth, traffic) or inside (whether the site is inside or touching one), or classes (which classes are on the site, with the share they cover, and the nearest of each within reach: flood zones, farmland grade, peat)",
     "reach_km": "how far the check looks at each scale, from the footprint edge. null means the check doesn't apply at that scale. Value checks have no reach (they read the site). Reach values are a first cut from research-reach-evidence.md, defaults to tune on the example sites.",
     "applies": "setting: any, land (onshore), offshore, sea (offshore or the coast within reach), or land_or_coast (onshore, or offshore with the coast within the check's own reach: heritage and landscape seen from the sea). where: a [west, south, east, north] box the site must overlap for the check to apply at all (e.g. tropical coral reefs); without it, the check applies everywhere in that setting. countries: on land, the site must be in one of these (UK-only checks); at sea the box decides.",
     "must": "a check whose topic can't be called clear without it; drives the decision rule (js/industry.js settleDecision)",
-    "sources": "Per region. Every source that covers what the check's reach can touch is used, and the results are merged (a site near a border needs both nations' layers). countries (onshore: the site must be in one), not_countries, and where (a box the site's box, grown by the reach, must overlap; offshore sites match on the box). atlas_id: an AI Living World Atlas record; record holds its title, publisher and licence as the atlas gave them on as_of (the atlas contract has no record-by-id lookup). name_field: the attribute holding the feature's name. code_field: a site code, so the same site in two layers counts once. filter: keep only features whose field has one of these values (JNCC's offshore layer holds several designations). supplementary: its absence doesn't stop a 'none found' when another source answered. tool: a Tobler tool instead of an atlas layer (boundaries, elevation, depth, traffic). setting: as for applies, for one source (JNCC's offshore layer only at sea). pending: a layer we know exists but can't use yet. If no source covers the site, the answer is not checked: no source for this region. class_field and classes: the field that holds a class, and its values mapped to labels (values not mapped are left out); class_prefix instead of a map; class: a layer that is one class. keep_fields: more attributes to keep on each feature (a grade). dense: a layer with many features (listed buildings), fetched only to the check's own reach so the 100-feature limit doesn't cut the count; class and inside checks always fetch only to their own reach. where_any: several boxes, any of which will do (the rough nation outlines in regions).",
+    "sources": "Per region. Every source that covers what the check's reach can touch is used, and the results are merged (a site near a border needs both nations' layers). countries (onshore: the site must be in one), not_countries, and where (a box the site's box, grown by the reach, must overlap; offshore sites match on the box). atlas_id: an AI Living World Atlas record; record holds its title, publisher and licence as the atlas gave them on as_of (the atlas contract has no record-by-id lookup). name_field: the attribute holding the feature's name. code_field: a site code, so the same site in two layers counts once. filter: keep only features whose field has one of these values (JNCC's offshore layer holds several designations). supplementary: its absence doesn't stop a 'none found' when another source answered. tool: a Tobler tool instead of an atlas layer (boundaries, elevation, depth, traffic). setting: as for applies, for one source (JNCC's offshore layer only at sea). pending: a layer we know exists but can't use yet. If no source covers the site, the answer is not checked: no source for this region. class_field and classes: the field that holds a class, and its values mapped to labels (values not mapped are left out); class_prefix instead of a map; class: a layer that is one class. keep_fields: more attributes to keep on each feature (a grade). dense: a layer with many features (listed buildings), fetched only to the check's own reach so the 100-feature limit doesn't cut the count; class and inside checks always fetch only to their own reach. where_any: several boxes, any of which will do (the rough nation outlines in regions). name_filter: include or exclude features whose name matches (case-insensitive), e.g. buffer zones. detail_prefix: put before a kept field in the card's list (Grade, Category).",
     "decode": "irz: an inside check whose zones are read for the development (catalogue/sssi_irz_codes.json; the profile's irz_categories by asset type)",
     "class_order": "classes, most significant first (a label starting with one of these)"
   },
@@ -1657,7 +1657,8 @@
               2.06,
               55.72
             ]
-          ]
+          ],
+          "detail_prefix": "Grade "
         },
         {
           "region": "Scotland",
@@ -1687,7 +1688,8 @@
               -0.71,
               60.85
             ]
-          ]
+          ],
+          "detail_prefix": "Category "
         },
         {
           "region": "Wales",
@@ -1717,7 +1719,8 @@
               -2.65,
               53.44
             ]
-          ]
+          ],
+          "detail_prefix": "Grade "
         },
         {
           "region": "Northern Ireland",
@@ -1757,7 +1760,8 @@
               -5.39,
               55.32
             ]
-          ]
+          ],
+          "detail_prefix": "Grade "
         }
       ]
     },
@@ -1828,7 +1832,10 @@
               1.38,
               55.03
             ]
-          ]
+          ],
+          "name_filter": {
+            "exclude": "buffer zone"
+          }
         },
         {
           "region": "Scotland",
@@ -1854,7 +1861,10 @@
               -3.14,
               59.09
             ]
-          ]
+          ],
+          "name_filter": {
+            "exclude": "buffer zone"
+          }
         },
         {
           "region": "Wales",
@@ -1880,7 +1890,10 @@
               -2.65,
               53.44
             ]
-          ]
+          ],
+          "name_filter": {
+            "exclude": "buffer zone"
+          }
         },
         {
           "region": "Northern Ireland",
@@ -1906,7 +1919,171 @@
               -6.48,
               55.25
             ]
-          ]
+          ],
+          "name_filter": {
+            "exclude": "buffer zone"
+          }
+        }
+      ]
+    },
+    {
+      "id": "heritage.whs-buffer",
+      "topic": "heritage",
+      "label": "World Heritage Site buffer zones",
+      "answer": "inside",
+      "reach_km": {
+        "local": 0,
+        "regional": 0,
+        "global": 0
+      },
+      "reach_why": "Whether the site is inside a buffer zone; distance to the World Heritage Site itself is the check above",
+      "applies": {
+        "setting": "land_or_coast",
+        "where": [
+          -14.0,
+          49.8,
+          2.5,
+          61.0
+        ],
+        "countries": [
+          "United Kingdom"
+        ]
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "England",
+          "atlas_id": "88dd85f584df67eb",
+          "record": {
+            "title": "World Heritage Sites, England (Historic England)",
+            "publisher": "Historic England",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-23"
+          },
+          "name_field": "Name",
+          "code_field": "ListEntry",
+          "where_any": [
+            [
+              -6.5,
+              49.85,
+              1.8,
+              51.38
+            ],
+            [
+              -2.72,
+              51.38,
+              1.8,
+              54.58
+            ],
+            [
+              -3.65,
+              53.3,
+              -2.72,
+              54.58
+            ],
+            [
+              -3.1,
+              54.58,
+              -1.45,
+              55.81
+            ],
+            [
+              -6.15,
+              50.08,
+              1.38,
+              55.03
+            ]
+          ],
+          "name_filter": {
+            "include": "buffer zone"
+          }
+        },
+        {
+          "region": "Scotland",
+          "atlas_id": "0d622d81aa3431a4",
+          "record": {
+            "title": "World Heritage Sites, Scotland (Historic Environment Scotland)",
+            "publisher": "Historic Environment Scotland",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-23"
+          },
+          "name_field": "DES_TITLE",
+          "code_field": "DES_REF",
+          "where_any": [
+            [
+              -9.0,
+              54.6,
+              -0.6,
+              61.0
+            ],
+            [
+              -8.31,
+              55.49,
+              -3.14,
+              59.09
+            ]
+          ],
+          "name_filter": {
+            "include": "buffer zone"
+          }
+        },
+        {
+          "region": "Wales",
+          "atlas_id": "4af8b44459c04866",
+          "record": {
+            "title": "World Heritage Sites, Wales (Cadw)",
+            "publisher": "Cadw (Welsh Government)",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-23"
+          },
+          "name_field": "Name",
+          "code_field": "UNESCO_Ref",
+          "where_any": [
+            [
+              -5.7,
+              51.38,
+              -2.72,
+              53.45
+            ],
+            [
+              -5.67,
+              51.37,
+              -2.65,
+              53.44
+            ]
+          ],
+          "name_filter": {
+            "include": "buffer zone"
+          }
+        },
+        {
+          "region": "Northern Ireland",
+          "atlas_id": "916bd027a2130550",
+          "record": {
+            "title": "World Heritage Site (Giant's Causeway), Northern Ireland (DAERA)",
+            "publisher": "Department of Agriculture, Environment and Rural Affairs (DAERA)",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-23"
+          },
+          "name_field": "name_whs",
+          "code_field": "site_code",
+          "where_any": [
+            [
+              -8.2,
+              54.0,
+              -5.4,
+              55.4
+            ],
+            [
+              -6.53,
+              55.23,
+              -6.48,
+              55.25
+            ]
+          ],
+          "name_filter": {
+            "include": "buffer zone"
+          }
         }
       ]
     },
@@ -1980,7 +2157,8 @@
               2.05,
               55.62
             ]
-          ]
+          ],
+          "detail_prefix": "Grade "
         },
         {
           "region": "Scotland",
@@ -2035,7 +2213,8 @@
               -2.65,
               53.44
             ]
-          ]
+          ],
+          "detail_prefix": "Grade "
         },
         {
           "region": "Northern Ireland",
@@ -2064,7 +2243,8 @@
               -5.43,
               55.31
             ]
-          ]
+          ],
+          "detail_prefix": "Grade "
         }
       ]
     },
@@ -3151,7 +3331,8 @@
               2.05,
               55.74
             ]
-          ]
+          ],
+          "detail_prefix": "Grade "
         },
         {
           "region": "England",
@@ -3208,7 +3389,8 @@
               2.08,
               55.74
             ]
-          ]
+          ],
+          "detail_prefix": "Grade "
         },
         {
           "region": "Wales",
@@ -3246,7 +3428,8 @@
               -2.65,
               53.44
             ]
-          ]
+          ],
+          "detail_prefix": "Grade "
         },
         {
           "region": "Scotland",

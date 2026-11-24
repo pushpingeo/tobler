@@ -14,7 +14,7 @@ const ids = (plans) => plans.map((p) => p.check.id);
 await test("the catalogue: twelve topics plus Indigenous Peoples for global work; every check sound", () => {
   const topics = cat.topics.map((t) => t.id);
   assert.equal(topics.filter((t) => t !== "indigenous").length, 12);
-  assert.equal(cat.version, "3");
+  assert.equal(cat.version, "4");
   assert.ok(topics.includes("topography") && topics.includes("hazards"));
   assert.deepEqual(Object.keys(cat.scales).filter((k) => k !== "about"), ["local", "regional", "global"]);
   assert.deepEqual(cat.scales.global, [10, 20, 50, 100]);
@@ -292,6 +292,30 @@ await test("the UK pack: where each check applies, and Northern Ireland's listed
   const r = K.fromSources(lb, [{ source: dfc, features: [{ name: "A house", distance_km: 1, extra: { CurrentGra: "B+" } }, { name: "Record only", distance_km: 1.2, extra: { CurrentGra: "Record Only" } }], meta: {} }], cat.scales.regional);
   assert.equal(r.count, 1);
   assert.ok(lb.check.sources.every((x) => x.dense), "listed buildings fetched only to their own reach");
+});
+
+await test("World Heritage Sites and their buffer zones apart; names tidied, not reworded; rows carry a grade", async () => {
+  const whs = plan("heritage.world-heritage");
+  const hes = whs.check.sources.find((x) => x.region === "Scotland");
+  const feats = [{ name: "Antonine Wall World Heritage Site Buffer Zone", distance_km: 2.1, extra: {} }, { name: "Frontiers of the Roman Empire: Antonine Wall", distance_km: 4, extra: {} }];
+  const r = K.fromSources(whs, [{ source: hes, features: feats, meta: {} }], cat.scales.regional);
+  assert.equal(r.count, 1);
+  assert.equal(r.nearest.name, "Frontiers of the Roman Empire: Antonine Wall");
+  const bz = plan("heritage.whs-buffer", "regional");
+  const inBuffer = K.fromSources(bz, [{ source: bz.check.sources.find((x) => x.region === "Scotland"), features: [{ ...feats[0], distance_km: 0 }], meta: {} }], []);
+  assert.equal(K.checkLine(inBuffer), "the site is inside Antonine Wall World Heritage Site Buffer Zone");
+  assert.equal(K.checkLine(K.fromSources(bz, [{ source: bz.check.sources[0], features: [], meta: {} }], [])), "the site isn't inside one");
+  const { tidyName } = await import("../js/atlasfeatures.js");
+  assert.equal(tidyName("BLACKNESS ROAD, BOGHALL LODGE"), "Blackness Road, Boghall Lodge");
+  assert.equal(tidyName("Bonhard House,enclosure 500m SSW of"), "Bonhard House, enclosure 500m SSW of", "mixed case keeps its capitals");
+  assert.equal(tidyName("CHURCH OF ST MICHAEL AND ALL ANGELS"), "Church of St Michael and All Angels");
+  assert.equal(tidyName("WAR MEMORIAL, KING GEORGE V PARK"), "War Memorial, King George V Park");
+  // A row's detail: the grade with its word.
+  const lb = plan("heritage.listed-buildings");
+  const hesLb = lb.check.sources.find((x) => x.region === "Scotland");
+  const rows = K.fromSources(lb, [{ source: hesLb, features: [{ name: "Linlithgow Palace", distance_km: 0.4, extra: { CATEGORY: "A" } }], meta: { dataset: "HES LB" } }], cat.scales.regional).members;
+  assert.equal(rows[0].detail, "Category A");
+  assert.equal(rows[0].publisher, "Historic Environment Scotland");
 });
 
 await test("topics with no check, the summary lines, and grouping by topic", () => {

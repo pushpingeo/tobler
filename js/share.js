@@ -64,6 +64,8 @@ export function slimRun(record, { tol = 0.0002, now = () => new Date().toISOStri
     checked: r.checked.map((c) => ({ ...pick(c, ["evidence", "dataset", "publisher", "licence", "checked_at", "result", "count"]), ...(c.why ? { why: String(c.why).slice(0, 160) } : {}) })),
     ...(r.checks ? { checks: r.checks.map((c) => ({ ...pick(c, ["id", "topic", "label", "must", "answer", "scale", "reach_km", "reach_wanted_km", "state", "reason", "count", "bands", "around", "nearest", "inside", "text", "capped", "partly", "search_area", "classes", "irz_codes"]),
       ...(c.irz ? { irz: c.irz.map((z) => ({ key: z.key, category: z.category, consult: z.consult })) } : {}),
+      // The nearest ten of each check's features travel in a link, by name (the shapes behind the flags travel anyway).
+      ...(c.features?.length ? { features: c.features.slice(0, 10).map((f) => pick(f, ["name", "distance_km", "around", "coverage", "detail", "publisher"])), features_total: c.features.length } : {}),
       ...(c.why ? { why: String(c.why).slice(0, 160) } : {}), ...(c.source ? { source: pick(c.source, ["atlas_id", "tool", "dataset", "publisher", "licence", "checked_at"]) } : {}),
       ...(c.sources?.length ? { sources: c.sources.map((x) => pick(x, ["region", "atlas_id", "dataset", "publisher", "licence", "checked_at", "state"])) } : {}) })),
       checks_scale: r.checks_scale, ...pick(r, ["checks_version", "checks_merge_shapes", "no_check_topics", "topic_labels"]) } : {}),

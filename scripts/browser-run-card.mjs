@@ -277,6 +277,35 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   check(ck && ck.nocheckShown && /^\d+ topics have no standard check yet$/.test(ck.nocheck), `${label}: topics with no check in one summary line (${ck?.nocheck})`);
   check(ck && ck.open === (label === "desktop"), `${label}: checks open on a desktop, closed on a phone (${ck?.open})`);
   check(s.gapLines.some((l) => /^No standard check yet for water, ground and soil/.test(l)) && s.gapLines.some((l) => /Special Protection Areas \(SPA\), Scotland \(NatureScot\)/.test(l)), `${label}: pending checks and unchecked topics in what still needs checking`);
+  // Exploring the findings (24 Nov): a check line opens its features by distance; a row flies the map and opens a popup
+  // that says which checks counted it; the map key's theme opens the same kind of list.
+  await page.evaluate(() => { document.querySelector(".run .checks").open = true; });
+  await page.locator('.run li.check[data-check="bio.sac"] .check-line').click();
+  const opened = await page.evaluate(() => { const li = document.querySelector('.run li.check[data-check="bio.sac"]');
+    return { open: li.classList.contains("open"), aria: li.querySelector(".check-line").getAttribute("aria-expanded"), rows: [...li.querySelectorAll(".feat")].map((b) => b.textContent),
+      visible: li.querySelector(".feat-list").getBoundingClientRect().height > 0, hl: window.__ws.map.getSource("hl")._data.features.length,
+      others: [...document.querySelectorAll(".run li.check.open")].length }; });
+  check(opened.open && opened.aria === "true" && opened.visible && /^Wyville Thomson Ridge.*km.*JNCC|Joint Nature/.test(opened.rows[0] || "") && opened.hl === 1 && opened.others === 1,
+    `${label}: tapping a check line opens its features by distance and outlines them (${opened.rows.join(" | ")}; hl ${opened.hl})`);
+  await page.locator('.run li.check[data-check="bio.sac"] .feat').first().click();
+  await page.waitForTimeout(800);
+  const flown = await page.evaluate(() => ({ pop: document.querySelector(".maplibregl-popup .finding-pop")?.textContent || "", hl: window.__ws.map.getSource("hl")._data.features.map((f) => f.properties.label),
+    sheet: document.getElementById("panel").classList.contains("collapsed") }));
+  check(/Wyville Thomson Ridge/.test(flown.pop) && /Counted in: Special Areas of Conservation/.test(flown.pop) && flown.hl.join() === "Wyville Thomson Ridge" && flown.sheet === (label === "phone"),
+    `${label}: a row flies to the feature; the popup says which checks counted it${label === "phone" ? "; the sheet lowers" : ""} (${flown.pop.slice(0, 90)})`);
+  await page.screenshot({ path: `/tmp/explore-${label}-flown.png` });
+  if (label === "phone") { await page.click("#handle"); await page.waitForTimeout(300); }
+  await page.locator('.run li.check[data-check="bio.sac"] .check-line').click();
+  check(await page.evaluate(() => !document.querySelector('.run li.check[data-check="bio.sac"]').classList.contains("open") && !window.__ws.map.getSource("hl")._data.features.length), `${label}: tapping it again closes the list and clears the outline`);
+  // The map key: a theme's name opens its findings, nearest first.
+  await page.evaluate(() => { document.getElementById("key").open = true; });
+  const keyName = page.locator("#key .key-name").first();
+  await keyName.click();
+  const key = await page.evaluate(() => ({ rows: [...document.querySelectorAll("#key .feat-name")].map((e) => e.textContent), dists: [...document.querySelectorAll("#key .feat-meta")].map((e) => e.textContent) }));
+  check(key.rows.length > 0, `${label}: the map key's theme opens its findings by distance (${key.rows.slice(0, 3).join(", ")})`);
+  await page.screenshot({ path: `/tmp/explore-${label}-key.png` });
+  await keyName.click();
+  await page.evaluate(() => { document.querySelector(".maplibregl-popup")?.remove(); });
   check(/^What still needs checking: \d+ couldn't check, 1 no data, 1 caveat$/.test(s.gaps) && s.gapHeads.join("|") === "Not checked: check these yourself|No data here: may need a site visit or a local source|Assumptions and caveats", `${label}: what still needs checking, grouped (${s.gaps}; ${s.gapHeads.join(", ")})`);
   check(await page.evaluate(() => { const c = document.querySelector(".run"); const order = [...c.children].map((e) => e.className.split(" ")[0]); return document.querySelector(".run .gaps").open && order.indexOf("gaps") === order.indexOf("flags") + 1 && document.querySelector(".run .flag .th")?.textContent.length > 2; }), `${label}: still-to-check sits open right under the flags; each flag names its topic`);
   check(await page.evaluate(() => /^Indicative desk screening from public data\./.test(document.querySelector(".run .disclaimer").textContent) && document.querySelector(".run .disclaimer").textContent.length < 200 && !document.querySelector('.run [data-op="download"]').checkVisibility()), `${label}: short disclaimer on the card; download is under More`);

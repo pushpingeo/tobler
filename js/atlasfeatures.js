@@ -51,6 +51,27 @@ export function pickName(p) {
     || Object.keys(p).find((k) => DESCRIPTIVE.test(k) && usable(k, p[k]) && !CODE_LIKE.test(p[k].trim()) && p[k].length < 80);
   return k ? p[k].trim() : null;
 }
+// A publisher's name made readable, never reworded (24 Nov): a space after each comma, and a name written all in
+// capitals ("BLACKNESS ROAD, BOGHALL LODGE") put in title case, keeping short joining words lower case, Roman
+// numerals and Mc names. Mixed-case names keep their own capitals.
+const SMALL = new Set(["of", "and", "the", "in", "on", "at", "to", "for", "by", "with", "de", "la", "le", "du", "des", "van", "von", "upon"]);
+export function tidyName(s) {
+  if (s == null) return s;
+  let t = String(s).replace(/\s+/g, " ").replace(/\s*,\s*(?=\S)/g, ", ").trim();
+  const letters = t.replace(/[^A-Za-z]/g, "");
+  if (letters.length >= 4 && letters === letters.toUpperCase()) {
+    let first = true;
+    t = t.toLowerCase().replace(/[a-z0-9'’]+/g, (w) => {
+      const lead = first; first = false;
+      if (/^(i{1,3}|iv|v|vi{1,3}|ix|x)$/.test(w) && !(w === "i" && lead)) return w.toUpperCase();
+      if (!lead && SMALL.has(w)) return w;
+      const c = w.charAt(0).toUpperCase() + w.slice(1);
+      return /^Mc[a-z]/.test(c) ? `Mc${c.charAt(2).toUpperCase()}${c.slice(3)}` : c;
+    });
+  }
+  return t;
+}
+
 export function pickType(p) {
   return Object.entries(p).filter(([k, v]) => TYPEISH.test(k) && typeof v === "string" && v.trim() && v.length < 80).map(([, v]) => v).slice(0, 2).join(", ");
 }
