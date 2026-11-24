@@ -2,6 +2,23 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 24 Nov 2026 (night): a rejected proposal stays the analyst's; skills offered, not chosen (Rob's Perth log)
+- **Rob's log (Shell House, Perth):** "site a sub station on that parcel", then "Not quite", "a rectangle not a
+  triangle", then "Use this area". Two problems: the rejected outline stayed beside its replacement, and a screen ran
+  though the person never asked for one.
+- **Rejected proposals:** a place the analyst built from words is still its own while proposed *or* after the person
+  said "Not quite" (status "revising"). Before, both `replaces` and `remove_place` refused it as the person's.
+- **Skills offered, not chosen:** `screen_site` runs only when one of the person's messages asks for a screen or a
+  judgement (screen, constraints, risks, issues, sensitivities, assess, due diligence, E&S, red flags; the screen
+  chip and asset picks all say "screen"). Otherwise it returns `not_yet` and the analyst calls the new `offer_skills`
+  tool, which shows the profile's skills as buttons; a ready one sends its request as the person's next message, a
+  "soon" one explains. Judgement call: a word list is crude, but it fails safe (an unmatched request gets the buttons,
+  one tap), and a tool result asking the model to ask wasn't enough before (Livingston).
+- **Skill:** place-finding 4.16: saying what's planned isn't asking for a screen.
+- **Tests:** place tests (rejected proposal replaced and removed; accepted one still refused; screen held until asked,
+  then run for the chip, a pick and plain words). `browser-choice`: the skills as buttons, the screen button sends a
+  screen request. All nine browser checks pass. Not tested with the live model.
+
 ## 24 Nov 2026 (night): skill contracts and the skill chips (plan item 3b)
 - **Contracts:** `claude/skill-contracts.md` in the project. The contamination desk study (LCRM in the UK, an
   ASTM-style records review in the US; sources, pathways, receptors; no new tool) and developable area (an area budget;

@@ -204,6 +204,11 @@ export function placeToolDefs(skills) {
       input_schema: { type: "object", properties: { place: { type: "string", description: "Place name" }, question: { type: "string", description: "Optional: the question above the buttons, if the default (\"What's planned at <place>?\") doesn't fit" } }, required: ["place"] },
     },
     {
+      name: "offer_skills",
+      description: "When a place is settled but the person hasn't said which analysis they want (they named a place and what's planned, but not a screen or another skill), show the skills on offer as buttons under your reply instead of choosing one for them. Then end your turn with one short line; their pick comes back as their next message.",
+      input_schema: { type: "object", properties: { place: { type: "string", description: "Place name" } }, required: ["place"] },
+    },
+    {
       name: "get_run",
       description: "Details of a screening run (R1, R2…; leave out for the latest): flags with their evidence, what was checked and the gaps. For follow-up questions about a screen; don't re-run to answer them.",
       input_schema: { type: "object", properties: { run: { type: "string" } } },
@@ -220,12 +225,19 @@ export function placeToolDefs(skills) {
 //         findPlace(name), ref, anchors (sources), fetchFn, headers, onCandidates(list), skillText(name) }
 const norm = (t) => String(t || "").toLowerCase().replace(/[‘’“”"'`]/g, "").replace(/\s+/g, " ").trim();
 
+// Words that ask for a screen or a judgement on the place, in any of the person's messages.
+const SCREEN_ASKED = /\b(screen\w*|constraints?|risks?|sensitivit\w*|issues?|due diligence|e&s|environmental (check|assessment|review)|assess\w*|red flags?)\b/i;
+
 export function createPlaceTools(host) {
   // The person's licence settings, for every catalogue search (Esri MLA and non-commercial data are off by default).
   const allowed = () => ({ esri: !!host.esriLicence?.(), nonCommercial: !!host.nonCommercial?.() });
   const cands = new Map();
   let n = 0;
   const keep = (c) => { const id = `C${++n}`; cands.set(id, { ...c, id }); return id; };
+  // A place the analyst built from words is still the analyst's to rebuild or clear while it's a proposal, or after the
+  // person said "Not quite" (status "revising"): a rejected proposal isn't the person's (Shell House, Perth, 24 Nov:
+  // the rejected outline stayed beside its replacement, because both replace and remove refused it).
+  const analystsOwn = (p) => p.origin?.method === "words" && ["proposed", "revising"].includes(p.status);
   // Places built from words in the current turn: the person hasn't seen them yet, so they aren't screened until the
   // person has looked (Rob, 24 Nov: "screen a warehouse location in Livingston" found Livingston and screened it at
   // once). Typed coordinates are exempt: they're exactly what the person gave. The page calls newTurn() per message.
@@ -574,7 +586,7 @@ export function createPlaceTools(host) {
       const old = i.replaces ? host.findPlace(i.replaces) : null;
       if (i.replaces) {
         if (!old) throw new Error(`No place called "${i.replaces}" to replace.`);
-        if (old.origin?.method !== "words" || old.status !== "proposed") throw new Error(`"${old.name}" isn't a proposal of yours, so it can't be replaced; ask the person, or build a new place.`);
+        if (!analystsOwn(old)) throw new Error(`"${old.name}" isn't a proposal of yours, so it can't be replaced; ask the person, or build a new place.`);
       }
       const given = [...(i.checks || [])];
       const dropped = (old?.origin?.checks || []).filter((c) => c.pass === false && c.quote && !given.some((g) => norm(g.quote) === norm(c.quote)))
@@ -626,7 +638,7 @@ export function createPlaceTools(host) {
       const p = host.findPlace(place);
       if (!p) throw new Error(`No place called "${place}".`);
       if (!host.removePlace) return { not_available: "Places can't be removed here." };
-      const own = p.origin?.method === "words" && p.status === "proposed";
+      const own = analystsOwn(p);
       const asked = /\b(remove|delete|get rid of|bin|clear|drop|take away|lose)\b/i.test(host.lastPersonText?.() || "");
       if (!own && !asked) throw new Error(`"${p.name}" was drawn or accepted by the person; remove it only when they ask in their latest message.`);
       host.removePlace(p.name, { by: "analyst", reason });
@@ -652,6 +664,14 @@ export function createPlaceTools(host) {
       if (!host.resolveFileLayer) return { not_available: "This can't be settled here." };
       const r = await host.resolveFileLayer(layer, operation);
       return { ...r, next: "Settled. Tell the person in one line what was applied. If the file has one outline it's now the site; otherwise they pick the site from the card (or say which and use use_file_features)." };
+    },
+
+    async offer_skills({ place }) {
+      const p = host.findPlace(place);
+      if (!p) throw new Error(`No place called "${place}".`);
+      if (!host.offerSkills) return { not_available: "Ask in words which analysis they want." };
+      const shown = host.offerSkills(p.name);
+      return { ...shown, next: "Buttons shown. End your turn with one short line at most; don't run anything until they pick." };
     },
 
     async ask_asset_type({ place, question }) {
@@ -746,6 +766,13 @@ export function createPlaceTools(host) {
     if (unseen.has(p) && p.status === "proposed") return {
       not_yet: `${p.name} was found from the person's words just now and they haven't seen it yet, so it wasn't screened.`,
       next: "Show it: say in a line or two what it is (the anchor and its source, the size, the confidence, and whether it's a search area rather than the site itself), then ask if it's the right place. Keep what they asked for (what's planned, any distances) and screen as soon as they confirm. End your turn.",
+    };
+    // Several skills are on offer (Rob, 24 Nov): the analyst runs a screen only when the person asked for one (in
+    // words, with the screen chip or an asset-type pick, which all say "screen"), and otherwise offers the skills.
+    // Shell House, Perth: "site a substation on that parcel", then "Use this area", and a screen ran unasked.
+    if (host.offerSkills && host.personSaid && !SCREEN_ASKED.test(host.personSaid())) return {
+      not_yet: "The person hasn't asked for a screen or said which analysis they want, so nothing was run.",
+      next: `Call offer_skills for ${p.name} so they can pick, then end your turn with one short line. Keep what they told you (what's planned) for the run.`,
     };
     return host.screening.screen(i, p);
   };

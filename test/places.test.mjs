@@ -589,4 +589,47 @@ await test("a place found from words isn't screened in the same turn: shown and 
   assert.equal((await t.exec("screen_site", { place: "Area 9", asset_type: "other" })).run, "R4");
 });
 
+await test("a proposal the person said 'Not quite' to stays the analyst's to replace or remove (Shell House, Perth, 24 Nov)", async () => {
+  const host = memoryHost();
+  host.said = ["it should be a rectangle"];
+  host.lastPersonText = () => host.said.at(-1);
+  host.removePlace = (name) => { const i = host.list.findIndex((p) => p.name === name); host.list.splice(i, 1); };
+  host.addPlace = ({ feature, origin, name }) => { const p = { name: name || `Area ${host.list.length + 1}`, feature, origin, status: "proposed", edits: [] }; host.list.push(p); return p; };
+  const t = createPlaceTools(host);
+  const found = await t.exec("find_place", { query: "Jackdaw platform" });
+  const c = found.candidates.find((x) => /JACKDAW/i.test(x.name));
+  await t.exec("make_place", { anchor: c.id, shape: "square", area_km2: 3, words: "the Jackdaw platform", match: "named_place", reason: "found", name: "Jackdaw site" });
+  host.list[0].status = "revising"; // the card's "Not quite"
+  const r = await t.exec("make_place", { anchor: c.id, shape: "rectangle", width_km: 2, height_km: 1, words: "a rectangle, not a square", match: "named_place", reason: "asked", replaces: "Jackdaw site" });
+  assert.equal(host.list.length, 1, "the rejected shape is replaced, not left beside the new one");
+  assert.equal(r.place, "Jackdaw site");
+  // An accepted place is still the person's.
+  host.list[0].status = "accepted";
+  await assert.rejects(() => t.exec("make_place", { anchor: c.id, shape: "square", area_km2: 1, words: "x", match: "named_place", reason: "x", replaces: "Jackdaw site" }), /isn't a proposal of yours/);
+  host.list[0].status = "revising";
+  assert.equal((await t.exec("remove_place", { place: "Jackdaw site", reason: "rejected" })).removed, "Jackdaw site");
+});
+
+await test("several skills on offer: no screen until the person asks for one; the analyst offers the skills (Shell House, Perth, 24 Nov)", async () => {
+  const host = memoryHost();
+  host.said = ["im interested in a change of land use at that location and would like to site a sub station on that parcel of land", "Yes, use Area 1."];
+  host.personSaid = () => host.said.join("\n");
+  const offered = [];
+  host.offerSkills = (name) => { offered.push(name); return { place: name, offered: ["screen", "Developable area (not built yet)"] }; };
+  host.screening = { screen: async (i, p) => ({ run: "R1", site: p.name }) };
+  host.list.push({ name: "Area 1", feature: { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [[[0, 0], [0.01, 0], [0.01, 0.01], [0, 0]]] } }, origin: { method: "drawn" }, status: "accepted", edits: [] });
+  const t = createPlaceTools(host);
+  const held = await t.exec("screen_site", { place: "Area 1", asset_type: "substation" });
+  assert.equal(held.run, undefined, "saying what's planned isn't asking for a screen");
+  assert.match(held.next, /offer_skills/);
+  assert.equal((await t.exec("offer_skills", { place: "Area 1" })).place, "Area 1");
+  assert.deepEqual(offered, ["Area 1"]);
+  // The screen chip, an asset pick or the person's own words ask for a screen.
+  for (const ask of ["Screen Area 1 for environmental constraints.", "Screen Area 1 as a substation site.", "what are the risks here?", "any constraints?"]) {
+    host.said.push(ask);
+    assert.equal((await t.exec("screen_site", { place: "Area 1", asset_type: "substation" })).run, "R1", ask);
+    host.said.pop();
+  }
+});
+
 console.log(`${passed} place tests passed`);

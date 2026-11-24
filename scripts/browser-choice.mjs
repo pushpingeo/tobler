@@ -112,6 +112,22 @@ const focused = await page.evaluate(() => document.querySelector(".place.active,
 check(!chips.includes("Developable area (soon)") && chips.includes("Contamination desk study (soon)"), `developable area is hidden for a point (${JSON.stringify(chips)}; focused ${focused})`);
 await page.screenshot({ path: "/tmp/choice-chips.png" });
 
+// A place and what's planned, but no analysis named (Shell House, Perth, 24 Nov): the analyst offers the skills as
+// buttons; the screen button sends a screen request as the person's next message.
+queue.push(msg([use("t7", "offer_skills", { place: placeName })], "tool_use"), msg([{ type: "text", text: "Which would you like?" }]));
+await turn(`I'd like to site a warehouse on ${placeName}`);
+const pick = await page.evaluate(() => [...([...document.querySelectorAll(".skill-pick")].at(-1)?.querySelectorAll(".chip") || [])].map((b) => `${b.firstChild.textContent}${b.classList.contains("soon") ? " (soon)" : ""}`));
+check(pick.length === 3 && /^Screen/.test(pick[0]) && pick.includes("Contamination desk study (soon)"), `the skills offered as buttons (${JSON.stringify(pick)})`);
+await page.screenshot({ path: "/tmp/choice-skillpick.png" });
+queue.push(msg([{ type: "text", text: "Screening." }]));
+const before2 = sent.length;
+await page.locator(".skill-pick .chip:not(.soon)").last().click();
+await page.waitForFunction((n) => !document.querySelector("#ask")?.classList.contains("busy"), before2, { timeout: 15000 }).catch(() => {});
+await page.waitForTimeout(1500);
+const lastUser = sent.at(-1)?.messages?.filter((m) => m.role === "user").at(-1);
+const lastText = typeof lastUser?.content === "string" ? lastUser.content : JSON.stringify(lastUser?.content || "");
+check(/Screen Livingston[^"]* for environmental constraints\./.test(lastText), `the screen button sends a screen request (${lastText.slice(0, 90)})`);
+
 check(errors.length === 0, `no page errors${errors.length ? `: ${errors.join(" | ")}` : ""}`);
 
 await browser.close();

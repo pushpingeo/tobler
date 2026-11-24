@@ -493,9 +493,9 @@ a { color: var(--sea); }
 .shape h2 .name:hover, .shape h2 .name:focus-visible { border-bottom-color: var(--ink-2); outline: none; }
 .shape h2 input.rename { font: inherit; min-width: 0; flex: 1; border: 1px solid var(--sea); border-radius: 6px; padding: 1px 6px; }
 /* What's planned at a place: quick picks before a screen. */
-.asset-pick .picks { display: flex; flex-wrap: wrap; gap: 6px; }
+.asset-pick .picks, .skill-pick .picks { display: flex; flex-wrap: wrap; gap: 6px; }
 .asset-pick .chip.general { border-style: dashed; }
-.asset-pick.done { opacity: .6; }
+.asset-pick.done, .skill-pick.done { opacity: .6; }
 
 /* Feedback under a reply or a run card (js/feedback.js): quiet until used. */
 .feedback { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 8px; font-size: 12.5px; color: var(--ink-2); }

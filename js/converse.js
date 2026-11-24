@@ -127,6 +127,7 @@ export function activityFor(name, input = {}) {
     case "edit_place": return `Changing ${input.place}`;
     case "offer_choices": return "Laying out the options";
     case "ask_asset_type": return "Asking what's planned there";
+    case "offer_skills": return "Offering the skills";
     case "get_place": return `Reading ${input.place}`;
     case "find_data": return `Searching the catalogue for “${input.text}”`;
     case "get_data": return `Fetching ${input.theme ? `${input.theme} ` : ""}data for ${input.place}`;

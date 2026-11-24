@@ -900,6 +900,7 @@ const host = {
     if (p) renameTo(p, to);
   },
   askAssetType: (name, question) => askAssetType(name, question),
+  offerSkills: (name) => offerSkills(name),
 };
 // Screening runs: sealed NTR runs with their own tools; the conversation gets the headline, the card the detail.
 let distTable = null;
@@ -2075,6 +2076,7 @@ function traceLine(ev) {
     case "find_data": return `Searched the catalogue for “${i.text}”: ${o.datasets?.length || 0} datasets${o.not_checked ? " (catalogue not checked)" : ""}`;
     case "get_data": return o.not_checked ? `Fetched ${o.dataset || i.dataset}: not checked (${String(o.not_checked).slice(0, 80)})` : `Fetched ${o.dataset} (${o.publisher}): ${o.within_distance} within ${o.within_km} km`;
     case "screen_site": return o.run ? `Screened ${o.site} (${o.run}): ${o.flags} flags; ${o.distances}` : (o.not_yet ? `Not screened yet: ${o.not_yet}` : `Screening: ${o.not_available || "no result"}`);
+    case "offer_skills": return o.not_available || `Offered the skills for ${o.place}`;
     case "get_run": return `Read the screen ${o.run || ""}`;
     case "remove_place": return `Removed ${o.removed}`;
     case "ask_asset_type": return `Asked what's planned at ${o.place}`;
@@ -2129,6 +2131,38 @@ document.querySelector(".chip[data-screen]").addEventListener("click", () => {
   say.value = `Screen ${p.name} for environmental constraints`; grow(); say.focus();
   say.setSelectionRange(say.value.length, say.value.length);
 });
+
+// "What would you like for <place>?": the profile's skills as buttons, when the person hasn't said which analysis
+// (Rob, 24 Nov). A ready skill sends its request as the person's next message; a "soon" one says what it will do.
+function offerSkills(name) {
+  const p = placeByName(name);
+  if (!p) throw new Error(`No place called "${name}".`);
+  const card = el("div", null, "msg analyst skill-pick");
+  card.append(el("p", `What would you like for ${p.name}?`));
+  const row = el("div", null, "picks");
+  const offered = (profile?.skills_offered || []).filter((s) => !s.roles || s.roles.includes(placeRole(p.origin || {}, p.feature.geometry).role));
+  for (const s of offered) {
+    const ready = s.status === "ready";
+    const label = s.id === "screen" ? (profile.wording?.screen_chip || "Screen for environmental constraints") : s.label;
+    const b = el("button", label, ready ? "chip" : "chip soon");
+    b.type = "button";
+    if (!ready) b.append(el("span", "soon", "soon-tag"));
+    b.addEventListener("click", () => {
+      if (busy) return;
+      if (!ready) { skillSoon(s); return; }
+      card.classList.add("done");
+      card.querySelectorAll("button").forEach((x) => { x.disabled = true; });
+      send(s.id === "screen" ? `Screen ${p.name} for environmental constraints.` : `Run the ${s.label.toLowerCase()} for ${p.name}.`);
+    });
+    row.append(b);
+  }
+  card.append(row);
+  if (pendingReply?.isConnected) $("conversation").insertBefore(card, pendingReply);
+  else $("conversation").append(card);
+  card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  expandSheet();
+  return { place: p.name, offered: offered.map((s) => `${s.label || "screen"}${s.status === "ready" ? "" : " (not built yet)"}`) };
+}
 
 // "What's planned at <place>?": a few buttons, More… for the rest, and a general screen. A tap screens at once.
 async function askAssetType(name, question) {
