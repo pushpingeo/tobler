@@ -4,6 +4,13 @@ Tobler and the atlas are worked on in separate chats (decided 17 Nov). Tobler do
 What Tobler can rely on is written down in the atlas repo's `docs/mcp-tools.md`. When Tobler needs something
 new from the atlas, add it here (newest first), tell Rob, and he passes it to the atlas chat.
 
+- **24 Nov (late night): past land use, for the contamination desk study.** The study's biggest gap is past land
+  use: today only Northern Ireland's database and four councils' contaminated-land records cover it. Please look for
+  open layers of past or potentially contaminative land use, or of features derived from old maps (old gasworks,
+  works, quarries, filled ground), by country: the UK first (councils' contaminated land registers and Part 2A
+  determinations, Historic England or HES industrial heritage, BGS made ground and artificial ground), then the US,
+  Australia and the Netherlands (Bodemloket). Also BGS aquifer designations as a feature or value service, for
+  pathways. Licence first, as ever. The study's checks and their ids are in the energy profile's `skills_offered`.
 - **24 Nov (late evening): more records now used as checks** (Rob's licence calls): Crown Estate Scotland
   `d769096b70ee72bb` (ScotWind, `Lead_App`), `2b0ba4d2646c0a50` (INTOG), `16a401bb82d4d010` (cables),
   `c026fa004eab396c` (pipelines); The Crown Estate `0db236263e88622b` (wind cable agreements, `Name_Prop`),
