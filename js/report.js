@@ -50,7 +50,7 @@ export function findingRows(run) {
   return run.flags.map((f) => ({
     id: f.id || "", risk: f.risk, theme: themeLabel(f.theme), colour: topicInfo(f.theme).colour,
     severity: f.severity || "not rated", confidence: f.confidence, nearest_km: f.nearest_km, why: f.why || "", next_step: f.next_step || "",
-    relation: f.relation || null, confidence_capped: f.confidence_capped || null,
+    relation: f.relation || null, confidence_capped: f.confidence_capped || null, ...(f.linkage ? { linkage: f.linkage } : {}),
     evidence: (f.evidence || []).map((e) => ({ name: e.name || "Unnamed", distance_km: e.distance_km, band: e.band, dataset: e.dataset || "", publisher: e.publisher || "", checked: e.checked ? String(e.checked).slice(0, 10) : "", traced: !!e.traced,
       ...(e.in_search_area ? { in_search_area: true, coverage: e.coverage ?? null, side: e.side ?? null } : {}) })),
   }));

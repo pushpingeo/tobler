@@ -204,6 +204,15 @@ export function placeToolDefs(skills) {
       input_schema: { type: "object", properties: { place: { type: "string", description: "Place name" }, question: { type: "string", description: "Optional: the question above the buttons, if the default (\"What's planned at <place>?\") doesn't fit" } }, required: ["place"] },
     },
     {
+      name: "run_study",
+      description: "Run a study other than the constraints screen on a place that's on the map: for now the contamination desk study (study \"contamination-desk-study\"), an early contaminated-land look from open records set out as sources, pathways and receptors, for sites on land. Use it when the person asks about contamination, past land use, landfill, pollution or ground conditions, or picks it from the skills. It runs as its own sealed run and shows a card. Takes about 20 to 40 seconds.",
+      input_schema: { type: "object", properties: {
+        place: { type: "string", description: "Place name" },
+        study: { type: "string", enum: ["contamination-desk-study"] },
+        focus: { type: "string", description: "Optional: what the person asked about especially" },
+      }, required: ["place", "study"] },
+    },
+    {
       name: "offer_skills",
       description: "When a place is settled but the person hasn't said which analysis they want (they named a place and what's planned, but not a screen or another skill), show the skills on offer as buttons under your reply instead of choosing one for them. Then end your turn with one short line; their pick comes back as their next message.",
       input_schema: { type: "object", properties: { place: { type: "string", description: "Place name" } }, required: ["place"] },
@@ -664,6 +673,19 @@ export function createPlaceTools(host) {
       if (!host.resolveFileLayer) return { not_available: "This can't be settled here." };
       const r = await host.resolveFileLayer(layer, operation);
       return { ...r, next: "Settled. Tell the person in one line what was applied. If the file has one outline it's now the site; otherwise they pick the site from the card (or say which and use use_file_features)." };
+    },
+
+    async run_study(i) {
+      const p = host.findPlace(i.place);
+      if (!p) throw new Error(`No place called "${i.place}". Find or build the site first.`);
+      if (!host.screening?.study) return { not_available: "Studies can't be run here." };
+      const entry = (host.profile?.()?.skills_offered || []).find((s) => s.id === i.study && s.status === "ready" && s.skill);
+      if (!entry) return { not_available: `The ${String(i.study || "study").replace(/-/g, " ")} isn't available in this profile.` };
+      if (unseen.has(p) && p.status === "proposed") return {
+        not_yet: `${p.name} was found from the person's words just now and they haven't seen it yet, so the study wasn't run.`,
+        next: "Show it: say in a line or two what it is, then ask if it's the right place. Run the study as soon as they confirm. End your turn.",
+      };
+      return host.screening.study(entry, p, i);
     },
 
     async offer_skills({ place }) {

@@ -2,6 +2,31 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 24 Nov 2026 (late night): the contamination desk study (first skill beyond the screen)
+- **Rob:** "if you can build a contamination desk study, that would be great". Contract in `claude/skill-contracts.md`.
+- **How it runs:** the profile's `skills_offered` entry (ready) names its skill file, its checks grouped as potential
+  sources, pathways and receptors, its distances (0.25 / 0.5 / 2 km: local scale), its decision words and what a full
+  desk study would add. `runScreening` takes a `study`: it runs only the study's checks, in code as for a screen, then
+  asks once for the judgement with **no tools** (`systemForStudy`, `studyMessage`): the data is the checks, all measured
+  in code, so the run is quicker, cheaper and repeatable. Alternative considered: let it search the atlas for extra
+  local records, as the screen does; left out of v1 so results stay tied to the checks.
+- **Output:** each plausible linkage is a finding (F-01…) with `linkage` {source, pathway, receptor, rating}, in the
+  screen's JSON shape, so the map, slider, report, share link and download all work unchanged. The decision is the
+  study's own (no linkages identified in open records; possible linkages: investigate; likely linkages: investigate
+  before purchase or design; insufficient evidence), settled in code: every source check not checked, or none
+  covering the place, means insufficient evidence (`settleStudy`).
+- **Card and report:** the study's title, the linkage line under each finding, checks grouped by the study's groups
+  (`checksView` reads `run.study.groups`), "what a full desk study would add" with the gaps, no re-assess button.
+  The report's Method line says it's LCRM-shaped and open records only. The screen's Method line now names neutral
+  topics, not IFC themes (missed in 3a).
+- **Asking for it:** the study's chip is ready and fills the input; the analyst's new `run_study` tool (generic, so the
+  next study needs no new tool) holds a place found from words this turn, as `screen_site` does, and refuses offshore.
+- **Skill:** `skills/contamination-desk-study` 0.1-draft.
+- **Tests:** an ntrrun test (only the study's checks, local scale, one call with no tools, a traced linkage, the
+  groups, the settled decision); `scripts/browser-study.mjs` (new: chip, run, card, report, desktop and phone).
+  All ten browser checks pass. Not run with the live model; no evaluation yet (example sites with published Phase 1
+  reports are the plan).
+
 ## 24 Nov 2026 (night): a rejected proposal stays the analyst's; skills offered, not chosen (Rob's Perth log)
 - **Rob's log (Shell House, Perth):** "site a sub station on that parcel", then "Not quite", "a rectangle not a
   triangle", then "Use this area". Two problems: the rejected outline stayed beside its replacement, and a screen ran

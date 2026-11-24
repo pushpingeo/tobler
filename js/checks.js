@@ -417,7 +417,11 @@ export function checksView(run) {
   if (!Array.isArray(run?.checks)) return null;
   const labels = run.topic_labels || {};
   const cat = { topics: Object.entries(labels).map(([id, label]) => ({ id, label })) };
-  const groups = byTopic(cat, run.checks).map((g) => ({
+  // A study (the desk study) groups its checks its own way (sources, pathways, receptors); a screen by topic.
+  const grouped = run.study?.groups?.length
+    ? run.study.groups.map((g) => ({ topic: g.id, label: g.label, results: g.checks.map((id) => run.checks.find((c) => c.id === id)).filter(Boolean) })).filter((g) => g.results.length)
+    : byTopic(cat, run.checks);
+  const groups = grouped.map((g) => ({
     topic: g.topic, label: g.label,
     items: g.results.map((r) => ({ id: r.id, label: r.label, must: !!r.must, state: r.state, line: checkLine(r),
       source: (r.sources?.length ? r.sources.filter((x) => x.dataset) : r.source ? [r.source] : [])

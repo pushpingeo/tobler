@@ -60,11 +60,12 @@ try {
 function render(record) {
   const r = record.tobler_run;
   const s = r.site;
-  document.title = `Constraints screen: ${s.name} · Tobler`;
-  const title = el("h1", "Constraints screen");
+  const kindLabel = r.study?.label || "Constraints screen";
+  document.title = `${kindLabel}: ${s.name} · Tobler`;
+  const title = el("h1", kindLabel);
   title.append(el("span", s.name, "site-name"));
   const head = [el("p", "Tobler", "kicker"), title,
-    el("p", [cap(s.asset_label) + (s.asset_assumed ? " (assumed)" : ""), s.setting, `screened ${when(r.finished_at)}`, `run ${r.id}`].filter(Boolean).join(" · "), "meta")];
+    el("p", [r.study ? null : cap(s.asset_label) + (s.asset_assumed ? " (assumed)" : ""), s.setting, r.study ? when(r.finished_at) : `screened ${when(r.finished_at)}`, `run ${r.id}`].filter(Boolean).join(" · "), "meta")];
 
   // 1. Decision and summary.
   const dec = decisionText(r);
@@ -93,7 +94,7 @@ function render(record) {
   const fact = (k, v) => { if (v) facts.append(el("dt", k), el("dd", cap(v))); };
   fact("Site", U.localise(s.summary));
   fact("How it was found", s.how_found);
-  fact("Planned", `${s.asset_label}${s.asset_assumed ? " (assumed)" : ""}; stage ${s.stage}${s.outside_profile ? `. ${s.outside_profile}` : ""}`);
+  if (!r.study) fact("Planned", `${s.asset_label}${s.asset_assumed ? " (assumed)" : ""}; stage ${s.stage}${s.outside_profile ? `. ${s.outside_profile}` : ""}`);
   fact("Screened", r.extent === "inside" ? "Inside the area only (the surroundings weren't screened)." : U.localise(`${s.footprint}; distances from the site's edge: ${distancesLine(r.distances)}.`));
   fact("Why these distances", (r.distances?.reasons || []).slice(0, 3).join("; "));
   if (seaMatters(r)) fact("At sea", U.localise(seaLines(r.sea).join(" ")));
@@ -134,6 +135,13 @@ function render(record) {
           ul.append(li);
         }
         what.append(ul);
+      }
+      if (f.linkage) {
+        const lk = el("p", null, "linkage");
+        [["Source", f.linkage.source], ["Pathway", f.linkage.pathway], ["Receptor", f.linkage.receptor]].filter(([, v]) => v)
+          .forEach(([k, v], i) => { if (i) lk.append(document.createTextNode(" → ")); lk.append(el("b", `${k}: `), document.createTextNode(v)); });
+        lk.append(document.createTextNode(` (${f.linkage.rating} linkage)`));
+        what.append(lk);
       }
       if (f.next_step) { const nx = el("p", null, "next"); nx.append(el("b", "Next step: "), document.createTextNode(f.next_step)); what.append(nx); }
       const rating = el("td", null, "rating");
@@ -194,13 +202,17 @@ function render(record) {
     const ul = el("ul"); groups[k].forEach((g) => ul.append(el("li", U.localise(g))));
     gaps.append(el("h3", label), ul);
   }
+  if (r.study?.full_study_adds?.length) {
+    const ul = el("ul"); r.study.full_study_adds.forEach((g) => ul.append(el("li", g)));
+    gaps.append(el("h3", `What a full ${r.study.label.toLowerCase().replace(/^contamination /, "")} would add`), ul);
+  }
   if (gaps.childElementCount) evSec.append(gaps);
 
   // 5. Method, change log, sources and licences.
   const meth = el("section", null, "method");
   meth.append(el("h2", "Method"));
   meth.append(el("p", `Method: ${r.skill?.name} ${r.skill?.version}${r.industry ? ` (${r.industry} profile)` : ""}, run by ${r.model || "the analyst"}. ${r.method}`));
-  meth.append(el("p", "Themes follow IFC Performance Standards 4 to 8 where they fit; this is a screen, not an IFC review. Severity is how much a finding would matter if the evidence is right; confidence is how sure the evidence is."));
+  meth.append(el("p", r.study ? "Each finding is a possible contaminant linkage (a source, a pathway and a receptor), judged from the checks alone, in the shape of the Environment Agency's LCRM Stage 1 desk study. Severity is how much a linkage would matter if it is real; confidence is how sure the evidence is. Open records only: no walkover, historical maps or commercial search." : "Findings carry a neutral topic (biodiversity, water, heritage and so on); this is a screen, not an EIA or IFC review. Severity is how much a finding would matter if the evidence is right; confidence is how sure the evidence is."));
   const log = changeLog(r);
   if (log.length) meth.append(el("p", `Changes: ${log.map((a) => `${a.at}, written for ${km(a.within_km) || "inside the area"}: ${a.flags} findings${a.decision ? `, ${a.decision}` : ""}`).join("; ")}. This report shows the latest.`));
   if (r.shared) meth.append(el("p", `This link holds ${r.shared.evidence}. The full run (every feature found, ${r.evidence_total ?? "?"} in all) is in the run download from Tobler.`));

@@ -184,6 +184,9 @@ export function traceFlags(flags, evidence, d, sea = null) {
     const dists = (traced.length ? traced : ev).map((e) => e.distance_km).filter((v) => v != null);
     return {
       risk: String(flag.risk || "").trim(), theme: topicOf(flag.topic || flag.theme),
+      ...(flag.linkage && typeof flag.linkage === "object" ? { linkage: {
+        source: String(flag.linkage.source || "").slice(0, 160), pathway: String(flag.linkage.pathway || "").slice(0, 160), receptor: String(flag.linkage.receptor || "").slice(0, 160),
+        rating: ["likely", "possible"].includes(flag.linkage.rating) ? flag.linkage.rating : "possible" } } : {}),
       confidence: CONF_ORDER[flag.confidence] != null ? flag.confidence : "low",
       severity: SEV_ORDER[flag.severity] != null ? flag.severity : null, why: flag.why || "",
       next_step: String(flag.next_step || "").trim(), evidence: ev,
@@ -215,10 +218,63 @@ function checkedFrom(tool, input, out) {
 // host: the same host the page gives createPlaceTools (atlas, firms, ref, trusted, fetchFn…). The run gets its own
 // tools, with a host whose only place is the site footprint and whose findings go into the run, not the map.
 export const SCREEN_MAX_TOKENS = 16000;
+
+// A study's system prompt: one sealed judgement from the checks, no tools.
+export function systemForStudy(skill) {
+  return `You are Tobler's analyst, writing one sealed ${skill.name.replace(/-/g, " ")} for one site. Nobody is chatting with you and you have no tools: the run has already carried out the checks, measured in code, and gives them in the first message. Judge them as the method says, then write the result.
+
+- ${FENCE_RULE}
+- Never work out a distance or an area yourself: use the distances the checks give.
+- Name features and datasets as the checks name them.
+- Your reply is the result: the short summary, then the JSON block, exactly as the method's Output section says. Keep your thinking short: the reply limit includes it.
+
+<method skill="${skill.name}" version="${skill.version}">
+${skill.body}
+</method>`;
+}
+
+export function studyMessage({ siteName, describe, origin, distances, baseline, searchArea = null, study }) {
+  return [
+    `${study.label} for ${siteName}.`,
+    `Site: ${R.summaryLine(describe)}.`,
+    origin ? `How the site was found: ${origin}.` : null,
+    searchArea ? `This is a search area, not the site's outline: ${searchArea}. Nothing is "on site": a record at distance 0 is "in the search area". Put one line in data_gaps saying the outline wasn't found.` : null,
+    `Distances from the site's edge: ${distancesLine(distances)}.`,
+    `The checks, by topic (found, none found, or not checked with the reason). The card groups them as ${study.groups.map((g) => g.label.toLowerCase()).join(", ")}:\n${baseline}`,
+    study.full_study_adds?.length ? `Not in open records here (the card already lists these as what a full desk study would add, so don't repeat them in data_gaps): ${study.full_study_adds.join("; ")}.` : null,
+  ].filter(Boolean).join("\n");
+}
+
+async function studyTurn({ skill, callClaude, message, onEvent }) {
+  const t0 = Date.now();
+  const messages = [{ role: "user", content: message }];
+  const resp = await callClaude({ system: systemForStudy(skill), messages });
+  onEvent({ type: "round", round: 0, ms: Date.now() - t0, input_tokens: resp.usage?.input_tokens || 0, output_tokens: resp.usage?.output_tokens || 0, tools: 0 });
+  const text = (resp.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
+  return { text, usage: { input_tokens: resp.usage?.input_tokens || 0, output_tokens: resp.usage?.output_tokens || 0 }, history: [...messages, { role: "assistant", content: resp.content || [] }], stopReason: resp.stop_reason };
+}
+
+// A study's decision, settled in code: when every source check came back not checked, nothing can be said about
+// linkages, so the decision is insufficient evidence whatever was written.
+export function settleStudy(decision, { study, checks = [] } = {}) {
+  if (!decision) return decision;
+  const sources = new Set(study.groups.find((g) => g.id === "sources")?.checks || []);
+  const ran = checks.filter((c) => sources.has(c.id));
+  if (decision.value !== "insufficient evidence" && ran.length && ran.every((c) => c.state === "not_checked")) {
+    return { ...decision, value: "insufficient evidence", changed: `from ${decision.value}: none of the source records could be checked` };
+  }
+  if (decision.value !== "insufficient evidence" && !ran.length) {
+    return { ...decision, value: "insufficient evidence", changed: `from ${decision.value}: no source records cover this place` };
+  }
+  return decision;
+}
 // Every model call in a screening run asks for the larger reply limit (the conversation keeps the smaller one).
 const roomy = (callClaude) => (args) => callClaude({ ...args, maxTokens: SCREEN_MAX_TOKENS });
 
-export async function runScreening({ host, site, inputs, distances, skill, callClaude: call, model = "", runId = "R1", maxRounds = 14, onEvent = () => {}, now = () => new Date().toISOString() }) {
+// study (optional): a skill other than the screen that judges the checks alone (the contamination desk study, 24 Nov):
+// { id, label, groups: [{ id, label, checks: [check ids] }], decisions, full_study_adds }. The run carries out only its
+// checks, then asks once for the judgement, with no tools: its data is the checks, all measured in code.
+export async function runScreening({ host, site, inputs, distances, skill, study = null, callClaude: call, model = "", runId = "R1", maxRounds = 14, onEvent = () => {}, now = () => new Date().toISOString() }) {
   const callClaude = roomy(call);
   const started = now();
   const fp = footprintOf(site.feature, distances);
@@ -314,7 +370,9 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
   const scale = K.screenScale(distances, siteKm2);
   const edges = catalogue.scales?.[scale] || [];
   const sb = turf.bbox(fp.feature);
-  const plans = K.planChecks(catalogue, { bbox: sb, countries: describe.countries || [], offshore, sea, coast_km: describe.coast_km ?? null }, scale, { inside });
+  const studyChecks = study ? new Set(study.groups.flatMap((g) => g.checks)) : null;
+  const plans = K.planChecks(catalogue, { bbox: sb, countries: describe.countries || [], offshore, sea, coast_km: describe.coast_km ?? null }, scale, { inside })
+    .filter((p) => !studyChecks || studyChecks.has(p.check.id));
   const results = new Map();
   const featsOf = new Map(); // check id → the evidence properties it counted, for the analyst's nearest names
   for (const p of plans) {
@@ -501,7 +559,8 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
         .map((f) => ({ fid: f.properties.fid, name: f.properties.name, distance_km: f.properties.distance_km, ...(f.properties.details?.sides ? { detail: f.properties.details.sides } : {}) }));
     }
   }
-  const noCheck = K.uncheckedTopics(catalogue, checkResults, scale);
+  // A study's report is by its own groups, not topics, so "topics with no check" is a screen's line only.
+  const noCheck = study ? [] : K.uncheckedTopics(catalogue, checkResults, scale);
   // The analyst's lines, by topic: each check's answer, with the nearest few by name, and the values' full lines.
   const nameOf = (f) => `${f.name}${f.details?.sides ? ` [${f.details.sides}${f.details.line_type ? `, ${f.details.line_type}` : ""}]` : ""} ${f.surrounds ? "(around the site: a wide area it lies within)" : `${f.distance_km} km`}`;
   const baselineLines = [`Scale of this screen: ${scale} (bands ${edges.join(", ")} km; each check looks out to its own reach).`];
@@ -531,7 +590,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
     ? `from the words "${site.origin.words}", anchored on ${site.origin.anchor?.name || site.origin.anchor?.place || "a found feature"}${site.origin.anchor?.source?.publisher ? ` (${site.origin.anchor.source.publisher})` : ""}, ${site.origin.confidence} confidence`
     : site.origin?.method === "file" ? fileOriginText(site.origin)
     : "drawn on the map by the person";
-  const res = await runTurn({
+  const res = study ? await studyTurn({ skill, study, callClaude, message: studyMessage({ siteName: site.name, describe, origin, distances, baseline: baselineLines.join("\n"), searchArea: searchNote, study }), onEvent }) : await runTurn({
     system: systemFor(skill),
     messages: [{ role: "user", content: firstMessage({ siteName: site.name, describe, inputs, distances, footprintNote: fp.note, origin, baseline: baselineLines.join("\n") || null, inside, searchArea: searchNote }) }],
     tools: defs, exec, callClaude, maxRounds,
@@ -566,7 +625,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
     debug.repairs = [];
     for (const a of attempts) {
       try {
-        const resp = await callClaude({ system: systemFor(skill), ...(a.how === "history" ? { tools: defs } : {}), messages: a.messages });
+        const resp = await callClaude({ system: study ? systemForStudy(skill) : systemFor(skill), ...(a.how === "history" && !study ? { tools: defs } : {}), messages: a.messages });
         usage.input_tokens += resp.usage?.input_tokens || 0; usage.output_tokens += resp.usage?.output_tokens || 0;
         const t2 = (resp.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
         const again = parseResult(t2);
@@ -588,9 +647,13 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
   return {
     type: "FeatureCollection",
     tobler_run: {
-      schema: RUN_SCHEMA, id: runId, kind: "ntr-screen", skill: { name: skill.name, version: skill.version }, model,
+      schema: RUN_SCHEMA, id: runId, kind: study ? study.id : "ntr-screen", skill: { name: skill.name, version: skill.version }, model,
+      // A study travels with its own groups and labels, so the card, report and share link need no profile.
+      ...(study ? { study: { id: study.id, label: study.label, groups: study.groups.map((g) => ({ id: g.id, label: g.label, checks: g.checks.filter((c) => checkResults.some((r) => r.id === c)) })), full_study_adds: study.full_study_adds || [] } } : {}),
       industry: host.profile?.()?.id || null,
-      decision: settleDecision(readDecision(parsed.json?.decision, searchArea ? reword(parsed.json?.decision_why) : parsed.json?.decision_why, host.profile?.()?.decisions), { checked, flags, checks: checkResults, topicLabel: (t) => K.topicLabel(catalogue, t) }),
+      decision: study
+        ? settleStudy(readDecision(parsed.json?.decision, searchArea ? reword(parsed.json?.decision_why) : parsed.json?.decision_why, study.decisions), { study, checks: checkResults })
+        : settleDecision(readDecision(parsed.json?.decision, searchArea ? reword(parsed.json?.decision_why) : parsed.json?.decision_why, host.profile?.()?.decisions), { checked, flags, checks: checkResults, topicLabel: (t) => K.topicLabel(catalogue, t) }),
       started_at: started, finished_at: now(),
       site: {
         name: site.name, how_found: origin, confidence: site.origin?.method === "words" ? site.origin.confidence : site.origin?.method === "file" ? "from the person's file" : "drawn",
@@ -599,7 +662,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
         role: searchArea ? "search_area" : role.role, role_why: role.why, ...(siteKm2 ? { area_km2: round(siteKm2, 3) } : {}),
         setting: offshore ? "offshore" : "onshore", summary: R.summaryLine(describe),
         asset_type: inputs.asset_type, asset_label: inputs.asset_label, asset_assumed: !!inputs.asset_assumed, ...(inputs.outside_profile ? { outside_profile: inputs.outside_profile } : {}),
-        stage: inputs.stage || "greenfield (assumed)", capacity_mw: inputs.capacity_mw ?? null, tip_height_m: inputs.tip_height_m ?? null,
+        stage: study ? (inputs.stage || "") : inputs.stage || "greenfield (assumed)", capacity_mw: inputs.capacity_mw ?? null, tip_height_m: inputs.tip_height_m ?? null,
       },
       ...(Object.keys(seaVals).length ? { sea: seaVals } : {}),
       ...(elevation ? { elevation: { ...elevation, ...(elevSig ? { significance: elevSig } : {}) } } : {}),
@@ -707,7 +770,8 @@ export function headline(record) {
 
 // The screening service the conversation's screen_site and get_run tools call. table: catalogue/distances.json;
 // skill: the parsed NTR skill. onRun(record, place) shows the card; onEvent reports progress.
-export function createScreening({ host, table, skill, callClaude, model = "", onRun = () => {}, onEvent = () => {}, now }) {
+// skillFor(name): another parsed skill, for studies (the profile's skills_offered names each study's skill).
+export function createScreening({ host, table, skill, skillFor = () => null, callClaude, model = "", onRun = () => {}, onEvent = () => {}, now }) {
   const runs = new Map();
   let n = 0;
   return {
@@ -763,6 +827,34 @@ export function createScreening({ host, table, skill, callClaude, model = "", on
       runs.set(id, record);
       onRun(record, place);
       return headline(record);
+    },
+    // A study (the profile's skills_offered entry: the contamination desk study) on a place on land: only its checks,
+    // at its own distances, then one judgement. It shares the run numbering, card, report and share link.
+    async study(entry, place, i = {}) {
+      const sk = skillFor(entry.skill);
+      if (!sk?.body) throw new Error(`The ${entry.label.toLowerCase()} method hasn't loaded yet; try again in a moment.`);
+      const d0 = await R.describe(host.ref, place.feature);
+      if (entry.setting === "land" && d0.offshore) return { not_available: `The ${entry.label.toLowerCase()} is for sites on land, and ${place.name} is offshore. A constraints screen works at sea.` };
+      const distances = { ...entry.distances, footprint_km: 0.1, set_by: "skill", asset_label: entry.label.toLowerCase(), setting: "onshore", reasons: [`the ${entry.label.toLowerCase()}'s own distances: records on and close to the site matter most`], table_version: null };
+      const id = `R${++n}`;
+      onEvent({ type: "screen_start", run: id, site: place.name, setting: "onshore", inside: false, wider_km: distances.wider, study: entry.id });
+      const record = await runScreening({
+        host, site: { name: place.name, feature: place.feature, origin: place.origin }, distances, skill: sk, study: entry, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}),
+        inputs: { asset_type: "other", asset_label: entry.label.toLowerCase(), asset_assumed: false, stage: i.stage || "", focus: i.focus || "", extent: "around" },
+      });
+      record.tobler_run.place_id = place.id ?? null;
+      record.tobler_run.place_geometry_at_run = JSON.stringify(place.feature.geometry);
+      record.tobler_run.inputs = { study: entry.id, focus: i.focus || "" };
+      const old = (i.replaces ? runs.get(String(i.replaces).trim().toUpperCase()) : null)
+        || [...runs.values()].reverse().find((o) => o.tobler_run.kind === entry.id && place.id != null && o.tobler_run.place_id === place.id && !o.tobler_run.replaced_by && siteChange(o, place));
+      if (old) {
+        const ch = siteChange(old, place);
+        record.tobler_run.replaces = { run: old.tobler_run.id, why: ch ? `the site was edited after it ran (${ch.text})` : "re-run" };
+        old.tobler_run.replaced_by = id;
+      }
+      runs.set(id, record);
+      onRun(record, place);
+      return { ...headline(record), note: `The ${entry.label.toLowerCase()} card under your reply shows the decision, the possible contaminant linkages (F-01…) with their next steps, the sources, pathways and receptors checked, and what a full desk study would add. Reply in two or three sentences: the decision, the most serious linkage, and the biggest gap. Don't repeat the card.` };
     },
     getRun(id) {
       const rec = runs.get(String(id || "").trim().toUpperCase()) || [...runs.values()].at(-1);

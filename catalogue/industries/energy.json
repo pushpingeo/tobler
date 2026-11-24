@@ -5,11 +5,19 @@
   "version": "2",
   "skill": "ntr-screening",
   "skill_file": "skills/ntr-screening/SKILL.md",
-  "skills_offered_about": "The skill chips under the conversation (24 Nov; contracts in claude/skill-contracts.md). 'ready' runs; 'soon' says what it will do and that it isn't built yet, and never pretends to run. 'roles' limits a chip to places of those roles. The screen chip's label is wording.screen_chip.",
+  "skills_offered_about": "The skill chips under the conversation (24 Nov; contracts in claude/skill-contracts.md). 'ready' runs; 'soon' says what it will do and that it isn't built yet, and never pretends to run. A ready skill other than the screen names its skill file, the checks it runs grouped as its report shows them, its distances, its decision words and what a full study would add. 'roles' limits a chip to places of those roles. The screen chip's label is wording.screen_chip.",
   "skills_offered": [
     {"id": "screen", "status": "ready"},
-    {"id": "contamination-desk-study", "label": "Contamination desk study", "status": "soon",
-     "about": "An early contaminated-land look: the open records on and around the site, set out as sources, pathways and receptors, with what a full desk study would add."},
+    {"id": "contamination-desk-study", "label": "Contamination desk study", "status": "ready", "skill": "contamination-desk-study", "setting": "land",
+     "about": "An early contaminated-land look: the open records on and around the site, set out as sources, pathways and receptors, with what a full desk study would add.",
+     "distances": {"near": 0.25, "close": 0.5, "wider": 2},
+     "groups": [
+      {"id": "sources", "label": "Potential sources", "checks": ["ground.landfill", "ground.mining-waste", "ground.council-records", "ground.ni-land-use", "air.permitted-sites", "water.pollution-incidents", "hazards.coal-mining", "ground.us-superfund", "ground.us-cleanup", "air.us-emission-sources", "water.us-discharges"]},
+      {"id": "pathways", "label": "Pathways", "checks": ["water.source-protection", "water.flood-zones", "water.surface-water", "ground.peat"]},
+      {"id": "receptors", "label": "Receptors", "checks": ["community.homes", "community.schools", "community.health-care", "bio.national-sites", "bio.sac", "bio.spa", "bio.ramsar", "community.radon"]}
+     ],
+     "decisions": ["no linkages identified in open records", "possible linkages: investigate", "likely linkages: investigate before purchase or design", "insufficient evidence"],
+     "full_study_adds": ["historical maps and past land use (the core of a full desk study; open records only cover Northern Ireland and a few councils)", "geology and aquifer designations", "groundwater abstractions and private water supplies", "unexploded ordnance", "a site walkover"]},
     {"id": "developable-area", "label": "Developable area", "status": "soon", "roles": ["area", "footprint"],
      "about": "How much of the site could be built on: the gross area, each deduction and its reason, and what's left, on the map."}
   ],

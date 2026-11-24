@@ -911,7 +911,7 @@ const assetPicks = () => profile?.asset_picks || null;
 const screenSkill = () => skills[profile?.skill || "ntr-screening"];
 let runLog = null, runSteps = null; // the turn a run belongs to, for the log and "How I worked this out"
 host.screening = createScreening({
-  host, table: () => distTable, skill: screenSkill, callClaude, model: CONFIG.model,
+  host, table: () => distTable, skill: screenSkill, skillFor: (name) => skills[name], callClaude, model: CONFIG.model,
   onRun: (record) => {
     const r = record.tobler_run;
     // The log keeps what the card shows, so a downloaded log explains the card on its own.
@@ -955,7 +955,7 @@ async function loadIndustry(stored) {
 }
 
 Promise.all([
-  ...["skills/place-finding/SKILL.md", "skills/ntr-screening/SKILL.md", "skills/coordinate-reference/SKILL.md"].map((f) => fetch(asset(f)).then((r) => r.text()).then((t) => { const s = parseSkill(t); skills[s.name] = s; })),
+  ...["skills/place-finding/SKILL.md", "skills/ntr-screening/SKILL.md", "skills/coordinate-reference/SKILL.md", "skills/contamination-desk-study/SKILL.md"].map((f) => fetch(asset(f)).then((r) => r.text()).then((t) => { const s = parseSkill(t); skills[s.name] = s; })),
   fetch(asset("catalogue/anchors.json")).then((r) => r.json()).then((j) => { anchors = j.sources; }),
   fetch(asset("catalogue/trusted.json")).then((r) => r.json()).then((j) => { trusted = j; }),
   fetch(asset("catalogue/checks.json")).then((r) => r.json()).then((j) => { checksCatalogue = j; }),
@@ -1221,7 +1221,7 @@ function makeChoiceCard({ choices, recommended, reason, question }) {
 // ---- screening progress: how long it usually takes, and where it's got to ----------------------
 // A screen takes a minute or two, so the reply shows it at once: an estimate from this browser's recent screens
 // (by setting), a bar driven by the run's steps and the time so far, and the step in hand. A proxy, not a promise.
-const TYPICAL_S = { offshore: 70, onshore: 100, inside: 45 };
+const TYPICAL_S = { offshore: 70, onshore: 100, inside: 45, study: 35 };
 const timesKey = "screenTimes";
 const pastTimes = () => { try { return JSON.parse(store.get(timesKey) || "{}"); } catch { return {}; } };
 function estimateFor(kind) {
@@ -1230,16 +1230,17 @@ function estimateFor(kind) {
     const sorted = [...past].sort((a, b) => a - b);
     return { secs: sorted[Math.floor(sorted.length / 2)], basis: `from your last ${past.length} screens` };
   }
-  return { secs: TYPICAL_S[kind], basis: kind === "inside" ? "typical inside an area" : `typical for an ${kind} site` };
+  return { secs: TYPICAL_S[kind], basis: kind === "inside" ? "typical inside an area" : kind === "study" ? "typical for a desk study" : `typical for an ${kind} site` };
 }
 const fmtSecs = (s) => (s < 75 ? `${Math.max(10, Math.round(s / 5) * 5)} seconds` : `${Math.round((s / 60) * 2) / 2} minutes`.replace(".5 ", "½ ").replace(/^1 minutes/, "1 minute"));
 let progress = null;
 function startProgress(ev) {
   stopProgress(null);
-  const kind = ev.inside ? "inside" : ev.setting;
+  const kind = ev.study ? "study" : ev.inside ? "inside" : ev.setting;
   const est = estimateFor(kind);
   const box = el("div", null, "progress");
-  box.append(el("p", `Screening ${ev.site}. This usually takes about ${fmtSecs(est.secs)} (${est.basis}); you can keep looking at the map meanwhile.`, "progress-title"));
+  const studyLabel = ev.study ? (profile?.skills_offered || []).find((x) => x.id === ev.study)?.label || "study" : null;
+  box.append(el("p", `${studyLabel ? `Running the ${studyLabel.toLowerCase()} for` : "Screening"} ${ev.site}. This usually takes about ${fmtSecs(est.secs)} (${est.basis}); you can keep looking at the map meanwhile.`, "progress-title"));
   const bar = el("div", null, "progress-bar"); bar.append(el("span"));
   bar.setAttribute("role", "progressbar"); bar.setAttribute("aria-label", "Screening progress");
   box.append(bar, el("p", "Starting…", "progress-step"));
@@ -1425,12 +1426,14 @@ function showRun(record) {
   queueMicrotask(paintTree);
   card.dataset.run = r.id;
   card.querySelector(".site").textContent = r.site.name;
+  if (r.study) card.querySelector(".kind").textContent = r.study.label;
   // Run id and time only: the method version and how long it took are in the report's Method section (Rob, 22 Nov).
   card.querySelector(".meta").textContent = `${r.id} · ${new Date(r.finished_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
   card.querySelector(".meta").title = `Method ${r.skill.version}${r.screen_seconds ? `, took ${r.screen_seconds} s` : ""}`;
-  card.querySelector(".setup").textContent = [
+  // A study has no asset type or stage: its title says what it is.
+  card.querySelector(".setup").textContent = (r.study ? [r.site.setting, r.site.footprint] : [
     `${r.site.asset_label[0].toUpperCase()}${r.site.asset_label.slice(1)}${r.site.asset_assumed ? " (assumed)" : ""}`, r.site.stage, r.site.setting, r.site.footprint,
-  ].filter(Boolean).join(" · ");
+  ]).filter(Boolean).join(" · ");
   // The short form on the card; the full wording is in the report and the downloaded run (Rob, 22 Nov).
   card.querySelector(".disclaimer").textContent = `${DISCLAIMER_SHORT} The report has the full wording.`;
   card.querySelector(".disclaimer").title = DISCLAIMER;
@@ -1591,7 +1594,8 @@ async function rerun(entry) {
   try {
     const input = rerunInput(entry.record);
     turnLog.input = input;
-    const head = await host.screening.screen(input, place);
+    const studyEntry = r.study ? (profile?.skills_offered || []).find((x) => x.id === r.study.id) : null;
+    const head = studyEntry ? await host.screening.study(studyEntry, place, { replaces: r.id }) : await host.screening.screen(input, place);
     const rec = runs.get(head.run)?.record.tobler_run;
     const was = r.flags.length, now = rec?.flags.length ?? 0;
     const moved = rec?.replaces?.checks_changed;
@@ -1659,13 +1663,20 @@ function paintRun(entry) {
     risk.append(document.createTextNode(f.risk));
     // Under the flag: its topic in words (people think "heritage", not a colour) and, with a severity, the confidence.
     const sub = el("span", null, "sub");
-    sub.append(el("span", topicInfo(f.theme).short, "th"));
+    sub.append(el("span", f.linkage ? `${topicInfo(f.theme).short} · ${f.linkage.rating} linkage` : topicInfo(f.theme).short, "th"));
     if (f.severity) sub.append(document.createTextNode(" · "), el("span", `${f.confidence} confidence${f.confidence_capped ? " (capped)" : ""}`, "cw"));
     risk.append(sub);
     s.append(el("span", f.severity || f.confidence, f.severity ? "sev" : "conf"), sw, risk, el("span", f.relation === SEARCH_BAND ? "in search area" : f.nearest_km == null ? "" : fmtKm(f.nearest_km), "dist"));
     s.title = `${f.severity ? `Severity ${f.severity}, ` : ""}confidence ${f.confidence}`;
     const body = el("div", null, "body");
     body.append(el("p", `${topicInfo(f.theme).label}.${f.severity ? ` Severity ${f.severity}, confidence ${f.confidence}.` : ""} ${f.why || ""}${f.confidence_capped ? ` (Confidence ${f.confidence_capped}.)` : ""}`, "why"));
+    // A contaminant linkage (the desk study): source, pathway and receptor, each in the analyst's words.
+    if (f.linkage) {
+      const lk = el("p", null, "linkage");
+      [["Source", f.linkage.source], ["Pathway", f.linkage.pathway], ["Receptor", f.linkage.receptor]].filter(([, v]) => v)
+        .forEach(([k, v], i) => { if (i) lk.append(document.createTextNode(" → ")); lk.append(el("b", `${k}: `), document.createTextNode(v)); });
+      body.append(lk);
+    }
     if (f.next_step) { const nx = el("p", null, "next"); nx.append(el("b", "Next step: "), document.createTextNode(f.next_step)); body.append(nx); }
     const ev = el("ul", null, "ev");
     for (const e of f.evidence) {
@@ -1682,7 +1693,7 @@ function paintRun(entry) {
     li.append(d);
     return li;
   }));
-  if (!r.flags.length && !r.parse_error) list.replaceChildren(el("li", "No flags raised. See what still needs checking below.", "flag note"));
+  if (!r.flags.length && !r.parse_error) list.replaceChildren(el("li", r.study ? "No contaminant linkages identified in the open records. See what a full desk study would add below." : "No flags raised. See what still needs checking below.", "flag note"));
   // The decision first (from the ESIA read, 20 Nov): what the screen suggests, in the analyst's words, and why.
   const dec = card.querySelector(".decision");
   dec.hidden = !r.decision;
@@ -1720,7 +1731,14 @@ function paintRun(entry) {
     li.append(el("p", label, "gap-head"), ul);
     return li;
   }));
-  gaps.hidden = !GAP_GROUPS.some(([k]) => groups[k].length);
+  // A study's fixed list of what open records can't give (the desk study: historical maps, geology, a walkover).
+  if (r.study?.full_study_adds?.length) {
+    const li = el("li", null, "gap-group adds");
+    const ul = el("ul"); ul.append(...r.study.full_study_adds.map((g) => el("li", g)));
+    li.append(el("p", `What a full ${r.study.label.toLowerCase().replace(/^contamination /, "")} would add`, "gap-head"), ul);
+    gaps.querySelector("ul").append(li);
+  }
+  gaps.hidden = !GAP_GROUPS.some(([k]) => groups[k].length) && !r.study?.full_study_adds?.length;
   // Checks (plan item 1): one line per check, by topic, in three states; the topics nothing checks yet in one line
   // that opens into the list (Rob, 23 Nov). Open on a desktop, closed on a phone. Runs from before checks have none.
   const cv = checksView(r);
@@ -1805,7 +1823,7 @@ function paintReach(entry) {
   });
   const stale = card.querySelector(".stale");
   const differs = Math.abs(km - r.assessed_within_km) > 1e-9;
-  stale.hidden = !differs;
+  stale.hidden = !differs || !!r.study; // a study is judged once from its checks; the slider only shows more or less of them
   if (differs) {
     const was = r.assessed_within_km === 0 && entry.area ? "inside the area only" : `findings up to ${U.dist(r.assessed_within_km)}`;
     stale.querySelector("span").textContent = `The flags were written for ${was}.`;
@@ -2099,16 +2117,23 @@ function paintChips() {
   row.hidden = !places.size;
   const p = focusedOrLatest();
   const role = p ? placeRole(p.origin || {}, p.feature.geometry).role : null;
-  row.querySelectorAll(".chip.soon").forEach((b) => b.remove());
+  row.querySelectorAll(".chip[data-skill]").forEach((b) => b.remove());
   for (const s of profile?.skills_offered || []) {
-    if (s.status !== "soon") continue;
-    const b = el("button", s.label, "chip soon");
-    b.append(el("span", "soon", "soon-tag"));
+    if (s.id === "screen") continue; // the screen's chip is in the page, with its asset-type questions
+    const soon = s.status !== "ready";
+    const b = el("button", s.label, soon ? "chip soon" : "chip");
+    if (soon) { b.append(el("span", "soon", "soon-tag")); b.title = "Coming soon"; }
     b.type = "button";
     b.dataset.skill = s.id;
-    b.title = "Coming soon";
     b.hidden = !!(s.roles && role && !s.roles.includes(role));
-    b.addEventListener("click", () => skillSoon(s));
+    // A ready study fills the input for the place in focus, like the screen chip: ready to send or add to.
+    b.addEventListener("click", () => {
+      if (soon) { skillSoon(s); return; }
+      const q = focusedOrLatest();
+      if (!q || busy) return;
+      say.value = `Run the ${s.label.toLowerCase()} for ${q.name}`; grow(); say.focus();
+      say.setSelectionRange(say.value.length, say.value.length);
+    });
     row.append(b);
   }
 }

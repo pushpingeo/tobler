@@ -98,7 +98,7 @@ await page.screenshot({ path: "/tmp/choice-livingston.png" });
 // model call; a chip that doesn't suit the place's role is hidden.
 const chipsNow = () => page.evaluate(() => [...document.querySelectorAll(".chips .chip")].filter((b) => !b.hidden).map((b) => `${b.firstChild.textContent}${b.classList.contains("soon") ? " (soon)" : ""}`));
 let chips = await chipsNow();
-check(chips.includes("Contamination desk study (soon)") && chips.includes("Developable area (soon)") && chips.some((c) => /^Screen/.test(c)), `the skill chips show for an area (${JSON.stringify(chips)})`);
+check(chips.includes("Contamination desk study") && chips.includes("Developable area (soon)") && chips.some((c) => /^Screen/.test(c)), `the skill chips show for an area (${JSON.stringify(chips)})`);
 const calls = sent.length;
 await page.click('.chip.soon[data-skill="developable-area"]');
 await page.waitForTimeout(300);
@@ -109,7 +109,7 @@ await page.waitForTimeout(300);
 await page.evaluate(() => window.__ws.focus?.("Pin 1"));
 chips = await chipsNow();
 const focused = await page.evaluate(() => document.querySelector(".place.active, .card.active")?.textContent?.slice(0, 20) || "");
-check(!chips.includes("Developable area (soon)") && chips.includes("Contamination desk study (soon)"), `developable area is hidden for a point (${JSON.stringify(chips)}; focused ${focused})`);
+check(!chips.includes("Developable area (soon)") && chips.includes("Contamination desk study"), `developable area is hidden for a point (${JSON.stringify(chips)}; focused ${focused})`);
 await page.screenshot({ path: "/tmp/choice-chips.png" });
 
 // A place and what's planned, but no analysis named (Shell House, Perth, 24 Nov): the analyst offers the skills as
@@ -117,11 +117,11 @@ await page.screenshot({ path: "/tmp/choice-chips.png" });
 queue.push(msg([use("t7", "offer_skills", { place: placeName })], "tool_use"), msg([{ type: "text", text: "Which would you like?" }]));
 await turn(`I'd like to site a warehouse on ${placeName}`);
 const pick = await page.evaluate(() => [...([...document.querySelectorAll(".skill-pick")].at(-1)?.querySelectorAll(".chip") || [])].map((b) => `${b.firstChild.textContent}${b.classList.contains("soon") ? " (soon)" : ""}`));
-check(pick.length === 3 && /^Screen/.test(pick[0]) && pick.includes("Contamination desk study (soon)"), `the skills offered as buttons (${JSON.stringify(pick)})`);
+check(pick.length === 3 && /^Screen/.test(pick[0]) && pick.includes("Contamination desk study") && pick.includes("Developable area (soon)"), `the skills offered as buttons (${JSON.stringify(pick)})`);
 await page.screenshot({ path: "/tmp/choice-skillpick.png" });
 queue.push(msg([{ type: "text", text: "Screening." }]));
 const before2 = sent.length;
-await page.locator(".skill-pick .chip:not(.soon)").last().click();
+await page.locator(".skill-pick").last().locator(".chip:not(.soon)").first().click();
 await page.waitForFunction((n) => !document.querySelector("#ask")?.classList.contains("busy"), before2, { timeout: 15000 }).catch(() => {});
 await page.waitForTimeout(1500);
 const lastUser = sent.at(-1)?.messages?.filter((m) => m.role === "user").at(-1);

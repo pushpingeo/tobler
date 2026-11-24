@@ -834,6 +834,66 @@ await test("the run record (tobler-run/2) carries every check with its source, a
   assert.equal(bad.checks.find((c) => c.id === "bio.national-sites").reason, "failed");
 });
 
+await test("the contamination desk study: only its checks, at its own distances, one judgement with no tools; grouped as sources, pathways, receptors", async () => {
+  const C = [-1.08, 53.9];
+  const yard = { name: "Old works", feature: G.squareAround(C, 0.04, 0), origin: { method: "drawn" } };
+  const F = (geometry, properties) => ({ type: "Feature", geometry, properties });
+  const asked = [];
+  const ukAtlas = async (tool, args) => {
+    if (tool !== "fetch_features") return atlas(tool, args);
+    asked.push(args.id);
+    if (args.id === "3a4c49302d01deb3") return { returned: 1, features: [F(turf.circle(turf.destination(C, 0.3, 0).geometry.coordinates, 0.05).geometry, { site_name: "Station Road tip", hld_ref: "EAHLD1" })] };
+    if (args.id === "6c3e0babf56f294e") return { returned: 1, features: [F(turf.bboxPolygon([-1.1, 53.89, -1.06, 53.91]).geometry, { number: "2" })] };
+    return { returned: 0, features: [] };
+  };
+  const profile = JSON.parse(read("../catalogue/industries/energy.json"));
+  const entry = profile.skills_offered.find((x) => x.id === "contamination-desk-study");
+  const desk = parseSkill(read("../skills/contamination-desk-study/SKILL.md"));
+  const model = scriptedModel([final(`A possible linkage from the old tip.
+
+\`\`\`json
+{"decision":"possible linkages: investigate","decision_why":"A historic landfill 300 m north, and the site is in a source protection zone.",
+ "flags":[{"risk":"Historic landfill 300 m north could affect groundwater in the source protection zone","topic":"ground-soil",
+   "linkage":{"source":"Station Road tip (historic landfill)","pathway":"groundwater (source protection zone)","receptor":"public water supply","rating":"possible"},
+   "severity":"medium","confidence":"medium","evidence":[{"name":"Station Road tip","distance_km":0.3,"dataset":"Historic Landfill Sites"}],
+   "why":"landfill leachate","next_step":"historical maps and a commercial environmental search"}],
+ "checked":[],"data_gaps":[]}
+\`\`\``)]);
+  const d = { ...entry.distances, footprint_km: 0.1, set_by: "skill", reasons: ["x"] };
+  const rec = await runScreening({ host: { ...host(), atlas: ukAtlas, profile: () => profile, fetchFn: async () => ({ ok: true, json: async () => ({ samples: [] }) }) },
+    site: yard, distances: d, skill: desk, study: entry, callClaude: model, inputs: { asset_type: "other", asset_label: "contamination desk study" } });
+  const r = rec.tobler_run;
+  assert.equal(r.kind, "contamination-desk-study");
+  assert.equal(r.checks_scale, "local");
+  const ids = new Set(entry.groups.flatMap((g) => g.checks));
+  assert.ok(r.checks.length && r.checks.every((c) => ids.has(c.id)), `only the study's checks ran: ${r.checks.map((c) => c.id).join(", ")}`);
+  assert.ok(!r.checks.some((c) => c.id === "heritage.listed-buildings"));
+  // One call, no tools.
+  assert.equal(model.calls.length, 1);
+  assert.equal(model.calls[0].tools, undefined);
+  assert.match(model.calls[0].system, /no tools/);
+  assert.match(model.calls[0].messages[0].content, /Contamination desk study for Old works/);
+  assert.match(model.calls[0].messages[0].content, /Station Road tip/);
+  // The linkage is a finding, traced to the checks' features; the decision is the study's own.
+  assert.equal(r.flags.length, 1);
+  assert.equal(r.flags[0].linkage.rating, "possible");
+  assert.equal(r.flags[0].theme, "ground-soil");
+  assert.equal(r.flags[0].traced, 1);
+  assert.equal(r.decision.value, "possible linkages: investigate");
+  // The card and report group the checks as sources, pathways and receptors.
+  const view = K.checksView(r);
+  assert.deepEqual(view.groups.map((g) => g.label), ["Potential sources", "Pathways", "Receptors"]);
+  assert.ok(view.groups[0].items.some((i) => i.id === "ground.landfill" && i.state === "found"));
+  assert.ok(r.study.full_study_adds.some((x) => /historical maps/.test(x)));
+  // Every source record failing: insufficient evidence, whatever was written.
+  const down = async (tool, args) => { if (tool === "fetch_features") throw new Error("atlas: fetch failed"); return atlas(tool, args); };
+  const clean = scriptedModel([final('Nothing.\n```json\n{"decision":"no linkages identified in open records","decision_why":"none","flags":[],"checked":[],"data_gaps":[]}\n```')]);
+  const bad = (await runScreening({ host: { ...host(), atlas: down, profile: () => profile, fetchFn: async () => ({ ok: true, json: async () => ({ samples: [] }) }) },
+    site: yard, distances: d, skill: desk, study: entry, callClaude: clean, inputs: { asset_type: "other", asset_label: "contamination desk study" } })).tobler_run;
+  assert.equal(bad.decision.value, "insufficient evidence");
+  assert.match(bad.decision.changed, /none of the source records could be checked/);
+});
+
 await test("the UK pack on land: flood zones and farmland by share of the site, the IRZ read for solar, heritage counted", async () => {
   // A 1 km square solar farm south of York. England's layers answer; the rest of the UK isn't in reach.
   const C = [-1.08, 53.9];
