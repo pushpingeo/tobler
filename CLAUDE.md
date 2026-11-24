@@ -17,7 +17,8 @@ the noun it belongs to. Don't build a noun ahead of the plan, or bend working co
 - **The profile sets defaults** (`catalogue/industries/`); the project holds the consultant's overrides (*not built*).
 - **A place says where** (role set in code, how it was made recorded); **data says what exists** (the atlas, with
   publisher and licence).
-- **Frameworks map topics to report headings.** *IFC only, hard-wired* (plan item 2).
+- **Frameworks map topics to report headings**, per job; each skill owns its report shape and says which frameworks
+  fit. *IFC only, hard-wired* (plan item 3).
 
 ## Invariants
 
