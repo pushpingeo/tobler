@@ -7,6 +7,7 @@ import { atlasCandidate, pickName, edgeDistanceKm, tidyName } from "./atlasfeatu
 import { candidate } from "./gazetteer.js";
 import { classifyLicence, LICENCE_NOTE, licenceBlock } from "./licence.js";
 import { themeFor, THEME_IDS } from "./findings.js";
+import { nearestKm } from "./nearness.js";
 
 // A wide area the site merely lies within (a sea, a region, a very large designation) isn't a feature "on site"
 // (Rob, 18 Nov: "North West European waters" and "Eastern Scotland" counted as on site for a box at Linlithgow).
@@ -68,9 +69,15 @@ export function keyAttributes(p = {}, max = 6) {
   return out;
 }
 
-// Distance between two geometries in km: 0 if they touch, else the shortest vertex-to-edge distance both ways.
-// Vertex-based, so it can overstate the gap between two long straight edges a little; fine for screening.
+// Distance between two geometries in km: 0 if they touch, else the shortest distance between them. The first is
+// usually the site: js/nearness.js prepares it once and measures each feature against the edges near it (24 Nov).
+// The old measure below stays for shapes that one can't take (continent-wide, across the antimeridian).
 export function geometryDistanceKm(a, b) {
+  const fast = nearestKm(a, b);
+  return fast != null ? fast : slowDistanceKm(a, b);
+}
+// Vertex-based, sampled to 400 vertices a side, so it can overstate the gap between two long straight edges a little.
+export function slowDistanceKm(a, b) {
   const fa = { type: "Feature", properties: {}, geometry: a }, fb = { type: "Feature", properties: {}, geometry: b };
   try { if (turf.booleanIntersects(fa, fb)) return 0; } catch { /* odd geometry: measure instead */ }
   const verts = (g) => { const out = []; const walk = (c) => (typeof c[0] === "number" ? out.push(c) : c.forEach(walk)); walk(g.coordinates); return out; };

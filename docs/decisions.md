@@ -2,6 +2,45 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 24 Nov 2026 (afternoon): a run on a detailed red line froze the page; the feature lists (Rob's Mallard Pass screen)
+- **What happened:** Rob screened the Mallard Pass solar DCO boundary (EN010127: 4 parts, 28 holes, 4,688
+  vertices). The run took over 1,000 s with "page unresponsive" warnings. Cause: every fetched feature was measured
+  against the site with `geometryDistanceKm`, up to 400 sampled vertices each way, each against every site edge, with
+  the site's outline rebuilt for every vertex. About 90 ms a small polygon and 4.3 s a large zone (an Impact Risk
+  Zone) on that site, on the main thread, for thousands of features.
+- **Now:** `js/nearness.js`. The site is prepared once (projected with the existing local equal-area projection,
+  `laea` in `js/siterole.js`; its edges in a bounding-box tree); each feature is tested for crossing, containment
+  (even-odd, so a feature in a hole is outside) and then its nearest pair, which is measured with turf (geodesic), so
+  invariant 2 holds. `geometryDistanceKm` uses it and keeps the old measure for shapes it can't take (wider than
+  60° by 30°, or across the antimeridian). On the Mallard Pass boundary: polygons 2 ms (was 82), lines 1 ms (was 66),
+  points 0.2 ms (was 2.2), a large zone 2 km off 27 ms (was 4,317). Agrees with an exhaustive geodesic measure to
+  0.03%; never more than 0.1% above the old measure (which overstated by up to 94 m, from sampling); the same
+  on-site/off-site calls on 600 random shapes.
+- **Also:** country lookups for the place card use the same test (`js/reference.js`; `countrySplit` no longer runs
+  the intersect twice): `describe` 690 ms → 117 ms on that site. The drop's longest main-thread freeze in a browser
+  went from 0.8 s to 0.16 s.
+- **Found on the way:** `edgeDistanceKm` (point to feature) failed on any polygon with holes (turf gives it as a
+  MultiLineString), so such features went unmeasured. Fixed: every ring is measured.
+- **Not done:** moving the measuring to a Web Worker. With the new measure a whole run's measuring should be seconds;
+  revisit if a live run still stalls. `coverageIn` (share of a site a class polygon covers, turf intersect) is still
+  ~30 ms a feature on that site; it runs only for class layers' on-site features.
+- **Lists (Rob):** rows lead with the distance in bold; a list from one layer names it once above the rows ("From …"),
+  a mixed list names the layer on each row without the publisher in brackets (the popup keeps it); a name the same
+  as the layer isn't repeated; same-name features from one layer are one row ("2 parts", at the nearest part).
+- **"Show these on the map" (Rob: didn't seem to work):** it did run, but the set was already on the map, the zoom
+  didn't change and the highlight was a faint line under the findings' own. Now it picks out the set and fades every
+  other finding until "Show all findings", the list closing, Clear, or another run; the fit leaves out wide areas the
+  site lies within.
+- **GeoJSON coordinates (Rob):** a GeoJSON with longitude and latitude and no `crs` is WGS 84 by its standard (RFC
+  7946): no longer called assumed or told to add a .prj. Old-style GeoJSON in grid numbers is still a guess; its fix
+  is to re-save as WGS 84 GeoJSON.
+- **Tested:** `npm test` (new `test/nearness.test.mjs`: holes, parts, touching, containment, exhaustive comparison;
+  fileimport test for the GeoJSON wording, which fails on the old code); all browser checks pass (run card 163 with
+  new checks for the list layout and the fade, site files 44, search area 46, out of date 28, ux 26, epsg 20,
+  coords 18, cards 14, choice 8); Rob's file dropped in a headless browser, timed before and after. The Mallard Pass
+  file is not in the repo (licence not checked); the tests use a synthetic site with holes. **Not tested:** a full
+  live screen on asktobler.com (services can't be reached from the build workspace); the phone with a real file.
+
 ## 23 Nov 2026 (late): typed grid references go through the EPSG registry (Rob: "move to the registry")
 - **Before:** `js/coords.js` converted British National Grid references to WGS84 with a hard-coded OSGB36 Helmert
   shift (about 5 m). That was a known breach of invariant 1.

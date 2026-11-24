@@ -284,9 +284,12 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   const opened = await page.evaluate(() => { const li = document.querySelector('.run li.check[data-check="bio.sac"]');
     return { open: li.classList.contains("open"), aria: li.querySelector(".check-line").getAttribute("aria-expanded"), rows: [...li.querySelectorAll(".feat")].map((b) => b.textContent),
       visible: li.querySelector(".feat-list").getBoundingClientRect().height > 0, hl: window.__ws.map.getSource("hl")._data.features.length,
+      src: li.querySelector(".feat-src")?.textContent || "", bold: li.querySelector(".feat .feat-dist")?.textContent || "",
       others: [...document.querySelectorAll(".run li.check.open")].length }; });
-  check(opened.open && opened.aria === "true" && opened.visible && /^Wyville Thomson Ridge.*km.*JNCC|Joint Nature/.test(opened.rows[0] || "") && opened.hl === 1 && opened.others === 1,
-    `${label}: tapping a check line opens its features by distance and outlines them (${opened.rows.join(" | ")}; hl ${opened.hl})`);
+  // Rows lead with the distance in bold; a list from one layer names it once above the rows, not on each (24 Nov).
+  check(opened.open && opened.aria === "true" && opened.visible && /^\d[\d.,]* (km|mi)Wyville Thomson Ridge/.test(opened.rows[0] || "") && /^\d/.test(opened.bold)
+    && /^From .*(JNCC|Joint Nature)/.test(opened.src) && opened.hl === 1 && opened.others === 1,
+    `${label}: tapping a check line opens its features by distance, nearest in bold, the layer named once, and outlines them (${opened.src}: ${opened.rows.join(" | ")}; hl ${opened.hl})`);
   await page.locator('.run li.check[data-check="bio.sac"] .feat').first().click();
   await page.waitForTimeout(800);
   const flown = await page.evaluate(() => ({ pop: document.querySelector(".maplibregl-popup .finding-pop")?.textContent || "", hl: window.__ws.map.getSource("hl")._data.features.map((f) => f.properties.label),
@@ -304,6 +307,20 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   const key = await page.evaluate(() => ({ rows: [...document.querySelectorAll("#key .feat-name")].map((e) => e.textContent), dists: [...document.querySelectorAll("#key .feat-meta")].map((e) => e.textContent) }));
   check(key.rows.length > 0, `${label}: the map key's theme opens its findings by distance (${key.rows.slice(0, 3).join(", ")})`);
   await page.screenshot({ path: `/tmp/explore-${label}-key.png` });
+  // "Show these on the map": the set is picked out, the rest of the findings fade, and the map fits to the set
+  // without zooming out to a wide area the site merely lies within (Rob, 24 Nov: it seemed to do nothing).
+  const baseOpacity = await page.evaluate(() => JSON.stringify(window.__ws.map.getPaintProperty("find-line", "line-opacity")));
+  await page.locator("#key .feat-map").first().click();
+  await page.waitForTimeout(900);
+  const shown = await page.evaluate(() => ({ hl: window.__ws.map.getSource("hl")._data.features.length, rows: document.querySelectorAll("#key .feat").length,
+    faded: JSON.stringify(window.__ws.map.getPaintProperty("find-line", "line-opacity")), btn: document.querySelector("#key .feat-map")?.textContent }));
+  check(shown.hl >= 1 && /"case",\["in",\["get","id"\]/.test(shown.faded) && shown.btn === "Show all findings",
+    `${label}: "Show these on the map" picks out the set and fades the other findings; the button undoes it (${shown.hl} outlined; ${shown.btn})`);
+  await page.screenshot({ path: `/tmp/explore-${label}-shown.png` });
+  if (label === "phone") { await page.click("#handle"); await page.waitForTimeout(300); await page.evaluate(() => { document.getElementById("key").open = true; }); }
+  await page.locator("#key .feat-map").first().click();
+  check(await page.evaluate((b) => JSON.stringify(window.__ws.map.getPaintProperty("find-line", "line-opacity")) === b && document.querySelector("#key .feat-map")?.textContent === "Show these on the map", baseOpacity),
+    `${label}: "Show all findings" brings every finding back`);
   await keyName.click();
   await page.evaluate(() => { document.querySelector(".maplibregl-popup")?.remove(); });
   check(/^What still needs checking: \d+ couldn't check, 1 no data, 1 caveat$/.test(s.gaps) && s.gapHeads.join("|") === "Not checked: check these yourself|No data here: may need a site visit or a local source|Assumptions and caveats", `${label}: what still needs checking, grouped (${s.gaps}; ${s.gapHeads.join(", ")})`);

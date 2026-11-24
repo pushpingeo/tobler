@@ -82,9 +82,10 @@ export function edgeDistanceKm(lonlat, geometry) {
   try {
     if (/Polygon/.test(geometry.type)) {
       if (turf.booleanPointInPolygon(lonlat, f)) return 0;
-      const lines = turf.polygonToLine(f);
-      const ls = lines.type === "FeatureCollection" ? lines.features : [lines];
-      return Math.min(...ls.map((l) => turf.pointToLineDistance(lonlat, l, { units: "kilometers" })));
+      // Every ring (outer and holes) as its own line: turf gives a polygon with holes as a MultiLineString, which
+      // pointToLineDistance can't take (it used to fail, so such features went unmeasured).
+      const rings = geometry.type === "Polygon" ? geometry.coordinates : geometry.coordinates.flat();
+      return Math.min(...rings.filter((r) => r.length > 1).map((r) => turf.pointToLineDistance(lonlat, turf.lineString(r), { units: "kilometers" })));
     }
     if (geometry.type === "LineString") return turf.pointToLineDistance(lonlat, f, { units: "kilometers" });
     if (geometry.type === "MultiLineString") return Math.min(...geometry.coordinates.map((c) => turf.pointToLineDistance(lonlat, turf.lineString(c), { units: "kilometers" })));

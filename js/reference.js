@@ -2,6 +2,7 @@
 // how big is it, where is it, how far from the coast, what towns are near, and what scale of work is it.
 // No DOM here, so it runs in the page and in the tests.
 import * as turf from "./vendor/turf.js";
+import { nearestKm } from "./nearness.js";
 
 export const REF_LAYERS = ["countries", "coastline", "places", "rivers", "lakes"];
 
@@ -96,18 +97,26 @@ export function countriesTouched(countries, feature) {
     const c = countryAt(countries, feature.geometry.coordinates);
     return c ? [c] : [];
   }
+  return touching(countries, feature).map((f) => f.properties);
+}
+// Country features a shape meets: box test, then the shape's edges against the country's (js/nearness.js, the shape
+// prepared once), which is far quicker than turf's intersect on a detailed site; turf if that can't measure it.
+function touching(countries, feature) {
   const b = turf.bbox(feature);
-  return countries.features.filter((f) => boxesMeet(b, f.bbox) && turf.booleanIntersects(f, feature)).map((f) => f.properties);
+  return countries.features.filter((f) => {
+    if (!boxesMeet(b, f.bbox)) return false;
+    const d = nearestKm(feature.geometry, f.geometry);
+    return d != null ? d === 0 : turf.booleanIntersects(f, feature);
+  });
 }
 
 // Each touched country's share of an area, from a grid of sample points (Rob's Miri log, 18 Nov: Miri Division
 // came out "across Indonesia, Malaysia and Brunei" because 1:10m borders clip its edge). Countries holding less
 // than `minShare` are only touched at the edge, which at this resolution (about a kilometre) may not be real.
 export function countrySplit(countries, feature, { minShare = 0.02, grid = 30 } = {}) {
-  const touched = countries.features.filter((f) => feature.geometry.type !== "Point" && boxesMeet(turf.bbox(feature), f.bbox) && turf.booleanIntersects(f, feature));
-  if (feature.geometry.type === "Point" || !/Polygon/.test(feature.geometry.type) || touched.length < 2) {
-    return { main: countriesTouched(countries, feature).map((c) => c.name), edge: [] };
-  }
+  if (feature.geometry.type === "Point") return { main: countriesTouched(countries, feature).map((c) => c.name), edge: [] };
+  const touched = touching(countries, feature);
+  if (!/Polygon/.test(feature.geometry.type) || touched.length < 2) return { main: touched.map((f) => f.properties.name), edge: [] };
   const [w, s, e, n] = turf.bbox(feature);
   const count = new Map(touched.map((f) => [f.properties.name, 0]));
   let inside = 0;

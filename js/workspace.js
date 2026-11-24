@@ -385,6 +385,7 @@ async function drawRings(place, kms = null) {
   map.getSource("rings")?.setData(turf.featureCollection(rings));
 }
 function clearFindings() {
+  setFocus(null);
   findings.clear(); hiddenThemes.clear(); ringsAround = null; findingLimit = Infinity;
   shownRun = null; paintMask();
   map.getSource("hl")?.setData(turf.featureCollection([]));
@@ -424,7 +425,7 @@ function drawKey() {
     name.type = "button";
     name.append(document.createTextNode(`${t.label} `), Object.assign(document.createElement("span"), { className: "count", textContent: counts.get(k) }));
     name.setAttribute("aria-expanded", String(keyOpen === k));
-    name.addEventListener("click", () => { keyOpen = keyOpen === k ? null : k; drawKey(); });
+    name.addEventListener("click", () => { keyOpen = keyOpen === k ? null : k; if (focusOwner?.closest("#key")) setFocus(null); drawKey(); });
     li.append(label, name);
     if (keyOpen === k) {
       const items = [...findings.values()].filter((f) => f.properties.theme === k)
@@ -469,15 +470,41 @@ function openPopup(p, lngLat) {
 // "Show all" and a way to put them all on the map. Tapping a row flies the map to it and opens its popup. items:
 // { id (a findings id, when it's on the map), name, distance_km, around, coverage, detail, publisher | dataset }.
 const LIST_FIRST = 10;
-function featureList(items, { record = null, label = "" } = {}) {
+// The source as a row shows it: the layer's title without the publisher in brackets (the popup has the publisher).
+const layerTitle = (f) => String(f.dataset || f.publisher || "").replace(/\s*\([^()]*\)\s*$/, "").trim();
+// Rows with the same name from the same layer are one feature in parts (two outlines of Castledike Wood): one row,
+// at its nearest part, saying how many (Rob, 24 Nov). Nearest first, as given.
+function groupParts(items) {
+  const rows = [], by = new Map();
+  for (const f of items) {
+    const k = `${String(f.name || "").toLowerCase()}|${layerTitle(f).toLowerCase()}`;
+    const g = f.name ? by.get(k) : null;
+    if (g) { g.parts++; if (f.id) g.ids.push(f.id); if (!g.id && f.id) g.id = f.id; continue; }
+    const row = { ...f, parts: 1, ids: f.id ? [f.id] : [] };
+    rows.push(row);
+    if (f.name) by.set(k, row);
+  }
+  return rows;
+}
+function featureList(rawItems, { record = null, label = "" } = {}) {
   const box = el("div", null, "feat-list");
+  const items = groupParts(rawItems);
+  // One layer for the whole list: name it once above the rows instead of on each.
+  const layers = [...new Set(items.map(layerTitle).filter(Boolean))];
+  const one = layers.length === 1 ? (rawItems.find((f) => f.dataset || f.publisher)?.dataset || rawItems.find((f) => f.publisher)?.publisher) : null;
   const ol = el("ol");
   const row = (f) => {
     const li = el("li");
     const b = el("button", null, "feat");
     b.type = "button";
     const where = f.around ? "around the site" : f.coverage ? `${Math.max(1, Math.round(f.coverage * 100))}% of the site` : f.distance_km == null ? "" : f.distance_km === 0 ? "on site" : U.dist(f.distance_km);
-    b.append(el("span", f.name || "Unnamed", "feat-name"), el("span", [where, f.detail, f.publisher || f.dataset].filter(Boolean).join(" · "), "feat-meta"));
+    const name = f.name || "Unnamed";
+    const layer = layerTitle(f);
+    // The layer goes on the row only when the list mixes layers, and not when it's the feature's name already.
+    const meta = [f.detail, f.parts > 1 ? `${f.parts} parts` : "", !one && layer && layer.toLowerCase() !== name.toLowerCase() ? layer : ""].filter(Boolean).join(" · ");
+    const head = el("span", null, "feat-head");
+    head.append(...(where ? [el("strong", where, "feat-dist")] : []), el("span", name, "feat-name"));
+    b.append(head, ...(meta ? [el("span", meta, "feat-meta")] : []));
     if (!f.id) { b.disabled = true; b.title = "Not on the map in this view"; }
     b.addEventListener("click", (e) => { e.stopPropagation(); flyToFinding(f.id, record); });
     li.append(b);
@@ -493,13 +520,42 @@ function featureList(items, { record = null, label = "" } = {}) {
   more.addEventListener("click", (e) => { e.stopPropagation(); all = true; paint(); });
   const onMap = el("button", "Show these on the map", "feat-map");
   onMap.type = "button";
-  onMap.addEventListener("click", (e) => { e.stopPropagation(); if (innerWidth <= 720) setSheet(false); showFeatureSet(record, items.map((f) => f.id).filter(Boolean), { fit: true, ids: true }); });
+  onMap.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (focus && focusOwner === box) { setFocus(null); return; }
+    const ids = [...new Set(items.flatMap((f) => f.ids || [f.id]).filter(Boolean))];
+    if (innerWidth <= 720) setSheet(false);
+    showFeatureSet(record, ids, { fit: true, ids: true });
+    setFocus(ids, box);
+  });
   box.setAttribute("aria-label", label ? `${label}: features by distance from the site` : "Features by distance from the site");
-  box.append(ol, more, onMap);
+  box.append(...(one ? [el("p", `From ${one}`, "feat-src")] : []), ol, more, onMap);
   paint();
   return box;
 }
-// Outline a set of findings on the map (a check's, or a key row's) and fit to them with the site.
+// "Show these on the map" (Rob, 24 Nov: it seemed to do nothing, as the set was already on the map): only the set at
+// full strength, every other finding faded, until "Show all findings" or the list closes. focus: finding ids.
+let focus = null, focusOwner = null;
+const FADED = 0.08;
+const FOCUS_PAINT = [["find-fill", "fill-opacity"], ["find-line", "line-opacity"], ["find-pt", "circle-opacity"], ["find-pt", "circle-stroke-opacity"], ["find-label", "text-opacity"]];
+const focusBase = new Map();
+function paintFocus() {
+  for (const [layer, prop] of FOCUS_PAINT) {
+    if (!map.getLayer(layer)) continue;
+    const k = `${layer}|${prop}`;
+    if (!focusBase.has(k)) focusBase.set(k, map.getPaintProperty(layer, prop) ?? 1);
+    const base = focusBase.get(k);
+    map.setPaintProperty(layer, prop, focus ? ["case", ["in", ["get", "id"], ["literal", [...focus]]], base, FADED] : base);
+  }
+  document.querySelectorAll(".feat-map").forEach((b) => { b.textContent = focus && b.closest(".feat-list") === focusOwner ? "Show all findings" : "Show these on the map"; });
+}
+function setFocus(ids, owner = null) {
+  focus = ids?.length ? new Set(ids) : null;
+  focusOwner = focus ? owner : null;
+  paintFocus();
+}
+// Outline a set of findings on the map (a check's, or a key row's) and fit to them with the site. A wide area the
+// site merely lies within (a zone round it, a sea) is left out of the fit, so the map doesn't zoom out to it.
 function showFeatureSet(record, idsOrFids, { fit = true, ids = false } = {}) {
   if (record && shownRun !== record.tobler_run.id) showRunOnMap(record, { fit: false });
   const keys = ids ? idsOrFids : idsOrFids.map((fid) => `${record.tobler_run.id}:${fid}`);
@@ -507,7 +563,8 @@ function showFeatureSet(record, idsOrFids, { fit = true, ids = false } = {}) {
   map.getSource("hl")?.setData(turf.featureCollection(feats));
   if (!fit || !feats.length) return;
   const site = record?.features.find((f) => f.properties.role === "site");
-  map.fitBounds(turf.bbox(turf.featureCollection([...feats, ...(site ? [site] : [])])), { padding: fitPadding(), maxZoom: 15 });
+  const near = feats.filter((f) => !f.properties.surrounds);
+  map.fitBounds(turf.bbox(turf.featureCollection([...(near.length ? near : feats), ...(site ? [site] : [])])), { padding: fitPadding(), maxZoom: 15 });
 }
 // One feature: fly to it, outline it and open its popup. On a phone the sheet lowers so the map shows.
 function flyToFinding(id, record) {
@@ -1166,6 +1223,7 @@ let shownRun = null;
 // Put a run's evidence on the map (replacing other findings), up to the card's slider.
 function showRunOnMap(record, { fit = true } = {}) {
   const r = record.tobler_run;
+  if (shownRun !== r.id) setFocus(null);
   findings.clear(); hiddenThemes.clear();
   for (const f of evidenceOf(record)) {
     const p = f.properties;
@@ -1549,6 +1607,7 @@ function paintRun(entry) {
           line.setAttribute("aria-expanded", String(open()));
           const toggle = () => {
             entry.openCheck = open() ? null : c.id;
+            if (focusOwner?.closest(".run")) setFocus(null);
             paintChecksOpen(card, entry);
             if (open()) showFeatureSet(record, feats.map((f) => f.fid).filter(Boolean), { fit: !phone });
             else map.getSource("hl")?.setData(turf.featureCollection([]));

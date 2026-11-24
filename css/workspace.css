@@ -93,7 +93,10 @@ a { color: var(--sea); }
   background: none; color: var(--ink); font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
 .feat-list .feat:hover, .feat-list .feat:focus-visible { background: var(--paper); }
 .feat-list .feat[disabled] { cursor: default; opacity: .7; }
+.feat-list .feat-head { display: flex; gap: 6px; align-items: baseline; font-size: 12.5px; }
+.feat-list .feat-dist { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; }
 .feat-list .feat-name { font-size: 12.5px; }
+.feat-list .feat-src { margin: 4px 6px 0; font-size: 11.5px; color: var(--ink-2); }
 .feat-list .feat-meta { font-size: 11.5px; color: var(--ink-2); }
 .feat-list .feat-more, .feat-list .feat-map { margin: 2px 6px 4px 0; padding: 2px 6px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink);
   font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; }
