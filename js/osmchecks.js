@@ -20,6 +20,11 @@ export const OSM_KINDS = {
   school: { sel: ['nwr["amenity"~"^(school|kindergarten|college)$"]'], match: (t) => /^(school|kindergarten|college)$/.test(t.amenity || ""), name: (t) => cap(t.amenity) },
   "health care": { sel: ['nwr["amenity"~"^(hospital|clinic|nursing_home)$"]', 'nwr["social_facility"="nursing_home"]'],
     match: (t) => /^(hospital|clinic|nursing_home)$/.test(t.amenity || "") || t.social_facility === "nursing_home", name: (t) => (t.amenity === "hospital" ? "Hospital" : t.amenity === "clinic" ? "Clinic" : "Care home") },
+  // For the area budget (developable area, 25 Nov): what's physically on the ground. Counted as things by kind, with
+  // every piece kept for the budget's geometry.
+  building: { sel: ['way["building"]'], match: (t) => !!t.building && t.building !== "no", name: () => "Buildings", byName: true },
+  "water body": { sel: ['way["natural"="water"]', 'way["landuse"~"^(reservoir|basin)$"]'], match: (t) => t.natural === "water" || /^(reservoir|basin)$/.test(t.landuse || ""), name: (t) => cap(t.water || "water body") },
+  watercourse: { sel: ['way["waterway"~"^(river|stream|canal|ditch|drain)$"]'], match: (t) => /^(river|stream|canal|ditch|drain)$/.test(t.waterway || ""), name: (t) => cap(t.waterway), line: true },
 };
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ") : s);
 const kv = (v) => String(v).split(";").map((x) => (+x >= 1000 ? `${Math.round(+x / 1000)} kV` : x)).join(", ");
@@ -32,11 +37,13 @@ export function grownBox(feature, km) {
 }
 
 // One Overpass query for several kinds: ways with their shapes, relations by their centre (a hospital mapped as a
-// multipolygon still counts, measured to its centre).
+// multipolygon still counts, measured to its centre). box: one box for every kind, or a function kind → its own box
+// (25 Nov: each kind only as far out as its own reach, so buildings on a site don't fill the limit with a town).
 export const MAX_ELEMENTS = 4000;
 export function osmQuery(kinds, box) {
-  const b = `(${box[1].toFixed(5)},${box[0].toFixed(5)},${box[3].toFixed(5)},${box[2].toFixed(5)})`;
-  const stmts = kinds.flatMap((k) => OSM_KINDS[k]?.sel || []).map((s) => `${s}${b};`).join("");
+  const bb = (x) => `(${x[1].toFixed(5)},${x[0].toFixed(5)},${x[3].toFixed(5)},${x[2].toFixed(5)})`;
+  const boxOf = typeof box === "function" ? box : () => box;
+  const stmts = kinds.flatMap((k) => (OSM_KINDS[k]?.sel || []).map((s) => `${s}${bb(boxOf(k))};`)).join("");
   return `[out:json][timeout:25];(${stmts})->.a;(node.a;way.a;);out geom qt ${MAX_ELEMENTS};rel.a;out center qt 400;`;
 }
 
@@ -59,9 +66,8 @@ export async function osmAnswers({ wants, site, query, now = () => new Date().to
   const kinds = [...wants.keys()].filter((k) => OSM_KINDS[k]);
   const out = new Map();
   if (!kinds.length) return out;
-  const km = Math.max(...kinds.map((k) => wants.get(k)));
   let json;
-  try { json = await query(osmQuery(kinds, grownBox(site, km))); }
+  try { json = await query(osmQuery(kinds, (k) => grownBox(site, wants.get(k)))); }
   catch (e) {
     for (const k of kinds) out.set(k, { not_checked: String(e.message || e).slice(0, 200) });
     return out;
@@ -87,10 +93,17 @@ export async function osmAnswers({ wants, site, query, now = () => new Date().to
     }
     features.sort((a, b) => a.distance_km - b.distance_km);
     // A road, railway or power line comes in many pieces, and homes in many patches: one row per name (or per
-    // unnamed kind), at its nearest piece, so the count is of things, not segments.
+    // unnamed kind), at its nearest piece, so the count is of things, not segments. The other pieces' shapes stay
+    // with that row (parts), for the area budget; nothing else reads them.
     if (def.line || def.byName) {
-      const seen = new Set();
-      const kept = features.filter((f) => { const key = f.name.toLowerCase(); if (seen.has(key)) return false; seen.add(key); return true; });
+      const seen = new Map();
+      const kept = [];
+      for (const f of features) {
+        const key = f.name.toLowerCase();
+        const k = seen.get(key);
+        if (k) { (k.parts ||= []).push({ geometry: f.geometry, osm: f.osm }); continue; }
+        seen.set(key, f); kept.push(f);
+      }
       features.length = 0; features.push(...kept);
     }
     out.set(k, { features, meta: { dataset: osmTitle(k), publisher: "OpenStreetMap contributors", licence: "ODbL 1.0 (© OpenStreetMap contributors)", checked_at: checkedAt, capped, fetched_km: within } });
@@ -98,5 +111,6 @@ export async function osmAnswers({ wants, site, query, now = () => new Date().to
   return out;
 }
 const PLURAL = { "power line": "power lines", substation: "substations", pipeline: "pipelines", "main road": "main roads", railway: "railways", aerodrome: "aerodromes",
-  "wind turbine": "wind turbines", homes: "residential land", school: "schools", "health care": "hospitals, clinics and care homes" };
+  "wind turbine": "wind turbines", homes: "residential land", school: "schools", "health care": "hospitals, clinics and care homes",
+  building: "buildings", "water body": "water bodies", watercourse: "rivers, streams and ditches" };
 export const osmTitle = (kind) => `OpenStreetMap: ${PLURAL[kind] || kind} (completeness varies)`;

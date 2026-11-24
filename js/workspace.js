@@ -237,6 +237,13 @@ function start() {
     paint: { "line-color": themeColour, "line-width": ["case", big, 1, 2], "line-opacity": emphasis } });
   map.addLayer({ id: "find-pt", type: "circle", source: "findings", filter: ["==", ["geometry-type"], "Point"],
     paint: { "circle-radius": ["match", ["get", "band"], "near", 6, 5], "circle-color": themeColour, "circle-opacity": emphasis, "circle-stroke-color": C.white, "circle-stroke-width": 1.5 } });
+  // An area budget's shapes (the developable area): what was taken off, by topic; soft constraints dashed; what's left
+  // outlined strongly. Its own layer: it changes only when another run is shown.
+  map.addSource("budget", { type: "geojson", data: turf.featureCollection([]) });
+  map.addLayer({ id: "budget-taken", type: "fill", source: "budget", filter: ["==", ["get", "part"], "taken"], paint: { "fill-color": themeColour, "fill-opacity": 0.42 } });
+  map.addLayer({ id: "budget-net", type: "fill", source: "budget", filter: ["==", ["get", "part"], "net"], paint: { "fill-color": C.sea, "fill-opacity": 0.16 } });
+  map.addLayer({ id: "budget-soft", type: "line", source: "budget", filter: ["==", ["get", "part"], "soft"], paint: { "line-color": themeColour, "line-width": 1.6, "line-dasharray": [2, 2] } });
+  map.addLayer({ id: "budget-net-line", type: "line", source: "budget", filter: ["==", ["get", "part"], "net"], paint: { "line-color": C.sea, "line-width": 2.4 } });
   // Inside the area only (a run card's switch): everything outside the site is dimmed.
   map.addSource("mask", { type: "geojson", data: turf.featureCollection([]) });
   map.addLayer({ id: "mask-fill", type: "fill", source: "mask", paint: { "fill-color": C.ink, "fill-opacity": 0.22 } });
@@ -961,7 +968,8 @@ host.screening = createScreening({
       ...(r.debug ? { debug: r.debug } : {}), ...(r.note ? { note: r.note } : {}), usage: r.usage } });
     stopProgress(record);
     const site = placeByName(r.site?.name || "");
-    if (site && r.site.asset_type) site.assetType = r.site.asset_type;
+    // A screen's asset type is the place's; a study's isn't (the developable area has its own few types).
+    if (site && r.site.asset_type && !r.study) site.assetType = r.site.asset_type;
     showRun(record);
   },
   onEvent: (ev) => {
@@ -996,7 +1004,7 @@ async function loadIndustry(stored) {
 }
 
 Promise.all([
-  ...["skills/place-finding/SKILL.md", "skills/ntr-screening/SKILL.md", "skills/coordinate-reference/SKILL.md", "skills/contamination-desk-study/SKILL.md"].map((f) => fetch(asset(f)).then((r) => r.text()).then((t) => { const s = parseSkill(t); skills[s.name] = s; })),
+  ...["skills/place-finding/SKILL.md", "skills/ntr-screening/SKILL.md", "skills/coordinate-reference/SKILL.md", "skills/contamination-desk-study/SKILL.md", "skills/developable-area/SKILL.md"].map((f) => fetch(asset(f)).then((r) => r.text()).then((t) => { const s = parseSkill(t); skills[s.name] = s; })),
   fetch(asset("catalogue/anchors.json")).then((r) => r.json()).then((j) => { anchors = j.sources; }),
   fetch(asset("catalogue/trusted.json")).then((r) => r.json()).then((j) => { trusted = j; }),
   fetch(asset("catalogue/checks.json")).then((r) => r.json()).then((j) => { checksCatalogue = j; }),
@@ -1411,18 +1419,19 @@ function showRunOnMap(record, { fit = true, instant = false } = {}) {
   }
   shownRun = r.id;
   const site = record.features.find((f) => f.properties.role === "site");
+  map.getSource("budget")?.setData(turf.featureCollection(record.features.filter((f) => f.properties.role === "budget")));
   findingLimit = runs.get(r.id)?.km ?? r.assessed_within_km;
   ringsAround = null;
   map.getSource("hl")?.setData(turf.featureCollection([]));
   drawFindings();
   paintMask();
-  const inside = r.extent === "inside" || findingLimit === 0;
+  const inside = r.extent === "inside" || findingLimit === 0 || !!r.budget;
   if (fit) map.fitBounds(turf.bbox(inside ? site : turf.buffer(site, Math.max(r.distances.close, 1), { units: "kilometers", steps: 16 })), { padding: fitPadding(), maxZoom: 13, ...(instant ? { duration: 0 } : {}) });
   paintTree();
 }
 
 // Distance rings for a run: none when it's looking inside the area only.
-const ringsFor = (r) => (r.extent === "inside" ? [] : [r.distances.near, r.distances.close, r.fetched_to_km].filter((v, i, a) => v > 0 && a.indexOf(v) === i));
+const ringsFor = (r) => (r.extent === "inside" || r.budget ? [] : [r.distances.near, r.distances.close, r.fetched_to_km].filter((v, i, a) => v > 0 && a.indexOf(v) === i));
 
 // Inside the area only: dim the world outside the site and drop the rings; otherwise the rings come back.
 function paintMask() {
@@ -1472,7 +1481,8 @@ function showRun(record) {
   card.querySelector(".meta").textContent = `${r.id} · ${new Date(r.finished_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
   card.querySelector(".meta").title = `Method ${r.skill.version}${r.screen_seconds ? `, took ${r.screen_seconds} s` : ""}`;
   // A study has no asset type or stage: its title says what it is.
-  card.querySelector(".setup").textContent = (r.study ? [r.site.setting, r.site.footprint] : [
+  card.querySelector(".setup").textContent = (r.budget ? [`For a ${r.budget.asset_label}${r.budget.asset_assumed ? " (no asset type given)" : ""}`, "on the site's outline"]
+    : r.study ? [r.site.setting, r.site.footprint] : [
     `${r.site.asset_label[0].toUpperCase()}${r.site.asset_label.slice(1)}${r.site.asset_assumed ? " (assumed)" : ""}`, r.site.stage, r.site.setting, r.site.footprint,
   ]).filter(Boolean).join(" · ");
   // The short form on the card; the full wording is in the report and the downloaded run (Rob, 22 Nov).
@@ -1636,7 +1646,7 @@ async function rerun(entry) {
     const input = rerunInput(entry.record);
     turnLog.input = input;
     const studyEntry = r.study ? (profile?.skills_offered || []).find((x) => x.id === r.study.id) : null;
-    const head = studyEntry ? await host.screening.study(studyEntry, place, { replaces: r.id }) : await host.screening.screen(input, place);
+    const head = studyEntry ? await host.screening.study(studyEntry, place, { ...(r.inputs || {}), replaces: r.id }) : await host.screening.screen(input, place);
     const rec = runs.get(head.run)?.record.tobler_run;
     const was = r.flags.length, now = rec?.flags.length ?? 0;
     const moved = rec?.replaces?.checks_changed;
@@ -1734,7 +1744,10 @@ function paintRun(entry) {
     li.append(d);
     return li;
   }));
-  if (!r.flags.length && !r.parse_error) list.replaceChildren(el("li", r.study ? "No contaminant linkages identified in the open records. See what a full desk study would add below." : "No flags raised. See what still needs checking below.", "flag note"));
+  // An area budget (the developable area): a table instead of flags, and no distance slider.
+  card.classList.toggle("is-budget", !!r.budget);
+  if (r.budget) { paintBudget(entry); list.replaceChildren(); }
+  else if (!r.flags.length && !r.parse_error) list.replaceChildren(el("li", r.study ? "No contaminant linkages identified in the open records. See what a full desk study would add below." : "No flags raised. See what still needs checking below.", "flag note"));
   // The decision first (from the ESIA read, 20 Nov): what the screen suggests, in the analyst's words, and why.
   const dec = card.querySelector(".decision");
   dec.hidden = !r.decision;
@@ -1831,6 +1844,74 @@ function paintRun(entry) {
   }
   card.querySelector('input[type="range"]').value = String(entry.km);
   paintReach(entry);
+}
+
+// The area budget (the developable area, 25 Nov): gross, each deduction with its hectares and share, the net, the soft
+// constraints inside it, and what wasn't checked. A row opens into its reason and source and picks its area out on
+// the map. Numbers only from the run: nothing is worked out here.
+function paintBudget(entry) {
+  const { record, card } = entry;
+  const r = record.tobler_run, b = r.budget;
+  const box = card.querySelector(".budget");
+  box.hidden = false;
+  const pct = (v) => (v >= 0.995 ? "100%" : v > 0 && v < 0.005 ? "<1%" : `${Math.round(v * 100)}%`);
+  const shapeOf = (id) => record.features.find((f) => f.properties.role === "budget" && f.properties.deduction === id);
+  const line = (cls, label, ha, share, x = {}) => {
+    const li = el("li", null, `brow ${cls}`);
+    const head = el(x.body ? "summary" : "div", null, "bhead");
+    if (x.topic) { const sw = el("span", null, "swatch"); sw.style.background = topicInfo(x.topic).colour; sw.title = topicInfo(x.topic).label; head.append(sw); }
+    head.append(el("span", label, "blabel"), el("span", ha, "bha"), el("span", share, "bpct"));
+    if (!x.body) { li.append(head); return li; }
+    const d = document.createElement("details");
+    d.append(head, x.body);
+    d.addEventListener("toggle", () => {
+      if (!d.open) return;
+      if (shownRun !== r.id) showRunOnMap(record, { fit: false });
+      const g = x.shape;
+      map.getSource("hl")?.setData(turf.featureCollection(g ? [g] : []));
+      if (g && !phone) map.fitBounds(turf.bbox(turf.featureCollection([g, record.features.find((f) => f.properties.role === "site")])), { padding: fitPadding(), maxZoom: 16 });
+    });
+    li.append(d);
+    return li;
+  };
+  const bodyOf = (row) => {
+    const body = el("div", null, "bbody");
+    body.append(el("p", row.reason || "", "why"));
+    const facts = [];
+    if (row.buffer_m) facts.push(`Buffer ${row.buffer_m} m${row.changed ? "" : " (the default)"}.`);
+    if (row.changed) facts.push(`Changed: ${row.changed}.`);
+    if (row.count) facts.push(`${row.count} feature${row.count === 1 ? "" : "s"} within reach.`);
+    if (row.centre_only) facts.push(`${row.centre_only} more mapped only as a centre point in OpenStreetMap, so their area isn't counted.`);
+    if (row.no_area) facts.push(`${row.no_area} point${row.no_area === 1 ? "" : "s"} or line${row.no_area === 1 ? "" : "s"} with no buffer, so no area.`);
+    if (row.unread) facts.push(`${row.unread} shape${row.unread === 1 ? "" : "s"} couldn't be read.`);
+    if (row.partly) facts.push(`Partly checked: ${row.partly}.`);
+    if (facts.length) body.append(el("p", facts.join(" "), "facts"));
+    const src = (row.source || []).map((x) => `${x.dataset}${x.publisher && !String(x.dataset).includes(x.publisher) ? ` (${x.publisher})` : ""}${x.licence ? `, ${x.licence}` : ""}`);
+    if (src.length) body.append(el("p", src.join("; "), "src"));
+    return body;
+  };
+  const ol = el("ol", null, "brows");
+  ol.append(line("gross", "Gross site area", U.hectares(b.gross_ha), "100%"));
+  const KIND = { hard: "can't build", buffer: "keep clear", avoid: "avoided by default" };
+  for (const row of b.rows.filter((x) => x.state === "found" && x.ha > 0)) {
+    ol.append(line(`minus ${row.kind}`, `− ${row.label}${row.buffer_m ? ` + ${row.buffer_m} m` : ""}`, U.hectares(row.ha), pct(row.share),
+      { topic: row.topic, body: (() => { const bd = bodyOf(row); const k = KIND[row.kind] || row.kind; bd.prepend(el("p", k.charAt(0).toUpperCase() + k.slice(1), "kindtag")); return bd; })(), shape: shapeOf(row.id) }));
+  }
+  ol.append(line("net", "Net developable", U.hectares(b.net_ha), pct(b.net_share), { body: (() => { const bd = el("div", null, "bbody"); bd.append(el("p", "What's left after the deductions above, outlined in blue on the map. Access, layout and drainage take more off later.", "why")); return bd; })(),
+    shape: record.features.find((f) => f.properties.role === "budget" && f.properties.part === "net") }));
+  const soft = b.soft.filter((x) => x.state === "found" && x.ha > 0);
+  if (soft.length) {
+    ol.append(line("softhead", "Of which, usable at a cost", U.hectares(b.soft_ha), ""));
+    for (const row of soft) ol.append(line("soft", row.label, U.hectares(row.ha), pct(row.share), { topic: row.topic, body: bodyOf(row), shape: shapeOf(row.id) }));
+  }
+  const notes = [];
+  const nc = [...b.rows, ...b.soft].filter((x) => x.state === "not_checked");
+  if (nc.length) notes.push(el("p", `Not checked: ${nc.map((x) => `${x.label.toLowerCase()} (${x.why})`).join("; ")}.`, "bnc"));
+  const clear = [...b.rows, ...b.soft].filter((x) => x.state === "none" || (x.state === "found" && !(x.ha > 0)));
+  if (clear.length) notes.push(el("p", `Checked, nothing taken off: ${clear.map((x) => x.label.toLowerCase()).join(", ")}.`, "bclear"));
+  if (b.changes?.length) notes.push(el("p", `Your changes: ${b.changes.join("; ")}.`, "bchanges"));
+  if (b.unknown?.length) notes.push(el("p", `Not something Tobler measures yet, so ignored: ${b.unknown.join(", ")}.`, "bchanges"));
+  box.replaceChildren(el("p", U.localise(r.summary), "bsummary"), ol, ...notes);
 }
 
 // The slider's line: how far, the nearest finding of each theme, flags whose evidence is all further out,
@@ -2153,6 +2234,9 @@ function traceLine(ev) {
 function focusedOrLatest() {
   return (focusName && placeByName(focusName)) || [...places.values()].at(-1) || null;
 }
+// The developable area's words for a place's screened asset type, when it has one of its own.
+const BUDGET_WORDS = { solar: "a solar farm", "wind-onshore": "onshore wind" };
+const assetLabelOf = (t) => BUDGET_WORDS[t] || null;
 function paintChips() {
   const row = document.querySelector(".chips");
   row.hidden = !places.size;
@@ -2172,7 +2256,9 @@ function paintChips() {
       if (soon) { skillSoon(s); return; }
       const q = focusedOrLatest();
       if (!q || busy) return;
-      say.value = `Run the ${s.label.toLowerCase()} for ${q.name}`; grow(); say.focus();
+      // The developable area depends on what's planned: say it when the place already knows (from a screen).
+      const planned = s.kind === "budget" && assetLabelOf(q.assetType) ? ` for ${assetLabelOf(q.assetType)}` : "";
+      say.value = `Run the ${s.label.toLowerCase()} for ${q.name}${planned}`; grow(); say.focus();
       say.setSelectionRange(say.value.length, say.value.length);
     });
     row.append(b);

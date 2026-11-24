@@ -11,6 +11,10 @@ import { forAnalyst, runScreening, createScreening, evidenceWithin, nearestByThe
 import * as G from "../js/geometry.js";
 import { siteChange, rerunInput, runLines, outOfDateText } from "../js/outofdate.js";
 import * as K from "../js/checks.js";
+import { laeaInverse } from "../js/areabudget.js";
+import { budgetRules, resolveDeductions, classMatches } from "../js/developable.js";
+import { BUDGET_RULE_IDS, BUDGET_ASSETS } from "../js/placetools.js";
+const near = (a, b, tol) => assert.ok(Math.abs(a - b) <= tol, `${a} vs ${b} (±${tol})`);
 
 let passed = 0;
 const test = async (name, fn) => { await fn(); passed++; console.log("ok", name); };
@@ -961,6 +965,113 @@ await test("the UK pack on land: flood zones and farmland by share of the site, 
   assert.match(pl.sources?.[0]?.dataset || pl.source?.dataset || "", /^OpenStreetMap: power lines/);
   assert.equal(pl.must, false);
   assert.ok(by["community.homes"] && by["hazards.coal-mining"] && by["water.source-protection"], "the new UK and OpenStreetMap checks run on a site in England");
+});
+
+await test("the developable area: the skill's rules for the asset type, the checks within each buffer, one area budget, no model call", async () => {
+  // A 1 km square solar site south of York, built on the ground (laea), so the true gross is 100 ha.
+  const C = [-1.08, 53.9];
+  const inv = laeaInverse(C);
+  const kmBox = (x0, y0, x1, y1) => ({ type: "Polygon", coordinates: [[[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]].map(inv)] });
+  const field = { id: 7, name: "Home Farm", feature: { type: "Feature", properties: {}, geometry: kmBox(-0.5, -0.5, 0.5, 0.5) }, origin: { method: "drawn" } };
+  const F = (geometry, properties) => ({ type: "Feature", geometry, properties });
+  const ukAtlas = async (tool, args) => {
+    if (tool !== "fetch_features") return atlas(tool, args);
+    // An SSSI over the western 20%; Flood Zone 3 along the south (200 m) and Flood Zone 2 over the next 200 m; grade 2 farmland everywhere.
+    if (args.id === "0c53cecc65701f0c") return { returned: 1, features: [F(kmBox(-2, -2, -0.3, 2), { NAME: "Ings Meadow SSSI" })] };
+    if (args.id === "5ffe9c81924b8082") return { returned: 2, features: [F(kmBox(-2, -2, 2, -0.3), { flood_zone: "FZ3" }), F(kmBox(-2, -0.3, 2, -0.1), { flood_zone: "FZ2" })] };
+    if (args.id === "5e7c583217c03078") return { returned: 1, features: [F(kmBox(-2, -2, 2, 2), { ALC_GRADE: "Grade 2", JOB_NUMBER: "1" })] };
+    return { returned: 0, features: [] };
+  };
+  // OpenStreetMap: a 132 kV line north–south through x = 0.3 km, in two pieces; one building; residential land 20 m off the east edge.
+  let osmAsked = "";
+  const node = (x, y) => { const [lon, lat] = inv([x, y]); return { lon, lat }; };
+  const overpass = { elements: [
+    { type: "way", id: 1, tags: { power: "line", voltage: "132000" }, geometry: [node(0.3, -1), node(0.3, 0)] },
+    { type: "way", id: 2, tags: { power: "line", voltage: "132000" }, geometry: [node(0.3, 0), node(0.3, 1)] },
+    { type: "way", id: 3, tags: { building: "barn" }, geometry: [node(0, 0.2), node(0.1, 0.2), node(0.1, 0.3), node(0, 0.3), node(0, 0.2)] },
+    { type: "way", id: 4, tags: { landuse: "residential" }, geometry: [node(0.52, -0.2), node(0.8, -0.2), node(0.8, 0.2), node(0.52, 0.2), node(0.52, -0.2)] },
+    { type: "relation", id: 5, tags: { natural: "water" }, center: node(-0.1, 0.4) },
+  ] };
+  const fetchFn = async (url, opts = {}) => {
+    if (/overpass|kumi|interpreter/i.test(String(url))) { osmAsked = decodeURIComponent(String(opts.body || "")); return { ok: true, json: async () => overpass }; }
+    return { ok: true, json: async () => ({ samples: [] }) };
+  };
+  const profile = JSON.parse(read("../catalogue/industries/energy.json"));
+  const entry = profile.skills_offered.find((x) => x.id === "developable-area");
+  assert.equal(entry.status, "ready");
+  const sk = parseSkill(read("../skills/developable-area/SKILL.md"));
+  const calls = [];
+  const svc = createScreening({ host: { ...host(), atlas: ukAtlas, profile: () => profile, fetchFn }, table, skill, skillFor: (n) => (n === "developable-area" ? sk : null),
+    callClaude: async (a) => { calls.push(a); throw new Error("no model call expected"); }, onRun: () => {} });
+  const head = await svc.study(entry, field, { asset_type: "solar" });
+  assert.equal(calls.length, 0, "no model call");
+  const rec = [...svc.runs.values()].at(-1);
+  const r = rec.tobler_run, b = r.budget;
+  assert.equal(r.kind, "developable-area");
+  assert.equal(r.decision, null);
+  near(b.gross_ha, 100, 0.1);
+  const row = (id) => [...b.rows, ...b.soft].find((x) => x.id === id);
+  near(row("nature-sites").ha, 20, 0.1);
+  assert.equal(row("nature-sites").state, "found");
+  // The power line, both pieces, 30 m each side: 1 km × 60 m = 6 ha, none of it under the SSSI.
+  near(row("power-lines").ha, 6, 0.15);
+  assert.ok(row("buildings").ha > 0.9 && row("buildings").ha < 1.1, `building ${row("buildings").ha}`);
+  // Residential land 20 m off the east edge, 50 m buffer for solar: a 30 m strip about 490 m long (the buffer's rounded ends).
+  assert.ok(row("homes").ha > 1.3 && row("homes").ha < 1.55, `homes ${row("homes").ha}`);
+  // Flood Zone 3 over the south 200 m, outside the SSSI and line already taken.
+  assert.ok(row("flood-zone-3").ha > 12 && row("flood-zone-3").ha < 16, `fz3 ${row("flood-zone-3").ha}`);
+  const taken = b.rows.reduce((t, x) => t + x.ha, 0);
+  near(taken + b.net_ha, b.gross_ha, 0.1);
+  // Soft: Flood Zone 2 first, then grade 2 farmland on the rest; slope not checked; the lake as a relation is counted apart.
+  assert.ok(row("flood-zone-2").ha > 10, `fz2 ${row("flood-zone-2").ha}`);
+  near(row("flood-zone-2").ha + row("bmv-farmland").ha, b.net_ha, 0.15);
+  assert.equal(row("slope").state, "not_checked");
+  assert.equal(row("water-bodies").centre_only, 1);
+  assert.equal(row("water-bodies").ha, 0);
+  // Not for this asset type: no listed-buildings deduction for... (solar has one), and wind's homes buffer isn't used.
+  assert.equal(row("homes").buffer_m, 50);
+  // Each check looked only as far as its buffer: homes 50 m, not a screen's 500 m.
+  assert.equal(r.checks.find((c) => c.id === "community.homes").reach_km, 0.05);
+  assert.ok(!r.checks.some((c) => c.id === "community.schools"), "only the budget's checks");
+  assert.match(osmAsked, /way\["building"\]/);
+  // Shapes for the map and the headline for the analyst: names and numbers, never coordinates.
+  const net = rec.features.find((f) => f.properties.role === "budget" && f.properties.part === "net");
+  near(turf.area(net) / 1e4, b.net_ha, 0.5);
+  assert.ok(rec.features.some((f) => f.properties.part === "taken" && f.properties.deduction === "nature-sites"));
+  assert.equal(head.net_ha, b.net_ha);
+  assert.ok(!/\[\s*-?\d+\.\d+\s*,\s*-?\d+\.\d+\s*\]/.test(JSON.stringify(head)), "no coordinates in the headline");
+  assert.match(r.summary, /^Net developable area for a solar farm: /);
+  // The person's own rules: 100 m from homes, leave out the barn, Flood Zone 3 usable on raised panels.
+  const head2 = await svc.study(entry, field, { asset_type: "solar", buffers: [{ id: "homes", buffer_m: 100 }], leave_out: ["buildings"], as_soft: ["flood-zone-3"] });
+  const b2 = [...svc.runs.values()].at(-1).tobler_run.budget;
+  const row2 = (id) => [...b2.rows, ...b2.soft].find((x) => x.id === id);
+  assert.ok(!row2("buildings"));
+  assert.equal(row2("flood-zone-3").kind, "soft");
+  assert.ok(row2("homes").ha > row("homes").ha);
+  assert.ok(b2.changes.some((c) => /Homes: 100 m, as you asked \(default 50 m\)/.test(c)));
+  assert.ok(head2.your_changes.length === 3);
+  // A point or a search area is refused politely.
+  const pt = await svc.study(entry, { name: "Pin", feature: { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: C } }, origin: { method: "drawn" } }, {});
+  assert.match(pt.not_available, /needs an outline/);
+  const sa = await svc.study(entry, { name: "Somewhere", feature: field.feature, origin: { method: "words", match: "name_only", anchor: { name: "x" } } }, {});
+  assert.match(sa.not_available, /search area/);
+});
+
+await test("the developable area: the analyst's rule ids and asset types match the skill's", async () => {
+  const rules = budgetRules(parseSkill(read("../skills/developable-area/SKILL.md")));
+  assert.deepEqual(rules.deductions.map((d) => d.id).sort(), [...BUDGET_RULE_IDS].sort());
+  assert.deepEqual(Object.keys(rules.asset_types).sort(), [...BUDGET_ASSETS].sort());
+  for (const d of rules.deductions) for (const c of d.checks) assert.ok(checksCat.checks.some((x) => x.id === c), `${d.id}: no check ${c}`);
+  // A general site skips the asset-specific buffers; an unknown asset type is general, and says so.
+  const g = resolveDeductions(rules, { asset_type: "spaceport" });
+  assert.equal(g.asset_type, "general"); assert.equal(g.asset_assumed, true);
+  assert.ok(!g.deductions.some((d) => d.id === "homes"));
+  assert.deepEqual(resolveDeductions(rules, { asset_type: "solar", leave_out: ["hedges"] }).unknown, ["hedges"]);
+  // A check used only by the budget is left out of a screen's plan.
+  const plan = K.planChecks(checksCat, { bbox: [-1.09, 53.89, -1.07, 53.91], countries: ["United Kingdom"], offshore: false }, "local");
+  assert.ok(!plan.some((p) => p.check.id === "material.buildings"));
+  assert.ok(K.planChecks(checksCat, { bbox: [-1.09, 53.89, -1.07, 53.91], countries: ["United Kingdom"], offshore: false }, "local", { skill: "developable-area" }).some((p) => p.check.id === "material.buildings"));
+  assert.ok(classMatches("Flood Zone 3 (rivers)", ["Flood Zone 3"]) && !classMatches("Grade 3a", ["Grade 3"]) && classMatches("Grade 3 (provisional map)", ["Grade 3"]));
 });
 
 console.log(`${passed} ntrrun tests passed`);

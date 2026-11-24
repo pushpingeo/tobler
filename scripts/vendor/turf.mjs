@@ -2,4 +2,4 @@
 export { area, length, centroid, bbox, distance, booleanPointInPolygon, booleanIntersects, pointToLineDistance,
   transformRotate, transformScale, transformTranslate, point, polygon, lineString, featureCollection,
   bboxPolygon, circle, destination, rhumbBearing, rhumbDistance, nearestPointOnLine, convex, buffer,
-  feature, flattenEach, polygonToLine, bearing, pointOnFeature, union, intersect } from "@turf/turf";
+  feature, flattenEach, polygonToLine, bearing, pointOnFeature, union, intersect, difference } from "@turf/turf";

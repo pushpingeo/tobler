@@ -9,16 +9,17 @@
 <link rel="icon" href="img/tobler.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/public-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="js/vendor/maplibre-gl.css">
-<link rel="stylesheet" href="css/workspace.css?v=4a9856bc">
+<link rel="stylesheet" href="css/workspace.css?v=aab010b1">
 <script src="js/vendor/maplibre-gl.js"></script>
 <script type="importmap">
 {
  "imports": {
+  "./js/areabudget.js": "./js/areabudget.js?v=8c33f8d4",
   "./js/assetpicks.js": "./js/assetpicks.js?v=01d8f63a",
   "./js/atlasclient.js": "./js/atlasclient.js?v=6e6b994a",
   "./js/atlasfeatures.js": "./js/atlasfeatures.js?v=aea7591d",
   "./js/boundaries.js": "./js/boundaries.js?v=b245dfdc",
-  "./js/checks.js": "./js/checks.js?v=577f888d",
+  "./js/checks.js": "./js/checks.js?v=585e4e50",
   "./js/claude.js": "./js/claude.js?v=a4e8d42a",
   "./js/confidence.js": "./js/confidence.js?v=ad22f5c6",
   "./js/config.js": "./js/config.js?v=7752ed50",
@@ -26,6 +27,7 @@
   "./js/converse.js": "./js/converse.js?v=d85adda0",
   "./js/coords.js": "./js/coords.js?v=7f6bb52e",
   "./js/datatools.js": "./js/datatools.js?v=ca2fcf54",
+  "./js/developable.js": "./js/developable.js?v=713ed76f",
   "./js/disclaimer.js": "./js/disclaimer.js?v=8cfa6424",
   "./js/distances.js": "./js/distances.js?v=8be82f4f",
   "./js/elevation.js": "./js/elevation.js?v=2c7251b2",
@@ -42,25 +44,25 @@
   "./js/industry.js": "./js/industry.js?v=0d32f3b5",
   "./js/licence.js": "./js/licence.js?v=cf8fd6ef",
   "./js/nearness.js": "./js/nearness.js?v=6807b2f9",
-  "./js/ntrrun.js": "./js/ntrrun.js?v=862d7733",
-  "./js/osmchecks.js": "./js/osmchecks.js?v=90065f0f",
+  "./js/ntrrun.js": "./js/ntrrun.js?v=936f8068",
+  "./js/osmchecks.js": "./js/osmchecks.js?v=61e81c3a",
   "./js/outofdate.js": "./js/outofdate.js?v=09c95316",
-  "./js/placetools.js": "./js/placetools.js?v=735777c4",
+  "./js/placetools.js": "./js/placetools.js?v=b0629a8f",
   "./js/projectstore.js": "./js/projectstore.js?v=c0e11ae3",
   "./js/reference.js": "./js/reference.js?v=c5ac2d6a",
   "./js/seavalues.js": "./js/seavalues.js?v=a6bb8879",
-  "./js/share.js": "./js/share.js?v=ea875b7e",
+  "./js/share.js": "./js/share.js?v=985f7a85",
   "./js/sharelog.js": "./js/sharelog.js?v=c41ca9c5",
   "./js/siterole.js": "./js/siterole.js?v=ab3fae8a",
   "./js/sitetree.js": "./js/sitetree.js?v=c53a8072",
   "./js/tools.js": "./js/tools.js?v=e01d1756",
   "./js/transform.js": "./js/transform.js?v=007b7bff",
-  "./js/units.js": "./js/units.js?v=77029a89",
+  "./js/units.js": "./js/units.js?v=0ba8c135",
   "./js/vendor/draw.js": "./js/vendor/draw.js?v=d46ad546",
   "./js/vendor/fileread.js": "./js/vendor/fileread.js?v=c6e0d988",
-  "./js/vendor/turf.js": "./js/vendor/turf.js?v=bae079f8",
-  "./js/workspace.js": "./js/workspace.js?v=04cad54e",
-  "@turf/turf": "./js/vendor/turf.js?v=bae079f8",
+  "./js/vendor/turf.js": "./js/vendor/turf.js?v=555787c6",
+  "./js/workspace.js": "./js/workspace.js?v=7cbfdb4b",
+  "@turf/turf": "./js/vendor/turf.js?v=555787c6",
   "osmtogeojson": "./js/vendor/osmtogeojson.js?v=75ffea00"
  }
 }
@@ -71,6 +73,7 @@
  "skills/coordinate-reference/SKILL.md": "skills/coordinate-reference/SKILL.md?v=97f17a7e",
  "skills/coordinate-reference/datums.md": "skills/coordinate-reference/datums.md?v=d513687d",
  "skills/coordinate-reference/operations.md": "skills/coordinate-reference/operations.md?v=c2d3f852",
+ "skills/developable-area/SKILL.md": "skills/developable-area/SKILL.md?v=424f17bd",
  "skills/ntr-screening/SKILL.md": "skills/ntr-screening/SKILL.md?v=cbff46a1",
  "skills/ntr-screening/operations.md": "skills/ntr-screening/operations.md?v=224cb367",
  "skills/ntr-screening-ifc/SKILL.md": "skills/ntr-screening-ifc/SKILL.md?v=d087c0ba",
@@ -79,9 +82,9 @@
  "skills/place-finding/operations.md": "skills/place-finding/operations.md?v=5603be0c",
  "catalogue/anchors.json": "catalogue/anchors.json?v=4239096c",
  "catalogue/catalogue.json": "catalogue/catalogue.json?v=1fae6aef",
- "catalogue/checks.json": "catalogue/checks.json?v=b12a914f",
+ "catalogue/checks.json": "catalogue/checks.json?v=5eaab9f7",
  "catalogue/distances.json": "catalogue/distances.json?v=0373f482",
- "catalogue/industries/energy.json": "catalogue/industries/energy.json?v=5b1877ea",
+ "catalogue/industries/energy.json": "catalogue/industries/energy.json?v=b78d8ac8",
  "catalogue/industries/index.json": "catalogue/industries/index.json?v=3e703a5e",
  "catalogue/sssi_irz_codes.json": "catalogue/sssi_irz_codes.json?v=1790ecf5",
  "catalogue/trusted.json": "catalogue/trusted.json?v=ba1feee4",
@@ -313,6 +316,7 @@
     <p class="search-note" hidden></p>
     <p class="problem" hidden></p>
     <p class="decision" hidden></p>
+    <div class="budget" hidden></div>
     <ol class="flags"></ol>
     <details class="gaps" open><summary></summary><ul></ul></details>
     <details class="checks" hidden><summary></summary><ul></ul><details class="nocheck" hidden><summary></summary><p></p></details></details>
@@ -345,6 +349,6 @@
   </article>
 </template>
 
-<script type="module" src="js/workspace.js?v=04cad54e"></script>
+<script type="module" src="js/workspace.js?v=7cbfdb4b"></script>
 </body>
 </html>

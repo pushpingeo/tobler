@@ -49,4 +49,20 @@ await test("shapes: a closed way is an area unless it's a line kind", () => {
   assert.equal(elementGeometry(way(1, {}, ring), true).type, "LineString");
   assert.ok(Object.values(OSM_KINDS).every((k) => k.sel.length && typeof k.match === "function"));
 });
+await test("each kind asks only as far as its own reach (buildings on the site don't fetch a town)", async () => {
+  let q = "";
+  await osmAnswers({ wants: new Map([["building", 0], ["aerodrome", 5]]), site, query: async (x) => { q = x; return { elements: [] }; } });
+  const boxes = [...q.matchAll(/\(([-\d.]+),([-\d.]+),([-\d.]+),([-\d.]+)\);/g)].map((m) => m.slice(1).map(Number));
+  const bld = q.match(/way\["building"\]\(([-\d.]+),([-\d.]+),([-\d.]+),([-\d.]+)\)/).slice(1).map(Number);
+  const aer = q.match(/nwr\["aeroway"="aerodrome"\]\(([-\d.]+),([-\d.]+),([-\d.]+),([-\d.]+)\)/).slice(1).map(Number);
+  assert.ok(boxes.length >= 2);
+  assert.ok(aer[0] < bld[0] - 0.04 && aer[2] > bld[2] + 0.04, "the aerodrome box is ~5 km wider than the building box");
+});
+await test("a line kind keeps its other pieces' shapes with its one row", async () => {
+  const got = await osmAnswers({ wants: new Map([["main road", 2]]), site, query: async () => json });
+  const road = got.get("main road").features[0];
+  const pieces = json.elements.filter((e) => e.tags?.highway && (e.tags.ref === road.name)).length;
+  assert.equal(1 + (road.parts?.length || 0), pieces);
+  for (const p of road.parts || []) assert.ok(p.geometry?.type);
+});
 console.log(`${passed} osmchecks tests passed`);

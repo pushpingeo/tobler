@@ -44,7 +44,8 @@ export function simplifyGeometry(g, tol) {
   }
 }
 
-const KEEP_PROPS = ["role", "fid", "name", "type", "theme", "distance_km", "band", "dataset", "publisher", "licence", "checked_at", "surrounds", "in_search_area", "coverage", "side"];
+const KEEP_PROPS = ["role", "fid", "name", "type", "theme", "distance_km", "band", "dataset", "publisher", "licence", "checked_at", "surrounds", "in_search_area", "coverage", "side",
+  "part", "deduction", "label", "kind", "ha"];
 const pick = (o, keys) => Object.fromEntries(keys.filter((k) => o[k] != null).map((k) => [k, o[k]]));
 
 // The run, slimmed for a link. tol: simplification in degrees (0.0002 ≈ 20 m).
@@ -52,9 +53,10 @@ export function slimRun(record, { tol = 0.0002, now = () => new Date().toISOStri
   const r = record.tobler_run;
   const flagged = new Set(r.flags.flatMap((f) => f.fids || []));
   const evidence = record.features.filter((f) => f.properties.role === "evidence");
-  const feats = record.features.filter((f) => f.properties.role === "site" || flagged.has(f.properties.fid));
+  // An area budget's shapes (what's left, what was taken off) travel too: they are its findings.
+  const feats = record.features.filter((f) => f.properties.role === "site" || f.properties.role === "budget" || flagged.has(f.properties.fid));
   const run = {
-    schema: r.schema, id: r.id, kind: r.kind, skill: r.skill, model: r.model, industry: r.industry ?? null, ...(r.study ? { study: r.study } : {}),
+    schema: r.schema, id: r.id, kind: r.kind, skill: r.skill, model: r.model, industry: r.industry ?? null, ...(r.study ? { study: r.study } : {}), ...(r.budget ? { budget: r.budget } : {}),
     started_at: r.started_at, finished_at: r.finished_at, decision: r.decision ?? null,
     site: r.site, ...(r.sea ? { sea: r.sea } : {}), ...(r.elevation ? { elevation: r.elevation } : {}),
     extent: r.extent, distances: r.distances, fetched_to_km: r.fetched_to_km, assessed_within_km: r.assessed_within_km, method: r.method,
@@ -73,7 +75,7 @@ export function slimRun(record, { tol = 0.0002, now = () => new Date().toISOStri
     ...(r.replaces ? { replaces: r.replaces } : {}), ...(r.out_of_date ? { out_of_date: r.out_of_date } : {}),
     assessments: (r.assessments || []).map((a) => ({ at: a.at, within_km: a.within_km, flags: a.flags?.length ?? 0, decision: a.decision?.value ?? null })),
     evidence_total: evidence.length,
-    shared: { at: now(), evidence: `the ${feats.length - 1} features behind the flags, of ${evidence.length} found; shapes simplified for display` },
+    shared: { at: now(), evidence: r.budget ? `the area budget's shapes, of ${evidence.length} features found; shapes simplified for display` : `the ${feats.length - 1} features behind the flags, of ${evidence.length} found; shapes simplified for display` },
   };
   return {
     type: "FeatureCollection", tobler_run: run,

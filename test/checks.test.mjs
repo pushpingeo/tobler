@@ -15,7 +15,7 @@ const ids = (plans) => plans.map((p) => p.check.id);
 await test("the catalogue: twelve topics plus Indigenous Peoples for global work; every check sound", () => {
   const topics = cat.topics.map((t) => t.id);
   assert.equal(topics.filter((t) => t !== "indigenous").length, 12);
-  assert.equal(cat.version, "6");
+  assert.equal(cat.version, "7");
   assert.ok(topics.includes("topography") && topics.includes("hazards"));
   assert.deepEqual(Object.keys(cat.scales).filter((k) => k !== "about"), ["local", "regional", "global"]);
   assert.deepEqual(cat.scales.global, [10, 20, 50, 100]);

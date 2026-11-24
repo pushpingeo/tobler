@@ -82,9 +82,11 @@ const appliesHere = (a = {}, site, reach = 0) => {
 // near a border needs both nations' layers; Dogger Bank needs JNCC's and the EU's). Checks that don't apply (the
 // wrong setting or place, or no reach at this scale) are left out: they aren't gaps.
 // inside: the person asked to screen inside the area only, so every count looks inside (reach 0).
-export function planChecks(catalogue, site, scale, { inside = false } = {}) {
+// skill: the skill the run is for; a check for named skills only (used_by) is left out of every other run.
+export function planChecks(catalogue, site, scale, { inside = false, skill = "screen" } = {}) {
   const out = [];
   for (const c of catalogue?.checks || []) {
+    if (c.used_by && !c.used_by.includes(skill)) continue;
     let reach = null;
     if (c.answer !== "value_at_site") {
       const r = c.reach_km?.[scale];

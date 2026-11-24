@@ -2,6 +2,42 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 25 Nov 2026 (overnight): the developable area, an area budget with no model call (Rob asked)
+- **What:** the developable area skill (0.1-draft) is ready: gross area, each deduction in hectares and share with
+  its reason and source, the net developable area, soft constraints inside it, and what wasn't checked. Card, map,
+  report and share link. Contract: `claude/skill-contracts.md` §2.
+- **The tool:** `js/areabudget.js` `areaBudget(site, deductions)`. Features are clipped to the site's neighbourhood
+  (a box, to narrow only), buffered with turf, then overlaid and measured in the site-centred Lambert azimuthal
+  equal-area projection (`siterole.js` `laea`, plus a new inverse). Hard, then keep-clear, then avoided-by-default are
+  taken off in order, each counted once against the first; soft constraints are measured on what's left and not taken
+  off. Shapes come back as WGS84. Added `difference` to the vendored turf bundle (same package, one more export).
+- **Rules in the skill:** the deductions, buffers per asset type (solar, BESS, onshore wind, warehouse, general) and
+  reasons are a JSON block in `skills/developable-area/SKILL.md`; `js/developable.js` reads it and applies the
+  person's own buffers, leave-outs and "count as soft". A test keeps the analyst's rule ids in `run_study` in step.
+- **No model in the run.** The rules are written down and the geometry is code, so a model call would only add cost
+  and a chance of error. The conversation agent picks the asset type and the person's changes, then writes two or
+  three sentences from the headline (names and numbers only).
+- **Each check looks only as far as its largest buffer** for the budget (homes 50 m for solar, not a screen's 500 m),
+  always at local scale. New `used_by` field: checks for named skills only. Three new OpenStreetMap checks for the
+  budget only (buildings, open water, watercourses); catalogue version 7, 62 checks.
+- **OpenStreetMap:** each kind now asks Overpass only to its own reach (one query, a box per kind), so buildings on a
+  site don't fetch a town; line and residential pieces folded into one row keep their other pieces' shapes (`parts`)
+  for the budget. Counts are unchanged.
+- **Defaults to look at (Rob):** homes solar 50 m, BESS 100 m, wind 500 m; listed buildings 50/50/250 m; power lines
+  30 m; pipelines 10 m; watercourses 8 m (the EA permit distance, applied to all streams); roads and rail 15 m from the
+  centre line; ancient woodland 15 m (standing advice). Flood Zone 3 is avoided by default; Flood Zone 2, surface water,
+  BMV farmland (with unsplit grade 3 apart) and peat are soft. Slope is always "not checked".
+- **Approximations that can change an answer (asked about in the handover, not parked):** OpenStreetMap relations
+  (large lakes, some residential areas) come only as a centre point, so their area isn't counted (the card says how
+  many); roads and rail are main roads only; buildings depend on OpenStreetMap's completeness; if Overpass hits its
+  4,000-element cap the budget isn't told.
+- **Tests:** `test/areabudget.test.mjs` (12: true areas, overlaps once, soft not taken off, not checked kept apart,
+  holes and multipolygons, a 120 km designation in under 2 s); two ntrrun tests (an end-to-end budget near York with
+  faked atlas and Overpass, the person's changes, a point and a search area refused); osmchecks per-kind boxes and
+  parts. New browser check `scripts/browser-budget.mjs` (32 checks, desktop and phone, card, map, report);
+  `browser-choice` updated (no "soon" chips left). `npm test`, and browser-budget, -study, -choice, -outofdate,
+  -run-card and -ux pass. Not seen live.
+
 ## 24 Nov 2026 (late night): ask before restoring the last project (Rob)
 - **Rob:** "old runs appear to be loaded when the website is loaded". It was the projects-in-the-browser restore,
   but run cards without their conversation read as stray old runs. Rob chose "ask first".

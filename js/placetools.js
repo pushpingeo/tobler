@@ -16,6 +16,11 @@ import { ASSET_TYPES } from "./distances.js";
 import { searchAnchors, searchNominatim, searchNaturalEarth, searchWikidata, findFeaturesNear, featureOutline, FEATURE_TYPES, candidate, settlementNear } from "./gazetteer.js";
 import { parseCoordinates, formatLatLon } from "./coords.js";
 
+// The developable area skill's asset types and rule ids (skills/developable-area/SKILL.md "Rules"; a test checks they
+// match), so the analyst can pass only what the skill knows.
+export const BUDGET_ASSETS = ["solar", "bess", "wind-onshore", "warehouse", "general"];
+export const BUDGET_RULE_IDS = ["nature-sites", "monuments", "world-heritage", "ancient-woodland", "water-bodies", "buildings", "roads-rail", "watercourses", "power-lines", "pipelines", "homes", "listed-buildings", "flood-zone-3", "flood-zone-2", "surface-water", "bmv-farmland", "grade-3-unsplit", "peat"];
+
 // Common names that aren't Natural Earth's own, and seas (energy basins especially) by rough box.
 const COUNTRY_ALIASES = { "united states": "united states of america", us: "usa", america: "united states of america", "u.s.": "usa", "u.s.a.": "usa",
   uk: "united kingdom", britain: "united kingdom", "great britain": "united kingdom", "russian federation": "russia",
@@ -205,11 +210,15 @@ export function placeToolDefs(skills) {
     },
     {
       name: "run_study",
-      description: "Run a study other than the constraints screen on a place that's on the map: for now the contamination desk study (study \"contamination-desk-study\"), an early contaminated-land look from open records set out as sources, pathways and receptors, for sites on land. Use it when the person asks about contamination, past land use, landfill, pollution or ground conditions, or picks it from the skills. It runs as its own sealed run and shows a card. Takes about 20 to 40 seconds.",
+      description: "Run a study other than the constraints screen on a place that's on the map, as its own sealed run with a card. \"contamination-desk-study\": an early contaminated-land look from open records set out as sources, pathways and receptors, for sites on land; use it when the person asks about contamination, past land use, landfill, pollution or ground conditions (20 to 40 seconds). \"developable-area\": an area budget on the site's outline (gross area, each deduction with its reason, the net developable area, soft constraints), for an outline on land, not a point or a search area; use it when the person asks for the developable, net or usable area, area discounting or how many hectares they can use (10 to 30 seconds). Load the developable-area skill first for its rules. Either study also runs when the person picks it from the skills.",
       input_schema: { type: "object", properties: {
         place: { type: "string", description: "Place name" },
-        study: { type: "string", enum: ["contamination-desk-study"] },
-        focus: { type: "string", description: "Optional: what the person asked about especially" },
+        study: { type: "string", enum: ["contamination-desk-study", "developable-area"] },
+        focus: { type: "string", description: "Optional, desk study: what the person asked about especially" },
+        asset_type: { type: "string", enum: BUDGET_ASSETS, description: "Developable area: what would be built. general if the person hasn't said (the card says it was assumed)." },
+        buffers: { type: "array", description: "Developable area: only buffers the person asked for, in metres, by rule id", items: { type: "object", properties: { id: { type: "string", enum: BUDGET_RULE_IDS }, buffer_m: { type: "number" } }, required: ["id", "buffer_m"] } },
+        leave_out: { type: "array", items: { type: "string", enum: BUDGET_RULE_IDS }, description: "Developable area: deductions the person asked to ignore (buildings to be cleared)" },
+        as_soft: { type: "array", items: { type: "string", enum: BUDGET_RULE_IDS }, description: "Developable area: deductions the person would treat as usable at a cost (flood zone 3 for raised solar panels)" },
       }, required: ["place", "study"] },
     },
     {

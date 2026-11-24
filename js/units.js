@@ -48,3 +48,11 @@ export function unitsNote() {
   if (current === "nautical") return "The person reads distances in nautical miles: give nautical miles first, with km in brackets (tools and runs stay in km).";
   return "";
 }
+
+// Site-sized areas (the area budget, 25 Nov): hectares, or acres for imperial. Always one decimal under 100.
+export function hectares(ha) {
+  if (ha == null || !Number.isFinite(+ha)) return "";
+  const v = current === "imperial" ? +ha * 2.47105 : +ha;
+  const n = v >= 100 ? Math.round(v).toLocaleString("en-GB") : v.toFixed(1);
+  return `${n} ${current === "imperial" ? "acres" : "ha"}`;
+}

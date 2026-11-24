@@ -21,6 +21,8 @@ import * as K from "./checks.js";
 import { topicOf } from "./findings.js";
 import { osmAnswers } from "./osmchecks.js";
 import { overpassQuery } from "./gazetteer.js";
+import { areaBudget, budgetLines } from "./areabudget.js";
+import { budgetRules, resolveDeductions, reachByCheck, classMatches, budgetSummary } from "./developable.js";
 import { placeRole, coverageIn, whereText, applySearchArea, reword, sameShape, SEARCH_BAND, SEARCH_NOTE } from "./siterole.js";
 
 // The band for a piece of evidence: a wide area the site lies within is "around the site", not "on site".
@@ -367,12 +369,17 @@ export async function runScreening({ host, site, inputs, distances, skill, study
   // depend on a lucky catalogue search and a topic with no data shows as a gap, never as silence.
   const sea = offshore || (describe.coast_km != null && describe.coast_km <= reach);
   const catalogue = host.checks || { checks: [], topics: [], scales: {} };
-  const scale = K.screenScale(distances, siteKm2);
+  // An area budget (the developable area, 25 Nov) is always at site scale, and each of its checks looks out only as
+  // far as its largest buffer: a feature further out can't touch the site.
+  const budget = study?.budget || null;
+  const scale = budget ? "local" : K.screenScale(distances, siteKm2);
   const edges = catalogue.scales?.[scale] || [];
   const sb = turf.bbox(fp.feature);
   const studyChecks = study ? new Set(study.groups.flatMap((g) => g.checks)) : null;
-  const plans = K.planChecks(catalogue, { bbox: sb, countries: describe.countries || [], offshore, sea, coast_km: describe.coast_km ?? null }, scale, { inside })
+  const budgetReach = budget ? reachByCheck(budget.deductions) : null;
+  const plans = K.planChecks(catalogue, { bbox: sb, countries: describe.countries || [], offshore, sea, coast_km: describe.coast_km ?? null }, scale, { inside, skill: study?.id || "screen" })
     .filter((p) => !studyChecks || studyChecks.has(p.check.id));
+  if (budgetReach) for (const p of plans) if (budgetReach.has(p.check.id)) p.reach_km = budgetReach.get(p.check.id);
   const results = new Map();
   const featsOf = new Map(); // check id → the evidence properties it counted, for the analyst's nearest names
   for (const p of plans) {
@@ -590,13 +597,15 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     ? `from the words "${site.origin.words}", anchored on ${site.origin.anchor?.name || site.origin.anchor?.place || "a found feature"}${site.origin.anchor?.type ? `, a ${String(site.origin.anchor.type).slice(0, 60)}` : ""}${site.origin.anchor?.source?.publisher ? ` (${site.origin.anchor.source.publisher})` : ""}, ${site.origin.confidence} confidence`
     : site.origin?.method === "file" ? fileOriginText(site.origin)
     : "drawn on the map by the person";
-  const res = study ? await studyTurn({ skill, study, callClaude, message: studyMessage({ siteName: site.name, describe, origin, distances, baseline: baselineLines.join("\n"), searchArea: searchNote, study }), onEvent }) : await runTurn({
+  // An area budget asks no model: the rules are the skill's, the geometry is the area_budget tool's.
+  const budgetOut = budget ? budgetFrom({ budget, plans, results, layerAnswers, keyOf, catalogue, site: fp.feature }) : null;
+  const res = budget ? { text: "", usage: { input_tokens: 0, output_tokens: 0 }, history: [], stopReason: null } : study ? await studyTurn({ skill, study, callClaude, message: studyMessage({ siteName: site.name, describe, origin, distances, baseline: baselineLines.join("\n"), searchArea: searchNote, study }), onEvent }) : await runTurn({
     system: systemFor(skill),
     messages: [{ role: "user", content: firstMessage({ siteName: site.name, describe, inputs, distances, footprintNote: fp.note, origin, baseline: baselineLines.join("\n") || null, inside, searchArea: searchNote }) }],
     tools: defs, exec, callClaude, maxRounds,
     onEvent: (ev) => { if (ev.type === "tool_start") onEvent({ type: "tool_start", name: ev.name, input: ev.input }); if (ev.type === "tool" || ev.type === "round" || ev.type === "warning") onEvent(ev); },
   });
-  let parsed = parseResult(res.text);
+  let parsed = budgetOut ? { json: { flags: [], data_gaps: [], checked: [] }, summary: budgetSummary(budgetOut.budget) } : parseResult(res.text);
   const usage = { ...res.usage };
   let repaired = false;
   const lastMsg = res.history.at(-1);
@@ -650,8 +659,9 @@ export async function runScreening({ host, site, inputs, distances, skill, study
       schema: RUN_SCHEMA, id: runId, kind: study ? study.id : "ntr-screen", skill: { name: skill.name, version: skill.version }, model,
       // A study travels with its own groups and labels, so the card, report and share link need no profile.
       ...(study ? { study: { id: study.id, label: study.label, groups: study.groups.map((g) => ({ id: g.id, label: g.label, checks: g.checks.filter((c) => checkResults.some((r) => r.id === c)) })), full_study_adds: study.full_study_adds || [] } } : {}),
+      ...(budgetOut ? { budget: budgetOut.budget } : {}),
       industry: host.profile?.()?.id || null,
-      decision: study
+      decision: budget ? null : study
         ? settleStudy(readDecision(parsed.json?.decision, searchArea ? reword(parsed.json?.decision_why) : parsed.json?.decision_why, study.decisions), { study, checks: checkResults })
         : settleDecision(readDecision(parsed.json?.decision, searchArea ? reword(parsed.json?.decision_why) : parsed.json?.decision_why, host.profile?.()?.decisions), { checked, flags, checks: checkResults, topicLabel: (t) => K.topicLabel(catalogue, t) }),
       started_at: started, finished_at: now(),
@@ -681,7 +691,70 @@ export async function runScreening({ host, site, inputs, distances, skill, study
       baseline: { layers: layers.map((l) => l.source.record?.title || l.source.atlas_id), calls: baselineCalls }, disclaimer: DISCLAIMER,
       calls, usage, ...(parsed.json && !repaired ? {} : { debug }), ...(repaired ? { note: "The first result was cut off; the structured result was asked for again from the same evidence." } : {}), assessments: [],
     },
-    features: [siteFeature, ...evidence],
+    features: [siteFeature, ...evidence, ...(budgetOut?.features || [])],
+  };
+}
+
+// The area budget from a run's checks: each deduction's features (every piece, after each source's filter and the
+// deduction's classes, within its buffer), then the area_budget tool. A deduction whose checks weren't checked is
+// "not checked", never zero; one with no data here says so. OpenStreetMap relations come only as a centre point, so
+// they're counted apart and left out of the area. Returns the budget for the record and its shapes for the map.
+export function budgetFrom({ budget, plans, results, layerAnswers, keyOf, catalogue, site }) {
+  const topicOfCheck = (id) => catalogue.checks?.find((c) => c.id === id)?.topic || null;
+  const ded = budget.deductions.map((d) => {
+    const base = { id: d.id, label: d.label, kind: d.kind, buffer_m: d.buffer_m, reason: d.reason, topic: topicOfCheck(d.checks[0]), ...(d.changed ? { changed: d.changed } : {}) };
+    const ps = plans.filter((p) => d.checks.includes(p.check.id));
+    if (!ps.length) return { ...base, state: "not_checked", why: "no data for this place in Tobler yet" };
+    const rs = ps.map((p) => results.get(p.check.id)).filter(Boolean);
+    const answered = rs.filter((r) => r.state !== "not_checked");
+    if (!answered.length) return { ...base, state: "not_checked", why: rs.map((r) => r.why).find(Boolean) || "not checked" };
+    const geometries = [];
+    const sources = [];
+    let count = 0, centreOnly = 0;
+    const km = (d.buffer_m || 0) / 1000;
+    for (const p of ps) {
+      if (results.get(p.check.id)?.state === "not_checked") continue;
+      for (const s of p.sources) {
+        const a = layerAnswers.get(keyOf(s));
+        if (!a || a.not_checked || !a.features) continue;
+        let used = 0;
+        for (const f of a.features) {
+          if (!K.passes(s, f)) continue;
+          if (d.classes && !classMatches(K.classOf(s, f), d.classes)) continue;
+          if (!f.around_site && !(f.distance_km != null && f.distance_km <= km + 1e-6)) continue;
+          for (const piece of [f, ...(f.parts || [])]) {
+            if (!piece.geometry) continue;
+            if (String(piece.osm || "").startsWith("relation/")) { centreOnly++; continue; }
+            geometries.push(piece.geometry);
+          }
+          count++; used++;
+        }
+        if (used && a.meta) sources.push({ dataset: a.meta.dataset, publisher: a.meta.publisher, licence: a.meta.licence, checked_at: a.meta.checked_at });
+      }
+    }
+    const partly = rs.map((r) => r.partly).filter(Boolean).join("; ");
+    return { ...base, state: count ? "found" : "none", geometries, count, ...(centreOnly ? { centre_only: centreOnly } : {}), ...(partly ? { partly } : {}), source: sources };
+  });
+  for (const n of budget.not_checked || []) ded.push({ id: n.id, label: n.label, kind: n.kind || "soft", state: "not_checked", why: n.why, reason: "" });
+  const b = areaBudget(site, ded);
+  // Carry the extras the tool doesn't know about onto its rows.
+  const extra = new Map(ded.map((d) => [d.id, d]));
+  for (const row of [...b.rows, ...b.soft]) {
+    const d = extra.get(row.id);
+    if (d?.centre_only) row.centre_only = d.centre_only;
+    if (d?.partly) row.partly = d.partly;
+  }
+  const feats = [];
+  const rowOf = new Map([...b.rows, ...b.soft].map((r) => [r.id, r]));
+  for (const [id, g] of Object.entries(b.shapes.taken)) {
+    const r = rowOf.get(id);
+    if (g) feats.push({ type: "Feature", geometry: g, properties: { role: "budget", part: r.kind === "soft" ? "soft" : "taken", deduction: id, label: r.label, kind: r.kind, theme: topicOf(r.topic), ha: r.ha } });
+  }
+  if (b.shapes.net) feats.push({ type: "Feature", geometry: b.shapes.net, properties: { role: "budget", part: "net", label: "Net developable area", ha: b.net_ha } });
+  const { shapes, ...rest } = b;
+  return {
+    budget: { asset_type: budget.asset_type, asset_label: budget.asset_label, asset_assumed: !!budget.asset_assumed, changes: budget.changes || [], ...(budget.unknown?.length ? { unknown: budget.unknown } : {}), ...rest },
+    features: feats,
   };
 }
 
@@ -768,6 +841,22 @@ export function headline(record) {
   };
 }
 
+// What the conversation agent gets back from an area budget: names and numbers only.
+export function budgetHeadline(record) {
+  const r = record.tobler_run, b = r.budget;
+  const nc = [...b.rows, ...b.soft].filter((x) => x.state === "not_checked").map((x) => `${x.label} (${x.why})`);
+  const biggest = [...b.rows].sort((x, y) => y.ha - x.ha)[0];
+  return {
+    run: r.id, site: r.site.name, asset: `${b.asset_label}${b.asset_assumed ? " (assumed: no asset type given)" : ""}`,
+    gross_ha: b.gross_ha, net_ha: b.net_ha, net_share: `${Math.round(b.net_share * 100)}%`, soft_ha: b.soft_ha,
+    budget: budgetLines(b), ...(biggest?.ha > 0 ? { biggest_deduction: `${biggest.label}, ${biggest.ha} ha` } : {}),
+    not_checked: nc, ...(b.changes.length ? { your_changes: b.changes } : {}),
+    ...(b.unknown?.length ? { not_rules: `These ids aren't deductions Tobler measures, so they were ignored: ${b.unknown.join(", ")}. Tell the person.` } : {}),
+    ...(r.replaces ? { replaces: `${r.replaces.run}, because ${r.replaces.why}. Say in a sentence how the net area changed.` } : {}),
+    note: "The developable area card under your reply shows the budget table, each deduction's reason and source, and what wasn't checked; the map shows what's left. Reply in two or three sentences: the net area and its share, the biggest deduction, and the biggest gap. Don't repeat the table.",
+  };
+}
+
 // The screening service the conversation's screen_site and get_run tools call. table: catalogue/distances.json;
 // skill: the parsed NTR skill. onRun(record, place) shows the card; onEvent reports progress.
 // skillFor(name): another parsed skill, for studies (the profile's skills_offered names each study's skill).
@@ -833,6 +922,7 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
     async study(entry, place, i = {}) {
       const sk = skillFor(entry.skill);
       if (!sk?.body) throw new Error(`The ${entry.label.toLowerCase()} method hasn't loaded yet; try again in a moment.`);
+      if (entry.kind === "budget") return this.budget(entry, sk, place, i);
       const d0 = await R.describe(host.ref, place.feature);
       if (entry.setting === "land" && d0.offshore) return { not_available: `The ${entry.label.toLowerCase()} is for sites on land, and ${place.name} is offshore. A constraints screen works at sea.` };
       const distances = { ...entry.distances, footprint_km: 0.1, set_by: "skill", asset_label: entry.label.toLowerCase(), setting: "onshore", reasons: [`the ${entry.label.toLowerCase()}'s own distances: records on and close to the site matter most`], table_version: null };
@@ -856,10 +946,50 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       onRun(record, place);
       return { ...headline(record), note: `The ${entry.label.toLowerCase()} card under your reply shows the decision, the possible contaminant linkages (F-01…) with their next steps, the sources, pathways and receptors checked, and what a full desk study would add. Reply in two or three sentences: the decision, the most serious linkage, and the biggest gap. Don't repeat the card.` };
     },
+    // The developable area (25 Nov): an area budget on an outline, from the skill's rules for the asset type and the
+    // person's own changes. Its checks run as a study's do; then the area_budget tool, and no model call.
+    async budget(entry, sk, place, i = {}) {
+      const label = entry.label.toLowerCase();
+      const role = placeRole(place.origin || {}, place.feature.geometry);
+      if (!isArea(place.feature)) return { not_available: `The ${label} needs an outline, and ${place.name} is a ${place.feature.geometry.type === "Point" ? "point" : "line"}. Draw the site or bring in its boundary file.` };
+      if (role.role === "search_area") return { not_available: `${place.name} is a search area (${role.why}), not the site's outline, so an area budget on it would read as fact. Draw the site or bring in its boundary file, then ask again.` };
+      const d0 = await R.describe(host.ref, place.feature);
+      if (d0.offshore) return { not_available: `The ${label} is for sites on land, and ${place.name} is offshore.` };
+      const rules = budgetRules(sk);
+      const plan = resolveDeductions(rules, i);
+      const reachKm = Math.max(0.05, ...[...reachByCheck(plan.deductions).values()]);
+      const distances = { near: Math.min(0.05, reachKm), close: reachKm, wider: reachKm, footprint_km: 0.1, set_by: "skill", asset_label: plan.asset_label, setting: "onshore",
+        reasons: [`each check looks only as far as its largest buffer for a ${plan.asset_label}: a feature further out can't touch the site`], table_version: null };
+      const KIND_LABEL = { hard: "Can't build", buffer: "Keep clear", avoid: "Avoided by default", soft: "Soft constraints" };
+      const groups = Object.entries(KIND_LABEL).map(([k, l]) => ({ id: k, label: l, checks: [...new Set(plan.deductions.filter((d) => d.kind === k).flatMap((d) => d.checks))] })).filter((g) => g.checks.length);
+      const studyEntry = { ...entry, groups, budget: plan, full_study_adds: [] };
+      const id = `R${++n}`;
+      onEvent({ type: "screen_start", run: id, site: place.name, setting: "onshore", inside: false, wider_km: reachKm, study: entry.id });
+      const record = await runScreening({
+        host, site: { name: place.name, feature: place.feature, origin: place.origin }, distances, skill: sk, study: studyEntry, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}),
+        inputs: { asset_type: plan.asset_type, asset_label: plan.asset_label, asset_assumed: plan.asset_assumed, stage: "", extent: "around" },
+      });
+      record.tobler_run.place_id = place.id ?? null;
+      record.tobler_run.place_geometry_at_run = JSON.stringify(place.feature.geometry);
+      const keep = (v) => (Array.isArray(v) && v.length ? v : undefined);
+      record.tobler_run.inputs = JSON.parse(JSON.stringify({ study: entry.id, asset_type: plan.asset_type, buffers: keep(i.buffers), leave_out: keep(i.leave_out), as_soft: keep(i.as_soft) }));
+      const old = (i.replaces ? runs.get(String(i.replaces).trim().toUpperCase()) : null)
+        || [...runs.values()].reverse().find((o) => o.tobler_run.kind === entry.id && place.id != null && o.tobler_run.place_id === place.id && !o.tobler_run.replaced_by && siteChange(o, place));
+      if (old) {
+        const ch = siteChange(old, place);
+        record.tobler_run.replaces = { run: old.tobler_run.id, why: ch ? `the site was edited after it ran (${ch.text})` : "re-run" };
+        old.tobler_run.replaced_by = id;
+      }
+      runs.set(id, record);
+      onRun(record, place);
+      return budgetHeadline(record);
+    },
     getRun(id) {
       const rec = runs.get(String(id || "").trim().toUpperCase()) || [...runs.values()].at(-1);
       if (!rec) throw new Error("No screening runs yet in this conversation.");
       const r = rec.tobler_run;
+      if (r.budget) return { ...budgetHeadline(rec), rows: [...r.budget.rows, ...r.budget.soft].map((x) => ({ label: x.label, kind: x.kind, state: x.state, ha: x.ha, buffer_m: x.buffer_m, reason: x.reason, ...(x.why ? { why: x.why } : {}) })),
+        ...(r.replaced_by ? { replaced_by: `${r.replaced_by} (this run is out of date: the site was edited after it)` } : {}) };
       return {
         run: r.id, site: r.site.name, scope: r.extent === "inside" ? "inside the area only" : "the site and its surroundings", asset: r.site.asset_label, stage: r.site.stage, distances: distancesLine(r.distances), assessed_within_km: r.assessed_within_km,
         ...(r.replaces ? { replaces: r.replaces } : {}), ...(r.replaced_by ? { replaced_by: `${r.replaced_by} (this run is out of date: the site was edited after it)` } : {}),

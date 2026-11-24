@@ -18,6 +18,7 @@ U.setUnits(store("units") || "metric");
 const SITE = /^#[0-9a-f]{6}$/i.test(store("shapeColour") || "") ? store("shapeColour") : "#d1352a";
 document.documentElement.style.setProperty("--site", SITE);
 const INK = "#15303c";
+const NET = "#2b6a80";
 
 function el(tag, text, cls) { const e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; }
 const cap = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : "");
@@ -70,7 +71,9 @@ function render(record) {
   // 1. Decision and summary.
   const dec = decisionText(r);
   const decision = el("p", null, "decision");
-  if (dec) decision.append(el("b", dec.head), document.createTextNode(dec.why ? ` ${dec.why}` : ""));
+  if (r.budget) decision.append(el("b", `Net developable: ${U.hectares(r.budget.net_ha)} of ${U.hectares(r.budget.gross_ha)} (${Math.round(r.budget.net_share * 100)}%).`),
+    document.createTextNode(" A measure with stated rules, not a judgement on whether the site is good."));
+  else if (dec) decision.append(el("b", dec.head), document.createTextNode(dec.why ? ` ${dec.why}` : ""));
   else decision.append(el("span", "No overall decision was recorded for this run.", "none"));
   const searchArea = s.role === "search_area";
   const searchNote = searchArea ? el("p", U.localise(searchHeadline(s)), "search-note") : null;
@@ -107,12 +110,15 @@ function render(record) {
     [["site", searchArea ? "The search area" : "The site"], ["ring", "Distance bands"]]);
   siteSec.append(siteFig.fig);
 
-  // 3. Findings: the numbered map and one row per finding.
+  // 3. Findings: the numbered map and one row per finding. An area budget has its table and map instead.
   const rows = findingRows(r);
   const findSec = el("section");
+  const budgetFig = r.budget ? budgetSection(r, findSec, searchArea) : null;
+  let findFig = null;
+  if (!r.budget) {
   findSec.append(el("h2", `Findings (${rows.length})`));
   const themesUsed = [...new Set(r.flags.map((f) => topicOf(f.theme)))];
-  const findFig = figure("findings-map", "The evidence behind each finding, labelled with its number. Shapes are simplified for display.",
+  findFig = figure("findings-map", "The evidence behind each finding, labelled with its number. Shapes are simplified for display.",
     [["site", searchArea ? "The search area" : "The site"], ...themesUsed.map((t) => [t, topicInfo(t).label])]);
   findSec.append(findFig.fig);
   if (!rows.length) findSec.append(el("p", "No findings were raised. See what was checked and the gaps below."));
@@ -151,6 +157,7 @@ function render(record) {
       t.tBodies[0].append(tr);
     }
     findSec.append(t);
+  }
   }
 
   // 3b. Checks (plan item 1): one line per check, by topic, found, none found or not checked. Runs from before checks
@@ -212,7 +219,7 @@ function render(record) {
   const meth = el("section", null, "method");
   meth.append(el("h2", "Method"));
   meth.append(el("p", `Method: ${r.skill?.name} ${r.skill?.version}${r.industry ? ` (${r.industry} profile)` : ""}, run by ${r.model || "the analyst"}. ${r.method}`));
-  meth.append(el("p", r.study ? "Each finding is a possible contaminant linkage (a source, a pathway and a receptor), judged from the checks alone, in the shape of the Environment Agency's LCRM Stage 1 desk study. Severity is how much a linkage would matter if it is real; confidence is how sure the evidence is. Open records only: no walkover, historical maps or commercial search." : "Findings carry a neutral topic (biodiversity, water, heritage and so on); this is a screen, not an EIA or IFC review. Severity is how much a finding would matter if the evidence is right; confidence is how sure the evidence is."));
+  meth.append(el("p", r.budget ? "An area budget: each deduction's features come from the checks, within the deduction's buffer; the rules (which deductions, their buffers and why) are the developable area skill's, for the asset type, with any changes the person asked for. Hard constraints, then buffers, then what's avoided by default are taken off in that order, each counted once; soft constraints are measured on what's left and not taken off. No model judged this: it's arithmetic on the data." : r.study ? "Each finding is a possible contaminant linkage (a source, a pathway and a receptor), judged from the checks alone, in the shape of the Environment Agency's LCRM Stage 1 desk study. Severity is how much a linkage would matter if it is real; confidence is how sure the evidence is. Open records only: no walkover, historical maps or commercial search." : "Findings carry a neutral topic (biodiversity, water, heritage and so on); this is a screen, not an EIA or IFC review. Severity is how much a finding would matter if the evidence is right; confidence is how sure the evidence is."));
   const log = changeLog(r);
   if (log.length) meth.append(el("p", `Changes: ${log.map((a) => `${a.at}, written for ${km(a.within_km) || "inside the area"}: ${a.flags} findings${a.decision ? `, ${a.decision}` : ""}`).join("; ")}. This report shows the latest.`));
   if (r.shared) meth.append(el("p", `This link holds ${r.shared.evidence}. The full run (every feature found, ${r.evidence_total ?? "?"} in all) is in the run download from Tobler.`));
@@ -230,8 +237,50 @@ function render(record) {
   const site = record.features.find((f) => f.properties.role === "site");
   const evid = record.features.filter((f) => f.properties.role === "evidence");
   pending.push(drawMap(siteFig, { site, rings: r.extent === "inside" ? [] : [r.distances.near, r.distances.close, r.distances.wider], evidence: [], labels: null, searchArea }));
-  pending.push(drawMap(findFig, { site, rings: [], evidence: evid, labels: findingLabels(record), searchArea }));
+  if (budgetFig) pending.push(drawMap(budgetFig, { site, rings: [], evidence: [], labels: null, budget: record.features.filter((f) => f.properties.role === "budget") }));
+  else pending.push(drawMap(findFig, { site, rings: [], evidence: evid, labels: findingLabels(record), searchArea }));
   Promise.allSettled(pending).then(() => { window.__report.ready = true; });
+}
+
+// The area budget in the report: the table (gross, deductions, net, soft), what wasn't checked, and its map.
+function budgetSection(r, sec, searchArea) {
+  const b = r.budget;
+  sec.append(el("h2", "Area budget"));
+  sec.append(el("p", `For a ${b.asset_label}${b.asset_assumed ? " (no asset type was given, so general rules)" : ""}, on the site's outline. Each row's reason and source are beside it.`));
+  const pct = (v) => (v >= 0.995 ? "100%" : v > 0 && v < 0.005 ? "<1%" : `${Math.round(v * 100)}%`);
+  const t = el("table", null, "budget");
+  const hr = el("tr"); [["", ""], ["ha", "num"], ["% of gross", "num"], ["Why", "why"]].forEach(([h, c]) => hr.append(el("th", h, c)));
+  t.append(el("thead"), el("tbody")); t.tHead.append(hr);
+  const row = (cls, label, ha, share, why = "", topic = null) => {
+    const tr = el("tr", null, cls);
+    const td = el("td");
+    if (topic) { const sw = el("span", null, "sw"); sw.style.background = topicInfo(topic).colour; td.append(sw); }
+    td.append(document.createTextNode(label));
+    tr.append(td, el("td", ha, "num"), el("td", share, "num"), el("td", why, "why"));
+    t.tBodies[0].append(tr);
+  };
+  const src = (x) => (x.source || []).map((y) => y.publisher || y.dataset).filter(Boolean).join("; ");
+  row("gross", "Gross site area", U.hectares(b.gross_ha), "100%");
+  for (const x of b.rows.filter((y) => y.state === "found" && y.ha > 0)) row(`minus ${x.kind}`, `− ${x.label}${x.buffer_m ? ` + ${x.buffer_m} m` : ""}`, U.hectares(x.ha), pct(x.share), [x.reason, x.changed ? `Changed: ${x.changed}.` : "", src(x) ? `Source: ${src(x)}.` : ""].filter(Boolean).join(" "), x.topic);
+  row("net", "Net developable", U.hectares(b.net_ha), pct(b.net_share), "What's left. Access, layout and drainage take more off later.");
+  const soft = b.soft.filter((y) => y.state === "found" && y.ha > 0);
+  if (soft.length) {
+    row("softhead", "Of which, usable at a cost", U.hectares(b.soft_ha), "");
+    for (const x of soft) row("soft", x.label, U.hectares(x.ha), pct(x.share), [x.reason, src(x) ? `Source: ${src(x)}.` : ""].filter(Boolean).join(" "), x.topic);
+  }
+  sec.append(t);
+  const nc = [...b.rows, ...b.soft].filter((x) => x.state === "not_checked");
+  if (nc.length) sec.append(el("p", `Not checked: ${nc.map((x) => `${x.label.toLowerCase()} (${x.why})`).join("; ")}. Not checked is not the same as none.`, "nc"));
+  const clear = [...b.rows, ...b.soft].filter((x) => x.state === "none" || (x.state === "found" && !(x.ha > 0)));
+  if (clear.length) sec.append(el("p", `Checked, nothing taken off: ${clear.map((x) => x.label.toLowerCase()).join(", ")}.`, "made"));
+  if (b.changes?.length) sec.append(el("p", `Changes the person asked for: ${b.changes.join("; ")}.`, "made"));
+  const centre = [...b.rows, ...b.soft].filter((x) => x.centre_only);
+  if (centre.length) sec.append(el("p", `Mapped only as a centre point in OpenStreetMap, so their area isn't counted: ${centre.map((x) => `${x.label.toLowerCase()} (${x.centre_only})`).join(", ")}.`, "made"));
+  const topics = [...new Set([...b.rows, ...b.soft].filter((x) => x.ha > 0 && x.topic).map((x) => topicOf(x.topic)))];
+  const fig = figure("budget-map", "What's left (outlined in blue) and what was taken off, by topic. Soft constraints are dashed. Shapes are simplified for display.",
+    [["site", "The site"], ["net", "Net developable"], ...topics.map((x) => [x, topicInfo(x).label])]);
+  sec.append(fig.fig);
+  return fig;
 }
 
 function figure(id, caption, key) {
@@ -241,8 +290,8 @@ function figure(id, caption, key) {
   const cap = el("figcaption", caption);
   const k = el("ul", null, "key");
   for (const [t, label] of key) {
-    const li = el("li"); const sw = el("span", null, `sw ${t === "site" || t === "ring" ? t : ""}`);
-    if (t !== "site" && t !== "ring") sw.style.background = topicInfo(t).colour;
+    const li = el("li"); const sw = el("span", null, `sw ${t === "site" || t === "ring" || t === "net" ? t : ""}`);
+    if (t !== "site" && t !== "ring" && t !== "net") sw.style.background = topicInfo(t).colour;
     li.append(sw, document.createTextNode(label)); k.append(li);
   }
   fig.append(box, img, cap, k);
@@ -251,7 +300,7 @@ function figure(id, caption, key) {
 
 // A map that stays still enough to print: drawn once, fitted to what it shows, then copied into a picture with the
 // labels painted on, for the PDF. Falls back to a plain outline map if the basemap can't be reached.
-function drawMap(f, { site, rings, evidence, labels, searchArea = false }) {
+function drawMap(f, { site, rings, evidence, labels, searchArea = false, budget = null }) {
   return new Promise((resolve) => {
     const map = new maplibregl.Map({ container: f.box, style: BASEMAP, attributionControl: false, preserveDrawingBuffer: true, interactive: true, cooperativeGestures: true, fadeDuration: 0 });
     window.__report.maps.push(map);
@@ -268,6 +317,13 @@ function drawMap(f, { site, rings, evidence, labels, searchArea = false }) {
       map.addLayer({ id: "ev-fill", type: "fill", source: "ev", filter: ["in", ["geometry-type"], ["literal", ["Polygon", "MultiPolygon"]]], paint: { "fill-color": colour, "fill-opacity": ["case", ["==", ["get", "surrounds"], true], 0.03, 0.14] } });
       map.addLayer({ id: "ev-line", type: "line", source: "ev", filter: ["!=", ["geometry-type"], "Point"], paint: { "line-color": colour, "line-width": 2 } });
       map.addLayer({ id: "ev-pt", type: "circle", source: "ev", filter: ["==", ["geometry-type"], "Point"], paint: { "circle-radius": 5, "circle-color": colour, "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } });
+      if (budget) {
+        map.addSource("budget", { type: "geojson", data: turf.featureCollection(budget) });
+        map.addLayer({ id: "b-taken", type: "fill", source: "budget", filter: ["==", ["get", "part"], "taken"], paint: { "fill-color": colour, "fill-opacity": 0.45 } });
+        map.addLayer({ id: "b-net", type: "fill", source: "budget", filter: ["==", ["get", "part"], "net"], paint: { "fill-color": NET, "fill-opacity": 0.18 } });
+        map.addLayer({ id: "b-soft", type: "line", source: "budget", filter: ["==", ["get", "part"], "soft"], paint: { "line-color": colour, "line-width": 1.6, "line-dasharray": [2, 2] } });
+        map.addLayer({ id: "b-net-line", type: "line", source: "budget", filter: ["==", ["get", "part"], "net"], paint: { "line-color": NET, "line-width": 2.4 } });
+      }
       map.addSource("rings", { type: "geojson", data: turf.featureCollection(ringFs) });
       map.addLayer({ id: "rings", type: "line", source: "rings", paint: { "line-color": INK, "line-width": 1, "line-opacity": 0.5, "line-dasharray": [3, 3] } });
       map.addSource("site", { type: "geojson", data: site || turf.featureCollection([]) });

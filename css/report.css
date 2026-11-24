@@ -127,3 +127,16 @@ table.checks .src-inline { display: none; }
   .new-page { break-before: page; }
   a { color: var(--ink); text-decoration: none; }
 }
+/* The area budget (the developable area). */
+.sw.net { background: rgba(43,106,128,.18); border: 2px solid #2b6a80; }
+table.budget { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; margin: 8px 0; }
+table.budget th, table.budget td { text-align: left; padding: 5px 6px; border-top: 1px solid #dfe5e8; vertical-align: top; }
+table.budget th.num, table.budget td.num { text-align: right; white-space: nowrap; }
+table.budget td.why { color: #4a5f68; font-size: 12px; }
+table.budget tr.gross td { font-weight: 600; }
+table.budget tr.net td { font-weight: 700; border-top: 2px solid var(--ink, #15303c); }
+table.budget tr.softhead td { color: #4a5f68; }
+table.budget tr.soft td:first-child { padding-left: 18px; }
+table.budget .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+p.nc { font-size: 13px; }
+@media (max-width: 600px) { table.budget td.why, table.budget th.why { display: none; } }

@@ -18,7 +18,7 @@
      ],
      "decisions": ["no linkages identified in open records", "possible linkages: investigate", "likely linkages: investigate before purchase or design", "insufficient evidence"],
      "full_study_adds": ["historical maps and past land use (the core of a full desk study; open records only cover Northern Ireland and a few councils)", "geology and aquifer designations", "groundwater abstractions and private water supplies", "unexploded ordnance", "a site walkover"]},
-    {"id": "developable-area", "label": "Developable area", "status": "soon", "roles": ["area", "footprint"],
+    {"id": "developable-area", "label": "Developable area", "status": "ready", "kind": "budget", "skill": "developable-area", "setting": "land", "roles": ["area", "footprint"],
      "about": "How much of the site could be built on: the gross area, each deduction and its reason, and what's left, on the map."}
   ],
   "distances": "catalogue/distances.json",

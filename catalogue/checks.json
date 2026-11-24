@@ -1,6 +1,6 @@
 {
   "about": "Checks as data (plan item 1; design note claude/checks-design.md, agreed by Rob 23 Nov 2026). A check is one line on the report: a neutral topic, the layers that answer it in each region, the kind of answer, and how far it looks at each scale. The run carries out every check that applies, in code, before the analyst starts, and each comes back as found, none found, or not checked with the reason. Replaces 'baseline' in trusted.json. Version 2 (24 Nov): the UK statutory sites from the atlas's fixed records (22 Nov). Version 3 (24 Nov): the UK pack (23 Nov): heritage, landscape, flood, farmland, peat and the SSSI Impact Risk Zones. Edit by hand; js/checks.js reads it and test/checks.test.mjs and the invariants test check it. Version 4 (24 Nov): checks fetch only to their own reach; World Heritage Site buffer zones apart from the sites. Version 5 (24 Nov): the coverage drive (claude/coverage-audit-2026-11-24.md): OpenStreetMap checks for infrastructure and community receptors everywhere; coal mining risk, active faults, source protection zones; offshore installations, wind farms, wind leases and cables; Indigenous territories (indicative). Version 6 (24 Nov, Rob's licence calls): contamination (landfill, closed mining waste, council records, NI past land use, permitted sites, pollution incidents, the US EPA layers), radon, more Crown Estate leases and agreements, subsea pipelines.",
-  "version": "6",
+  "version": "7",
   "fields": {
     "answer": "count_by_band (features per distance band, plus the nearest), value_at_site (a reading over the site: elevation, depth, traffic) or inside (whether the site is inside or touching one), or classes (which classes are on the site, with the share they cover, and the nearest of each within reach: flood zones, farmland grade, peat)",
     "reach_km": "how far the check looks at each scale, from the footprint edge. null means the check doesn't apply at that scale. Value checks have no reach (they read the site). Reach values are a first cut from research-reach-evidence.md, defaults to tune on the example sites.",
@@ -9,7 +9,8 @@
     "sources": "Per region. Every source that covers what the check's reach can touch is used, and the results are merged (a site near a border needs both nations' layers). countries (onshore: the site must be in one), not_countries, and where (a box the site's box, grown by the reach, must overlap; offshore sites match on the box). atlas_id: an AI Living World Atlas record; record holds its title, publisher and licence as the atlas gave them on as_of (the atlas contract has no record-by-id lookup). name_field: the attribute holding the feature's name. code_field: a site code, so the same site in two layers counts once. filter: keep only features whose field has one of these values (JNCC's offshore layer holds several designations). supplementary: its absence doesn't stop a 'none found' when another source answered. tool: a Tobler tool instead of an atlas layer (boundaries, elevation, depth, traffic). setting: as for applies, for one source (JNCC's offshore layer only at sea). pending: a layer we know exists but can't use yet. If no source covers the site, the answer is not checked: no source for this region. class_field and classes: the field that holds a class, and its values mapped to labels (values not mapped are left out); class_prefix instead of a map; class: a layer that is one class. keep_fields: more attributes to keep on each feature (a grade). dense: a layer with many features (listed buildings), fetched only to the check's own reach so the 100-feature limit doesn't cut the count; class and inside checks always fetch only to their own reach. where_any: several boxes, any of which will do (the rough nation outlines in regions). name_filter: include or exclude features whose name matches (case-insensitive), e.g. buffer zones. detail_prefix: put before a kept field in the card's list (Grade, Category). osm: an OpenStreetMap kind (js/osmchecks.js OSM_KINDS), fetched in one Overpass query per run; completeness varies, so never a must-check. partial: this source covers only part of what it's about (a few councils, EPA-funded brownfields); its silence never reads as a clear none, and the line says which records were read.",
     "decode": "irz: an inside check whose zones are read for the development (catalogue/sssi_irz_codes.json; the profile's irz_categories by asset type)",
     "class_order": "classes, most significant first (a label starting with one of these)",
-    "caveat": "A line shown once on the card and in the report whenever this check runs (the contamination checks: an early screen of open records, not a contaminated land report)."
+    "caveat": "A line shown once on the card and in the report whenever this check runs (the contamination checks: an early screen of open records, not a contaminated land report).",
+    "used_by": "Optional: the skills a check is for (the developable area's buildings and water). Screens leave such a check out; the skills named run it."
   },
   "scales": {
     "about": "Distance bands per scale (agreed 23 Nov; docs/conceptual-model.md). Until plan item 3 puts them in the profile, the run picks the scale from the screening distances already chosen (js/checks.js screenScale).",
@@ -2000,6 +2001,37 @@
             90
           ],
           "osm": "railway"
+        }
+      ]
+    },
+    {
+      "id": "material.buildings",
+      "topic": "material-assets",
+      "label": "Buildings on the site",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0,
+        "regional": 0,
+        "global": null
+      },
+      "reach_why": "What already stands on the land the site takes. Used by the developable area only, not by screens. OpenStreetMap's completeness varies by place, so this is never a must-check.",
+      "used_by": [
+        "developable-area"
+      ],
+      "applies": {
+        "setting": "land"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "osm": "building"
         }
       ]
     },
@@ -4361,6 +4393,68 @@
         "Flood Zone 3",
         "Surface water, medium",
         "Flood Zone 2"
+      ]
+    },
+    {
+      "id": "water.water-bodies",
+      "topic": "water",
+      "label": "Lakes, ponds and reservoirs",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0,
+        "regional": 0,
+        "global": null
+      },
+      "reach_why": "Open water on the land the site takes. Used by the developable area only, not by screens. OpenStreetMap's completeness varies by place; large lakes mapped as relations are read only by their centre.",
+      "used_by": [
+        "developable-area"
+      ],
+      "applies": {
+        "setting": "land"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "osm": "water body"
+        }
+      ]
+    },
+    {
+      "id": "water.watercourses",
+      "topic": "water",
+      "label": "Rivers, streams and ditches",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0.05,
+        "regional": 0.05,
+        "global": null
+      },
+      "reach_why": "Watercourses across or beside the site, kept clear of. Used by the developable area only, not by screens. OpenStreetMap's completeness varies by place, and it doesn't say which are main rivers.",
+      "used_by": [
+        "developable-area"
+      ],
+      "applies": {
+        "setting": "land"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "osm": "watercourse"
+        }
       ]
     },
     {
