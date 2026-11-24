@@ -1197,3 +1197,15 @@ have no topic at all, though landscape, peat and farmland quality decided most o
 - **Not tested:** the live services (SEPA, Cadw, NRW, HES and the EA's WFS can't be reached from the build
   workspace; the atlas's mcp-ask checked all 45 return features on 23 Nov); the class values I took from the contract
   rather than live (EA `FZ2`/`FZ3`, NRW `Flood Zone 2/3`, Wales `predictive`, Hutton `LCCODE`, HES `CATEGORY`).
+
+## 24 Nov 2026: the same shape, not just a similar box; and a switch (Rob)
+- **Rob: the geometry match was too lean.** Two features from different layers now count as one site only when they
+  really are the same feature (`sameShape` in `js/siterole.js`): polygons that each cover at least 95% of the other
+  (equal-area overlay), lines whose vertices all lie within 20 m of the other line both ways, points within 10 m.
+  The near-identical box is only a quick first filter. A diamond in the same box as a square isn't the same site.
+- **A switch, on by default** (Settings → Data the analyst may use: "Count the same site once across layers"). Off
+  counts each layer's copy, except where the site code or name already says they're the same. The run records
+  `checks_merge_shapes`, and the report says which way it was.
+- **Tested:** `npm test` (checks 13, with the shape rules and the switch on and off); browser checks desktop and
+  phone: run-card 151 (new: the switch on by default, switching it off is saved), search-area 46, out-of-date 28,
+  ux 26, choice 8, coords 18, epsg 20, cards 14, site files 44. Settings screenshot on a phone looked at.

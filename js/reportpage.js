@@ -151,7 +151,7 @@ function render(record) {
   const ckSec = cv ? el("section", null, "checks") : null;
   if (cv) {
     ckSec.append(el("h2", "Checks"));
-    ckSec.append(el("p", `${cv.summary.replace(/^Checks: (\d+)/, (m, n) => `${n} check${n === "1" ? "" : "s"}`)}, run in code before the analyst started, at ${cv.scale || "the"} scale. Each looks out to its own distance from the site's edge. "Must" marks a check its topic can't be called clear without. "Not checked" is not the same as "none found".`));
+    ckSec.append(el("p", `${cv.summary.replace(/^Checks: (\d+)/, (m, n) => `${n} check${n === "1" ? "" : "s"}`)}, run in code before the analyst started, at ${cv.scale || "the"} scale. Each looks out to its own distance from the site's edge. "Must" marks a check its topic can't be called clear without. "Not checked" is not the same as "none found". ${r.checks_merge_shapes === false ? "The same site in two publishers' layers is counted once only by its code or name (the shape match was switched off)." : "The same site in two publishers' layers is counted once, by its code, its name or the same shape."}`));
     const t = el("table", null, "checks");
     const hr = el("tr"); [["Check", ""], ["Result", ""], ["Source", "src"]].forEach(([h, c]) => hr.append(el("th", h, c)));
     t.append(el("thead"), el("tbody")); t.tHead.append(hr);

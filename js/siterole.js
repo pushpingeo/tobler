@@ -158,3 +158,28 @@ export function searchHeadline(site = {}) {
 }
 
 export const SEARCH_NOTE = (km2, why) => `a search area of ${km2 < 1 ? `${Math.round(km2 * 100)} ha` : `${Math.round(km2 * 10) / 10} km²`} (${why}), standing in for an outline that wasn't found`;
+
+// Whether two features from different layers are the same feature (Rob, 24 Nov: the same shape, not just a similar
+// box). Polygons: each covers at least 95% of the other, in a local equal-area projection. Lines: every vertex within
+// 20 m of the other line, both ways. Points: within 10 m. Anything else, or a geometry that won't compare: not the same.
+export const SAME_SHAPE = { cover: 0.95, lineM: 20, pointM: 10 };
+export function sameShape(a, b, rules = SAME_SHAPE) {
+  if (!a || !b) return false;
+  const kind = (g) => (/Polygon/.test(g.type) ? "area" : /LineString/.test(g.type) ? "line" : /Point/.test(g.type) ? "point" : null);
+  if (kind(a) !== kind(b) || !kind(a)) return false;
+  const F = (g) => ({ type: "Feature", properties: {}, geometry: g });
+  try {
+    if (kind(a) === "point") {
+      const pa = a.type === "Point" ? [a.coordinates] : a.coordinates, pb = b.type === "Point" ? [b.coordinates] : b.coordinates;
+      return pa.length === pb.length && pa.every((c) => pb.some((d) => turf.distance(c, d) * 1000 <= rules.pointM));
+    }
+    if (kind(a) === "line") {
+      const verts = (g) => (g.type === "LineString" ? g.coordinates : g.coordinates.flat());
+      const lines = (g) => (g.type === "LineString" ? [g.coordinates] : g.coordinates).filter((l) => l.length > 1).map((l) => turf.lineString(l));
+      const within = (pts, ls) => pts.every((c) => Math.min(...ls.map((l) => turf.pointToLineDistance(c, l))) * 1000 <= rules.lineM);
+      return within(verts(a), lines(b)) && within(verts(b), lines(a));
+    }
+    const ab = coverageIn(F(a), b)?.coverage ?? 0, ba = coverageIn(F(b), a)?.coverage ?? 0;
+    return ab >= rules.cover && ba >= rules.cover;
+  } catch { return false; }
+}

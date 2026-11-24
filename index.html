@@ -18,7 +18,7 @@
   "./js/atlasclient.js": "./js/atlasclient.js?v=6e6b994a",
   "./js/atlasfeatures.js": "./js/atlasfeatures.js?v=c8e33cad",
   "./js/boundaries.js": "./js/boundaries.js?v=b245dfdc",
-  "./js/checks.js": "./js/checks.js?v=5bc66acb",
+  "./js/checks.js": "./js/checks.js?v=ee9b61ad",
   "./js/claude.js": "./js/claude.js?v=a4e8d42a",
   "./js/confidence.js": "./js/confidence.js?v=ad22f5c6",
   "./js/config.js": "./js/config.js?v=7752ed50",
@@ -41,21 +41,21 @@
   "./js/geometry.js": "./js/geometry.js?v=6bc3cd92",
   "./js/industry.js": "./js/industry.js?v=0d32f3b5",
   "./js/licence.js": "./js/licence.js?v=cf8fd6ef",
-  "./js/ntrrun.js": "./js/ntrrun.js?v=92c4140f",
+  "./js/ntrrun.js": "./js/ntrrun.js?v=b25f6f8a",
   "./js/outofdate.js": "./js/outofdate.js?v=09c95316",
   "./js/placetools.js": "./js/placetools.js?v=247733f4",
   "./js/reference.js": "./js/reference.js?v=b21a38d8",
   "./js/seavalues.js": "./js/seavalues.js?v=2949ddce",
-  "./js/share.js": "./js/share.js?v=b356c91b",
+  "./js/share.js": "./js/share.js?v=4cf555c3",
   "./js/sharelog.js": "./js/sharelog.js?v=c41ca9c5",
-  "./js/siterole.js": "./js/siterole.js?v=34cbca5c",
+  "./js/siterole.js": "./js/siterole.js?v=ab3fae8a",
   "./js/tools.js": "./js/tools.js?v=e01d1756",
   "./js/transform.js": "./js/transform.js?v=007b7bff",
   "./js/units.js": "./js/units.js?v=77029a89",
   "./js/vendor/draw.js": "./js/vendor/draw.js?v=d46ad546",
   "./js/vendor/fileread.js": "./js/vendor/fileread.js?v=c6e0d988",
   "./js/vendor/turf.js": "./js/vendor/turf.js?v=bae079f8",
-  "./js/workspace.js": "./js/workspace.js?v=2f015724",
+  "./js/workspace.js": "./js/workspace.js?v=6e1c89ef",
   "@turf/turf": "./js/vendor/turf.js?v=bae079f8",
   "osmtogeojson": "./js/vendor/osmtogeojson.js?v=75ffea00"
  }
@@ -173,6 +173,7 @@
       <legend>Data the analyst may use</legend>
       <label class="switch"><input type="checkbox" name="esri"> <span><b>I hold an Esri licence</b>Lets the analyst use layers under Esri's Master License Agreement (Living Atlas copies). Leave off unless your organisation is licensed.</span></label>
       <label class="switch"><input type="checkbox" name="nonCommercial"> <span><b>My use is non-commercial</b>Lets the analyst use data licensed for non-commercial use only, such as the World Database on Protected Areas. Leave off for any commercial work.</span></label>
+      <label class="switch"><input type="checkbox" name="mergeShapes"> <span><b>Count the same site once across layers</b>When two publishers' layers hold the same shape (a SAC in a nation's layer and in JNCC's), the checks count it once. Switch off to count each layer's copy.</span></label>
       <p class="hint-line">Changes apply to the next search or screen. Runs already made keep what they used.</p>
     </fieldset>
     <fieldset>
@@ -337,6 +338,6 @@
   </article>
 </template>
 
-<script type="module" src="js/workspace.js?v=2f015724"></script>
+<script type="module" src="js/workspace.js?v=6e1c89ef"></script>
 </body>
 </html>

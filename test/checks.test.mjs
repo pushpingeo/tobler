@@ -184,19 +184,32 @@ await test("several sources: filtered, counted once by code or name, partly chec
   assert.equal(K.checksView({ checks: [r], topic_labels: { biodiversity: "Biodiversity" } }).groups[0].items[0].source, "NE SAC (p); NS SAC (p); JNCC (p)");
 });
 
-await test("the same feature from two layers, by its own extent; but not two parts of one layer", () => {
-  assert.equal(K.sameExtent([0, 0, 1, 1], [0.01, 0, 1, 1.01]), true);
-  assert.equal(K.sameExtent([0, 0, 1, 1], [0, 0, 1, 0.5]), false, "half the box isn't the same feature");
-  assert.equal(K.sameExtent([1, 1, 1, 1], [1.0003, 1.0002, 1.0003, 1.0002]), true, "points within ~50 m");
-  assert.equal(K.sameExtent([1, 1, 1, 1], [1.002, 1, 1.002, 1]), false);
+await test("the same feature from two layers: a near box first, then the same shape; and the switch", async () => {
+  const { sameShape } = await import("../js/siterole.js");
+  const sq = (w, so, e, n) => ({ type: "Polygon", coordinates: [[[w, so], [e, so], [e, n], [w, n], [w, so]]] });
+  // Shapes: polygons covering each other 95% both ways; lines within 20 m; points within 10 m.
+  assert.equal(sameShape(sq(-3.6, 54.8, -3.0, 55.0), sq(-3.6, 54.8, -3.0, 55.003)), true, "one edge a few hundred metres off on a 20 km site");
+  const diamond = { type: "Polygon", coordinates: [[[-3.3, 54.8], [-3.0, 54.9], [-3.3, 55.0], [-3.6, 54.9], [-3.3, 54.8]]] };
+  assert.equal(K.sameExtent([-3.6, 54.8, -3.0, 55.0], [-3.6, 54.8, -3.0, 55.0]), true);
+  assert.equal(sameShape(sq(-3.6, 54.8, -3.0, 55.0), diamond), false, "the same box, a different shape: not the same feature");
+  assert.equal(sameShape({ type: "Point", coordinates: [-1, 53] }, { type: "Point", coordinates: [-1.0001, 53] }), true, "about 7 m");
+  assert.equal(sameShape({ type: "Point", coordinates: [-1, 53] }, { type: "Point", coordinates: [-1.0003, 53] }), false, "about 20 m");
+  const line = (dy) => ({ type: "LineString", coordinates: [[-1, 53 + dy], [-0.9, 53.05 + dy], [-0.8, 53 + dy]] });
+  assert.equal(sameShape(line(0), line(0.0001)), true, "11 m apart");
+  assert.equal(sameShape(line(0), line(0.0005)), false, "55 m apart");
+  assert.equal(sameShape(line(0), sq(-1, 53, -0.8, 53.05)), false, "a line isn't a polygon");
+  // In a check: England's and Scotland's copy of one site (different names) count once with the switch on, twice off;
+  // a different shape in the same box never merges; one layer's own parts never merge.
   const sac = plan("bio.sac");
   const [ne, ns] = sac.check.sources;
   const meta = { fetched_km: 20 };
-  const r = K.fromSources(sac, [
-    { source: ne, features: [{ name: "Solway Firth", distance_km: 3, bbox: [-3.6, 54.8, -3.0, 55.0], extra: {} }], meta },
-    { source: ns, features: [{ name: "Solway Firth SAC", distance_km: 3.1, bbox: [-3.6, 54.8, -3.0, 55.01], extra: {} },
-      { name: "Solway Firth SAC", distance_km: 7, bbox: [-3.9, 54.85, -3.7, 54.9], extra: {} }], meta }], cat.scales.regional);
-  assert.equal(r.count, 2, "England's and Scotland's copy are one site (same extent, different names); NatureScot's second part stays");
+  const f = (name, d, g) => ({ name, distance_km: d, geometry: g, bbox: [-3.6, 54.8, -3.0, 55.0], extra: {} });
+  const answers = (g2) => [{ source: ne, features: [f("Solway Firth", 3, sq(-3.6, 54.8, -3.0, 55.0))], meta },
+    { source: ns, features: [f("Solway Firth SAC", 3.1, g2), f("Solway Firth SAC (part)", 3.1, sq(-3.6, 54.8, -3.0, 55.0))], meta }];
+  const on = { sameShape };
+  assert.equal(K.fromSources(sac, answers(sq(-3.6, 54.8, -3.0, 55.0)), cat.scales.regional, on).count, 1, "the same shape twice in NatureScot's layer and once in England's: counted once");
+  assert.equal(K.fromSources(sac, answers(diamond), cat.scales.regional, on).count, 2, "a diamond in the same box isn't the same site");
+  assert.equal(K.fromSources(sac, answers(sq(-3.6, 54.8, -3.0, 55.0)), cat.scales.regional, {}).count, 3, "switched off: each copy counts");
 });
 
 await test("class answers: flood zones and farmland by class, with the share of the site; edge-touching isn't on site", () => {

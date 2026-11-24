@@ -18,7 +18,7 @@ import { waterDepth, vesselTraffic, seaLines } from "./seavalues.js";
 import { elevationFrom, elevationSignificance, elevationLine, elevationShort } from "./elevation.js";
 import { readDecision, settleDecision } from "./industry.js";
 import * as K from "./checks.js";
-import { placeRole, coverageIn, whereText, applySearchArea, reword, SEARCH_BAND, SEARCH_NOTE } from "./siterole.js";
+import { placeRole, coverageIn, whereText, applySearchArea, reword, sameShape, SEARCH_BAND, SEARCH_NOTE } from "./siterole.js";
 
 // The band for a piece of evidence: a wide area the site lies within is "around the site", not "on site".
 export const AROUND = "around the site";
@@ -403,6 +403,8 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
     return { lines, notChecked };
   })() : null;
   onEvent({ type: "baseline", layers: layers.length + (seaJob ? 1 : 0) });
+  // Settings: count the same shape from two layers once (on unless the person switched it off).
+  const mergeShapes = host.mergeShapes ? !!host.mergeShapes() : true;
   const layerAnswers = new Map(); // atlas_id → { features, meta } or { not_checked }
   await Promise.allSettled(layers.map(async (l) => {
     const x = l.source, rec = x.record || {};
@@ -420,7 +422,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
       // covers (equal-area, js/siterole.js), so a polygon that only touches the edge isn't counted as on the site.
       const cov = (c) => { if (!l.coverage || c.distance_km > 0 || !isArea(fp.feature)) return null; try { return coverageIn(fp.feature, c.geometry)?.coverage ?? 0; } catch { return null; } };
       const box = (c) => { try { return turf.bbox({ type: "Feature", properties: {}, geometry: c.geometry }); } catch { return null; } };
-      layerAnswers.set(x.atlas_id, { features: (rawFound.get(raw.dataset) || []).map((c) => ({ name: c.name, distance_km: c.distance_km, around_site: !!c.around_site, extra: c.extra || {}, bbox: box(c), coverage: cov(c) })),
+      layerAnswers.set(x.atlas_id, { features: (rawFound.get(raw.dataset) || []).map((c) => ({ name: c.name, distance_km: c.distance_km, around_site: !!c.around_site, extra: c.extra || {}, bbox: box(c), geometry: c.geometry, coverage: cov(c) })),
         meta: { dataset: raw.dataset, publisher: raw.publisher, licence: raw.licence, checked_at: raw.checked_at, capped: !!raw.capped, fetched_km: raw.within_km } });
     } catch (e) {
       onEvent({ type: "tool", name: "get_data", input, error: String(e.message || e), ms: Date.now() - t0, baseline: true });
@@ -429,7 +431,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
   }));
   for (const p of layerPlans) {
     const answers = p.sources.map((x) => (x.pending ? { source: x } : { source: x, ...(layerAnswers.get(x.atlas_id) || { not_checked: "not fetched" }) }));
-    const r = K.fromSources(p, answers, edges);
+    const r = K.fromSources(p, answers, edges, mergeShapes ? { sameShape } : {});
     // The SSSI Impact Risk Zones: the zones the site is in, read for this kind of development (the profile's
     // categories for the asset type; "all consultations" always).
     if (p.check.decode === "irz" && r.state !== "not_checked") {
@@ -568,7 +570,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
       flags, checked, data_gaps: Array.isArray(parsed.json?.data_gaps) ? parsed.json.data_gaps.map(String) : [],
       model_checked: Array.isArray(parsed.json?.checked) ? parsed.json.checked : [],
       summary: parsed.summary, ...(parsed.json ? {} : { parse_error: "The analyst's result had no readable JSON block, so there are no structured flags. The summary is kept as written." }),
-      checks: checkResults, checks_scale: scale, checks_version: catalogue.version || null, ...(noCheck.length ? { no_check_topics: noCheck } : {}),
+      checks: checkResults, checks_scale: scale, checks_merge_shapes: mergeShapes, checks_version: catalogue.version || null, ...(noCheck.length ? { no_check_topics: noCheck } : {}),
       // Topic names travel with the run, so a share link can show them without the catalogue.
       topic_labels: Object.fromEntries((catalogue.topics || []).filter((t) => noCheck.includes(t.id) || checkResults.some((c) => c.topic === t.id)).map((t) => [t.id, t.label])),
       baseline: { layers: layers.map((l) => l.source.record?.title || l.source.atlas_id), calls: baselineCalls }, disclaimer: DISCLAIMER,

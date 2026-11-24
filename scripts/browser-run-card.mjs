@@ -333,6 +333,11 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await page.check('#settings input[name="units"][value="imperial"]');
   await page.click('#settings [data-colour="#00a0b0"]');
   await page.check('#settings input[name="esri"]');
+  // Counting the same shape once across layers: on by default (Rob, 24 Nov); switching it off is saved and reaches the host.
+  check(await page.evaluate(() => document.querySelector('#settings input[name="mergeShapes"]').checked && window.__ws.host.mergeShapes() === true), `${label}: "count the same site once" is on by default`);
+  await page.uncheck('#settings input[name="mergeShapes"]');
+  check(await page.evaluate(() => localStorage.getItem("tobler.mergeShapes") === "no" && window.__ws.host.mergeShapes() === false), `${label}: switching it off is saved`);
+  await page.check('#settings input[name="mergeShapes"]');
   check(await page.evaluate(() => !document.querySelector("#settings .advanced").open), `${label}: the key and sharing sit under a closed Advanced section`);
   await page.click("#settings .advanced > summary");
   await page.uncheck('#settings input[name="shareSessions"]');

@@ -199,7 +199,9 @@ const shortWhy = (a) => (a.source.pending ? "isn't in Tobler's data yet" : /lice
 // nations' layers, or straddling 12 nm). Found if any source found something; none found only if every source that
 // matters answered; otherwise not checked. A supplementary source (WDPA beside the UK's own layers) never stops a
 // "none found" when another source answered.
-export function fromSources(plan, answers = [], edges = []) {
+// opts.sameShape(geometryA, geometryB): whether two features are the same feature (js/siterole.js sameShape), checked
+// only after their boxes nearly match; leave it out (the Settings switch) and shapes aren't compared at all.
+export function fromSources(plan, answers = [], edges = [], opts = {}) {
   const ok = answers.filter((a) => !a.not_checked && !a.source.pending);
   const missing = answers.filter((a) => a.not_checked || a.source.pending);
   const sources = answers.map((a) => ({ ...srcOf(plan, a.meta || {}, a.source), state: a.not_checked || a.source.pending ? "not_checked" : "answered",
@@ -212,7 +214,7 @@ export function fromSources(plan, answers = [], edges = []) {
     return { ...base(plan), state: "not_checked", reason, why, sources, source: sources[0] || null };
   }
   // The same site from two sources: the same code, the same name within half a kilometre (WDPA has no code field), or
-  // the same feature extent (names differ between publishers: "Wyville Thomson Ridge" and "... SAC").
+  // the same shape (names differ between publishers: "Wyville Thomson Ridge" and "... SAC"), when the switch is on.
   if (plan.check.answer === "classes") return classesFrom(plan, ok, missing, sources, edges);
   const kept = [];
   const nm = (v) => String(v || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -223,7 +225,7 @@ export function fromSources(plan, answers = [], edges = []) {
       const code = a.source.code_field && x.extra?.[a.source.code_field] != null ? String(x.extra[a.source.code_field]).trim().toUpperCase() : null;
       const y = { ...x, code, src: si };
       const i = kept.findIndex((k) => (code && k.code === code) || (nm(k.name) && nm(k.name) === nm(y.name) && Math.abs((k.distance_km ?? 0) - (y.distance_km ?? 0)) <= 0.5)
-        || (k.src !== si && sameExtent(k.bbox, y.bbox)));
+        || (opts.sameShape && k.src !== si && sameExtent(k.bbox, y.bbox) && opts.sameShape(k.geometry, y.geometry)));
       if (i < 0) kept.push(y);
       else if ((y.distance_km ?? 1e9) < (kept[i].distance_km ?? 1e9)) kept[i] = { ...y, code: y.code || kept[i].code };
     }

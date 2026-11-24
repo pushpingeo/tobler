@@ -620,6 +620,8 @@ const host = {
   esriLicence: () => store.get("esriLicence") === "yes",
   // Non-commercial data (e.g. WDPA): off by default; on only for people whose use allows it (Rob, 18 Nov).
   nonCommercial: () => store.get("nonCommercial") === "yes",
+  // Count the same shape from two layers once in the checks: on by default (Rob, 24 Nov).
+  mergeShapes: () => store.get("mergeShapes") !== "no",
   view: () => viewBounds(),
   headers: {},
   places: () => [...places.values()],
@@ -1860,6 +1862,7 @@ function paintSettings() {
   paintIndustryAbout();
   form.esri.checked = host.esriLicence();
   form.nonCommercial.checked = host.nonCommercial();
+  form.mergeShapes.checked = host.mergeShapes();
   form.shareSessions.checked = store.get("shareSessions") !== "no";
   form.querySelectorAll('input[name="units"]').forEach((r) => { r.checked = r.value === U.getUnits(); });
   const preset = [...form.querySelectorAll("[data-colour]")].find((b) => b.dataset.colour.toLowerCase() === C.pole.toLowerCase());
@@ -1888,6 +1891,7 @@ $("gear").addEventListener("click", () => { paintSettings(); form.querySelector(
 dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
 form.esri.addEventListener("change", () => store.set("esriLicence", form.esri.checked ? "yes" : null));
 form.nonCommercial.addEventListener("change", () => store.set("nonCommercial", form.nonCommercial.checked ? "yes" : null));
+form.mergeShapes.addEventListener("change", () => store.set("mergeShapes", form.mergeShapes.checked ? null : "no"));
 form.shareSessions.addEventListener("change", () => store.set("shareSessions", form.shareSessions.checked ? null : "no"));
 // "settings" in the welcome card's note opens the dialog at the sharing switch.
 document.querySelectorAll("[data-open-settings]").forEach((b) => b.addEventListener("click", () => {

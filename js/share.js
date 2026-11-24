@@ -66,7 +66,7 @@ export function slimRun(record, { tol = 0.0002, now = () => new Date().toISOStri
       ...(c.irz ? { irz: c.irz.map((z) => ({ key: z.key, category: z.category, consult: z.consult })) } : {}),
       ...(c.why ? { why: String(c.why).slice(0, 160) } : {}), ...(c.source ? { source: pick(c.source, ["atlas_id", "tool", "dataset", "publisher", "licence", "checked_at"]) } : {}),
       ...(c.sources?.length ? { sources: c.sources.map((x) => pick(x, ["region", "atlas_id", "dataset", "publisher", "licence", "checked_at", "state"])) } : {}) })),
-      checks_scale: r.checks_scale, ...pick(r, ["checks_version", "no_check_topics", "topic_labels"]) } : {}),
+      checks_scale: r.checks_scale, ...pick(r, ["checks_version", "checks_merge_shapes", "no_check_topics", "topic_labels"]) } : {}),
     data_gaps: r.data_gaps, summary: r.summary, disclaimer: r.disclaimer,
     ...(r.replaces ? { replaces: r.replaces } : {}), ...(r.out_of_date ? { out_of_date: r.out_of_date } : {}),
     assessments: (r.assessments || []).map((a) => ({ at: a.at, within_km: a.within_km, flags: a.flags?.length ?? 0, decision: a.decision?.value ?? null })),
