@@ -86,14 +86,20 @@ export async function builtinToWgs84(epsgCode, [x, y]) {
   return converterFor(proj4, d.def, d).convert([x, y]);
 }
 
-// No .prj: longitude and latitude if every number fits, British National Grid if they fit that, otherwise ask.
-function guessConverter(proj4, coords) {
+// No coordinate system given: longitude and latitude if every number fits, British National Grid if they fit that,
+// otherwise ask. GeoJSON is WGS 84 by its standard (RFC 7946), so longitude and latitude there is not a guess; its
+// fix, when wrong, is to re-save it as WGS 84 (a GeoJSON file has no .prj).
+function guessConverter(proj4, coords, kind = "shapefile") {
+  const geojson = kind === "GeoJSON";
   const xs = coords.map((c) => c[0]), ys = coords.map((c) => c[1]);
   const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-  if (x0 >= -180 && x1 <= 180 && y0 >= -90 && y1 <= 90) return { ...converterFor(proj4, EPSG[4326], { name: "WGS 84" }), guessed: true, code: 4326, text: EPSG[4326], how: "no coordinate system given; the numbers are longitudes and latitudes, so WGS 84 was assumed" };
+  if (x0 >= -180 && x1 <= 180 && y0 >= -90 && y1 <= 90) {
+    if (geojson) return { ...converterFor(proj4, EPSG[4326], { name: "WGS 84" }), code: 4326, text: EPSG[4326], how: "WGS 84, the GeoJSON standard" };
+    return { ...converterFor(proj4, EPSG[4326], { name: "WGS 84" }), guessed: true, code: 4326, text: EPSG[4326], how: "no coordinate system given; the numbers are longitudes and latitudes, so WGS 84 was assumed" };
+  }
   if (x0 >= 0 && x1 <= 700000 && y0 >= 0 && y1 <= 1300000) {
     return { ...converterFor(proj4, EPSG[27700], { name: "British National Grid" }), guessed: true, code: 27700, text: EPSG[27700],
-      how: "no coordinate system given; the numbers fit British National Grid, so it was assumed and converted to WGS 84 (if this is Irish or other data, add its .prj file)" };
+      how: `no coordinate system given; the numbers fit British National Grid, so it was assumed and converted to WGS 84 (${geojson ? "if that's wrong, save the file as WGS 84 GeoJSON" : "if this is Irish or other data, add its .prj file"})` };
   }
   return null;
 }
@@ -249,9 +255,14 @@ export async function readFiles(files, { geodesy = null } = {}) {
     rows = rows.filter((r) => r.geometry && kindOf(r.geometry.type) && r.geometry.coordinates?.length);
     if (!rows.length) { skipped.push(`${g.name}: no shapes in it`); continue; }
     if (!conv) {
-      conv = guessConverter(proj4, rows.flatMap((r) => coordsOf(r.geometry)).slice(0, 5000));
-      if (!conv) { skipped.push(`${g.name}: there's no .prj and the coordinates aren't longitude and latitude or British National Grid, so they can't be placed. Drop the .prj file with it`); continue; }
-      crsText = conv.text; code = conv.code; codeHow = "guessed from the numbers";
+      conv = guessConverter(proj4, rows.flatMap((r) => coordsOf(r.geometry)).slice(0, 5000), kindName);
+      if (!conv) {
+        skipped.push(kindName === "GeoJSON"
+          ? `${g.name}: the coordinates aren't longitude and latitude or British National Grid, so they can't be placed. Save it as WGS 84 GeoJSON and drop it again`
+          : `${g.name}: there's no .prj and the coordinates aren't longitude and latitude or British National Grid, so they can't be placed. Drop the .prj file with it`);
+        continue;
+      }
+      crsText = conv.text; code = conv.code; codeHow = conv.guessed ? "guessed from the numbers" : "the GeoJSON standard";
     }
     // Built-in conversion first: it places the features for the map, and is the fallback if the registry can't help.
     const raws = rows.map((r) => mapCoords(r.geometry, (c) => [c[0], c[1]]));
@@ -268,7 +279,7 @@ export async function readFiles(files, { geodesy = null } = {}) {
         if (pl) {
           const src = pl.source;
           const named = `${src.given_name} (EPSG:${src.given})`;
-          const guess = conv.guessed ? `no coordinate system was given, so ${named} was assumed from the numbers (if that's wrong, add the .prj); ` : "";
+          const guess = conv.guessed ? `no coordinate system was given, so ${named} was assumed from the numbers (if that's wrong, ${kindName === "GeoJSON" ? "save the file as WGS 84 GeoJSON" : "add the .prj"}); ` : "";
           if (pl.kind === "none") {
             geoms = raws.map((g2) => mapCoords(g2, projOnly));
             crs = { name: named, epsg: src.given, epsg_how: codeHow, datum: src.base_name, accuracy_m: 0, how: `${guess}${named}${codeHow === "read from the .prj" || guess ? "" : `, ${codeHow}`}: already on WGS 84, so no datum transformation was needed`, ...(conv.guessed ? { guessed: true } : {}) };

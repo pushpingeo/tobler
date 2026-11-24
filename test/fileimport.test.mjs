@@ -255,4 +255,21 @@ await test("a typed grid reference: converted with the registry's EPSG:1314, nev
   assert.match(ask.needs_decision[0], /NT 002 774: .*grid file/);
 });
 
+
+await test("GeoJSON without a crs member is WGS 84 by its standard: not a guess, and never asks for a .prj", async () => {
+  for (const opts of [{}, { geodesy }]) {
+    const w = await readFiles([file("evora.geojson")], opts);
+    const crs = w.layers[0].crs;
+    assert.ok(!crs.guessed, `guessed: ${JSON.stringify(crs)}`);
+    assert.doesNotMatch(crs.how, /\.prj|assumed/);
+    assert.match(crs.how, /GeoJSON standard/);
+  }
+  // Old-style GeoJSON in British National Grid numbers with no crs member is a real guess, fixed by re-saving, not a .prj.
+  const raw = JSON.parse(readFileSync(new URL("bng.geojson", DIR), "utf8"));
+  delete raw.crs;
+  const b = await readFiles([{ name: "nocrs.geojson", bytes: new TextEncoder().encode(JSON.stringify(raw)) }], { geodesy });
+  assert.ok(b.layers[0].crs.guessed);
+  assert.doesNotMatch(b.layers[0].crs.how, /\.prj/);
+  assert.match(b.layers[0].crs.how, /save the file as WGS 84 GeoJSON/);
+});
 console.log(`${passed} fileimport tests passed`);
