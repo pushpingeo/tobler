@@ -394,4 +394,17 @@ await test("partial sources (council registers, EPA brownfields): silence is nev
   }
 });
 
+await test("England's border strip: Stanlow, Chester and Hereford read England's layers, not only Wales's (Rob's Stanlow log, 24 Nov)", () => {
+  for (const [name, lon, lat] of [["Stanlow", -2.84, 53.27], ["Chester", -2.89, 53.19], ["Hereford", -2.72, 52.06], ["Oswestry", -3.05, 52.86]]) {
+    const plan = K.planChecks(cat, { bbox: box(lon, lat, 0.01), countries: ["United Kingdom"], offshore: false, sea: false }, "local");
+    for (const id of ["ground.landfill", "water.source-protection", "ground.mining-waste"]) {
+      const p = plan.find((x) => x.check.id === id);
+      assert.ok(p?.sources.some((s) => s.region === "England" && s.atlas_id), `${name}: ${id} asks England's layer (${p?.sources.map((s) => s.region).join(", ")})`);
+    }
+  }
+  // Deep in Wales, England's layers aren't asked.
+  const plan = K.planChecks(cat, { bbox: box(-3.8, 52.4, 0.01), countries: ["United Kingdom"], offshore: false, sea: false }, "local");
+  assert.ok(!plan.find((x) => x.check.id === "ground.landfill").sources.some((s) => s.region === "England"));
+});
+
 console.log(`${passed} checks tests passed`);

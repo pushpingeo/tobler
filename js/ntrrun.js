@@ -587,7 +587,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     return `- ${c.dataset} (${c.publisher || "?"}): ${c.result === "features" ? `${c.count} ${inside ? "inside or touching the area" : `within ${reach} km`}; nearest ${near.join("; ")}` : c.result}${c.why ? ` (${c.why})` : ""}`;
   };
   const origin = site.origin?.method === "words"
-    ? `from the words "${site.origin.words}", anchored on ${site.origin.anchor?.name || site.origin.anchor?.place || "a found feature"}${site.origin.anchor?.source?.publisher ? ` (${site.origin.anchor.source.publisher})` : ""}, ${site.origin.confidence} confidence`
+    ? `from the words "${site.origin.words}", anchored on ${site.origin.anchor?.name || site.origin.anchor?.place || "a found feature"}${site.origin.anchor?.type ? `, a ${String(site.origin.anchor.type).slice(0, 60)}` : ""}${site.origin.anchor?.source?.publisher ? ` (${site.origin.anchor.source.publisher})` : ""}, ${site.origin.confidence} confidence`
     : site.origin?.method === "file" ? fileOriginText(site.origin)
     : "drawn on the map by the person";
   const res = study ? await studyTurn({ skill, study, callClaude, message: studyMessage({ siteName: site.name, describe, origin, distances, baseline: baselineLines.join("\n"), searchArea: searchNote, study }), onEvent }) : await runTurn({

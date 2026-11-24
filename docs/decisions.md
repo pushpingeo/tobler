@@ -2,6 +2,25 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 24 Nov 2026 (late night): England's border strip; the site's own use as a source (Rob's Stanlow log)
+- **Rob's log:** a contamination desk study of Stanlow refinery (Ellesmere Port) read only Wales's landfill, mining
+  waste and source protection layers, so every source check was "not checked" and the decision fell to insufficient
+  evidence. Rob: "a little disappointed".
+- **Cause:** England's nation boxes (`catalogue/checks.json` `regions`, copied into each English source's
+  `where_any`) left out the border strip west of 2.72°W and south of 53.3°N: the Wirral's south, Chester, Ellesmere
+  Port, Shropshire's and Herefordshire's west. Natural England's layers still answered there through their own data
+  extent; the contamination layers have none.
+- **Fix:** a fifth England box, [-3.25, 51.6, -2.72, 53.3], in the regions and in all 30 copies. It overlaps Wales;
+  that's safe, because an English layer answering nothing beside a Welsh source that's held back gives "not checked
+  (partly)", never a clear none (`fromSources`). The real fix is nation outlines instead of boxes (small fixes).
+- **The site's own use:** the run now says what the site was anchored on, with its type ("Stanlow Refinery, a
+  landuse: industrial"), and the desk study skill (0.2-draft) treats an industrial site's own use as a potential source
+  on site, even when no contamination layer covers it.
+- **Still true after the fix:** England's permitted sites and pollution incidents are downloads only, so an operating
+  refinery's own permit isn't read; the EA flood WFS timed out at 15 s for a 2.4 km² site (small fixes: timeouts).
+- **Tests:** a checks test (Stanlow, Chester, Hereford and Oswestry ask England's layers; mid-Wales doesn't), which
+  fails on the old boxes. All browser checks touched pass.
+
 ## 24 Nov 2026 (late night): the contamination desk study (first skill beyond the screen)
 - **Rob:** "if you can build a contamination desk study, that would be great". Contract in `claude/skill-contracts.md`.
 - **How it runs:** the profile's `skills_offered` entry (ready) names its skill file, its checks grouped as potential
