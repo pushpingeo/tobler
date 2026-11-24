@@ -2,6 +2,18 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 24 Nov 2026 (night): skill contracts and the skill chips (plan item 3b)
+- **Contracts:** `claude/skill-contracts.md` in the project. The contamination desk study (LCRM in the UK, an
+  ASTM-style records review in the US; sources, pathways, receptors; no new tool) and developable area (an area budget;
+  one new deterministic tool, `area_budget`; slope not checked yet). Neither needs a new noun; frameworks barely touch
+  either, so step 3c stays small.
+- **Chips (Rob: "start seeing some skills as chips"):** the profile's `skills_offered` lists the skills. The screen
+  runs; the two contracted skills show as dashed chips with a visible "soon" tag. A tap says in one line what the skill
+  will do and that it isn't built yet, with no model call. Developable area is hidden for points (`roles`). Hiding the
+  contamination chip at sea waits until the skill is built (it needs the async onshore test).
+- **Tests:** `browser-choice` (chips shown, a soon chip explains with no model call, hidden for a point). Phone
+  screenshot looked at: the row scrolls sideways. This brings back "soon" chips, which Rob removed on 18 Nov for a quieter composer; they show only once there is a place, as before.
+
 ## 24 Nov 2026 (night): the neutral topics on flags, the map and the report (plan item 3a)
 - **What:** the six IFC-based themes are gone from code. Flags, map features, the legend, popups and the report use
   the thirteen topics in `catalogue/checks.json`; `js/findings.js` holds their colours and short names, and a test

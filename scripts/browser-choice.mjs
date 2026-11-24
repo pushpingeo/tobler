@@ -94,6 +94,24 @@ check(lv.runs === 0 && lv.proposed.length >= 1, `no run card; the place waits as
 check(/Not screened yet/.test(lv.trace), "the working-out says it wasn't screened yet");
 await page.screenshot({ path: "/tmp/choice-livingston.png" });
 
+// Skill chips (Rob, 24 Nov): the screen runs; skills not built yet are "soon" chips that say what they'll do, with no
+// model call; a chip that doesn't suit the place's role is hidden.
+const chipsNow = () => page.evaluate(() => [...document.querySelectorAll(".chips .chip")].filter((b) => !b.hidden).map((b) => `${b.firstChild.textContent}${b.classList.contains("soon") ? " (soon)" : ""}`));
+let chips = await chipsNow();
+check(chips.includes("Contamination desk study (soon)") && chips.includes("Developable area (soon)") && chips.some((c) => /^Screen/.test(c)), `the skill chips show for an area (${JSON.stringify(chips)})`);
+const calls = sent.length;
+await page.click('.chip.soon[data-skill="developable-area"]');
+await page.waitForTimeout(300);
+const note = await page.evaluate(() => document.querySelector(".soon-note:last-of-type")?.textContent || "");
+check(/Developable area isn't built yet\. How much of the site could be built on/.test(note) && sent.length === calls, `a "soon" chip says what it will do, with no model call (${note.slice(0, 90)})`);
+await page.evaluate(() => { const h = window.__ws.host; h.addPlace({ feature: { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [-3.6, 55.97] } }, origin: { method: "drawn" }, name: "Pin 1" }); });
+await page.waitForTimeout(300);
+await page.evaluate(() => window.__ws.focus?.("Pin 1"));
+chips = await chipsNow();
+const focused = await page.evaluate(() => document.querySelector(".place.active, .card.active")?.textContent?.slice(0, 20) || "");
+check(!chips.includes("Developable area (soon)") && chips.includes("Contamination desk study (soon)"), `developable area is hidden for a point (${JSON.stringify(chips)}; focused ${focused})`);
+await page.screenshot({ path: "/tmp/choice-chips.png" });
+
 check(errors.length === 0, `no page errors${errors.length ? `: ${errors.join(" | ")}` : ""}`);
 
 await browser.close();

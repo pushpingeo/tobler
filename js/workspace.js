@@ -725,6 +725,7 @@ function focusPlace(p) {
   focusName = p.name;
   places.forEach((q) => q.card.classList.toggle("active", q === p));
   p.card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  paintChips();
 }
 
 // The drawing tools sit in a tray above the input, opened by the Draw button beside it.
@@ -948,6 +949,7 @@ async function loadIndustry(stored) {
   const chip = document.querySelector(".chip[data-screen]");
   if (chip && profile.wording?.screen_chip) chip.textContent = profile.wording.screen_chip;
   paintExamples();
+  paintChips();
   return profile;
 }
 
@@ -2082,12 +2084,42 @@ function traceLine(ev) {
   }
 }
 
-// One chip, "Screen for environmental constraints" (the profile's wording), shown only while there's a place to screen. It fills the input with
-// the place in focus (or the latest place), ready to send or add to. Finding is typing; drawing is the Draw button.
+// The skill chips (the profile's skills_offered), shown only while there's a place. "Screen for environmental
+// constraints" (the profile's wording) fills the input with the place in focus (or the latest place), ready to send
+// or add to. A skill that isn't built yet is a quieter "soon" chip: a tap says what it will do, with no model call
+// (Rob, 24 Nov: show the potential, never pretend to run). A chip that doesn't suit the place's role is hidden.
+// Finding is typing; drawing is the Draw button.
 function focusedOrLatest() {
   return (focusName && placeByName(focusName)) || [...places.values()].at(-1) || null;
 }
-function paintChips() { document.querySelector(".chips").hidden = !places.size; }
+function paintChips() {
+  const row = document.querySelector(".chips");
+  row.hidden = !places.size;
+  const p = focusedOrLatest();
+  const role = p ? placeRole(p.origin || {}, p.feature.geometry).role : null;
+  row.querySelectorAll(".chip.soon").forEach((b) => b.remove());
+  for (const s of profile?.skills_offered || []) {
+    if (s.status !== "soon") continue;
+    const b = el("button", s.label, "chip soon");
+    b.append(el("span", "soon", "soon-tag"));
+    b.type = "button";
+    b.dataset.skill = s.id;
+    b.title = "Coming soon";
+    b.hidden = !!(s.roles && role && !s.roles.includes(role));
+    b.addEventListener("click", () => skillSoon(s));
+    row.append(b);
+  }
+}
+function skillSoon(s) {
+  const card = el("div", null, "msg analyst soon-note");
+  const p = el("p");
+  p.append(el("b", s.label), document.createTextNode(` isn't built yet. ${s.about}`));
+  card.append(p);
+  if (pendingReply?.isConnected) $("conversation").insertBefore(card, pendingReply);
+  else $("conversation").append(card);
+  card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  expandSheet();
+}
 // When what's planned there isn't known yet, the chip asks with quick picks first (no model call); once a place
 // has been screened, it fills the input as before.
 document.querySelector(".chip[data-screen]").addEventListener("click", () => {

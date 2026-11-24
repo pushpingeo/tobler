@@ -96,7 +96,9 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   const rect = (sel) => page.evaluate((q) => { const e = document.querySelector(q); if (!e || e.hidden) return null; const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom }; }, sel);
   const overlap = (a, b) => !!(a && b && a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b);
   check(await page.evaluate(() => document.getElementById("tools").hidden), `${label}: drawing tools tucked away at first`);
-  check(await page.evaluate(() => document.querySelector(".chips").hidden && !document.querySelector(".composer .links") && !document.querySelector(".chip.soon")), `${label}: no chips before there's a place; no links or "soon" chips under the input`);
+  // No chips before there's a place (18 Nov, a quieter composer). Skill chips marked "soon" came back on 24 Nov (Rob),
+  // but only in the row that shows once there's a place.
+  check(await page.evaluate(() => document.querySelector(".chips").hidden && !document.querySelector(".composer .links") && ![...document.querySelectorAll(".chip.soon")].some((c) => c.offsetParent)), `${label}: no chips before there's a place; no links or visible "soon" chips under the input`);
   await page.click("#drawbtn");
   await page.click('#tools [data-mode="polygon"]');
   let h = await page.evaluate(() => ({ text: document.querySelector("#hint .hint-text").textContent, cancel: !document.querySelector('#hint [data-hint="cancel"]').hidden, mode: window.__ws.draw.getMode(), tray: !document.getElementById("tools").hidden }));

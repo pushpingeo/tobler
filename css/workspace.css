@@ -291,8 +291,9 @@ a { color: var(--sea); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .chip { border: 1px solid var(--rule); background: var(--panel); border-radius: 999px; padding: 4px 11px; font-size: 13px; }
 .chip:hover { border-color: var(--sea); color: var(--sea); }
-.chip.soon { opacity: .55; border-style: dashed; }
+.chip.soon { opacity: .7; border-style: dashed; }
 .chip.soon:hover { opacity: .8; border-color: var(--rule); color: inherit; }
+.chip .soon-tag { margin-left: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-2); }
 .ask { display: flex; align-items: flex-end; gap: 6px; padding: 6px 6px 6px 12px; border: 1.5px solid var(--rule); border-radius: 14px; background: var(--panel); }
 .ask:focus-within { border-color: var(--ink); }
 .ask textarea { flex: 1; border: 0; outline: 0; resize: none; padding: 6px 0; max-height: 140px; background: transparent; line-height: 1.4; }

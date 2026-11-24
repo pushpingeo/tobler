@@ -5,6 +5,14 @@
   "version": "2",
   "skill": "ntr-screening",
   "skill_file": "skills/ntr-screening/SKILL.md",
+  "skills_offered_about": "The skill chips under the conversation (24 Nov; contracts in claude/skill-contracts.md). 'ready' runs; 'soon' says what it will do and that it isn't built yet, and never pretends to run. 'roles' limits a chip to places of those roles. The screen chip's label is wording.screen_chip.",
+  "skills_offered": [
+    {"id": "screen", "status": "ready"},
+    {"id": "contamination-desk-study", "label": "Contamination desk study", "status": "soon",
+     "about": "An early contaminated-land look: the open records on and around the site, set out as sources, pathways and receptors, with what a full desk study would add."},
+    {"id": "developable-area", "label": "Developable area", "status": "soon", "roles": ["area", "footprint"],
+     "about": "How much of the site could be built on: the gross area, each deduction and its reason, and what's left, on the map."}
+  ],
   "distances": "catalogue/distances.json",
   "checks": {
     "from": "catalogue/checks.json",
