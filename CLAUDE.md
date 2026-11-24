@@ -30,9 +30,12 @@ test's `KNOWN` list or loosen a check without his say-so. Explaining it afterwar
    `js/epsgtools.js`, for where the data is, and applied by `js/transform.js`. No other file holds datum shift
    parameters or picks a transformation. Projection maths on a single datum (proj4 in `js/fileimport.js`, grid
    references in `js/coords.js`) may live elsewhere. The coordinate-reference skill decides when to ask the person.
-2. **WGS84 in storage; true measures.** Places and findings are stored as WGS84 longitude and latitude. Distances
-   and areas are geodesic (turf) or worked out in a local equal-area projection, never in raw degrees. Web
-   Mercator is for display only. *Checked by review and the place tests.*
+2. **WGS84 in storage; true measures and true shapes.** Places and findings are stored as WGS84 longitude and
+   latitude. Distances and areas are geodesic (turf) or worked out in a local equal-area projection, never in raw
+   degrees. Web Mercator is for display only. Which country or region a place is in, and what it overlaps, are
+   decided with real outlines, never boxes or centre points; a box may only narrow a search before the real test.
+   *Checked by review and the place tests.* Known breach: the nation and council boxes in `catalogue/checks.json`
+   (they missed England's border strip at Stanlow, 24 Nov); replacing them is first in the plan.
 3. **The model never does geometry** (*tested*: tool inputs and the summaries it reads). The analyst sees names,
    sizes and at most a centre, never coordinate lists. All geometry is done by tools in code. The one exception is `transform.points`: numbers the
    person typed, copied as given.
@@ -55,6 +58,11 @@ test's `KNOWN` list or loosen a check without his say-so. Explaining it afterwar
 - Changes under `worker/`: a push deploys the Worker.
 - A new dependency, external service or data source, or a change to licence handling.
 - Deleting files or features, rewriting history, or force-pushing. Never delete branches.
+
+## Approximations
+
+End each piece of work by saying what was approximated and whether it can change an answer. One that can change an
+answer (which data a site gets, a count, a decision) is asked about first, not parked as a small fix.
 
 ## Before pushing to main
 
