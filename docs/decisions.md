@@ -2,6 +2,30 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 24 Nov 2026 (evening): sites and screens, and projects kept in the browser (plan item 8, first steps; Rob)
+- **Rob:** managing runs should feel like the folders of a desktop GIS project, but discreet and intuitive.
+- **Sites and screens** (`js/sitetree.js`): a closed strip under the header ("Sites and screens · 1 site · 2 screens"),
+  shown once there's a place. Open, it's a short tree: each site with its size, and under it its screens, newest
+  first, each with id, time and state (flags and decision; "Out of date: site edited" or "Replaced by R2" first,
+  dimmed). The one on the map is marked. A site row flies to it and lights its card; a screen row puts it on the map
+  and scrolls to its card. A suggestion the person hasn't taken up isn't listed unless it's been screened. A deleted
+  site's screens stay listed under "<name> (removed)".
+- **Projects kept in this browser** (`js/projectstore.js`, IndexedDB): places (with their ids, so runs still point
+  at them) and run records, saved a moment after any change. On reload they come back: places redrawn, run cards
+  rebuilt from their records, out-of-date states worked out again, the map on the newest screen, and a note
+  ("Picked up where you left off: 1 site and 2 screens, kept in this browser."). The conversation text isn't kept;
+  the analyst carries on from the project summary as it always does. Run numbering carries on after the restored
+  runs (`createScreening().restore`), so ids never repeat. "Start a new project" keeps the current one; the strip
+  lists earlier projects to open again. Nothing leaves the browser (invariant 7).
+- **Not built yet (asked first, as it deletes):** deleting a saved project. **Not yet:** the consultant's
+  overrides in the project (reach, checks on or off, framework), a name the person gives the project (it's named
+  after its first site), and a setting to not keep projects on a shared computer.
+- **Tested:** `npm test` (new `test/sitetree.test.mjs`); `browser-outofdate` 44/44 on desktop and phone, with new
+  checks for the tree (run under its site, replaced marked, picking a run), a reload bringing the project back, a
+  new project starting empty, and reopening the earlier one; all other browser checks pass. **Not tested:** a real
+  browser over days (storage limits, a private window, where IndexedDB may be refused: the page then just doesn't
+  keep the project).
+
 ## 24 Nov 2026 (afternoon): a run on a detailed red line froze the page; the feature lists (Rob's Mallard Pass screen)
 - **What happened:** Rob screened the Mallard Pass solar DCO boundary (EN010127: 4 parts, 28 holes, 4,688
   vertices). The run took over 1,000 s with "page unresponsive" warnings. Cause: every fetched feature was measured

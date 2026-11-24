@@ -80,6 +80,15 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
     return { shown: !s.hidden, text: s.querySelector("span").textContent, btn: s.querySelector("button").hidden ? "" : s.querySelector("button").textContent, dim: c.classList.contains("is-outdated"), meta: c.querySelector(".meta").textContent };
   }, i);
   check(!(await strip()).shown, `${label}: a fresh run isn't marked out of date`);
+  const tree = () => page.evaluate(() => {
+    const t = document.querySelector("#sitetree");
+    return { hidden: t.hidden, count: t.querySelector(".count")?.textContent || "", sites: [...t.querySelectorAll(".site-row .name")].map((e) => e.textContent),
+      runs: [...t.querySelectorAll(".run-row")].map((e) => `${e.querySelector("b").textContent}|${e.querySelector(".state").textContent}|${e.classList.contains("stale") ? "stale" : ""}|${e.classList.contains("shown") ? "shown" : ""}`) };
+  });
+  // Sites and screens (24 Nov): the run sits under its site, the newest shown.
+  let t = await tree();
+  check(!t.hidden && t.count === "1 site · 1 screen" && t.sites[0] === "Area 1" && /^R1\|\d+ flags?/.test(t.runs[0] || "") && /\|shown$/.test(t.runs[0]),
+    `${label}: the sites-and-screens strip lists the site with its run (${t.count}; ${t.runs.join(" ; ")})`);
 
   // The analyst (or the card's resize) changes the site: applyGeometry.
   await page.evaluate((f) => window.__ws.host.updatePlace("Area 1", f, "moved 0.6 km east"), shift(SITE, 0.6, 90));
@@ -127,11 +136,54 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   check(s.shown && /^Replaced by R2/.test(s.text) && !s.btn, `${label}: R1 says it was replaced, no button`);
   check(!(await strip(1)).shown, `${label}: R2 is current`);
   await page.screenshot({ path: `/tmp/outofdate-${label}-rerun.png` });
+  t = await tree();
+  check(t.count === "1 site · 2 screens" && /^R2\|/.test(t.runs[0]) && !/stale/.test(t.runs[0]) && /^R1\|Replaced by R2\|stale/.test(t.runs[1] || ""),
+    `${label}: R2 above R1 under the same site, R1 marked replaced (${t.runs.join(" ; ")})`);
+  // Opening the strip and picking R1 puts it on the map and scrolls to its card.
+  if (label === "phone") await page.evaluate(() => document.querySelector("#handle").getAttribute("aria-expanded") === "false" && document.querySelector("#handle").click());
+  await page.evaluate(() => { const d = document.querySelector("#sitetree details"); if (d) d.open = true; });
+  await page.locator('#sitetree .run-row[data-run="R1"]').click({ timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(400);
+  t = await tree();
+  check(/^R1\|.*\|shown$/.test(t.runs[1] || "") && await page.evaluate(() => !!document.querySelector("#sitetree details")?.open),
+    `${label}: picking R1 in the tree shows it on the map, and the strip stays open (${t.runs.join(" ; ")})`);
+  await page.screenshot({ path: `/tmp/outofdate-${label}-tree.png` });
+  // Kept in this browser (24 Nov): reload, and the site, both screens and their states come back.
+  await page.waitForTimeout(1200);
+  await page.reload();
+  await page.waitForFunction(() => window.__ws?.draw && document.querySelectorAll(".run").length === 2, null, { timeout: 30000 }).catch(() => {});
+  await page.waitForTimeout(600);
+  t = await tree();
+  const back = await page.evaluate(() => ({ cards: [...document.querySelectorAll(".run")].map((c) => c.dataset.run), note: [...document.querySelectorAll(".msg.note")].map((n) => n.textContent).find((x) => /Picked up/.test(x)) || "",
+    place: [...window.__ws.places.values()].map((p) => `${p.name}|${p.status}|${p.edits.length}`)[0] || "" }));
+  check(back.cards.join() === "R1,R2" && t.count === "1 site · 2 screens" && /^R1\|Replaced by R2/.test(t.runs[1] || "") && /^Picked up where you left off: 1 site and 2 screens/.test(back.note) && /^Area 1\|/.test(back.place),
+    `${label}: after a reload the project comes back from this browser (${back.cards.join()}; ${t.runs.join(" ; ")}; ${back.note})`);
+  await page.screenshot({ path: `/tmp/outofdate-${label}-restored.png` });
   // Deleted: says so, no re-run.
   await page.evaluate(() => { const p = [...window.__ws.places.values()][0]; window.__ws.draw.removeFeatures([p.id]); });
   await page.waitForTimeout(300);
   s = await strip(1);
   check(s.shown && /deleted after this screen/.test(s.text) && !s.btn, `${label}: deleting the site marks R2, with no re-run`);
+  t = await tree();
+  check(t.sites[0] === "Area 1 (removed)" && t.runs.length === 2, `${label}: a deleted site's screens stay listed under it, marked removed (${t.sites.join()})`);
+  // A new project: the page starts empty and the old one is listed, and opens again.
+  await page.waitForTimeout(1000);
+  await page.evaluate(() => { const d = document.querySelector("#sitetree details"); if (d) d.open = true; });
+  await Promise.all([page.waitForNavigation({ timeout: 20000 }).catch(() => {}), page.locator("#sitetree .new-project").click()]);
+  await page.waitForFunction(() => window.__ws?.draw, null, { timeout: 30000 }).catch(() => {});
+  await page.waitForTimeout(800);
+  const fresh = await page.evaluate(() => ({ places: window.__ws.places.size, cards: document.querySelectorAll(".run").length, slot: document.querySelector("#sitetree").hidden }));
+  check(fresh.places === 0 && fresh.cards === 0 && fresh.slot, `${label}: "Start a new project" starts an empty page (${JSON.stringify(fresh)})`);
+  // Draw a point so the strip shows, then open the earlier project from it.
+  await page.evaluate(() => window.__ws.host.addPlace({ feature: { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [-3.6, 55.98] } }, origin: { method: "drawn" }, status: "drawn" }));
+  await page.waitForTimeout(400);
+  await page.evaluate(() => { const d = document.querySelector("#sitetree details"); if (d) { d.open = true; d.querySelector(".earlier").open = true; } });
+  const earlier = await page.evaluate(() => [...document.querySelectorAll("#sitetree .open-project")].map((b) => b.textContent));
+  check(earlier.length === 1 && /2 screens/.test(earlier[0]), `${label}: the earlier project is listed (${earlier.join(" | ")})`);
+  await page.waitForTimeout(900);
+  await Promise.all([page.waitForNavigation({ timeout: 20000 }).catch(() => {}), page.locator("#sitetree .open-project").first().click()]);
+  await page.waitForFunction(() => window.__ws?.draw && document.querySelectorAll(".run").length === 2, null, { timeout: 30000 }).catch(() => {});
+  check(await page.evaluate(() => document.querySelectorAll(".run").length) === 2, `${label}: opening it brings its screens back`);
   check(!errors.length, `${label}: no page errors${errors.length ? `: ${errors.slice(0, 3).join(" | ")}` : ""}`);
   await page.close();
 }

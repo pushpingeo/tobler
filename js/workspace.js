@@ -30,6 +30,8 @@ import { coordinateNote } from "./coords.js";
 import { picksFor, pickMessage } from "./assetpicks.js";
 import { shareCode } from "./share.js";
 import { siteChange, rerunInput, outOfDateText, runLines } from "./outofdate.js";
+import { buildTree } from "./sitetree.js";
+import { saveProject, loadProject, listProjects, placeSnapshot, projectName, newProjectId } from "./projectstore.js";
 import { readFiles, placesFromFile, resolveLayer, LIST_MAX } from "./fileimport.js";
 import { createEpsgTools } from "./epsgtools.js";
 import { setupFileDrop } from "./filedrop.js";
@@ -292,7 +294,77 @@ function start() {
   draw.on("select", onSelect);
   draw.on("deselect", () => onSelect(null));
   setMode("select");
-  window.__ws = { map, draw, places, ref, host, runs }; // for testing in the browser console
+  window.__ws = { map, draw, places, ref, host, runs, project: () => project }; // for testing in the browser console
+  restoreProject();
+}
+
+// ---- projects kept in this browser (js/projectstore.js) ---------------------------------------------------------
+// The places and screens are saved as they change and put back on reload. Nothing leaves the browser. A new project
+// keeps the old one, which the sites-and-screens strip can open again.
+const project = { id: store.get("project") || null, created_at: null, restoring: false, earlier: [] };
+let saveTimer = null;
+function saveSoon() {
+  if (project.restoring) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    if (!places.size && !runs.size) return;
+    if (!project.id) { project.id = newProjectId(); project.created_at = new Date().toISOString(); store.set("project", project.id); }
+    const list = [...places.values()];
+    try {
+      await saveProject({ id: project.id, name: projectName(list), created_at: project.created_at || new Date().toISOString(), updated_at: new Date().toISOString(),
+        places: list.map(placeSnapshot), runs: [...runs.values()].map((e) => e.record), counts: { ...counts } });
+    } catch (e) { console.warn("Couldn't save the project in this browser:", e); }
+  }, 700);
+}
+async function restoreProject() {
+  try { project.earlier = (await listProjects()).filter((p) => p.id !== project.id); } catch { project.earlier = []; }
+  if (!project.id) { paintTree(); return; }
+  let saved = null;
+  try { saved = await loadProject(project.id); } catch { /* no store: start empty */ }
+  if (!saved || (!saved.places?.length && !saved.runs?.length)) { paintTree(); return; }
+  project.restoring = true;
+  project.created_at = saved.created_at;
+  try {
+    for (const snap of saved.places || []) {
+      const mode = snap.feature.geometry.type === "Point" ? "point" : /LineString/.test(snap.feature.geometry.type) ? "linestring" : "polygon";
+      const { main } = splitParts(snap.feature.geometry);
+      const bad = draw.addFeatures([{ id: snap.id, type: "Feature", geometry: main, properties: { mode } }]).find((v) => !v.valid);
+      if (bad) continue;
+      const p = newPlace(snap.id, snap.feature, { status: snap.status, origin: snap.origin, extraParts: snap.extraParts || [], name: snap.name, given: snap.given });
+      Object.assign(p, { alias: snap.alias, edits: snap.edits || [], former: snap.former, scale: snap.scale, scaleFrom: snap.scaleFrom || p.scaleFrom });
+      paintStatus(p);
+      refreshCard(p);
+    }
+    Object.assign(counts, saved.counts || {});
+    for (const record of saved.runs || []) {
+      host.screening.restore(record);
+      showRun(record);
+    }
+    checkRuns();
+    // Back to where they were: the newest screen on the map, or the last site, once the map has settled.
+    const last = [...runs.values()].at(-1);
+    const lastPlace = [...places.values()].at(-1);
+    const back = () => {
+      if (last) showRunOnMap(last.record, { instant: true });
+      else if (lastPlace) map.fitBounds(turf.bbox(lastPlace.feature), { padding: fitPadding(), maxZoom: 14, duration: 0 });
+    };
+    back();
+    map.once("idle", back);
+    const nSites = saved.places?.length || 0, nRuns = saved.runs?.length || 0;
+    note(`Picked up where you left off: ${nSites} site${nSites === 1 ? "" : "s"}${nRuns ? ` and ${nRuns} screen${nRuns === 1 ? "" : "s"}` : ""}, kept in this browser.`);
+  } finally {
+    project.restoring = false;
+  }
+  paintTree();
+}
+// A new project: the current one stays saved; the page starts again empty.
+function newProject() {
+  store.set("project", null);
+  location.reload();
+}
+function openProject(id) {
+  store.set("project", id);
+  location.reload();
 }
 
 // Terra Draw's styles, in the shape colour (rebuilt when the colour changes in settings).
@@ -334,6 +406,7 @@ function scheduleRefresh() {
       return { type: "Feature", geometry: withExtras(p, f.geometry), properties: { label: p ? `${p.name}${role === "search_area" ? " · search area" : ""}${p.status === "proposed" ? " (proposed)" : ""}` : "", status: p?.status || "", role } };
     });
     map.getSource("aoi")?.setData(turf.featureCollection(feats));
+    paintTree();
   });
 }
 const isGuide = (f) => ["selectionPoint", "midPoint", "closingPoint", "snappingPoint", "coordinatePoint"].some((k) => f.properties?.[k]);
@@ -1220,8 +1293,65 @@ const fmtKm = (km) => (km == null ? "" : km === 0 ? "on site" : U.dist(km));
 const runs = new Map(); // run id → { record, card }
 let shownRun = null;
 
+// ---- sites and screens (js/sitetree.js): the places and the runs on each, like a GIS project's folders ----------
+// Under the header, closed until there's a place; it keeps itself open or closed as the person left it.
+let treeOpen = false;
+function treeModel() {
+  const size = (p) => {
+    if (p.kind === "Point") return "";
+    const g = withExtras(p, p.feature.geometry);
+    if (p.kind === "Line") return U.dist(turf.length({ type: "Feature", properties: {}, geometry: g }, { units: "kilometers" }));
+    return U.area(turf.area(g) / 1e6);
+  };
+  const runOf = (e) => {
+    const r = e.record.tobler_run;
+    return { id: r.id, time: new Date(r.finished_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      flags: r.flags?.length ?? null, decision: r.decision?.value || "", outdated: !!e.change, replacedBy: r.replaced_by || null, shown: shownRun === r.id };
+  };
+  const all = [...runs.values()].reverse();
+  // A suggestion the person hasn't taken up isn't a site yet, unless it's been screened.
+  const model = [...places.values()].map((p) => ({
+    id: p.id, name: p.name, kind: p.kind, size: size(p), proposed: p.status === "proposed", runs: all.filter((e) => e.record.tobler_run.place_id === p.id).map(runOf),
+  })).filter((m) => !m.proposed || m.runs.length);
+  // Runs whose place has gone (deleted) stay listed under the name they screened.
+  const orphans = all.filter((e) => !places.has(e.record.tobler_run.place_id));
+  for (const e of orphans) {
+    const name = `${e.record.tobler_run.site.name} (removed)`;
+    let s = model.find((m) => m.orphan && m.name === name);
+    if (!s) model.push((s = { id: null, orphan: true, name, kind: "", size: "", runs: [] }));
+    s.runs.push(runOf(e));
+  }
+  return model;
+}
+function paintTree() {
+  const slot = $("sitetree");
+  if (!slot) return;
+  const model = treeModel();
+  slot.hidden = !model.length;
+  if (!model.length) { slot.replaceChildren(); return; }
+  saveSoon();
+  const tree = buildTree(model, {
+    site: (id) => {
+      const p = places.get(id);
+      if (!p) return;
+      focusPlace(p);
+      if (innerWidth <= 720) setSheet(false);
+      map.fitBounds(turf.bbox(p.feature), { padding: fitPadding(), maxZoom: p.kind === "Point" ? 13 : 15 });
+    },
+    run: (id) => {
+      const e = runs.get(id);
+      if (!e) return;
+      showRunOnMap(e.record);
+      e.card.scrollIntoView({ block: "start", behavior: "smooth" });
+      paintTree();
+    },
+  }, { open: treeOpen, project: { earlier: project.earlier, onNew: newProject, onOpen: openProject } });
+  tree.addEventListener("toggle", () => { treeOpen = tree.open; });
+  slot.replaceChildren(tree);
+}
+
 // Put a run's evidence on the map (replacing other findings), up to the card's slider.
-function showRunOnMap(record, { fit = true } = {}) {
+function showRunOnMap(record, { fit = true, instant = false } = {}) {
   const r = record.tobler_run;
   if (shownRun !== r.id) setFocus(null);
   findings.clear(); hiddenThemes.clear();
@@ -1241,7 +1371,8 @@ function showRunOnMap(record, { fit = true } = {}) {
   drawFindings();
   paintMask();
   const inside = r.extent === "inside" || findingLimit === 0;
-  if (fit) map.fitBounds(turf.bbox(inside ? site : turf.buffer(site, Math.max(r.distances.close, 1), { units: "kilometers", steps: 16 })), { padding: fitPadding(), maxZoom: 13 });
+  if (fit) map.fitBounds(turf.bbox(inside ? site : turf.buffer(site, Math.max(r.distances.close, 1), { units: "kilometers", steps: 16 })), { padding: fitPadding(), maxZoom: 13, ...(instant ? { duration: 0 } : {}) });
+  paintTree();
 }
 
 // Distance rings for a run: none when it's looking inside the area only.
@@ -1287,6 +1418,7 @@ function showRun(record) {
   const siteF = record.features.find((f) => f.properties.role === "site");
   const entry = { record, card, km: r.assessed_within_km, area: isArea(siteF), aroundKm: r.assessed_within_km || r.fetched_to_km };
   runs.set(r.id, entry);
+  queueMicrotask(paintTree);
   card.dataset.run = r.id;
   card.querySelector(".site").textContent = r.site.name;
   // Run id and time only: the method version and how long it took are in the report's Method section (Rob, 22 Nov).
@@ -1407,11 +1539,13 @@ function showRun(record) {
 // A run screens the site as it was. Once the place is edited (on the map, from its card or by the analyst) or
 // deleted, its cards say so; undoing the edit clears it. Re-running makes a new run beside the old one.
 function checkRuns() {
+  let moved = false;
   for (const entry of runs.values()) {
     const r = entry.record.tobler_run;
     const change = siteChange(entry.record, places.get(r.place_id) || null);
     const state = `${change?.text || ""}|${r.replaced_by || ""}`;
     if (state === entry.outdatedState) continue;
+    moved = true;
     entry.outdatedState = state;
     entry.change = change;
     const strip = entry.card.querySelector(".outdated");
@@ -1428,6 +1562,7 @@ function checkRuns() {
     }
     prepShare(entry);
   }
+  if (moved) paintTree();
 }
 function runSummaryLines() {
   return runLines([...runs.values()].map((e) => ({ record: e.record, change: e.change, replacedBy: e.record.tobler_run.replaced_by })));

@@ -689,6 +689,15 @@ export function createScreening({ host, table, skill, callClaude, model = "", on
   let n = 0;
   return {
     runs,
+    // A run saved in this browser (js/projectstore.js), put back on reload: the analyst can read it again, and new
+    // runs carry on numbering after it (R3 after R1 and R2), so ids never repeat in a project.
+    restore(record) {
+      const id = record?.tobler_run?.id;
+      if (!id) return;
+      runs.set(id, record);
+      const k = +String(id).replace(/^R/, "");
+      if (Number.isFinite(k) && k > n) n = k;
+    },
     async screen(i, place) {
       const sk = typeof skill === "function" ? skill() : skill;
       const tb = typeof table === "function" ? table() : table;

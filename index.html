@@ -9,7 +9,7 @@
 <link rel="icon" href="img/tobler.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/public-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="js/vendor/maplibre-gl.css">
-<link rel="stylesheet" href="css/workspace.css?v=ca43d416">
+<link rel="stylesheet" href="css/workspace.css?v=1dd8666b">
 <script src="js/vendor/maplibre-gl.js"></script>
 <script type="importmap">
 {
@@ -42,21 +42,23 @@
   "./js/industry.js": "./js/industry.js?v=0d32f3b5",
   "./js/licence.js": "./js/licence.js?v=cf8fd6ef",
   "./js/nearness.js": "./js/nearness.js?v=6807b2f9",
-  "./js/ntrrun.js": "./js/ntrrun.js?v=a05156ad",
+  "./js/ntrrun.js": "./js/ntrrun.js?v=62a98e90",
   "./js/outofdate.js": "./js/outofdate.js?v=09c95316",
   "./js/placetools.js": "./js/placetools.js?v=247733f4",
+  "./js/projectstore.js": "./js/projectstore.js?v=c0e11ae3",
   "./js/reference.js": "./js/reference.js?v=c5ac2d6a",
   "./js/seavalues.js": "./js/seavalues.js?v=2949ddce",
   "./js/share.js": "./js/share.js?v=5d6cebd7",
   "./js/sharelog.js": "./js/sharelog.js?v=c41ca9c5",
   "./js/siterole.js": "./js/siterole.js?v=ab3fae8a",
+  "./js/sitetree.js": "./js/sitetree.js?v=c53a8072",
   "./js/tools.js": "./js/tools.js?v=e01d1756",
   "./js/transform.js": "./js/transform.js?v=007b7bff",
   "./js/units.js": "./js/units.js?v=77029a89",
   "./js/vendor/draw.js": "./js/vendor/draw.js?v=d46ad546",
   "./js/vendor/fileread.js": "./js/vendor/fileread.js?v=c6e0d988",
   "./js/vendor/turf.js": "./js/vendor/turf.js?v=bae079f8",
-  "./js/workspace.js": "./js/workspace.js?v=07c2987c",
+  "./js/workspace.js": "./js/workspace.js?v=e3a4180d",
   "@turf/turf": "./js/vendor/turf.js?v=bae079f8",
   "osmtogeojson": "./js/vendor/osmtogeojson.js?v=75ffea00"
  }
@@ -108,6 +110,8 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/><circle cx="12" cy="12" r="6.6"/></svg><span class="sr">Settings</span></button></h1>
     <p>Your geospatial screening analyst.</p>
   </header>
+  <!-- Sites and screens (js/sitetree.js): closed, under the header, once there's a place. -->
+  <nav class="tree-slot" id="sitetree" aria-label="Sites and screens" hidden></nav>
 
   <div class="conversation" id="conversation" aria-live="polite">
     <div class="msg analyst welcome">
@@ -339,6 +343,6 @@
   </article>
 </template>
 
-<script type="module" src="js/workspace.js?v=07c2987c"></script>
+<script type="module" src="js/workspace.js?v=e3a4180d"></script>
 </body>
 </html>
