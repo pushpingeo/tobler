@@ -283,7 +283,8 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
     if (!SCREEN_TOOLS.includes(name)) throw new Error(`${name} isn't available in a screening run.`);
     const i = { ...input };
     // Fetch once, out to the wider band, so the card's slider can work inside it without new queries.
-    if (name === "get_data") { i.place = site.name; i.within_km = inside ? 0 : Math.min(MAX_KM, Math.max(+i.within_km || 0, reach)); }
+    // The checks step can keep a layer to its own reach (meta.ownReach: class layers, dense layers); otherwise out to the wider band.
+    if (name === "get_data") { i.place = site.name; i.within_km = inside ? 0 : meta.ownReach ? Math.min(MAX_KM, Math.max(0, +i.within_km || 0)) : Math.min(MAX_KM, Math.max(+i.within_km || 0, reach)); }
     if (name === "find_features_near") { i.anchor = /^C\d+$/i.test(String(i.anchor || "")) ? i.anchor : site.name; i.radius_km = inside ? 0 : Math.min(MAX_KM, Math.max(+i.radius_km || 0, reach)); }
     const t0 = Date.now();
     try {
@@ -310,7 +311,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
   const scale = K.screenScale(distances, siteKm2);
   const edges = catalogue.scales?.[scale] || [];
   const sb = turf.bbox(fp.feature);
-  const plans = K.planChecks(catalogue, { bbox: sb, countries: describe.countries || [], offshore, sea }, scale, { inside });
+  const plans = K.planChecks(catalogue, { bbox: sb, countries: describe.countries || [], offshore, sea, coast_km: describe.coast_km ?? null }, scale, { inside });
   const results = new Map();
   const featsOf = new Map(); // check id → the evidence properties it counted, for the analyst's nearest names
   for (const p of plans) {
@@ -352,9 +353,13 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
   const layerPlans = plans.filter((p) => !results.has(p.check.id) && p.sources.some((x) => x.atlas_id));
   const layerFetch = new Map(); // atlas_id → { source, km, fields, name_field }
   for (const p of layerPlans) for (const x of p.sources.filter((y) => y.atlas_id)) {
-    const l = layerFetch.get(x.atlas_id) || { source: x, km: 0, fields: new Set(), name_field: x.name_field || null };
-    l.km = Math.max(l.km, fetchKm(p));
-    for (const f of [x.code_field, x.filter?.field].filter(Boolean)) l.fields.add(f);
+    const l = layerFetch.get(x.atlas_id) || { source: x, km: 0, fields: new Set(), name_field: x.name_field || null, coverage: false, own: true };
+    if (p.check.answer === "count_by_band" && !x.dense) l.own = false;
+    // Class and inside checks, and dense layers, fetch only to their own reach (a flood or farmland layer to the wider
+    // band would be thousands of polygons, and a layer gives at most 100); the rest out to the wider band too, for the slider.
+    l.km = Math.max(l.km, p.check.answer === "count_by_band" && !x.dense ? fetchKm(p) : Math.max(0, p.reach_km || 0));
+    if (p.check.answer === "classes") l.coverage = true;
+    for (const f of [x.code_field, x.filter?.field, x.class_field, ...(x.keep_fields || [])].filter(Boolean)) l.fields.add(f);
     layerFetch.set(x.atlas_id, l);
   }
   const layers = [...layerFetch.values()];
@@ -407,11 +412,15 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
     const t0 = Date.now();
     onEvent({ type: "tool_start", name: "get_data", input });
     try {
-      const output = await exec("get_data", input, { check: check.check.id });
+      const output = await exec("get_data", input, { check: check.check.id, ownReach: l.own });
       onEvent({ type: "tool", name: "get_data", input, output, ms: Date.now() - t0, baseline: true });
       const raw = lastOut.get(id);
       if (!raw || raw.not_checked) { layerAnswers.set(x.atlas_id, { not_checked: raw?.not_checked || "no reply", meta: raw || {} }); return; }
-      layerAnswers.set(x.atlas_id, { features: (rawFound.get(raw.dataset) || []).map((c) => ({ name: c.name, distance_km: c.distance_km, around_site: !!c.around_site, extra: c.extra || {} })),
+      // Each feature with its own extent (duplicates across layers) and, for class layers, the share of the site it
+      // covers (equal-area, js/siterole.js), so a polygon that only touches the edge isn't counted as on the site.
+      const cov = (c) => { if (!l.coverage || c.distance_km > 0 || !isArea(fp.feature)) return null; try { return coverageIn(fp.feature, c.geometry)?.coverage ?? 0; } catch { return null; } };
+      const box = (c) => { try { return turf.bbox({ type: "Feature", properties: {}, geometry: c.geometry }); } catch { return null; } };
+      layerAnswers.set(x.atlas_id, { features: (rawFound.get(raw.dataset) || []).map((c) => ({ name: c.name, distance_km: c.distance_km, around_site: !!c.around_site, extra: c.extra || {}, bbox: box(c), coverage: cov(c) })),
         meta: { dataset: raw.dataset, publisher: raw.publisher, licence: raw.licence, checked_at: raw.checked_at, capped: !!raw.capped, fetched_km: raw.within_km } });
     } catch (e) {
       onEvent({ type: "tool", name: "get_data", input, error: String(e.message || e), ms: Date.now() - t0, baseline: true });
@@ -421,6 +430,14 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
   for (const p of layerPlans) {
     const answers = p.sources.map((x) => (x.pending ? { source: x } : { source: x, ...(layerAnswers.get(x.atlas_id) || { not_checked: "not fetched" }) }));
     const r = K.fromSources(p, answers, edges);
+    // The SSSI Impact Risk Zones: the zones the site is in, read for this kind of development (the profile's
+    // categories for the asset type; "all consultations" always).
+    if (p.check.decode === "irz" && r.state !== "not_checked") {
+      const codes = answers.flatMap((a) => (a.features || []).filter((f) => !(f.distance_km > 0)).map((f) => K.irzCodeOf(f.extra?.[a.source.code_field]))).filter(Boolean);
+      const keys = host.profile?.()?.irz_categories?.[inputs.asset_type] || host.profile?.()?.irz_categories?.other || [];
+      r.irz = K.decodeIrz(codes, host.irz, keys);
+      r.irz_codes = [...new Set(codes)].slice(0, 12);
+    }
     results.set(p.check.id, r);
     // The analyst's nearest names: the features this check counted, from its own sources (after each source's filter).
     const keep = (a) => (f) => f.dataset === a.meta?.dataset && (!a.source.filter || a.source.filter.values.includes(String(f.details?.[a.source.filter.field] ?? "")));
@@ -453,6 +470,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
       const srcs = (r.sources?.length ? r.sources : r.source ? [r.source] : []).filter((x) => x.dataset);
       const src = r.answer === "value_at_site" && r.state === "found" ? "" : srcs.length ? ` [${srcs.map((x) => `${x.dataset}${x.state === "not_checked" ? ": not checked" : ""}`).join("; ")}]` : "";
       baselineLines.push(`- ${r.label}${r.must ? " (must)" : ""}: ${K.checkLine(r, { nearest: !near.length })}${near.length ? `; nearest ${near.join("; ")}` : ""}${r.partly ? ` (partly: ${r.partly})` : ""}${src}`);
+      if (r.irz) for (const z of r.irz.filter((y) => y.consult)) baselineLines.push(`  - Natural England's wording, ${z.category}: ${z.texts.join(" | ")}`);
     }
   }
   if (seaRes) for (const l of seaRes.lines) baselineLines.push(`- ${l}`);

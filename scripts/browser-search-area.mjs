@@ -27,6 +27,11 @@ function atlas(tool, args) {
   if (tool === "fetch_features" && args.id === "spa") return { returned: 1, features: [{ type: "Feature", geometry: ROOST, properties: { NAME: "Kintyre Goose Roosts" } }] };
   if (tool === "fetch_features" && args.id === "peat") return { returned: 1, features: [{ type: "Feature", geometry: PEAT, properties: { NAME: "Class 1 peat" } }] };
   if (tool === "fetch_features" && args.id === "sm") return { returned: 1, features: [{ type: "Feature", geometry: { type: "Point", coordinates: MONUMENT }, properties: { DES_TITLE: "Killocraw, cup marked stone" } }] };
+  // UK pack checks (24 Nov): SEPA's medium-likelihood river flooding over part of the search area, Hutton's farmland
+  // classes across it, a National Scenic Area 4 km away. Carbon and Peatland is non-commercial: off by default.
+  if (tool === "fetch_features" && args.id === "f267f1d11983d686") return { returned: 1, features: [{ type: "Feature", geometry: PEAT, properties: { BAND_DESC: "Medium" } }] };
+  if (tool === "fetch_features" && args.id === "339b7b656d0df917") return { returned: 1, features: [{ type: "Feature", geometry: circle.geometry, properties: { LCCODE: "5.3" } }] };
+  if (tool === "fetch_features" && args.id === "cab9ecdbc9a0d348") return { returned: 1, features: [{ type: "Feature", geometry: turf.circle(turf.destination(CENTRE, 7, 0).geometry.coordinates, 1.5, { units: "kilometers", steps: 16 }).geometry, properties: { nsaname: "Knapdale", nsacode: "NSA9" } }] };
   return { matches: 0, results: [], returned: 0, features: [] };
 }
 const json = (s) => "```json\n" + JSON.stringify(s) + "\n```";
@@ -95,6 +100,19 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   }));
   check(/^Screened a 19\.\d km² search area \(built from clues round Bellochantuy\), because the site's outline wasn't found/.test(card.note), `${label}: the card leads with the search-area line`);
   { const m = card.body.replace(/none of them is known to be on the site itself/, "").match(/.{0,60}\bon (the )?site\b.{0,30}/i); check(!m, `${label}: nothing on the card says "on site"${m ? `: …${m[0]}…` : ""}`); }
+  // The UK pack's checks on a Scottish search area: flood and farmland by share of it, a landscape designation counted,
+  // peat left out on licence, and the IRZ not run (England only).
+  const ck = await page.evaluate(() => { const c = document.querySelector(".run .checks"); c.open = true;
+    return [...c.querySelectorAll("li.check")].map((li) => ({ text: li.textContent, cls: li.className })); });
+  await page.locator(".run .checks").screenshot({ path: `/tmp/search-area-${label}-checks.png` }).catch(() => {});
+  const line = (re) => ck.find((x) => re.test(x.text))?.text || "";
+  check(/^Flood zones \(rivers and sea\)\s*must: in the search area: River, medium likelihood \(1 in 200 years\) \(\d+%\)/.test(line(/^Flood zones/)), `${label}: flood zones by share of the search area (${line(/^Flood zones/)})`);
+  check(/^Farmland grade: in the search area: Class 5\.3 \(100%\)/.test(line(/^Farmland/)), `${label}: farmland class from Hutton's LCA (${line(/^Farmland/)})`);
+  check(/^National Landscapes, NSAs and AONBs\s*must: 1 within 10 km .*nearest Knapdale/.test(line(/^National Landscapes/)), `${label}: a National Scenic Area counted (${line(/^National Landscapes/)})`);
+  check(/^Peat and carbon-rich soils: not checked: non-commercial licence: off unless switched on in Settings$/.test(line(/^Peat/)), `${label}: peat left out on licence by default (${line(/^Peat/)})`);
+  check(!ck.some((x) => /Impact Risk/.test(x.text)), `${label}: no IRZ line in Scotland`);
+  check(/^National Parks\s*must: none found within 10 km$/.test(line(/^National Parks/)) && /^Battlefields: none found/.test(line(/^Battlefields/)), `${label}: Scotland's layers cover all of Scotland: none found, not "no source" (${line(/^National Parks/)})`);
+  await page.evaluate(() => { document.querySelector(".run .checks").open = innerWidth > 720; });
   const spa = card.flags.find((f) => /Goose/.test(f.risk));
   const mon = card.flags.find((f) => /monument/i.test(f.risk));
   const peat = card.flags.find((f) => /peat/i.test(f.risk));

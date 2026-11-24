@@ -1152,3 +1152,48 @@ have no topic at all, though landscape, peat and farmland quality decided most o
   site files 44. Card screenshots looked at.
 - **Not tested:** the live atlas answering for the 24 UK records from the page (mcp-check covers them nightly on the
   atlas side); a live screen.
+
+## 24 Nov 2026: the UK pack as checks (second push)
+- **Built (checks version 3, 28 checks):** heritage (scheduled monuments, listed buildings, World Heritage Sites,
+  parks and gardens, battlefields), landscape (National Parks, National Landscapes/NSAs/NI AONBs, Wild Land Areas,
+  local and regional designations), water (flood zones from rivers and sea, surface water), land use (farmland grade:
+  England's post-1988 survey and provisional map, Wales's predictive map, Hutton's LCA for Scotland), ground and soil
+  (Carbon and Peatland, non-commercial so off by default), and the SSSI Impact Risk Zones. Ids and fields from the
+  atlas's `docs/mcp-tools.md` and `vocab/seeds/uk-pack.yaml`; class values read live from the services the workspace
+  can reach (Historic England, DfC, NatureScot, Natural England), the rest from the contract.
+- **A new answer, `classes`:** which classes are on the site, with the share they cover (equal-area overlay,
+  `js/siterole.js` `coverageIn`), and the nearest of each within reach. A polygon covering under 0.5% of the site (it
+  only touches the edge) is "at the edge", not on the site. The check measures; the analyst judges what's best and most
+  versatile land or what a flood zone means for this project.
+- **The IRZ:** an `inside` check whose zones are read for the development: the 13-digit code from `IRZURL`, decoded
+  with Natural England's own wording (`catalogue/sssi_irz_codes.json`, copied from the atlas, OGL). The profile says
+  which categories fit each asset type (`irz_categories` in `catalogue/industries/energy.json`: wind and solar for
+  renewables, minerals/oil/gas for extraction, infrastructure for grid and transport, combustion and air pollution
+  for thermal, rural non-residential and residential for a general screen); "all consultations" is always read.
+- **Rob's point: duplicates by feature extent.** Two features from different layers are one site when their own
+  geometry boxes overlap almost completely (intersection over union 0.9 or more), or, for points, lie within about
+  50 m. Beside the site code and the same name within 0.5 km. Only across layers: one layer's separate parts of a site
+  have different extents.
+- **Judgement calls (mine):**
+  - **Dense and class layers fetch only to their own reach** (listed buildings, flood, farmland, peat, the IRZ and
+    MARPOL): to the wider band they'd return thousands of features, and a layer gives 100 at most, so the count
+    would be wrong. The other layers still fetch to the wider band for the slider.
+  - **Heritage and landscape at sea** only when the coast is within the check's own reach (seascape for offshore wind).
+  - **Nation outlines as boxes** (`regions` in `checks.json`): a nation's layers cover the whole nation (none there
+    means none found, not "no source"), and England-only checks and gaps (the IRZ; England's missing surface water and
+    peat maps) use England's boxes, drawn round Wales and Scotland. Kintyre is south of England's northern edge but
+    gets no IRZ line. A site right on a border may count as both: a few kilometres of error. Natural Earth's map units
+    (public domain, same source as the countries) would do it exactly; a new reference file, so for Rob to say.
+  - **Licence wording:** "non-commercial licence: off unless switched on in Settings", not the tool's WDPA example.
+  - **Gaps the atlas confirmed** show as not checked with the reason: Dark Sky Parks aren't a check yet (no national
+    layer); Scotland's Local Landscape Areas, England's local designations, Cadw battlefields, NI flood, farmland, peat
+    and ancient woodland, England's surface water and England's and Wales's peat maps.
+- **Tested:** `npm test` (checks 13: extent duplicates, classes and edge slivers, the IRZ decoding, where each check
+  applies, Kintyre/Cardiff/Carlisle/London/Scilly for England-only checks, the NI listed filter; run 36: a York solar
+  farm with flood, farmland, the IRZ and listed buildings, fetched to their own reach); browser checks desktop and
+  phone: run-card 147, search-area 46 (new: flood and farmland by share of a Scottish search area, a National Scenic
+  Area, peat off on licence, no IRZ in Scotland, none found rather than no source), out-of-date 28, ux 26, choice 8,
+  coords 18, epsg 20, cards 14, site files 44. Card screenshots looked at.
+- **Not tested:** the live services (SEPA, Cadw, NRW, HES and the EA's WFS can't be reached from the build
+  workspace; the atlas's mcp-ask checked all 45 return features on 23 Nov); the class values I took from the contract
+  rather than live (EA `FZ2`/`FZ3`, NRW `Flood Zone 2/3`, Wales `predictive`, Hutton `LCCODE`, HES `CATEGORY`).

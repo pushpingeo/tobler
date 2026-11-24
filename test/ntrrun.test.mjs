@@ -10,6 +10,7 @@ import { chooseDistances, bandFor, distancesLine } from "../js/distances.js";
 import { forAnalyst, runScreening, createScreening, evidenceWithin, nearestByTheme, flagBeyond, reassess, parseResult, traceFlags, footprintOf, headline, RUN_SCHEMA } from "../js/ntrrun.js";
 import * as G from "../js/geometry.js";
 import { siteChange, rerunInput, runLines, outOfDateText } from "../js/outofdate.js";
+import * as K from "../js/checks.js";
 
 let passed = 0;
 const test = async (name, fn) => { await fn(); passed++; console.log("ok", name); };
@@ -174,7 +175,8 @@ await test("sealed run: fetches out to the wider band, records evidence with pro
     inputs: { asset_type: "oil-gas-field", asset_label: "offshore oil or gas field", asset_assumed: true }, now: () => "2026-11-18T05:00:00Z" });
   // The model asked for 5 and 10 km; the run fetched to 50 km both times.
   const fetches = atlasCalls.filter(([t]) => t === "fetch_features");
-  for (const [, a] of fetches) {
+  // Inside checks (MARPOL) look only at the site itself; everything else out to the wider band, for the slider.
+  for (const [, a] of fetches.filter(([, x]) => x.id !== "751ddc65885f897d")) {
     const [w, , e] = a.bbox;
     assert.ok(turf.distance([w, FIELD[1]], [e, FIELD[1]]) > 100 + 10, `bbox wide enough: ${a.bbox}`);
   }
@@ -822,6 +824,57 @@ await test("the run record (tobler-run/2) carries every check with its source, a
   assert.equal(bad.decision.value, "insufficient evidence");
   assert.match(bad.decision.changed, /none of the must-checks for biodiversity could be checked/);
   assert.equal(bad.checks.find((c) => c.id === "bio.national-sites").reason, "failed");
+});
+
+await test("the UK pack on land: flood zones and farmland by share of the site, the IRZ read for solar, heritage counted", async () => {
+  // A 1 km square solar farm south of York. England's layers answer; the rest of the UK isn't in reach.
+  const C = [-1.08, 53.9];
+  const yard = { name: "York solar", feature: G.squareAround(C, 1, 0), origin: { method: "drawn" } };
+  const half = (side) => { const [w, so, e, n] = turf.bbox(yard.feature); const mid = (w + e) / 2; return turf.bboxPolygon(side === "west" ? [w - 0.01, so - 0.01, mid, n + 0.01] : [mid, so - 0.01, e + 0.01, n + 0.01]).geometry; };
+  const irzTable = JSON.parse(read("../catalogue/sssi_irz_codes.json"));
+  const asked = [];
+  const ukAtlas = async (tool, args) => {
+    if (tool !== "fetch_features") return atlas(tool, args);
+    asked.push(args);
+    const F = (geometry, properties) => ({ type: "Feature", geometry, properties });
+    if (args.id === "5ffe9c81924b8082") return { returned: 1, features: [F(half("west"), { flood_zone: "FZ3" })] };
+    if (args.id === "5e7c583217c03078") return { returned: 2, features: [F(half("west"), { ALC_GRADE: "Grade 3a", JOB_NUMBER: "1" }), F(half("east"), { ALC_GRADE: "Grade 3b", JOB_NUMBER: "2" })] };
+    if (args.id === "05ca97cc51458e33") return { returned: 1, features: [F(turf.bboxPolygon([-1.2, 53.8, -1.0, 54.0]).geometry, { IRZURL: "https://irz.geodata.org.uk/IRZ/step2.html?irzcode=0010000000000" })] };
+    if (args.id === "983f6d4fe0ad19b7") return { returned: 2, features: [F({ type: "Point", coordinates: turf.destination(C, 0.6, 90).geometry.coordinates }, { Name: "Church of St Mary", ListEntry: "1001", Grade: "I" }),
+      F({ type: "Point", coordinates: turf.destination(C, 1.8, 0).geometry.coordinates }, { Name: "Barn", ListEntry: "1002", Grade: "II" })] };
+    return { returned: 0, features: [] };
+  };
+  const profile = JSON.parse(read("../catalogue/industries/energy.json"));
+  const d = chooseDistances(table, { asset_type: "solar", offshore: false, area_km2: 1 });
+  const model = standardScript();
+  const rec = await runScreening({ host: { ...host(), atlas: ukAtlas, irz: irzTable, profile: () => profile, fetchFn: async () => ({ ok: true, json: async () => ({ samples: [] }) }) },
+    site: yard, distances: d, skill, callClaude: model, inputs: { asset_type: "solar", asset_label: "solar farm" } });
+  const r = rec.tobler_run;
+  const by = Object.fromEntries(r.checks.map((c) => [c.id, c]));
+  assert.equal(r.checks_scale, "regional");
+  assert.equal(K.checkLine(by["water.flood-zones"]), "on the site: Flood Zone 3 (50%)");
+  assert.equal(K.checkLine(by["land.farmland-grade"]), "on the site: Grade 3a (50%), Grade 3b (50%)");
+  assert.equal(by["bio.sssi-irz"].inside, true);
+  assert.deepEqual(by["bio.sssi-irz"].irz.map((z) => [z.key, z.consult]), [["ac", false], ["ws", true]]);
+  assert.equal(K.checkLine(by["bio.sssi-irz"]), "inside a risk zone; consult Natural England for: wind and solar");
+  assert.equal(K.checkLine(by["heritage.listed-buildings"]), "2 within 2 km (2 at 0–2 km); nearest Church of St Mary, 100 m", "regional bands: the first is 0–2 km");
+  assert.equal(by["heritage.listed-buildings"].count, 2);
+  // Scotland's, Wales's and Northern Ireland's layers aren't in a 2 km reach of York; their pending lines don't appear.
+  assert.ok(!by["water.flood-zones"].sources.some((x) => x.region !== "England"), JSON.stringify(by["water.flood-zones"].sources.map((x) => x.region)));
+  assert.ok(!r.checks.some((c) => /^not checked: .*Northern Ireland/.test(K.checkLine(c))));
+  // The analyst gets the check lines and Natural England's own wording for solar.
+  const first = model.calls[0].messages[0].content;
+  assert.match(first, /Water:\n- Flood zones \(rivers and sea\) \(must\): on the site: Flood Zone 3 \(50%\)/);
+  assert.match(first, /Natural England's wording, Wind and Solar: /);
+  // Class layers and listed buildings were fetched only to their own reach, not the 20 km wider band.
+  const widthKm = (b) => turf.distance([b[0], C[1]], [b[2], C[1]]);
+  for (const id of ["5ffe9c81924b8082", "5e7c583217c03078", "983f6d4fe0ad19b7"]) {
+    const a = asked.find((x) => x.id === id);
+    assert.ok(a && widthKm(a.bbox) < 6, `${id} fetched to its own reach (${a && widthKm(a.bbox).toFixed(1)} km across)`);
+  }
+  assert.ok(widthKm(asked.find((x) => x.id === "0c53cecc65701f0c").bbox) > 30, "SSSIs still out to the wider band, for the slider");
+  // Topics left without a check: fewer now (heritage, landscape, water, land use, ground and soil are covered).
+  assert.deepEqual(r.no_check_topics, ["community-health", "air-climate", "hazards", "material-assets"]);
 });
 
 console.log(`${passed} ntrrun tests passed`);

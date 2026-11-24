@@ -1,0 +1,229 @@
+{
+ "what": "Decoding of the 13-digit irzcode in Natural England's SSSI Impact Risk Zones (England), field IRZURL, query parameter irzcode.",
+ "how": "Digit n (1-13) belongs to the category at that position. 0: that category needs no consultation in this zone. Any other digit: consult Natural England for development matching that level's description. A level number means nothing on its own: read its text (in most categories a lower number is a lower threshold, so more development triggers consultation).",
+ "special": {
+  "0000000000000": "No consultation categories: Natural England's checker goes straight to 'no consultation needed' (step 3).",
+  "first digit 1": "All planning applications need consultation; the checker skips the questions.",
+  "first digit 2": "All planning applications except householder applications; the checker first asks whether it is a householder application."
+ },
+ "positions": [
+  {
+   "position": 1,
+   "key": "ac",
+   "category": "All Consultations",
+   "levels": {
+    "1": "ALL PLANNING APPLICATIONS",
+    "2": "ALL PLANNING APPLICATIONS EXCEPT HOUSEHOLDER APPLICATIONS",
+    "3": "All planning applications (except householder applications) where the proposed development is outside or extends outside existing settlements/urban areas and will increase lighting levels or affect greenspace, farmland, semi natural habitats, trees/woodland, waterbodies, rural buildings/structures (manmade or natural) or linear landscape features such as hedgerows, streams and rivers through direct loss, fragmentation or change of use.",
+    "4": "All planning applications (except householder applications) where the proposed development is outside or extends outside existing settlements/urban areas and will increase lighting levels or affect trees/woodland, waterbodies, rural buildings/structures (manmade or natural) or linear landscape features such as hedgerows, streams and rivers through direct loss, fragmentation or change of use."
+   },
+   "zones_with_level": {
+    "1": 40716,
+    "2": 41841,
+    "3": 23921,
+    "4": 8350
+   }
+  },
+  {
+   "position": 2,
+   "key": "in",
+   "category": "Infrastructure",
+   "levels": {
+    "1": "Pipelines and underground cables, pylons and overhead cables (excluding upgrades and refurbishment of existing network). Any transport proposal including new or extended footways, cycleways, roads/car parks, railways and waterways (excluding routine maintenance). Airports, helipads and other aviation proposals.",
+    "2": "Pylons and overhead cables. Airports, helipads and other aviation proposals.",
+    "3": "Airports, helipads and other aviation proposals."
+   },
+   "zones_with_level": {
+    "1": 90154,
+    "2": 247,
+    "3": 33227
+   }
+  },
+  {
+   "position": 3,
+   "key": "ws",
+   "category": "Wind and Solar",
+   "levels": {
+    "1": "Solar schemes with a footprint > 0.5ha, all wind turbines.",
+    "2": "Wind turbines."
+   },
+   "zones_with_level": {
+    "1": 50492,
+    "2": 11472
+   }
+  },
+  {
+   "position": 4,
+   "key": "og",
+   "category": "Minerals, Oil and Gas",
+   "levels": {
+    "1": "Planning applications for quarries, including: new proposals, Review of Minerals Permissions (ROMP), extensions, variations to conditions etc. Oil & gas exploration/extraction.",
+    "2": "Planning applications for quarries: new proposals or extensions, outside or extending outside existing settlements/urban areas affecting greenspace, farmland or semi natural habitats. Oil & gas exploration/extraction.",
+    "3": "Oil & gas exploration/extraction."
+   },
+   "zones_with_level": {
+    "1": 102747,
+    "2": 2923,
+    "3": 3914
+   }
+  },
+  {
+   "position": 5,
+   "key": "rn",
+   "category": "Rural Non-Residential",
+   "levels": {
+    "1": "Any non-residential development outside of existing settlements/urban areas where the net additional gross internal floorspace following development is 30m² or more.",
+    "2": "Large non-residential developments outside of existing settlements/urban areas where the net additional gross internal floorspace is > 1,000m² or the footprint exceeds 0.2ha.",
+    "3": "Large non-residential developments outside of existing settlements/urban areas where the footprint exceeds 1ha."
+   },
+   "zones_with_level": {
+    "1": 0,
+    "2": 49609,
+    "3": 15680
+   }
+  },
+  {
+   "position": 6,
+   "key": "re",
+   "category": "Residential",
+   "levels": {
+    "1": "Any residential developments with a total net gain in residential units.",
+    "2": "Residential development of 10 units or more.",
+    "3": "Residential development of 25 units or more.",
+    "4": "Residential development of 50 units or more.",
+    "5": "Residential development of 100 units or more.",
+    "6": "Residential development of 500 units or more."
+   },
+   "zones_with_level": {
+    "1": 4533,
+    "2": 16259,
+    "3": 0,
+    "4": 31635,
+    "5": 26231,
+    "6": 0
+   }
+  },
+  {
+   "position": 7,
+   "key": "rr",
+   "category": "Rural Residential",
+   "levels": {
+    "1": "Any residential developments outside of existing settlements/urban areas with a total net gain in residential units.",
+    "2": "Any residential development of 10 or more units outside of existing settlements/urban areas.",
+    "3": "Any residential development of 25 or more units outside existing settlements/urban areas.",
+    "4": "Any residential development of 50 or more units outside existing settlements/urban areas.",
+    "5": "Any residential development of 100 or more units outside existing settlements/urban areas.",
+    "6": "Any residential development of 500 or more units outside existing settlements/urban areas."
+   },
+   "zones_with_level": {
+    "1": 25822,
+    "2": 20927,
+    "3": 0,
+    "4": 32269,
+    "5": 6562,
+    "6": 0
+   }
+  },
+  {
+   "position": 8,
+   "key": "ap",
+   "category": "Air Pollution",
+   "levels": {
+    "1": "Any development that could cause AIR POLLUTION or DUST either in its construction or operation (including: industrial/commercial processes, livestock & poultry units, slurry lagoons/manure stores).",
+    "2": "Any development that could cause AIR POLLUTION (including: industrial/commercial processes, livestock & poultry units, slurry lagoons/manure stores).",
+    "3": "Any industrial/agricultural development that could cause AIR POLLUTION (including: industrial processes, livestock & poultry units with a floorspace > 500m², slurry lagoons > 200m² & manure stores > 250 tonnes).",
+    "4": "Any industrial/agricultural development that could cause AIR POLLUTION (including: industrial processes, livestock & poultry units with a floorspace > 500m², slurry lagoons > 750m² & manure stores > 3500 tonnes).",
+    "5": "Livestock & poultry units with a floorspace > 500m², slurry lagoons > 750m² & manure stores > 3500 tonnes.",
+    "6": "Livestock & poultry units with a floorspace > 500m², slurry lagoons > 4000m²."
+   },
+   "zones_with_level": {
+    "1": 22044,
+    "2": 24265,
+    "3": 44337,
+    "4": 14887,
+    "5": 13573,
+    "6": 3246
+   }
+  },
+  {
+   "position": 9,
+   "key": "cb",
+   "category": "Combustion",
+   "levels": {
+    "1": "All general combustion processes. Incl: energy from waste incineration, other incineration, landfill gas generation plant, pyrolysis/gasification, anaerobic digestion, sewage treatment works, other incineration/combustion.",
+    "2": "General combustion processes >20MW energy input. Incl: energy from waste incineration, other incineration, landfill gas generation plant, pyrolysis/gasification, anaerobic digestion, sewage treatment works, other incineration/combustion.",
+    "3": "General combustion processes >50MW energy input. Including: energy from waste incineration, other incineration, landfill gas generation plant, pyrolysis/gasification, anaerobic digestion, sewage treatment works, other incineration/combustion."
+   },
+   "zones_with_level": {
+    "1": 46309,
+    "2": 44337,
+    "3": 26064
+   }
+  },
+  {
+   "position": 10,
+   "key": "wa",
+   "category": "Waste",
+   "levels": {
+    "1": "Mechanical and biological waste treatment, inert landfill, non-hazardous landfill, hazardous landfill, household civic amenity recycling facilities construction, demolition and excavation waste, other waste management.",
+    "2": "Landfill. Including: inert landfill, non-hazardous landfill, hazardous landfill."
+   },
+   "zones_with_level": {
+    "1": 46309,
+    "2": 57817
+   }
+  },
+  {
+   "position": 11,
+   "key": "cp",
+   "category": "Compost",
+   "levels": {
+    "1": "Any composting proposal. Incl: open windrow composting, in-vessel composting, anaerobic digestion, other waste management.",
+    "2": "Any composting proposal with more than 500 tonnes maximum annual operational throughput. Incl: open windrow composting, in-vessel composting, anaerobic digestion, other waste management.",
+    "3": "Any composting proposal with more than 75000 tonnes maximum annual operational throughput. Incl: open windrow composting, in-vessel composting, anaerobic digestion, other waste management."
+   },
+   "zones_with_level": {
+    "1": 46309,
+    "2": 22863,
+    "3": 21474
+   }
+  },
+  {
+   "position": 12,
+   "key": "dc",
+   "category": "Discharge",
+   "levels": {
+    "1": "Any discharge of water or liquid waste including to mains sewer.",
+    "2": "Any discharge of water or liquid waste that is discharged to ground (ie to seep away) or to surface water, such as a beck or stream.",
+    "3": "Any discharge of water or liquid waste of more than 2m³/day that is discharged to ground (ie to seep away) or to surface water, such as a beck or stream.",
+    "4": "Any discharge of water or liquid waste of more than 5m³/day that is discharged to ground (ie to seep away) or to surface water, such as a beck or stream.",
+    "5": "Any discharge of water or liquid waste of more than 20m³/day that is discharged to ground (ie to seep away) or to surface water, such as a beck or stream.",
+    "6": "Any discharge of water or liquid waste of more than 20m³/day to ground (ie to seep away) or to surface water, such as a beck or stream (NB This does not include discharges to mains sewer which are unlikely to pose a risk at this location)."
+   },
+   "zones_with_level": {
+    "1": 1786,
+    "2": 21327,
+    "3": 10424,
+    "4": 21913,
+    "5": 29173,
+    "6": 0
+   }
+  },
+  {
+   "position": 13,
+   "key": "wt",
+   "category": "Water Supply",
+   "levels": {
+    "1": "Any development needing its own water supply eg remote rural housing that is not connected to a mains water supply, OR large infrastructure such as warehousing/industry where the total net additional gross internal floorspace following development is > 1,000m².",
+    "2": "Large infrastructure such as warehousing/industry where the total net additional gross internal floorspace following development is 1,000m² or more."
+   },
+   "zones_with_level": {
+    "1": 58286,
+    "2": 21457
+   }
+  }
+ ],
+ "source": "Natural England's IRZ checker, https://irz.geodata.org.uk/IRZ/step2.html (script splits the code into ac,in,ws,og,rn,re,rr,ap,cb,wa,cp,dc,wt) and its level texts https://irz.geodata.org.uk/templates/<key><digit>.html, read 23 Nov 2026 (atlas probe round 28). User guidance: https://irz.geodata.org.uk/IRZ/guidance/SSSI_IRZ_User_Guidance.pdf",
+ "checked": "All 208,189 zones read on 23 Nov 2026: 3,120 distinct codes, every non-zero digit has a level text; 1,026 zones are all zeros.",
+ "licence": "Level texts are Natural England's (OGL v3.0, like the layer)."
+}

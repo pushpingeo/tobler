@@ -18,6 +18,7 @@ const ref = R.createReference(async (n) => JSON.parse(readFileSync(`data/ref/${n
 const anchors = JSON.parse(readFileSync("catalogue/anchors.json", "utf8")).sources;
 const trusted = JSON.parse(readFileSync("catalogue/trusted.json", "utf8"));
 const checks = JSON.parse(readFileSync("catalogue/checks.json", "utf8"));
+const irz = JSON.parse(readFileSync("catalogue/sssi_irz_codes.json", "utf8"));
 // The industry profile, as the page uses it (Energy until another is ready).
 const industries = JSON.parse(readFileSync("catalogue/industries/index.json", "utf8"));
 const profile = JSON.parse(readFileSync(industries.industries.find((i) => i.id === chooseIndustry(industries, process.env.INDUSTRY)).file, "utf8"));
@@ -64,7 +65,7 @@ const convs = (process.env.REQUESTS || "").split("\n").map((l) => l.trim()).filt
 for (const conv of convs) {
   const list = [];
   const host = {
-    ref, anchors, headers: UA, list, trusted, checks, profile: () => profile,
+    ref, anchors, headers: UA, list, trusted, checks, irz, profile: () => profile,
     firms: process.env.FIRMS_MAP_KEY ? firmsCall : null,
     epsg: epsgCall,
     transformationChoice: () => (process.env.TRANSFORMATION_CHOICE === "ask" ? "ask" : "choose"),

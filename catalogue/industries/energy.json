@@ -10,6 +10,49 @@
     "from": "catalogue/checks.json",
     "about": "Every check in checks.json that applies to the site (23 Nov; replaces the baseline layers in trusted.json). Scale bands and per-profile reach come with plan item 3."
   },
+  "irz_categories_about": "Which SSSI Impact Risk Zone categories (catalogue/sssi_irz_codes.json keys) the bio.sssi-irz check reads for each asset type; 'all consultations' is always read. Defaults (24 Nov): wind and solar for renewables, minerals/oil/gas for extraction, infrastructure for grid, transport and ports, combustion and air pollution for thermal plant; a general screen (other) reads rural non-residential and residential.",
+  "irz_categories": {
+    "solar": [
+      "ws"
+    ],
+    "wind-onshore": [
+      "ws"
+    ],
+    "hydro": [
+      "in",
+      "wt"
+    ],
+    "thermal": [
+      "cb",
+      "ap",
+      "in"
+    ],
+    "substation": [
+      "in"
+    ],
+    "mine": [
+      "og"
+    ],
+    "oil-gas-onshore": [
+      "og"
+    ],
+    "exploration-block": [
+      "og"
+    ],
+    "pipeline-cable": [
+      "in"
+    ],
+    "road-rail": [
+      "in"
+    ],
+    "port-terminal": [
+      "in"
+    ],
+    "other": [
+      "rn",
+      "re"
+    ]
+  },
   "wording": {
     "screen_chip": "Screen for environmental constraints",
     "findings": "constraints and risks",

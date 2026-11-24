@@ -14,7 +14,7 @@ const ids = (plans) => plans.map((p) => p.check.id);
 await test("the catalogue: twelve topics plus Indigenous Peoples for global work; every check sound", () => {
   const topics = cat.topics.map((t) => t.id);
   assert.equal(topics.filter((t) => t !== "indigenous").length, 12);
-  assert.equal(cat.version, "2");
+  assert.equal(cat.version, "3");
   assert.ok(topics.includes("topography") && topics.includes("hazards"));
   assert.deepEqual(Object.keys(cat.scales).filter((k) => k !== "about"), ["local", "regional", "global"]);
   assert.deepEqual(cat.scales.global, [10, 20, 50, 100]);
@@ -22,7 +22,7 @@ await test("the catalogue: twelve topics plus Indigenous Peoples for global work
   for (const c of cat.checks) {
     assert.ok(!seen.has(c.id), `${c.id} is unique`); seen.add(c.id);
     assert.ok(topics.includes(c.topic), `${c.id}: topic ${c.topic}`);
-    assert.ok(["count_by_band", "value_at_site", "inside"].includes(c.answer), `${c.id}: answer`);
+    assert.ok(["count_by_band", "value_at_site", "inside", "classes"].includes(c.answer), `${c.id}: answer`);
     assert.ok(c.sources.length, `${c.id} has sources`);
     if (c.answer === "value_at_site") assert.equal(c.reach_km, null, `${c.id}: values read the site`);
     else for (const s of ["local", "regional", "global"]) assert.ok(s in c.reach_km, `${c.id}: reach at ${s}`);
@@ -182,6 +182,103 @@ await test("several sources: filtered, counted once by code or name, partly chec
   assert.equal(both.count, 1);
   // The card and report list every source.
   assert.equal(K.checksView({ checks: [r], topic_labels: { biodiversity: "Biodiversity" } }).groups[0].items[0].source, "NE SAC (p); NS SAC (p); JNCC (p)");
+});
+
+await test("the same feature from two layers, by its own extent; but not two parts of one layer", () => {
+  assert.equal(K.sameExtent([0, 0, 1, 1], [0.01, 0, 1, 1.01]), true);
+  assert.equal(K.sameExtent([0, 0, 1, 1], [0, 0, 1, 0.5]), false, "half the box isn't the same feature");
+  assert.equal(K.sameExtent([1, 1, 1, 1], [1.0003, 1.0002, 1.0003, 1.0002]), true, "points within ~50 m");
+  assert.equal(K.sameExtent([1, 1, 1, 1], [1.002, 1, 1.002, 1]), false);
+  const sac = plan("bio.sac");
+  const [ne, ns] = sac.check.sources;
+  const meta = { fetched_km: 20 };
+  const r = K.fromSources(sac, [
+    { source: ne, features: [{ name: "Solway Firth", distance_km: 3, bbox: [-3.6, 54.8, -3.0, 55.0], extra: {} }], meta },
+    { source: ns, features: [{ name: "Solway Firth SAC", distance_km: 3.1, bbox: [-3.6, 54.8, -3.0, 55.01], extra: {} },
+      { name: "Solway Firth SAC", distance_km: 7, bbox: [-3.9, 54.85, -3.7, 54.9], extra: {} }], meta }], cat.scales.regional);
+  assert.equal(r.count, 2, "England's and Scotland's copy are one site (same extent, different names); NatureScot's second part stays");
+});
+
+await test("class answers: flood zones and farmland by class, with the share of the site; edge-touching isn't on site", () => {
+  const fz = plan("water.flood-zones");
+  const ea = fz.check.sources.find((x) => x.region === "England");
+  const sepa = fz.check.sources.find((x) => x.class && /River, medium/.test(x.class));
+  const r = K.fromSources(fz, [{ source: ea, features: [
+    { name: "a", distance_km: 0, coverage: 0.3, extra: { flood_zone: "FZ3" } }, { name: "b", distance_km: 0, coverage: 0.2, extra: { flood_zone: "FZ2" } },
+    { name: "c", distance_km: 0, coverage: 0.001, extra: { flood_zone: "FZ3" } }, { name: "d", distance_km: 0.3, extra: { flood_zone: "FZ2" } },
+    { name: "e", distance_km: 0, coverage: 0.1, extra: { flood_zone: "??" } }], meta: { fetched_km: 0.5 } }], cat.scales.regional);
+  assert.equal(r.state, "found");
+  assert.deepEqual(r.classes.map((c) => [c.label, c.on_site, c.coverage]), [["Flood Zone 3", true, 0.3], ["Flood Zone 2", true, 0.2]], "a sliver touching the edge (0.1%) is not on the site");
+  assert.equal(K.checkLine(r), "on the site: Flood Zone 3 (30%), Flood Zone 2 (20%)");
+  const near = K.fromSources(fz, [{ source: sepa, features: [{ name: "x", distance_km: 0.2, extra: {} }, { name: "y", distance_km: 0, coverage: 0.002, extra: {} }], meta: {} }], cat.scales.regional);
+  assert.equal(K.checkLine(near), "none on the site; nearby: River, medium likelihood (1 in 200 years) at the edge", "a sliver touching the edge is nearest, not on the site");
+  const near2 = K.fromSources(fz, [{ source: sepa, features: [{ name: "x", distance_km: 0.2, extra: {} }], meta: {} }], cat.scales.regional);
+  assert.equal(K.checkLine(near2), "none on the site; nearby: River, medium likelihood (1 in 200 years) at 200 m");
+  assert.equal(K.checkLine(K.fromSources(fz, [{ source: sepa, features: [], meta: {} }], cat.scales.regional)), "none within 500 m");
+  // Farmland: England's detailed survey and the provisional map side by side; Hutton by prefix; Wales mapped.
+  const fg = plan("land.farmland-grade");
+  const src = (re) => fg.check.sources.find((x) => re.test(x.record?.title || ""));
+  const g = K.fromSources(fg, [
+    { source: src(/post-1988/), features: [{ name: "s", distance_km: 0, coverage: 0.6, extra: { ALC_GRADE: "Grade 3a" } }, { name: "t", distance_km: 0, coverage: 0.4, extra: { ALC_GRADE: "Grade 3b" } }], meta: {} },
+    { source: src(/Provisional/), features: [{ name: "u", distance_km: 0, coverage: 1, extra: { ALC_GRADE: "Grade 3" } }, { name: "v", distance_km: 0, coverage: 0.2, extra: { ALC_GRADE: "Exclusion" } }], meta: {} }], cat.scales.local);
+  assert.equal(K.checkLine(g), "on the site: Grade 3a (60%), Grade 3 (provisional map) (100%), Grade 3b (40%)");
+  assert.equal(K.classOf(src(/Land Capability/), { extra: { LCCODE: "3.1" } }), "Class 3.1");
+  assert.equal(K.classOf(src(/Predictive/), { extra: { predictive: "3a" } }), "Grade 3a (predictive map)");
+  // Peat is non-commercial: switched off, not checked, licence.
+  const pt = plan("ground.peat");
+  const peat = K.fromSources(pt, [{ source: pt.check.sources[0], not_checked: "This dataset's licence is non-commercial (e.g. WDPA). Tobler leaves it out." }], cat.scales.local);
+  assert.equal(peat.reason, "licence");
+  assert.equal(K.checkLine(peat), "not checked: non-commercial licence: off unless switched on in Settings");
+});
+
+await test("SSSI Impact Risk Zones: the code read for the development, in Natural England's words", () => {
+  const table = JSON.parse(readFileSync(new URL("../catalogue/sssi_irz_codes.json", import.meta.url), "utf8"));
+  assert.equal(K.irzCodeOf("https://irz.geodata.org.uk/IRZ/step2.html?irzcode=0300000630000&x=1"), "0300000630000");
+  assert.equal(K.irzCodeOf("nothing"), null);
+  const d = K.decodeIrz(["0300000630000", "0010000000000"], table, ["ws"]);
+  assert.deepEqual(d.map((x) => [x.key, x.consult]), [["ac", false], ["ws", true]]);
+  assert.ok(d[1].texts.length === 1 && d[1].texts[0].length > 10);
+  assert.equal(K.decodeIrz(["0300000630000"], table, ["in"])[1].texts[0], table.positions[1].levels["3"]);
+  const irz = plan("bio.sssi-irz", "local");
+  const r = K.fromSources(irz, [{ source: irz.check.sources[0], features: [{ name: "zone", distance_km: 0, extra: {} }], meta: {} }], []);
+  r.irz = d;
+  assert.equal(K.checkLine(r), "inside a risk zone; consult Natural England for: wind and solar");
+  r.irz = K.decodeIrz(["0300000630000"], table, ["ws"]);
+  assert.equal(K.checkLine(r), "inside a risk zone; no consultation needed for this kind of development");
+});
+
+await test("the UK pack: where each check applies, and Northern Ireland's listed buildings filtered", () => {
+  // Linlithgow, local: heritage, landscape, flood, farmland and peat all apply; the IRZ (England only) doesn't.
+  const sc = K.planChecks(cat, { bbox: box(-3.6, 55.97), countries: ["United Kingdom"], offshore: false, sea: false, coast_km: 3 }, "local");
+  for (const id of ["heritage.listed-buildings", "landscape.national-landscapes", "water.flood-zones", "land.farmland-grade", "ground.peat", "landscape.wild-land"]) assert.ok(ids(sc).includes(id), id);
+  assert.ok(!ids(sc).includes("bio.sssi-irz"));
+  assert.ok(sc.find((p) => p.check.id === "land.farmland-grade").sources.some((x) => /Hutton/.test(x.record?.licence || "")));
+  // Leeds: the IRZ applies; Wild Land doesn't.
+  const ld = K.planChecks(cat, { bbox: box(-1.55, 53.8), countries: ["United Kingdom"], offshore: false, sea: false, coast_km: 80 }, "local");
+  assert.ok(ids(ld).includes("bio.sssi-irz") && !ids(ld).includes("landscape.wild-land"));
+  // England-only: the IRZ, and England's missing layers as gaps, by the nation boxes (Kintyre is south of 55.8°N but Scottish).
+  const at = (lon, lat) => K.planChecks(cat, { bbox: box(lon, lat, 0.01), countries: ["United Kingdom"], offshore: false, sea: false, coast_km: 5 }, "local");
+  assert.ok(!ids(at(-5.6, 55.5)).includes("bio.sssi-irz"), "Kintyre");
+  assert.ok(!ids(at(-3.18, 51.48)).includes("bio.sssi-irz"), "Cardiff");
+  assert.ok(ids(at(-2.93, 54.89)).includes("bio.sssi-irz"), "Carlisle");
+  assert.ok(ids(at(-0.13, 51.5)).includes("bio.sssi-irz"), "London");
+  assert.ok(ids(at(-6.3, 49.92)).includes("bio.sssi-irz"), "Isles of Scilly");
+  assert.ok(!at(-5.6, 55.5).find((p) => p.check.id === "water.surface-water").sources.some((x) => x.region === "England"), "no England gap in Kintyre");
+  // A nation's layer covers the whole nation, not just its data's extent: Kintyre has no National Park, which is "none found".
+  const np = K.planChecks(cat, { bbox: box(-5.6, 55.5, 0.01), countries: ["United Kingdom"], offshore: false, sea: false, coast_km: 5 }, "regional").find((p) => p.check.id === "landscape.national-parks");
+  assert.ok(np.sources.length && np.sources.every((x) => x.region === "Scotland"), JSON.stringify(np.sources.map((x) => x.region)));
+  assert.equal(K.unsourced(np), null);
+  // Offshore: heritage and landscape only when the coast is within their reach.
+  const far = K.planChecks(cat, { bbox: box(-3.95, 60.98, 0.1), countries: [], offshore: true, sea: true, coast_km: 139 }, "global");
+  assert.ok(!far.some((p) => /^(heritage|landscape)\./.test(p.check.id)) && !ids(far).includes("water.flood-zones"));
+  const near = K.planChecks(cat, { bbox: box(-3.2, 53.5, 0.05), countries: [], offshore: true, sea: true, coast_km: 12 }, "global");
+  assert.ok(ids(near).includes("landscape.national-landscapes") && ids(near).includes("heritage.world-heritage"), "coast within 20 km");
+  // Belfast: listed buildings from DfC, with only listed grades counted.
+  const lb = plan("heritage.listed-buildings");
+  const dfc = lb.check.sources.find((x) => x.region === "Northern Ireland");
+  const r = K.fromSources(lb, [{ source: dfc, features: [{ name: "A house", distance_km: 1, extra: { CurrentGra: "B+" } }, { name: "Record only", distance_km: 1.2, extra: { CurrentGra: "Record Only" } }], meta: {} }], cat.scales.regional);
+  assert.equal(r.count, 1);
+  assert.ok(lb.check.sources.every((x) => x.dense), "listed buildings fetched only to their own reach");
 });
 
 await test("topics with no check, the summary lines, and grouping by topic", () => {
