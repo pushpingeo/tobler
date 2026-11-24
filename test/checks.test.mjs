@@ -7,6 +7,7 @@ import { settleDecision } from "../js/industry.js";
 
 let passed = 0;
 const test = async (name, fn) => { await fn(); passed++; console.log("ok", name); };
+import { OSM_KINDS } from "../js/osmchecks.js";
 const cat = JSON.parse(readFileSync(new URL("../catalogue/checks.json", import.meta.url), "utf8"));
 const box = (lon, lat, d = 0.05) => [lon - d, lat - d, lon + d, lat + d];
 const ids = (plans) => plans.map((p) => p.check.id);
@@ -14,7 +15,7 @@ const ids = (plans) => plans.map((p) => p.check.id);
 await test("the catalogue: twelve topics plus Indigenous Peoples for global work; every check sound", () => {
   const topics = cat.topics.map((t) => t.id);
   assert.equal(topics.filter((t) => t !== "indigenous").length, 12);
-  assert.equal(cat.version, "4");
+  assert.equal(cat.version, "5");
   assert.ok(topics.includes("topography") && topics.includes("hazards"));
   assert.deepEqual(Object.keys(cat.scales).filter((k) => k !== "about"), ["local", "regional", "global"]);
   assert.deepEqual(cat.scales.global, [10, 20, 50, 100]);
@@ -27,7 +28,9 @@ await test("the catalogue: twelve topics plus Indigenous Peoples for global work
     if (c.answer === "value_at_site") assert.equal(c.reach_km, null, `${c.id}: values read the site`);
     else for (const s of ["local", "regional", "global"]) assert.ok(s in c.reach_km, `${c.id}: reach at ${s}`);
     for (const s of c.sources) {
-      assert.ok(s.atlas_id || s.tool || s.pending, `${c.id}: each source is an atlas layer, a tool or pending`);
+      assert.ok(s.atlas_id || s.tool || s.osm || s.pending, `${c.id}: each source is an atlas layer, a tool, an OpenStreetMap kind or pending`);
+      // OpenStreetMap's completeness varies by place, so it never decides a topic on its own (24 Nov).
+      if (s.osm) { assert.ok(OSM_KINDS[s.osm], `${c.id}: OpenStreetMap kind ${s.osm} is known`); assert.equal(c.must, false, `${c.id}: an OpenStreetMap check is never a must`); }
       if (s.atlas_id) { assert.match(s.atlas_id, /^[0-9a-f]{16}$/); assert.ok(s.record?.title && s.record?.publisher && s.record?.licence && s.record?.as_of, `${c.id}: record kept`); }
     }
   }
@@ -55,7 +58,11 @@ await test("bands inside a reach, and their labels", () => {
 await test("selection by setting, region and scale; sources by country and box", () => {
   // Onshore in the Netherlands, regional: the EU Natura layers, CDDA, US habitat and sea checks left out.
   const nl = K.planChecks(cat, { bbox: box(4.93, 51.49), countries: ["Netherlands"], offshore: false, sea: false }, "regional");
-  assert.deepEqual(ids(nl), ["bio.sac", "bio.spa", "bio.national-sites", "topo.elevation", "context.boundaries"], "no UK-only checks in the Netherlands");
+  // Since the coverage drive (24 Nov), OpenStreetMap's infrastructure and receptors and the global active faults
+  // apply everywhere on land; Indigenous territories only where Native Land Digital maps them (not Europe).
+  assert.deepEqual(ids(nl), ["bio.sac", "bio.spa", "bio.national-sites", "community.homes", "community.schools", "community.health-care", "hazards.active-faults",
+    "material.power-lines", "material.substations", "material.pipelines", "material.main-roads", "material.railways", "material.aerodromes", "material.wind-turbines",
+    "topo.elevation", "context.boundaries"], "no UK-only checks in the Netherlands");
   assert.deepEqual(nl[0].sources.map((x) => x.atlas_id), ["2764f9d94e700980"]);
   assert.equal(nl[0].reach_km, 10);
   const regions = (plans, id) => plans.find((p) => p.check.id === id).sources.map((x) => x.region);

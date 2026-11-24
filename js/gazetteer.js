@@ -44,6 +44,9 @@ async function overpass(q, fetchFn, headers) {
   });
 }
 
+// For the checks' OpenStreetMap source (js/osmchecks.js): the same servers, fallbacks and "not answering" note.
+export const overpassQuery = (q, fetchFn = globalThis.fetch, headers = {}) => overpass(q, fetchFn, headers);
+
 // A candidate keeps its full geometry here; the model only ever sees a compact description.
 export function candidate({ name, type, geometry, source, extra = {} }) {
   const f = { type: "Feature", properties: {}, geometry };

@@ -2,6 +2,42 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 24 Nov 2026 (night): the coverage drive, first batch (Rob: "fill the gaps… as complete as possible")
+- **Audit:** `claude/coverage-audit-2026-11-24.md` in the project: the twelve topics by market, what the atlas
+  already holds (searched in its crawl results), what's waiting on Rob, and what to ask the atlas for.
+- **OpenStreetMap as a check source** (`js/osmchecks.js`): one Overpass query per run for every OpenStreetMap kind
+  any applying check asks for (through the gazetteer's servers and fallbacks), each feature measured from the site's
+  edge and handed back in the same shape as an atlas layer's answer, so counting, bands, lists and the map are
+  unchanged. Roads, railways, power lines and homes come in pieces: one row per name, at its nearest piece. Never a
+  must-check (completeness varies; the source title says so; a test enforces it). Licence ODbL 1.0, already used by
+  the gazetteer. When Overpass doesn't answer, every OpenStreetMap check is "not checked", with the reason.
+- **New checks (catalogue version 5, 47 checks):**
+  - material assets, everywhere on land (OpenStreetMap): power lines, substations, pipelines, main roads, railways,
+    aerodromes (also on the coast), existing wind turbines (also at sea);
+  - community and health (OpenStreetMap): nearest homes, schools and nurseries, hospitals, clinics and care homes;
+  - hazards: coal development high risk area (GB, OGL; Northern Ireland pending), active faults (GEM, CC BY 4.0, world);
+  - water: groundwater source protection zones by zone (England, Wales; Scotland and NI pending);
+  - material assets at sea: offshore installations and offshore wind farms (EMODnet, Europe), wind leases (Crown
+    Estate Scotland, OGL; The Crown Estate for England, Wales and NI, licence written as "check its terms before
+    commercial use" until Rob decides), subsea telecom cables (UK; UK power cables pending);
+  - Indigenous territories (Native Land Digital, CC0, indicative): only in the Americas, Australia and New Zealand,
+    where it has coverage, so it never answers "none" for land it doesn't map.
+- **Reach values** are first cuts with their reasons in `reach_why`, to tune on the example sites (plan item 6).
+- **Only air and climate** now has no check on a UK site. The plan's Dogger Bank must-checks (item 1c) are now
+  checks, but not yet must: `must` is per check, not per asset type, so making them must for offshore wind needs a
+  per-asset rule; Rob's call with item 3.
+- **Waiting on Rob** (in the audit): contamination (landfill under the EA Conditional Licence, and the rest), radon
+  (licence not settled), coal low risk area (licence not specified), The Crown Estate's licence, elevation sources.
+- **Atlas requests** (`docs/atlas-requests.md`, 24 Nov evening): UK transmission lines, NSTA pipelines, UK power
+  cables, BGS hazards as features, NCERM, AQMAs, peat, elevation services, and national packs for the US, the
+  Netherlands and Australia.
+- **Tested:** `npm test` (new `test/osmchecks.test.mjs`; the catalogue test checks OpenStreetMap sources are known
+  kinds and never must; the run test checks the new checks run on an English site and that only air and climate has
+  no check); browser checks all pass (run card 163, out of date 44, search area 46, site files 44, ux 26, cards 14).
+  **Not tested:** any of the new layers live (the build workspace can't reach the atlas or Overpass): the field names
+  for the curated records come from the atlas's own record notes, and the EMODnet layers' name fields are unknown (the
+  data tool's usual name guess applies). Rob's next live screen is the first real test.
+
 ## 24 Nov 2026 (evening): sites and screens, and projects kept in the browser (plan item 8, first steps; Rob)
 - **Rob:** managing runs should feel like the folders of a desktop GIS project, but discreet and intuitive.
 - **Sites and screens** (`js/sitetree.js`): a closed strip under the header ("Sites and screens · 1 site · 2 screens"),

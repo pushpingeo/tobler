@@ -880,8 +880,15 @@ await test("the UK pack on land: flood zones and farmland by share of the site, 
   assert.deepEqual(lb.map((f) => [f.name, f.detail, f.publisher, !!f.fid]), [["Church of St Mary", "Grade I", "Historic England", true], ["Barn", "Grade II", "Historic England", true]]);
   assert.ok(lb[0].distance_km < lb[1].distance_km);
   assert.deepEqual(by["water.flood-zones"].features.map((f) => [f.detail, f.coverage]), [["Flood Zone 3", 0.5]]);
-  // Topics left without a check: fewer now (heritage, landscape, water, land use, ground and soil are covered).
-  assert.deepEqual(r.no_check_topics, ["community-health", "air-climate", "hazards", "material-assets"]);
+  // Topics left without a check: only air and climate since the coverage drive (24 Nov): community, hazards and
+  // material assets now have checks (OpenStreetMap, coal mining risk, active faults).
+  assert.deepEqual(r.no_check_topics, ["air-climate"]);
+  // OpenStreetMap answered with nothing here: none found, from OpenStreetMap, never a must.
+  const pl = by["material.power-lines"];
+  assert.equal(pl.state, "none");
+  assert.match(pl.sources?.[0]?.dataset || pl.source?.dataset || "", /^OpenStreetMap: power lines/);
+  assert.equal(pl.must, false);
+  assert.ok(by["community.homes"] && by["hazards.coal-mining"] && by["water.source-protection"], "the new UK and OpenStreetMap checks run on a site in England");
 });
 
 console.log(`${passed} ntrrun tests passed`);

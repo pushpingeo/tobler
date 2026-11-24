@@ -262,13 +262,14 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   check(/Nearest: community health and safety, Rosebank 9 inch Production flowline 1 \(on site\)/.test(s.nearest), `${label}: nearest-by-theme line (${s.nearest})`);
   check(/lies within a wide area: North West European waters\./.test(s.nearest) && !/Nearest:[^.]*North West European/.test(s.nearest), `${label}: a wide area around the site is counted apart, not as on site (${s.nearest})`);
   // Checks (plan item 1): UK waters, so the UK's own layers (24 Nov) beside the EU's; one SPA layer down; the run's
+  // active faults (global, 24 Nov coverage drive) put Hazards in too;
   // checks by topic in three states; the topics nothing checks yet in one line; open on a desktop, closed on a phone.
   const ck = s.checks;
   await page.evaluate(() => { const c = document.querySelector(".run .checks"); c.open = true; c.querySelector(".nocheck").open = true; });
   await page.locator(".run .checks").screenshot({ path: `/tmp/run-card-${label}-checks.png` }).catch(() => {});
   await page.evaluate((open) => { const c = document.querySelector(".run .checks"); c.open = open; c.querySelector(".nocheck").open = false; }, ck?.open ?? false);
   check(ck && /^Checks: \d+ \(\d+ found, \d+ none found, \d+ not checked\)$/.test(ck.summary), `${label}: checks section with its summary (${ck?.summary})`);
-  check(ck && ck.heads.join("|") === "Biodiversity|Material assets|Topography and bathymetry|Context", `${label}: checks grouped by topic in order (${ck?.heads.join(", ")})`);
+  check(ck && ck.heads.join("|") === "Biodiversity|Hazards|Material assets|Topography and bathymetry|Context", `${label}: checks grouped by topic in order (${ck?.heads.join(", ")})`);
   check(ck && ck.lines.some((l) => /^Special Areas of Conservation\s*must: 1 within 50 km .*nearest Wyville Thomson Ridge/.test(l.text) && /found/.test(l.cls))
     && ck.lines.some((l) => /^Special Protection Areas \(birds\)\s*must: not checked: NatureScot didn't answer \(none in the others\)$/.test(l.text) && /\bnc\b/.test(l.cls))
     && ck.lines.some((l) => /^MARPOL special areas: the site is inside North West European waters/.test(l.text) && /found/.test(l.cls))

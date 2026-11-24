@@ -18,6 +18,8 @@ import { waterDepth, vesselTraffic, seaLines } from "./seavalues.js";
 import { elevationFrom, elevationSignificance, elevationLine, elevationShort } from "./elevation.js";
 import { readDecision, settleDecision } from "./industry.js";
 import * as K from "./checks.js";
+import { osmAnswers } from "./osmchecks.js";
+import { overpassQuery } from "./gazetteer.js";
 import { placeRole, coverageIn, whereText, applySearchArea, reword, sameShape, SEARCH_BAND, SEARCH_NOTE } from "./siterole.js";
 
 // The band for a piece of evidence: a wide area the site lies within is "around the site", not "on site".
@@ -353,8 +355,12 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
   }
   // Atlas layers, each fetched once however many checks use it (JNCC's offshore set serves the SAC, SPA and marine
   // checks), out to the furthest reach any of them needs.
-  const layerPlans = plans.filter((p) => !results.has(p.check.id) && p.sources.some((x) => x.atlas_id));
+  const layerPlans = plans.filter((p) => !results.has(p.check.id) && p.sources.some((x) => x.atlas_id || x.osm));
+  const keyOf = (x) => x.atlas_id || (x.osm ? `osm:${x.osm}` : null);
   const layerFetch = new Map(); // atlas_id → { source, km, fields, name_field }
+  // OpenStreetMap (js/osmchecks.js): every kind any check asks for, in one query, each out to its own reach.
+  const osmWants = new Map();
+  for (const p of layerPlans) for (const x of p.sources.filter((y) => y.osm)) osmWants.set(x.osm, Math.max(osmWants.get(x.osm) || 0, Math.min(MAX_KM, Math.max(0, p.reach_km || 0))));
   for (const p of layerPlans) for (const x of p.sources.filter((y) => y.atlas_id)) {
     const l = layerFetch.get(x.atlas_id) || { source: x, km: 0, fields: new Set(), name_field: x.name_field || null, coverage: false };
     // Every check layer fetches only to its own reach, up to 500 features (24 Nov): fetched out to the wider band, a
@@ -408,8 +414,24 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
   onEvent({ type: "baseline", layers: layers.length + (seaJob ? 1 : 0) });
   // Settings: count the same shape from two layers once (on unless the person switched it off).
   const mergeShapes = host.mergeShapes ? !!host.mergeShapes() : true;
-  const layerAnswers = new Map(); // atlas_id → { features, meta } or { not_checked }
-  await Promise.allSettled(layers.map(async (l) => {
+  const layerAnswers = new Map(); // atlas_id (or osm:<kind>) → { features, meta } or { not_checked }
+  const osmJob = osmWants.size ? (async () => {
+    const t0 = Date.now();
+    const kinds = [...osmWants.keys()];
+    onEvent({ type: "tool_start", name: "openstreetmap", input: { kinds } });
+    const got = await osmAnswers({ wants: osmWants, site: fp.feature, query: (q) => overpassQuery(q, host.fetchFn || globalThis.fetch, host.headers || {}), now });
+    for (const [kind, a] of got) {
+      layerAnswers.set(`osm:${kind}`, a);
+      const plan = layerPlans.find((p) => p.sources.some((x) => x.osm === kind));
+      if (a.not_checked) { checked.push({ evidence: kind, dataset: `OpenStreetMap: ${kind}`, publisher: "OpenStreetMap contributors", result: "not checked", why: a.not_checked, check: plan.check.id }); continue; }
+      checked.push({ evidence: kind, dataset: a.meta.dataset, publisher: a.meta.publisher, licence: a.meta.licence, result: a.features.length ? "features" : "none found", count: a.features.length, within_km: a.meta.fetched_km, checked_at: a.meta.checked_at, check: plan.check.id });
+      capture(a.features.map((f) => ({ name: f.name, type: kind, geometry: f.geometry, distance_km: f.distance_km, extra: f.extra,
+        source: { title: a.meta.dataset, publisher: a.meta.publisher, licence: a.meta.licence, url: `https://www.openstreetmap.org/${f.osm}` } })), { theme: K.mapTheme(plan.check.topic) });
+    }
+    onEvent({ type: "tool", name: "openstreetmap", input: { kinds }, ms: Date.now() - t0, baseline: true,
+      output: Object.fromEntries([...got].map(([k, a]) => [k, a.not_checked ? `not checked (${a.not_checked})` : `${a.features.length} within ${a.meta.fetched_km} km`])) });
+  })() : null;
+  await Promise.allSettled([...(osmJob ? [osmJob] : []), ...layers.map(async (l) => {
     const x = l.source, rec = x.record || {};
     const id = tools.useDataset({ id: x.atlas_id, title: rec.title || x.atlas_id, publisher: rec.publisher || "", licence: rec.licence || "", capabilities: ["query"], concepts: [] }, "B");
     const check = layerPlans.find((p) => p.sources.includes(x));
@@ -431,9 +453,9 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
       onEvent({ type: "tool", name: "get_data", input, error: String(e.message || e), ms: Date.now() - t0, baseline: true });
       layerAnswers.set(x.atlas_id, { not_checked: String(e.message || e) });
     }
-  }));
+  })]);
   for (const p of layerPlans) {
-    const answers = p.sources.map((x) => (x.pending ? { source: x } : { source: x, ...(layerAnswers.get(x.atlas_id) || { not_checked: "not fetched" }) }));
+    const answers = p.sources.map((x) => (x.pending ? { source: x } : { source: x, ...(layerAnswers.get(keyOf(x)) || { not_checked: "not fetched" }) }));
     const r = K.fromSources(p, answers, edges, mergeShapes ? { sameShape } : {});
     // The SSSI Impact Risk Zones: the zones the site is in, read for this kind of development (the profile's
     // categories for the asset type; "all consultations" always).

@@ -4,6 +4,31 @@ Tobler and the atlas are worked on in separate chats (decided 17 Nov). Tobler do
 What Tobler can rely on is written down in the atlas repo's `docs/mcp-tools.md`. When Tobler needs something
 new from the atlas, add it here (newest first), tell Rob, and he passes it to the atlas chat.
 
+- **24 Nov (evening): the coverage drive** (Rob: "as complete as possible"; audit in the project,
+  `claude/coverage-audit-2026-11-24.md`). Tobler now uses these records as checks: `ec38ddbef814026b` (coal high risk
+  area), `6c3e0babf56f294e` and `5d4037034edc4d37` (source protection zones, class fields `number` and `NUMBER`),
+  `0b6ff37a18b1aab2` (GEM active faults, `name`, `slip_type`), `a38e968b2ce8d36a` (EMODnet offshore installations),
+  `f70f5adfc354d387` (EMODnet wind farm polygons), `4e485998501cde5f` and `4d4f3f1290943689` (Crown Estate Scotland and
+  The Crown Estate wind leases, `Property_Description`, `Name_Prop`), `6f36ead7970b8386` (EMODnet UK telecom cables),
+  `33835b94806a7d64` (Native Land Digital, `Name`). Please keep them stable, and tell us the name fields for the three
+  EMODnet layers. Asks, most useful first:
+  1. **UK infrastructure, national and open:** electricity transmission lines and substations (National Grid ET,
+     SPEN, SSEN Transmission; NESO if published), NSTA offshore pipelines and surface infrastructure (the wells record
+     is a map service only), UK power cables at sea (interconnectors and wind export cables: EMODnet holds other
+     countries' power cables, not the UK's).
+  2. **UK hazards and air:** BGS landslides, historical and instrumental earthquakes as features (OGC API Features or
+     WFS; the atlas has them as WMS only); England's coastal erosion (NCERM 2024); a national AQMA layer (Defra UK-AIR;
+     the atlas has council copies only); England and Wales peat maps.
+  3. **Elevation as value services** (Tobler reads ArcGIS image services with `getSamples`, and could read WCS):
+     England's LIDAR Composite DTM 1 m (Environment Agency, OGL), EMODnet Bathymetry DTM (~115 m, to LAT), USGS 3DEP,
+     AHN (NL), Geoscience Australia's 5 m lidar DEM and Australian bathymetry. Rob's go is still needed for these.
+  4. **National packs for the other focus markets**, curated like the UK pack (fixed ids, named fields, licence
+     verbatim, `coverage`): **US** (FEMA NFHL flood zones, PAD-US, NWI wetlands, USFWS critical habitat onshore, NPS
+     National Register of Historic Places, Census AIANNH tribal lands, EPA nonattainment areas, HIFLD transmission lines
+     and substations, USFS wildfire hazard potential); **Netherlands** (Rijksmonumenten, flood risk, BRO soil,
+     Natura 2000 from the national publisher); **Australia** (CAPAD, EPBC matters of national environmental
+     significance, native title determinations (NNTT), national and state heritage lists). The US wave holds mostly
+     county copies with licences not stated, so national records are what's needed.
 - **24 Nov: small corrections from the first live UK screens** (Linlithgow). (1) Historic Environment Scotland's World
   Heritage Sites record (`0d622d81aa3431a4`) **does hold buffer zones** ("Antonine Wall World Heritage Site Buffer
   Zone"); the contract note says it doesn't. Please correct the note, and say whether the other nations' WHS records do

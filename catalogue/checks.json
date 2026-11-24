@@ -1,12 +1,12 @@
 {
-  "about": "Checks as data (plan item 1; design note claude/checks-design.md, agreed by Rob 23 Nov 2026). A check is one line on the report: a neutral topic, the layers that answer it in each region, the kind of answer, and how far it looks at each scale. The run carries out every check that applies, in code, before the analyst starts, and each comes back as found, none found, or not checked with the reason. Replaces 'baseline' in trusted.json. Version 2 (24 Nov): the UK statutory sites from the atlas's fixed records (22 Nov). Version 3 (24 Nov): the UK pack (23 Nov): heritage, landscape, flood, farmland, peat and the SSSI Impact Risk Zones. Edit by hand; js/checks.js reads it and test/checks.test.mjs and the invariants test check it. Version 4 (24 Nov): checks fetch only to their own reach; World Heritage Site buffer zones apart from the sites.",
-  "version": "4",
+  "about": "Checks as data (plan item 1; design note claude/checks-design.md, agreed by Rob 23 Nov 2026). A check is one line on the report: a neutral topic, the layers that answer it in each region, the kind of answer, and how far it looks at each scale. The run carries out every check that applies, in code, before the analyst starts, and each comes back as found, none found, or not checked with the reason. Replaces 'baseline' in trusted.json. Version 2 (24 Nov): the UK statutory sites from the atlas's fixed records (22 Nov). Version 3 (24 Nov): the UK pack (23 Nov): heritage, landscape, flood, farmland, peat and the SSSI Impact Risk Zones. Edit by hand; js/checks.js reads it and test/checks.test.mjs and the invariants test check it. Version 4 (24 Nov): checks fetch only to their own reach; World Heritage Site buffer zones apart from the sites. Version 5 (24 Nov): the coverage drive (claude/coverage-audit-2026-11-24.md): OpenStreetMap checks for infrastructure and community receptors everywhere; coal mining risk, active faults, source protection zones; offshore installations, wind farms, wind leases and cables; Indigenous territories (indicative).",
+  "version": "5",
   "fields": {
     "answer": "count_by_band (features per distance band, plus the nearest), value_at_site (a reading over the site: elevation, depth, traffic) or inside (whether the site is inside or touching one), or classes (which classes are on the site, with the share they cover, and the nearest of each within reach: flood zones, farmland grade, peat)",
     "reach_km": "how far the check looks at each scale, from the footprint edge. null means the check doesn't apply at that scale. Value checks have no reach (they read the site). Reach values are a first cut from research-reach-evidence.md, defaults to tune on the example sites.",
     "applies": "setting: any, land (onshore), offshore, sea (offshore or the coast within reach), or land_or_coast (onshore, or offshore with the coast within the check's own reach: heritage and landscape seen from the sea). where: a [west, south, east, north] box the site must overlap for the check to apply at all (e.g. tropical coral reefs); without it, the check applies everywhere in that setting. countries: on land, the site must be in one of these (UK-only checks); at sea the box decides.",
     "must": "a check whose topic can't be called clear without it; drives the decision rule (js/industry.js settleDecision)",
-    "sources": "Per region. Every source that covers what the check's reach can touch is used, and the results are merged (a site near a border needs both nations' layers). countries (onshore: the site must be in one), not_countries, and where (a box the site's box, grown by the reach, must overlap; offshore sites match on the box). atlas_id: an AI Living World Atlas record; record holds its title, publisher and licence as the atlas gave them on as_of (the atlas contract has no record-by-id lookup). name_field: the attribute holding the feature's name. code_field: a site code, so the same site in two layers counts once. filter: keep only features whose field has one of these values (JNCC's offshore layer holds several designations). supplementary: its absence doesn't stop a 'none found' when another source answered. tool: a Tobler tool instead of an atlas layer (boundaries, elevation, depth, traffic). setting: as for applies, for one source (JNCC's offshore layer only at sea). pending: a layer we know exists but can't use yet. If no source covers the site, the answer is not checked: no source for this region. class_field and classes: the field that holds a class, and its values mapped to labels (values not mapped are left out); class_prefix instead of a map; class: a layer that is one class. keep_fields: more attributes to keep on each feature (a grade). dense: a layer with many features (listed buildings), fetched only to the check's own reach so the 100-feature limit doesn't cut the count; class and inside checks always fetch only to their own reach. where_any: several boxes, any of which will do (the rough nation outlines in regions). name_filter: include or exclude features whose name matches (case-insensitive), e.g. buffer zones. detail_prefix: put before a kept field in the card's list (Grade, Category).",
+    "sources": "Per region. Every source that covers what the check's reach can touch is used, and the results are merged (a site near a border needs both nations' layers). countries (onshore: the site must be in one), not_countries, and where (a box the site's box, grown by the reach, must overlap; offshore sites match on the box). atlas_id: an AI Living World Atlas record; record holds its title, publisher and licence as the atlas gave them on as_of (the atlas contract has no record-by-id lookup). name_field: the attribute holding the feature's name. code_field: a site code, so the same site in two layers counts once. filter: keep only features whose field has one of these values (JNCC's offshore layer holds several designations). supplementary: its absence doesn't stop a 'none found' when another source answered. tool: a Tobler tool instead of an atlas layer (boundaries, elevation, depth, traffic). setting: as for applies, for one source (JNCC's offshore layer only at sea). pending: a layer we know exists but can't use yet. If no source covers the site, the answer is not checked: no source for this region. class_field and classes: the field that holds a class, and its values mapped to labels (values not mapped are left out); class_prefix instead of a map; class: a layer that is one class. keep_fields: more attributes to keep on each feature (a grade). dense: a layer with many features (listed buildings), fetched only to the check's own reach so the 100-feature limit doesn't cut the count; class and inside checks always fetch only to their own reach. where_any: several boxes, any of which will do (the rough nation outlines in regions). name_filter: include or exclude features whose name matches (case-insensitive), e.g. buffer zones. detail_prefix: put before a kept field in the card's list (Grade, Category). osm: an OpenStreetMap kind (js/osmchecks.js OSM_KINDS), fetched in one Overpass query per run; completeness varies, so never a must-check.",
     "decode": "irz: an inside check whose zones are read for the development (catalogue/sssi_irz_codes.json; the profile's irz_categories by asset type)",
     "class_order": "classes, most significant first (a label starting with one of these)"
   },
@@ -1306,6 +1306,215 @@
       ]
     },
     {
+      "id": "community.homes",
+      "topic": "community-health",
+      "label": "Nearest homes",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0.5,
+        "regional": 2,
+        "global": null
+      },
+      "reach_why": "Noise, dust, visual and residential amenity: the nearest homes set most limits. OpenStreetMap's completeness varies by place, so this is never a must-check.",
+      "applies": {
+        "setting": "land"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "osm": "homes"
+        }
+      ]
+    },
+    {
+      "id": "community.schools",
+      "topic": "community-health",
+      "label": "Schools and nurseries",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 1,
+        "regional": 2,
+        "global": null
+      },
+      "reach_why": "Sensitive receptors for noise, air quality and construction traffic. OpenStreetMap's completeness varies by place, so this is never a must-check.",
+      "applies": {
+        "setting": "land"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "osm": "school"
+        }
+      ]
+    },
+    {
+      "id": "community.health-care",
+      "topic": "community-health",
+      "label": "Hospitals, clinics and care homes",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 1,
+        "regional": 2,
+        "global": null
+      },
+      "reach_why": "Sensitive receptors for noise, air quality and emergency access. OpenStreetMap's completeness varies by place, so this is never a must-check.",
+      "applies": {
+        "setting": "land"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "osm": "health care"
+        }
+      ]
+    },
+    {
+      "id": "hazards.coal-mining",
+      "topic": "hazards",
+      "label": "Coal mining: development high risk area",
+      "answer": "inside",
+      "reach_km": {
+        "local": 0,
+        "regional": 0,
+        "global": null
+      },
+      "reach_why": "The land the site takes: in a high risk area, a coal mining risk assessment goes with a planning application.",
+      "applies": {
+        "setting": "land",
+        "where": [
+          -14.0,
+          49.8,
+          2.5,
+          61.0
+        ],
+        "countries": [
+          "United Kingdom"
+        ]
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "Great Britain",
+          "atlas_id": "ec38ddbef814026b",
+          "record": {
+            "title": "Coal Development High Risk Area, Great Britain (Mining Remediation Authority)",
+            "publisher": "Mining Remediation Authority",
+            "licence": "Open Government Licence",
+            "as_of": "2026-11-24"
+          },
+          "where_any": [
+            [
+              -6.5,
+              49.85,
+              1.8,
+              51.38
+            ],
+            [
+              -2.72,
+              51.38,
+              1.8,
+              54.58
+            ],
+            [
+              -3.65,
+              53.3,
+              -2.72,
+              54.58
+            ],
+            [
+              -3.1,
+              54.58,
+              -1.45,
+              55.81
+            ],
+            [
+              -5.7,
+              51.38,
+              -2.72,
+              53.45
+            ],
+            [
+              -9.0,
+              54.6,
+              -0.6,
+              61.0
+            ]
+          ]
+        },
+        {
+          "region": "Northern Ireland",
+          "pending": "no coal mining risk layer for Northern Ireland in Tobler's data (abandoned mines: GSNI)",
+          "where_any": [
+            [
+              -8.2,
+              54.0,
+              -5.4,
+              55.4
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hazards.active-faults",
+      "topic": "hazards",
+      "label": "Active faults",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 2,
+        "regional": 10,
+        "global": 50
+      },
+      "reach_why": "Ground rupture on the fault itself, and shaking near it; a first look, not a seismic hazard assessment.",
+      "applies": {
+        "setting": "any"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "atlas_id": "0b6ff37a18b1aab2",
+          "record": {
+            "title": "Active Faults (GEM Global Active Faults Database)",
+            "publisher": "Global Earthquake Model Foundation",
+            "licence": "Creative Commons Attribution 4.0 International",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "name",
+          "keep_fields": [
+            "slip_type"
+          ]
+        }
+      ]
+    },
+    {
       "id": "material.marpol-special-areas",
       "topic": "material-assets",
       "label": "MARPOL special areas",
@@ -1360,6 +1569,390 @@
             85
           ],
           "tool": "traffic"
+        }
+      ]
+    },
+    {
+      "id": "material.power-lines",
+      "topic": "material-assets",
+      "label": "Overhead power lines",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0.5,
+        "regional": 2,
+        "global": null
+      },
+      "reach_why": "Clearance and easements along the line, and the grid connection; most matter where they cross or skirt the site. OpenStreetMap's completeness varies by place, so this is never a must-check.",
+      "applies": {
+        "setting": "land"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "osm": "power line"
+        }
+      ]
+    },
+    {
+      "id": "material.substations",
+      "topic": "material-assets",
+      "label": "Substations",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 2,
+        "regional": 5,
+        "global": null
+      },
+      "reach_why": "The likely grid connection point for generation and storage, and a neighbour for housing. OpenStreetMap's completeness varies by place, so this is never a must-check.",
+      "applies": {
+        "setting": "land"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "osm": "substation"
+        }
+      ]
+    },
+    {
+      "id": "material.pipelines",
+      "topic": "material-assets",
+      "label": "Pipelines",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0.5,
+        "regional": 2,
+        "global": null
+      },
+      "reach_why": "Easements and the consultation zones round major hazard pipelines, typically a few hundred metres. OpenStreetMap's completeness varies by place, so this is never a must-check.",
+      "applies": {
+        "setting": "land"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "osm": "pipeline"
+        }
+      ]
+    },
+    {
+      "id": "material.main-roads",
+      "topic": "material-assets",
+      "label": "Main roads",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0.5,
+        "regional": 2,
+        "global": null
+      },
+      "reach_why": "Access for construction and operation, and a source of noise and air quality limits for homes. OpenStreetMap's completeness varies by place, so this is never a must-check.",
+      "applies": {
+        "setting": "land"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "osm": "main road"
+        }
+      ]
+    },
+    {
+      "id": "material.railways",
+      "topic": "material-assets",
+      "label": "Railways",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0.5,
+        "regional": 2,
+        "global": null
+      },
+      "reach_why": "Crossings, glint and glare for solar beside the line, and the railway's own safeguarding. OpenStreetMap's completeness varies by place, so this is never a must-check.",
+      "applies": {
+        "setting": "land"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "osm": "railway"
+        }
+      ]
+    },
+    {
+      "id": "material.aerodromes",
+      "topic": "material-assets",
+      "label": "Aerodromes",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 5,
+        "regional": 15,
+        "global": 30
+      },
+      "reach_why": "Aerodrome safeguarding (about 13 to 15 km round safeguarded aerodromes in the UK) and glint and glare; wind turbines are consulted on further out, for radar. OpenStreetMap's completeness varies by place, so this is never a must-check.",
+      "applies": {
+        "setting": "land_or_coast"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "osm": "aerodrome"
+        }
+      ]
+    },
+    {
+      "id": "material.wind-turbines",
+      "topic": "material-assets",
+      "label": "Existing wind turbines",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 2,
+        "regional": 10,
+        "global": null
+      },
+      "reach_why": "Cumulative landscape and visual effects, and turbine spacing for new wind. OpenStreetMap's completeness varies by place, so this is never a must-check.",
+      "applies": {
+        "setting": "any"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "osm": "wind turbine"
+        }
+      ]
+    },
+    {
+      "id": "material.offshore-installations",
+      "topic": "material-assets",
+      "label": "Offshore installations",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": null,
+        "regional": 5,
+        "global": 20
+      },
+      "reach_why": "Platforms and their 500 m safety zones, helicopter routes and decommissioning.",
+      "applies": {
+        "setting": "sea",
+        "where": [
+          -45,
+          24,
+          50,
+          85
+        ]
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "European seas",
+          "where": [
+            -45,
+            24,
+            50,
+            85
+          ],
+          "atlas_id": "a38e968b2ce8d36a",
+          "record": {
+            "title": "Offshore Installations (EMODnet Human Activities)",
+            "publisher": "EMODnet Human Activities",
+            "licence": "Creative Commons Attribution 4.0",
+            "as_of": "2026-11-24"
+          }
+        }
+      ]
+    },
+    {
+      "id": "material.offshore-wind-farms",
+      "topic": "material-assets",
+      "label": "Offshore wind farms",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": null,
+        "regional": 10,
+        "global": 50
+      },
+      "reach_why": "Cumulative effects and wake losses between neighbouring wind farms.",
+      "applies": {
+        "setting": "sea",
+        "where": [
+          -45,
+          24,
+          50,
+          85
+        ]
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "European seas",
+          "where": [
+            -45,
+            24,
+            50,
+            85
+          ],
+          "atlas_id": "f70f5adfc354d387",
+          "record": {
+            "title": "Wind Farms (Polygons) (EMODnet Human Activities)",
+            "publisher": "EMODnet Human Activities",
+            "licence": "Creative Commons Attribution 4.0",
+            "as_of": "2026-11-24"
+          }
+        }
+      ]
+    },
+    {
+      "id": "material.wind-leases",
+      "topic": "material-assets",
+      "label": "Offshore wind leases and agreements",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": null,
+        "regional": 10,
+        "global": 50
+      },
+      "reach_why": "Seabed already let or agreed for wind, and its export cable routes.",
+      "applies": {
+        "setting": "sea",
+        "where": [
+          -14.0,
+          48.0,
+          4.0,
+          62.0
+        ]
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "Scotland's seas",
+          "where": [
+            -14.0,
+            54.6,
+            2.0,
+            62.0
+          ],
+          "atlas_id": "4e485998501cde5f",
+          "record": {
+            "title": "Offshore Wind (Crown Estate Scotland)",
+            "publisher": "Crown Estate Scotland",
+            "licence": "Open Government Licence",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "Property_Description"
+        },
+        {
+          "region": "England, Wales and Northern Ireland seas",
+          "where": [
+            -11.0,
+            48.0,
+            4.0,
+            56.0
+          ],
+          "atlas_id": "4d4f3f1290943689",
+          "record": {
+            "title": "Wind Site Agreements (England, Wales & NI), The Crown Estate",
+            "publisher": "The Crown Estate",
+            "licence": "The Crown Estate Open Data Licence (GIS) v1.1: check its terms before commercial use",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "Name_Prop"
+        }
+      ]
+    },
+    {
+      "id": "material.cables",
+      "topic": "material-assets",
+      "label": "Subsea cables",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": null,
+        "regional": 2,
+        "global": 10
+      },
+      "reach_why": "Crossing agreements and separation distances for new cables, foundations and anchoring.",
+      "applies": {
+        "setting": "sea",
+        "where": [
+          -14.0,
+          48.0,
+          4.0,
+          62.0
+        ]
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "UK waters",
+          "where": [
+            -14.0,
+            48.0,
+            4.0,
+            62.0
+          ],
+          "atlas_id": "6f36ead7970b8386",
+          "record": {
+            "title": "Telecommunication Cables - UK (EMODnet Human Activities, from NSTA)",
+            "publisher": "EMODnet Human Activities",
+            "licence": "Creative Commons Attribution 4.0",
+            "as_of": "2026-11-24"
+          }
+        },
+        {
+          "region": "UK power cables",
+          "pending": "UK power cables (interconnectors, wind export cables) aren't in Tobler's data yet; asked of the atlas",
+          "where": [
+            -14.0,
+            48.0,
+            4.0,
+            62.0
+          ]
         }
       ]
     },
@@ -3251,6 +3844,127 @@
       ]
     },
     {
+      "id": "water.source-protection",
+      "topic": "water",
+      "label": "Groundwater source protection zones",
+      "answer": "classes",
+      "reach_km": {
+        "local": 0,
+        "regional": 0,
+        "global": null
+      },
+      "reach_why": "The land the site takes: works over a zone near a drinking water source need extra care with fuels, drainage and foundations.",
+      "applies": {
+        "setting": "land",
+        "where": [
+          -14.0,
+          49.8,
+          2.5,
+          61.0
+        ],
+        "countries": [
+          "United Kingdom"
+        ]
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "England",
+          "atlas_id": "6c3e0babf56f294e",
+          "record": {
+            "title": "Source Protection Zones, England (Environment Agency)",
+            "publisher": "Environment Agency",
+            "licence": "Open Government Licence",
+            "as_of": "2026-11-24"
+          },
+          "class_field": "number",
+          "classes": {
+            "1": "Zone 1 (inner)",
+            "1c": "Zone 1c (inner, subsurface activity only)",
+            "2": "Zone 2 (outer)",
+            "2c": "Zone 2c (outer, subsurface activity only)",
+            "3": "Zone 3 (total catchment)",
+            "3c": "Zone 3c (total catchment, subsurface activity only)",
+            "4": "Zone of special interest"
+          },
+          "where_any": [
+            [
+              -6.5,
+              49.85,
+              1.8,
+              51.38
+            ],
+            [
+              -2.72,
+              51.38,
+              1.8,
+              54.58
+            ],
+            [
+              -3.65,
+              53.3,
+              -2.72,
+              54.58
+            ],
+            [
+              -3.1,
+              54.58,
+              -1.45,
+              55.81
+            ]
+          ]
+        },
+        {
+          "region": "Wales",
+          "atlas_id": "5d4037034edc4d37",
+          "record": {
+            "title": "Source Protection Zones, Wales (Natural Resources Wales)",
+            "publisher": "Natural Resources Wales",
+            "licence": "Open Government Licence",
+            "as_of": "2026-11-24"
+          },
+          "class_field": "NUMBER",
+          "classes": {
+            "1": "Zone 1 (inner)",
+            "2": "Zone 2 (outer)",
+            "3": "Zone 3 (total catchment)"
+          },
+          "where_any": [
+            [
+              -5.7,
+              51.38,
+              -2.72,
+              53.45
+            ]
+          ]
+        },
+        {
+          "region": "Scotland",
+          "pending": "Scotland has no equivalent zones in Tobler's data (SEPA protects drinking water protected areas instead)",
+          "where_any": [
+            [
+              -9.0,
+              54.6,
+              -0.6,
+              61.0
+            ]
+          ]
+        },
+        {
+          "region": "Northern Ireland",
+          "pending": "no Northern Ireland source protection zones in Tobler's data",
+          "where_any": [
+            [
+              -8.2,
+              54.0,
+              -5.4,
+              55.4
+            ]
+          ]
+        }
+      ]
+    },
+    {
       "id": "land.farmland-grade",
       "topic": "land-use",
       "label": "Farmland grade",
@@ -3592,6 +4306,55 @@
         "Class 2",
         "Class 5",
         "Class 3"
+      ]
+    },
+    {
+      "id": "indigenous.territories",
+      "topic": "indigenous",
+      "label": "Indigenous territories (indicative)",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": null,
+        "regional": 5,
+        "global": 20
+      },
+      "reach_why": "IFC PS7 and lender work start with whether the land is, or is near, Indigenous Peoples' territory. Indicative only: these are not legal boundaries. Native Land Digital maps the Americas, Australia and New Zealand well, so the check applies there only: elsewhere it would answer \"none\" for land it doesn't map.",
+      "applies": {
+        "setting": "land",
+        "where_any": [
+          [
+            -170.0,
+            -56.0,
+            -25.0,
+            72.0
+          ],
+          [
+            110.0,
+            -48.0,
+            180.0,
+            -8.0
+          ]
+        ]
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "atlas_id": "33835b94806a7d64",
+          "record": {
+            "title": "Indigenous Territories (Native Land Digital)",
+            "publisher": "Native Land Digital",
+            "licence": "Creative Commons 0 (public domain); indicative, not legal or authoritative boundaries",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "Name"
+        }
       ]
     }
   ],
