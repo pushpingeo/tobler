@@ -2,6 +2,16 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 24 Nov 2026 (late night): ask before restoring the last project (Rob)
+- **Rob:** "old runs appear to be loaded when the website is loaded". It was the projects-in-the-browser restore,
+  but run cards without their conversation read as stray old runs. Rob chose "ask first".
+- **Now:** the page opens empty, with one line above the welcome card: "Pick up where you left off? <name>: n sites,
+  m screens, last changed …", with Resume and Start new. On a phone the sheet opens so it's seen. Resume restores as
+  before; Start new keeps the last project saved and listed under Sites and screens. Any new work before a choice
+  counts as Start new, so the old project is never overwritten. Opening a project from the list restores it at once.
+- **Tests:** `browser-outofdate`: the offer on reload with nothing restored, Resume brings the screens back, Start new
+  stays empty and keeps the project listed. All ten browser checks pass.
+
 ## 24 Nov 2026 (late night): England's border strip; the site's own use as a source (Rob's Stanlow log)
 - **Rob's log:** a contamination desk study of Stanlow refinery (Ellesmere Port) read only Wales's landfill, mining
   waste and source protection layers, so every source check was "not checked" and the decision fell to insufficient

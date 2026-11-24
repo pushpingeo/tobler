@@ -303,8 +303,11 @@ function start() {
 // keeps the old one, which the sites-and-screens strip can open again.
 const project = { id: store.get("project") || null, created_at: null, restoring: false, earlier: [] };
 let saveTimer = null;
+let resumeOffer = null; // { saved, card } while the person hasn't chosen Resume or Start new
 function saveSoon() {
   if (project.restoring) return;
+  // New work before the person chose Resume or Start new: it's a new project, and the old one stays as it was.
+  if (resumeOffer) startFresh();
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     if (!places.size && !runs.size) return;
@@ -322,6 +325,42 @@ async function restoreProject() {
   let saved = null;
   try { saved = await loadProject(project.id); } catch { /* no store: start empty */ }
   if (!saved || (!saved.places?.length && !saved.runs?.length)) { paintTree(); return; }
+  // Ask first (Rob, 24 Nov): restored run cards without their conversation looked like stray old runs. The page opens
+  // empty, with one line offering the last project back.
+  let chosen = null;
+  try { chosen = sessionStorage.getItem("tobler-open-project"); sessionStorage.removeItem("tobler-open-project"); } catch { /* no session storage */ }
+  if (chosen === project.id) { applyRestore(saved); return; }
+  offerResume(saved);
+  paintTree();
+}
+function offerResume(saved) {
+  const nSites = saved.places?.length || 0, nRuns = saved.runs?.length || 0;
+  const card = el("div", null, "msg analyst resume");
+  const when = saved.updated_at ? new Date(saved.updated_at).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" }) : "";
+  card.append(el("p", `Pick up where you left off? ${saved.name || "Your last project"}: ${nSites} site${nSites === 1 ? "" : "s"}${nRuns ? `, ${nRuns} screen${nRuns === 1 ? "" : "s"}` : ""}${when ? `, last changed ${when}` : ""}.`));
+  const row = el("div", null, "picks");
+  const resume = el("button", "Resume", "chip primary"); resume.type = "button"; resume.dataset.op = "resume";
+  const fresh = el("button", "Start new", "chip"); fresh.type = "button"; fresh.dataset.op = "fresh";
+  resume.addEventListener("click", () => { const s = resumeOffer?.saved; card.remove(); resumeOffer = null; if (s) applyRestore(s); });
+  fresh.addEventListener("click", () => startFresh());
+  row.append(resume, fresh);
+  card.append(row);
+  $("conversation").prepend(card); // first, above the welcome card: someone coming back sees it before the pitch
+  resumeOffer = { saved, card };
+  expandSheet(); // on a phone the sheet starts lowered; the question needs to be seen
+}
+// Start new without a reload: the last project stays saved and listed under Sites and screens.
+function startFresh() {
+  if (!resumeOffer) return;
+  const { saved, card } = resumeOffer;
+  resumeOffer = null;
+  card.remove();
+  project.id = null; project.created_at = null;
+  store.set("project", null);
+  project.earlier = [{ id: saved.id, name: saved.name, updated_at: saved.updated_at, sites: saved.places?.length || 0, screens: saved.runs?.length || 0 }, ...project.earlier.filter((x) => x.id !== saved.id)];
+  paintTree();
+}
+function applyRestore(saved) {
   project.restoring = true;
   project.created_at = saved.created_at;
   try {
@@ -364,6 +403,8 @@ function newProject() {
 }
 function openProject(id) {
   store.set("project", id);
+  // Opened from the list on purpose: restore it at once, without asking (js/workspace.js offerResume).
+  try { sessionStorage.setItem("tobler-open-project", id); } catch { /* private mode: it asks instead */ }
   location.reload();
 }
 

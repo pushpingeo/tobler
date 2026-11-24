@@ -156,6 +156,12 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   // Kept in this browser (24 Nov): reload, and the site, both screens and their states come back.
   await page.waitForTimeout(1200);
   await page.reload();
+  // Ask first (Rob, 24 Nov): the page opens empty with the offer to resume, and restores on Resume.
+  await page.waitForSelector(".resume [data-op='resume']", { timeout: 30000 }).catch(() => {});
+  const offer = await page.evaluate(() => ({ text: document.querySelector(".resume p")?.textContent || "", cards: document.querySelectorAll(".run").length, places: window.__ws?.places.size }));
+  check(/^Pick up where you left off\? .*1 site, 2 screens/.test(offer.text) && offer.cards === 0 && offer.places === 0, `${label}: on reload the page asks before restoring (${offer.text}; ${offer.cards} cards)`);
+  if (label === "phone") await page.screenshot({ path: `/tmp/outofdate-${label}-resume-offer.png` });
+  await page.click(".resume [data-op='resume']");
   await page.waitForFunction(() => window.__ws?.draw && document.querySelectorAll(".run").length === 2, null, { timeout: 30000 }).catch(() => {});
   await page.waitForTimeout(600);
   t = await tree();
@@ -189,6 +195,18 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await Promise.all([page.waitForNavigation({ timeout: 20000 }).catch(() => {}), page.locator("#sitetree .open-project").first().click()]);
   await page.waitForFunction(() => window.__ws?.draw && document.querySelectorAll(".run").length === 2, null, { timeout: 30000 }).catch(() => {});
   check(await page.evaluate(() => document.querySelectorAll(".run").length) === 2, `${label}: opening it brings its screens back`);
+  // Reload again and choose Start new: the page stays empty, nothing is restored, and the project is still listed.
+  await page.waitForTimeout(1200);
+  await page.reload();
+  await page.waitForSelector(".resume [data-op='fresh']", { timeout: 30000 }).catch(() => {});
+  await page.click(".resume [data-op='fresh']").catch(() => {});
+  await page.waitForTimeout(500);
+  const afterNew = await page.evaluate(() => ({ offer: !!document.querySelector(".resume"), cards: document.querySelectorAll(".run").length, places: window.__ws.places.size }));
+  await page.evaluate(() => window.__ws.host.addPlace({ feature: { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [-3.5, 55.9] } }, origin: { method: "drawn" }, status: "drawn" }));
+  await page.waitForTimeout(400);
+  await page.evaluate(() => { const d = document.querySelector("#sitetree details"); if (d) { d.open = true; const e = d.querySelector(".earlier"); if (e) e.open = true; } });
+  const listed = await page.evaluate(() => [...document.querySelectorAll("#sitetree .open-project")].map((b) => b.textContent));
+  check(!afterNew.offer && afterNew.cards === 0 && afterNew.places === 0 && listed.some((x) => /2 screens/.test(x)), `${label}: "Start new" leaves the page empty and keeps the last project listed (${JSON.stringify(afterNew)}; ${listed.join(" | ")})`);
   check(!errors.length, `${label}: no page errors${errors.length ? `: ${errors.slice(0, 3).join(" | ")}` : ""}`);
   await page.close();
 }
