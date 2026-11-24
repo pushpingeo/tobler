@@ -58,6 +58,14 @@ async function atlas(tool, args) {
   // MARPOL's "North West European waters": a wide area the field lies within (around the site, not on it).
   if (tool === "fetch_features" && args.id === "751ddc65885f897d") return { returned: 1, features: [
     { type: "Feature", geometry: turf.bboxPolygon([-15, 48, 10, 64]).geometry, properties: { name: "North West European waters" } }] };
+  // UK sites: JNCC's offshore layer holds SACs and MPAs together; NatureScot's SAC layer has the same SAC under its
+  // own code field, so the check counts it once.
+  const wyville = turf.circle(turf.destination(FIELD, 40, -60).geometry.coordinates, 8).geometry;
+  if (tool === "fetch_features" && args.id === "1d6371b702df0abc") return { returned: 2, features: [
+    { type: "Feature", geometry: wyville, properties: { SITE_NAME: "Wyville Thomson Ridge", SITE_CODE: "UK0030354", SITE_STATU: "SAC" } },
+    { type: "Feature", geometry: turf.circle(turf.destination(FIELD, 28, 0).geometry.coordinates, 3).geometry, properties: { SITE_NAME: "Faroe-Shetland Sponge Belt", SITE_CODE: "UKNCMPA015", SITE_STATU: "NCMPA" } }] };
+  if (tool === "fetch_features" && args.id === "7d382e1686a08bff") return { returned: 1, features: [
+    { type: "Feature", geometry: wyville, properties: { NAME: "Wyville Thomson Ridge", PA_CODE: "UK0030354" } }] };
   if (tool === "fetch_features" && BASELINE_IDS.has(args.id)) return { returned: 0, features: [] };
   throw new Error(`unexpected ${tool} ${JSON.stringify(args)}`);
 }
@@ -179,9 +187,10 @@ await test("sealed run: fetches out to the wider band, records evidence with pro
   assert.equal(r.fetched_to_km, 50);
   // Evidence: 3 pipelines (inside, 1.5, 30 km) + 2 wrecks (2, 45 km), kept to 50 km for the slider, plus the baseline:
   // the Faroe–UK boundary (12 km), a protected area (20 km) and MARPOL's North West European waters, which the field
-  // lies within: "around the site", not "on site".
+  // lies within: "around the site", not "on site". The UK layers add a SAC (from NatureScot and from JNCC) and the
+  // Sponge Belt again from JNCC: evidence keeps each source's feature (provenance); the checks count each site once.
   const ev = record.features.filter((f) => f.properties.role === "evidence");
-  assert.equal(ev.length, 8, ev.map((f) => `${f.properties.name} ${f.properties.distance_km}`).join("; "));
+  assert.equal(ev.length, 11, ev.map((f) => `${f.properties.name} ${f.properties.distance_km}`).join("; "));
   const nwe = ev.find((f) => f.properties.name === "North West European waters").properties;
   assert.equal(nwe.band, "around the site");
   assert.equal(nwe.surrounds, true);
@@ -215,8 +224,8 @@ await test("sealed run: fetches out to the wider band, records evidence with pro
 
 await test("slider helpers: findings within a distance, nearest per theme, flags beyond the distance", () => {
   // Counts include the wide area around the site (at 0 km); "nearest per theme" leaves it out.
-  assert.equal(evidenceWithin(record, 50).length, 8);
-  assert.equal(evidenceWithin(record, 40).length, 7);
+  assert.equal(evidenceWithin(record, 50).length, 11, "with the UK layers (two sites, each from two sources)");
+  assert.equal(evidenceWithin(record, 40).length, 10);
   assert.equal(evidenceWithin(record, 10).length, 4);
   assert.deepEqual(nearestByTheme(record, 10).map((x) => `${x.theme} ${x.name} ${x.distance_km}`), ["community Rosebank 9 inch Production flowline 1 0", "heritage TROLDFOS (POSSIBLY) 2"]);
   const [pipes, wreck, birds] = record.tobler_run.flags;
@@ -331,7 +340,7 @@ await test("out-of-date runs: a re-run records its inputs and replaces the run m
   // Which checks moved: the square moved 2 km north, so the WDPA sponge belt is 2 km nearer.
   assert.ok(Array.isArray(shown[1].tobler_run.replaces.checks_changed));
   assert.ok(shown[1].tobler_run.replaces.checks_changed.some((l) => /^Marine and coastal protected areas: .* → .*Faroe-Shetland Sponge Belt/.test(l)), JSON.stringify(shown[1].tobler_run.replaces.checks_changed));
-  assert.match(head.replaces, /Checks that changed: Marine and coastal protected areas/);
+  assert.match(head.replaces, /Checks that changed: .*Marine and coastal protected areas: /);
   assert.equal(siteChange(shown[1], p), null, "the new run is current");
   assert.match((await t.exec("get_run", { run: "R1" })).replaced_by, /^R2/);
   // The analyst screening an edited place itself (no replaces given) links the runs too.
@@ -502,7 +511,11 @@ await test("baseline before the analyst: boundaries and the must-check layers, a
   assert.match(first, /Faeroe \(Denmark\) - United Kingdom \[Faeroe \/ United Kingdom, Treaty\] 1[12]\.\d+ km/);
   assert.match(first, /Important Marine Mammal Areas: none found within 50 km \[IUCN Important Marine Mammal Areas/);
   assert.match(first, /MARPOL special areas: the site is inside North West European waters \(a wide area it lies within\)/);
-  assert.match(first, /Special Areas of Conservation \(must\): not checked: the UK list \(JNCC\)/, "UK waters: SACs pending, not 'none found' from the EU layer");
+  // UK waters: the UK's own layers (NatureScot and JNCC offshore) beside the EU one; the same SAC in two counts once;
+  // JNCC's NCMPA isn't a SAC; the same MPA in JNCC and WDPA (no code) counts once.
+  assert.match(first, /Special Areas of Conservation \(must\): 1 within 50 km \(1 at 20–50 km\); nearest Wyville Thomson Ridge \d+(\.\d+)? km \[Special Areas of Conservation \(SAC\), Scotland \(NatureScot\); UK offshore Marine Protected Areas \(JNCC\); Natura 2000: Habitats/);
+  assert.match(first, /Special Protection Areas \(birds\) \(must\): none found within 50 km/);
+  assert.match(first, /Marine and coastal protected areas \(must\): 1 within 50 km \(1 at 10–20 km\); nearest Faroe-Shetland Sponge Belt/);
   assert.match(r.disclaimer, /not evidence of absence/);
   // The analyst may name the boundary by the territories either side; it still traces.
   const t = traceFlags([{ risk: "Maritime boundary close", theme: "context", confidence: "medium", evidence: [{ name: "Faeroe / United Kingdom (Treaty)", distance_km: 12, dataset: "Maritime Boundaries (v12, world, 2023)" }] }], ev, d);
@@ -613,7 +626,7 @@ await test("a mistyped dataset id isn't reported as a source not checked; offsho
   assert.ok(!rec.tobler_run.checked.some((c) => c.dataset === "C1" || c.dataset === undefined), JSON.stringify(rec.tobler_run.checked.map((c) => c.dataset)));
   assert.match(model.calls[0].messages[0].content, /No land within the wider band \(the coast is about \d+ km away\)/);
   assert.ok(events.some((e) => e.type === "tool" && e.name === "nearest_boundaries" && e.baseline));
-  assert.ok(events.filter((e) => e.type === "tool" && e.name === "get_data" && e.baseline).length >= 4, "CDDA, WDPA, IMMA and MARPOL (SACs and SPAs are pending in UK waters)");
+  assert.ok(events.filter((e) => e.type === "tool" && e.name === "get_data" && e.baseline).length >= 8, "the UK and EU layers, each fetched once");
 });
 
 
@@ -623,7 +636,7 @@ await test("non-commercial data (WDPA) is left out by default and shown as not c
   const w = rec.tobler_run.checked.find((c) => /World Database on Protected Areas/.test(c.dataset));
   assert.equal(w.result, "not checked");
   assert.match(w.why, /non-commercial/);
-  assert.ok(!rec.features.some((f) => f.properties.name === "Faroe-Shetland Sponge Belt"), "no WDPA evidence without the switch");
+  assert.ok(!rec.features.some((f) => f.properties.name === "Faroe-Shetland Sponge Belt" && /World Database/.test(f.properties.dataset)), "no WDPA evidence without the switch");
 });
 
 
@@ -780,19 +793,28 @@ await test("the run record (tobler-run/2) carries every check with its source, a
   assert.equal(r.schema, "tobler-run/2");
   assert.equal(r.checks_scale, "global");
   const by = Object.fromEntries(r.checks.map((c) => [c.id, c]));
-  assert.equal(by["bio.sac"].state, "not_checked");
-  assert.equal(by["bio.sac"].reason, "pending");
+  assert.equal(by["bio.sac"].state, "found");
+  assert.equal(by["bio.sac"].count, 1, "NatureScot and JNCC give the same SAC: counted once");
+  assert.deepEqual(by["bio.sac"].sources.map((x) => x.region), ["Scotland", "UK offshore, beyond 12 nm", "EU (not UK since 2021)"]);
+  assert.ok(by["bio.sac"].sources.every((x) => x.state === "answered" && x.checked_at && x.licence));
   assert.equal(by["bio.marine-protected"].state, "found");
-  assert.equal(by["bio.marine-protected"].source.atlas_id, "154dfce48e32f9ee");
-  assert.match(by["bio.marine-protected"].source.licence, /WDPA/);
-  assert.ok(by["bio.marine-protected"].source.checked_at);
+  assert.equal(by["bio.marine-protected"].count, 1, "JNCC's NCMPA and WDPA's copy: counted once");
+  assert.ok(by["bio.marine-protected"].sources.some((x) => x.atlas_id === "154dfce48e32f9ee" && /WDPA/.test(x.licence)));
+  assert.ok(!by["bio.ramsar"] || by["bio.ramsar"].state === "none");
+  assert.ok(!by["bio.ancient-woodland"], "a land check doesn't run offshore");
+  // JNCC's layer was fetched once for the SAC, SPA and marine checks.
+  assert.equal(r.calls.filter((c) => c.tool === "get_data" && c.input.dataset === r.calls.find((x) => x.input?.fields?.includes("SITE_STATU"))?.input.dataset).length, 1);
   assert.equal(by["bio.national-sites"].state, "none");
   assert.equal(by["material.marpol-special-areas"].inside, true);
   assert.equal(by["context.boundaries"].reach_km, 50, "100 km wanted, the tools fetch 50");
   assert.ok(!by["bio.coral-reefs"] && !by["bio.us-critical-habitat"], "checks that don't apply aren't listed");
   assert.ok(r.no_check_topics.includes("heritage") && r.no_check_topics.includes("indigenous"));
-  // Pending UK sources show up in what still needs checking.
-  assert.ok(r.checked.some((c) => c.check === "bio.sac" && c.result === "not checked" && /JNCC/.test(c.why)));
+  // WDPA switched off: in UK waters the UK's own layers answer, so the marine check still stands (supplementary).
+  const off = (await runScreening({ host: host(false), site, distances: d, skill, callClaude: standardScript(), inputs: { asset_type: "oil-gas-field", asset_label: "x" } })).tobler_run;
+  const m = off.checks.find((c) => c.id === "bio.marine-protected");
+  assert.equal(m.state, "found");
+  assert.equal(m.partly, undefined, "a supplementary source left out isn't a partly-checked note");
+  assert.equal(m.sources.find((x) => x.atlas_id === "154dfce48e32f9ee").state, "not_checked");
   // Every biodiversity must-check failing: insufficient evidence, said on the card.
   const down = async (tool, args) => { if (tool === "fetch_features" && BASELINE_IDS.has(args.id) && args.id !== "751ddc65885f897d") throw new Error("atlas: fetch failed"); return atlas(tool, args); };
   const model = scriptedModel([final('Nothing much.\n```json\n{"decision":"progress","decision_why":"clear","flags":[],"checked":[],"data_gaps":[]}\n```')]);

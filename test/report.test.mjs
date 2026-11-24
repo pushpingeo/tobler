@@ -109,6 +109,12 @@ await test("checks travel in a share link and the report shows them by topic; ol
   assert.deepEqual(v.groups.map((g) => g.label), ["Biodiversity", "Topography and bathymetry"], "the catalogue's topic order");
   assert.equal(v.groups[0].items[0].line, "2 within 50 km (1 at 0–10 km, 1 at 10–20 km); nearest Dogger Bank SAC, 4 km");
   assert.equal(v.groups[0].items[0].source, "Natura 2000 (EEA)");
+  // Several sources travel too, and the report names them all.
+  rec.tobler_run.checks[1].sources = [{ region: "Scotland", atlas_id: "7d382e1686a08bff", dataset: "SAC, Scotland", publisher: "NatureScot", licence: "OGL", state: "answered", why_extra: "x" },
+    { region: "UK offshore", atlas_id: "1d6371b702df0abc", dataset: "UK offshore MPAs", publisher: "JNCC", state: "answered" }];
+  const back2 = (await decodeRun(`#${await encodeRun(slimRun(rec))}`)).tobler_run;
+  assert.equal(back2.checks[1].sources[0].why_extra, undefined);
+  assert.equal(checksOf(back2).groups[0].items[0].source, "SAC, Scotland (NatureScot); UK offshore MPAs (JNCC)");
   assert.equal(v.groups[0].items[1].line, "not checked: JNCC SPAs, asked of the atlas");
   assert.match(v.noCheck.line, /^2 topics have no standard check yet: heritage, water$/);
   assert.match(gapsOf(back).couldnt[0], /^No standard check yet for heritage, water/);

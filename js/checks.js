@@ -7,6 +7,7 @@ export const STATES = { found: "found", none: "none found", not_checked: "not ch
 // Why a check wasn't checked. "no_check" is for a topic, not a check: nothing standard checks it yet.
 export const REASONS = {
   no_source: "no source for this region",
+  partly: "only partly checked",
   pending: "source on its way",
   licence: "licence",
   failed: "the source didn't answer",
@@ -48,30 +49,48 @@ function settingFits(setting, site) {
   if (setting === "sea") return !!site.sea;
   return true;
 }
-function sourceFits(src, site) {
+// A box grown by km on every side (degrees, widened in longitude by latitude): what a check's reach can touch.
+export function growBox([w, so, e, n], km = 0) {
+  if (!(km > 0)) return [w, so, e, n];
+  const dLat = km / 111.32, mid = Math.min(85, Math.max(Math.abs(so), Math.abs(n)));
+  const dLon = km / (111.32 * Math.cos((mid * Math.PI) / 180));
+  return [w - dLon, so - dLat, e + dLon, n + dLat];
+}
+function sourceFits(src, site, box) {
+  if (src.setting && !settingFits(src.setting, site)) return false;
   const countries = site.countries || [];
   if (src.not_countries?.some((c) => countries.includes(c))) return false;
   if (!site.offshore && src.countries?.length && countries.length) return src.countries.some((c) => countries.includes(c));
   if (src.countries?.length && !src.where) return false;
-  return !src.where || overlaps(src.where, site.bbox);
+  return !src.where || overlaps(src.where, box);
 }
+const appliesHere = (a = {}, site) => {
+  if (!settingFits(a.setting || "any", site)) return false;
+  if (a.where && !overlaps(a.where, site.bbox)) return false;
+  // On land, a check for some countries only (the UK pack) applies only there; at sea the box decides.
+  if (a.countries?.length && !site.offshore && site.countries?.length && !a.countries.some((c) => site.countries.includes(c))) return false;
+  return true;
+};
 
-// The checks that apply to a site at a scale, each with the source to use (or why there's none). Checks that don't
-// apply (the wrong setting, outside their own box, or no reach at this scale) are left out: they aren't gaps.
+// The checks that apply to a site at a scale, each with every source that covers what its reach can touch (a site
+// near a border needs both nations' layers; Dogger Bank needs JNCC's and the EU's). Checks that don't apply (the
+// wrong setting or place, or no reach at this scale) are left out: they aren't gaps.
 // inside: the person asked to screen inside the area only, so every count looks inside (reach 0).
 export function planChecks(catalogue, site, scale, { inside = false } = {}) {
   const out = [];
   for (const c of catalogue?.checks || []) {
-    if (!settingFits(c.applies?.setting || "any", site)) continue;
-    if (c.applies?.where && !overlaps(c.applies.where, site.bbox)) continue;
+    if (!appliesHere(c.applies, site)) continue;
     let reach = null;
     if (c.answer !== "value_at_site") {
       const r = c.reach_km?.[scale];
       if (r == null) continue;
       reach = inside ? 0 : r;
     }
-    const src = (c.sources || []).find((s) => sourceFits(s, site)) || null;
-    out.push({ check: c, source: src, reach_km: reach, scale });
+    const box = growBox(site.bbox, reach || 0);
+    const sources = (c.sources || []).filter((s) => sourceFits(s, site, box));
+    // A tool check (boundaries, values) has one source; the first that covers the site, as before.
+    const tool = sources.find((s) => s.tool);
+    out.push({ check: c, sources: tool ? [tool] : sources, source: tool || sources.find((s) => !s.pending) || sources[0] || null, reach_km: reach, scale });
   }
   return out;
 }
@@ -90,17 +109,17 @@ const base = (plan) => {
   return { id: c.id, topic: c.topic, label: c.label, must: !!c.must, answer: c.answer, scale: plan.scale,
     ...(c.answer !== "value_at_site" ? { reach_km: plan.reach_km } : {}), ...(c.reach_why ? { why_reach: c.reach_why } : {}) };
 };
-const srcOf = (plan, extra = {}) => {
-  const s = plan.source || {};
+const srcOf = (plan, extra = {}, s = plan.source || {}) => {
   return { region: s.region || null, ...(s.atlas_id ? { atlas_id: s.atlas_id } : {}), ...(s.tool ? { tool: s.tool } : {}),
     dataset: extra.dataset || s.record?.title || null, publisher: extra.publisher || s.record?.publisher || null,
     licence: extra.licence || s.record?.licence || null, ...(extra.checked_at ? { checked_at: extra.checked_at } : {}) };
 };
 
-// A check that couldn't be run before any fetching: no source for the region, or one still pending.
+// A check that couldn't be run before any fetching: no source for the region, or only pending ones.
 export function unsourced(plan) {
-  if (!plan.source) return { ...base(plan), state: "not_checked", reason: "no_source", why: REASONS.no_source };
-  if (plan.source.pending) return { ...base(plan), state: "not_checked", reason: "pending", why: plan.source.pending, source: srcOf(plan) };
+  const list = plan.sources || (plan.source ? [plan.source] : []);
+  if (!list.length) return { ...base(plan), state: "not_checked", reason: "no_source", why: REASONS.no_source };
+  if (list.every((x) => x.pending)) return { ...base(plan), state: "not_checked", reason: "pending", why: [...new Set(list.map((x) => x.pending))].join("; "), source: srcOf(plan, {}, list[0]) };
   return null;
 }
 
@@ -144,6 +163,55 @@ export function fromFeatures(plan, features, edges = [], meta = {}) {
   if (near) out.nearest = { name: near.name, distance_km: near.around_site ? 0 : near.distance_km, ...(near.around_site ? { around: true } : {}) };
   out.state = within.length ? "found" : "none";
   return out;
+}
+
+// Short reason for one source, for the partly-checked note: "Natural England: didn't answer".
+const firstSentence = (t) => String(t || "").split(/(?<=(?:\w{2}|\))\.)\s+(?=[A-Z])/)[0].slice(0, 200);
+const whoOf = (x) => String(x.source?.record?.publisher || x.source?.region || "a source").replace(/\s*\([^)]*\)\s*$/, "");
+// What happened to a source that didn't answer, in a few words; the full reason is in the gaps list.
+const shortWhy = (a) => (a.source.pending ? "isn't in Tobler's data yet" : /licen[cs]e|non-commercial|Master License/i.test(a.not_checked || "") ? "is left out (licence)" : "didn't answer");
+
+// A count or inside check from every source that covers it. answers: one per source,
+// { source, features?: [{ name, distance_km, around_site, extra }], meta?: { dataset, publisher, licence, checked_at,
+// capped, fetched_km }, not_checked?: why }. Each source's filter keeps only its matching features (JNCC's offshore
+// set holds SACs, SPAs and MCZs in one layer), and features with the same site code are counted once (sites in two
+// nations' layers, or straddling 12 nm). Found if any source found something; none found only if every source that
+// matters answered; otherwise not checked. A supplementary source (WDPA beside the UK's own layers) never stops a
+// "none found" when another source answered.
+export function fromSources(plan, answers = [], edges = []) {
+  const ok = answers.filter((a) => !a.not_checked && !a.source.pending);
+  const missing = answers.filter((a) => a.not_checked || a.source.pending);
+  const sources = answers.map((a) => ({ ...srcOf(plan, a.meta || {}, a.source), state: a.not_checked || a.source.pending ? "not_checked" : "answered",
+    ...(a.not_checked || a.source.pending ? { why: firstSentence(a.not_checked || a.source.pending) } : {}) }));
+  if (!ok.length) {
+    const licence = missing.every((a) => /licen[cs]e|non-commercial|Master License/i.test(a.not_checked || ""));
+    const pending = missing.every((a) => a.source.pending);
+    const reason = !missing.length ? "no_source" : licence ? "licence" : pending ? "pending" : "failed";
+    const why = missing.length ? [...new Set(missing.map((a) => firstSentence(a.not_checked || a.source.pending)))].join("; ") : REASONS.no_source;
+    return { ...base(plan), state: "not_checked", reason, why, sources, source: sources[0] || null };
+  }
+  // The same site from two sources: the same code, or the same name within half a kilometre (WDPA has no code field).
+  const kept = [];
+  const nm = (v) => String(v || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  for (const a of ok) {
+    const f = a.source.filter;
+    for (const x of a.features || []) {
+      if (f && !f.values.includes(String(x.extra?.[f.field] ?? ""))) continue;
+      const code = a.source.code_field && x.extra?.[a.source.code_field] != null ? String(x.extra[a.source.code_field]).trim().toUpperCase() : null;
+      const y = { ...x, code };
+      const i = kept.findIndex((k) => (code && k.code === code) || (nm(k.name) && nm(k.name) === nm(y.name) && Math.abs((k.distance_km ?? 0) - (y.distance_km ?? 0)) <= 0.5));
+      if (i < 0) kept.push(y);
+      else if ((y.distance_km ?? 1e9) < (kept[i].distance_km ?? 1e9)) kept[i] = { ...y, code: y.code || kept[i].code };
+    }
+  }
+  const fetched = ok.map((a) => a.meta?.fetched_km).filter((v) => v != null);
+  const r = fromFeatures(plan, kept, edges, { capped: ok.some((a) => a.meta?.capped), ...(fetched.length ? { fetched_km: Math.min(...fetched) } : {}) });
+  r.sources = sources;
+  r.source = sources.find((x) => x.state === "answered");
+  const matters = missing.filter((a) => !a.source.supplementary);
+  if (matters.length) r.partly = matters.map((a) => `${whoOf(a)} ${shortWhy(a)}`).join("; ");
+  if (r.state === "none" && matters.length) return { ...r, state: "not_checked", reason: "partly", why: `${r.partly} (none in the others)` };
+  return r;
 }
 
 // A value read over the site (elevation, depth, traffic). text: the line for the card; value: the numbers.
@@ -230,7 +298,8 @@ export function checksView(run) {
   const groups = byTopic(cat, run.checks).map((g) => ({
     topic: g.topic, label: g.label,
     items: g.results.map((r) => ({ id: r.id, label: r.label, must: !!r.must, state: r.state, line: checkLine(r),
-      source: [r.source?.dataset, r.source?.publisher && r.source.dataset && !r.source.dataset.includes(r.source.publisher) ? `(${r.source.publisher})` : null].filter(Boolean).join(" "),
+      source: (r.sources?.length ? r.sources.filter((x) => x.dataset) : r.source ? [r.source] : [])
+        .map((x) => [x.dataset, x.publisher && !x.dataset.includes(x.publisher) ? `(${x.publisher})` : null].filter(Boolean).join(" ")).join("; "),
       ...(r.partly ? { partly: r.partly } : {}) })),
   }));
   const noCheck = run.no_check_topics || [];

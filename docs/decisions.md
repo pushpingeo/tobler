@@ -1117,3 +1117,38 @@ have no topic at all, though landscape, peat and farmland quality decided most o
   report looked at.
 - **Not tested:** the live analyst with the new lines (try-requests: Dogger Bank and two onshore example sites);
   real atlas answers for the eight layers (faked in tests, as before).
+
+## 24 Nov 2026: checks against the UK atlas records, first push (Rob's answers on the review)
+- **The review** (24 Nov, in the project): the atlas's 69 fixed UK records (24 statutory sites of 22 Nov, 45 in the UK
+  pack of 23 Nov) fit the checks with five changes: several sources per check, coverage by reach, reading one field,
+  answers by class, and the SSSI Impact Risk Zones decoded. Two pushes: this one (the first two, and the statutory
+  sites), then the pack.
+- **Rob's answers:** the 13 must-checks as proposed (SAC, SPA, Ramsar, SSSI, marine protected areas; scheduled
+  monuments, listed buildings, World Heritage Sites; National Parks, National Landscapes/NSAs; flood zones on land),
+  all UK only. **Hutton's LCA is in:** Rob read the James Hutton Institute Open Data Licence and says it puts no limits on
+  public use. Its licence text is quoted on the check (it classes as "stated", not OGL). Two pushes.
+- **Built (checks version 2):** every source that covers what a check's reach can touch is used and the results merged.
+  A site near Berwick reads both England's and Scotland's layers; Dogger Bank reads JNCC's offshore layer and the EU's.
+  Duplicates are counted once, by site code or by the same name within half a kilometre (WDPA has no code). JNCC's
+  offshore layer is filtered by designation (`SITE_STATU`: SACs for the SAC check, MCZ/NCMPA/HPMA/MPA for the marine one)
+  and fetched once for all three checks. New checks: Ramsar (must) and ancient woodland (Northern Ireland: no layer,
+  "not checked"). SSSI/ASSI now answer "nationally designated sites" in the UK; CDDA stays for the rest of Europe.
+  `get_data` takes `fields` and `name_field` from the run (not in the analyst's tool schema).
+- **Judgement calls (mine):**
+  - **Partly checked:** found if any source found something (with a note naming the one that didn't answer); if one
+    source failed and the rest found nothing, the check is **not checked** ("NatureScot didn't answer (none in the
+    others)"), because none found in part of the area isn't none found.
+  - **WDPA is supplementary** beside the UK's own marine layers: switched off (the default), it doesn't stop a "none
+    found" in UK waters. Where it's the only source (French waters), it's "not checked: licence" as before.
+  - **JNCC's offshore layer only at sea** (a source-level `setting`), so onshore UK screens don't query it.
+  - **Evidence keeps each source's copy** of a site (provenance), so the map can show the same SAC from NatureScot and
+    from JNCC; the check counts it once. Noted in the plan's small fixes.
+  - **Ids and fields** are from the atlas's `docs/mcp-tools.md` and `vocab/seeds/uk-protected.yaml` (read 24 Nov);
+    licences are OGL v3.0 as the atlas recorded them.
+- **Tested:** `npm test` (checks 9, including several sources, filters, de-duplication, partly checked, supplementary,
+  Berwick, Belfast, Linlithgow, Calais and Dogger Bank selection; run 35 with a faked NatureScot and JNCC SAC counted
+  once); browser checks desktop and phone: run-card 147 (a SAC found from JNCC, an SPA layer down shown as partly
+  checked, one check of each state), search-area 34, out-of-date 28, ux 26, choice 8, coords 18, epsg 20, cards 14,
+  site files 44. Card screenshots looked at.
+- **Not tested:** the live atlas answering for the 24 UK records from the page (mcp-check covers them nightly on the
+  atlas side); a live screen.

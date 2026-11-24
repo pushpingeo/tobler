@@ -27,6 +27,10 @@ function atlas(tool, args) {
   if (tool === "fetch_features" && args.id === "wreck") return { returned: 2, features: [
     { type: "Feature", geometry: { type: "Point", coordinates: east(2) }, properties: { name: "TROLDFOS (POSSIBLY)" } },
     { type: "Feature", geometry: { type: "Point", coordinates: east(45) }, properties: { name: "FAR WRECK" } }] };
+  // UK layers (24 Nov): JNCC's offshore layer has a SAC 25 km out; NatureScot's SPA layer is down, so the SPA check is
+  // only partly checked and says so (none found in the rest isn't "none found").
+  if (tool === "fetch_features" && args.id === "1d6371b702df0abc") return { returned: 1, features: [{ type: "Feature", geometry: turf.circle(turf.destination(FIELD, 30, -60).geometry.coordinates, 5).geometry, properties: { SITE_NAME: "Wyville Thomson Ridge", SITE_CODE: "UK0030354", SITE_STATU: "SAC" } }] };
+  if (tool === "fetch_features" && args.id === "b10cb9d7a2892f7f") throw new Error("NatureScot's service didn't answer (503)");
   return { matches: 0, results: [], returned: 0, features: [] };
 }
 
@@ -74,7 +78,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   // Water depth (NOAA) and vessel traffic (EMODnet), read in code for sites at sea.
   await page.route(/gis\.ngdc\.noaa\.gov/, (r) => r.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify({ samples: [-110, -120, -130].map((v) => ({ value: String(v), resolution: 0.004 })) }) }));
   await page.route(/emodnet-humanactivities/, (r) => r.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify({ features: [{ properties: { GRAY_INDEX: /allavg/.test(r.request().url()) ? 0.3 : 0.1 } }] }) }));
-  await page.route(/tobler-api.*\/atlas/, async (r) => { const b = JSON.parse(r.request().postData()); r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ jsonrpc: "2.0", id: 1, result: { structuredContent: atlas(b.params.name, b.params.arguments) } }) }); });
+  await page.route(/tobler-api.*\/atlas/, async (r) => { const b = JSON.parse(r.request().postData()); let out; try { out = { result: { structuredContent: atlas(b.params.name, b.params.arguments) } }; } catch (e) { out = { error: { code: -32000, message: e.message } }; } r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ jsonrpc: "2.0", id: 1, ...out }) }); });
   // Session logs the page sends while sharing is on.
   const logs = [];
   await page.route(/tobler-api.*\/logs/, (r) => { logs.push({ raw: r.request().postData(), body: JSON.parse(r.request().postData()) }); r.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}' }); });
@@ -246,7 +250,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await page.waitForFunction(() => /Link copied|couldn't/.test(document.querySelector(".run .share-note")?.textContent || ""), null, { timeout: 10000 }).catch(() => {});
   const copied = await page.evaluate(async () => ({ note: document.querySelector(".run .share-note").textContent, clip: await navigator.clipboard.readText().catch(() => "") }));
   check(/^Link copied/.test(copied.note) && /\/report\.html#v1\./.test(copied.clip), `${label}: Copy share link copies the report's link (${copied.note.slice(0, 40)})`);
-  check(s.out === "50 km" && s.onMap === 6, `${label}: slider at 50 km, 5 findings and the wide area on the map (${s.out}, ${s.onMap})`);
+  check(s.out === "50 km" && s.onMap === 7, `${label}: slider at 50 km, 6 findings (with the UK SAC) and the wide area on the map (${s.out}, ${s.onMap})`);
   check(/near 2 km · close 10 km · wider 50 km/.test(s.dists), `${label}: distances and reason shown`);
   check(s.sea === "Water depth about 120 m, 110–130 m across the site (NOAA). Vessel traffic: light on the site (0.3 h/km² a month) (AIS 2023, EMODnet).", `${label}: water depth and vessel traffic on the card (${s.sea.slice(0, 80)})`);
   await page.$eval(".run", (e) => e.scrollIntoView({ block: "start" }));
@@ -257,7 +261,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   check(s.stale && s.beyond === 1, `${label}: re-assess offered, wreck flag dimmed as beyond (${s.beyond})`);
   check(/Nearest: community health and safety, Rosebank 9 inch Production flowline 1 \(on site\)/.test(s.nearest), `${label}: nearest-by-theme line (${s.nearest})`);
   check(/lies within a wide area: North West European waters\./.test(s.nearest) && !/Nearest:[^.]*North West European/.test(s.nearest), `${label}: a wide area around the site is counted apart, not as on site (${s.nearest})`);
-  // Checks (plan item 1): UK waters, so SACs and SPAs are pending (not "none found" from the EU layer); the run's
+  // Checks (plan item 1): UK waters, so the UK's own layers (24 Nov) beside the EU's; one SPA layer down; the run's
   // checks by topic in three states; the topics nothing checks yet in one line; open on a desktop, closed on a phone.
   const ck = s.checks;
   await page.evaluate(() => { const c = document.querySelector(".run .checks"); c.open = true; c.querySelector(".nocheck").open = true; });
@@ -265,14 +269,15 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await page.evaluate((open) => { const c = document.querySelector(".run .checks"); c.open = open; c.querySelector(".nocheck").open = false; }, ck?.open ?? false);
   check(ck && /^Checks: \d+ \(\d+ found, \d+ none found, \d+ not checked\)$/.test(ck.summary), `${label}: checks section with its summary (${ck?.summary})`);
   check(ck && ck.heads.join("|") === "Biodiversity|Material assets|Topography and bathymetry|Context", `${label}: checks grouped by topic in order (${ck?.heads.join(", ")})`);
-  check(ck && ck.lines.some((l) => /^Special Areas of Conservation\s*must: not checked: the UK list \(JNCC\)/.test(l.text) && /\bnc\b/.test(l.cls))
+  check(ck && ck.lines.some((l) => /^Special Areas of Conservation\s*must: 1 within 50 km .*nearest Wyville Thomson Ridge/.test(l.text) && /found/.test(l.cls))
+    && ck.lines.some((l) => /^Special Protection Areas \(birds\)\s*must: not checked: NatureScot didn't answer \(none in the others\)$/.test(l.text) && /\bnc\b/.test(l.cls))
     && ck.lines.some((l) => /^MARPOL special areas: the site is inside North West European waters/.test(l.text) && /found/.test(l.cls))
     && ck.lines.some((l) => /^Water depth: about 120 m/.test(l.text))
     && ck.lines.some((l) => /none found within/.test(l.text) && /\bnone\b/.test(l.cls)), `${label}: one check of each state (${ck?.lines.map((l) => l.text.slice(0, 40)).join(" | ")})`);
   check(ck && ck.nocheckShown && /^\d+ topics have no standard check yet$/.test(ck.nocheck), `${label}: topics with no check in one summary line (${ck?.nocheck})`);
   check(ck && ck.open === (label === "desktop"), `${label}: checks open on a desktop, closed on a phone (${ck?.open})`);
-  check(s.gapLines.some((l) => /^No standard check yet for water, ground and soil/.test(l)) && s.gapLines.some((l) => /Special Areas of Conservation \(UK\): the UK list \(JNCC\)/.test(l)), `${label}: pending checks and unchecked topics in what still needs checking`);
-  check(/^What still needs checking: 6 couldn't check, 1 no data, 1 caveat$/.test(s.gaps) && s.gapHeads.join("|") === "Not checked: check these yourself|No data here: may need a site visit or a local source|Assumptions and caveats", `${label}: what still needs checking, grouped (${s.gaps}; ${s.gapHeads.join(", ")})`);
+  check(s.gapLines.some((l) => /^No standard check yet for water, ground and soil/.test(l)) && s.gapLines.some((l) => /Special Protection Areas \(SPA\), Scotland \(NatureScot\)/.test(l)), `${label}: pending checks and unchecked topics in what still needs checking`);
+  check(/^What still needs checking: \d+ couldn't check, 1 no data, 1 caveat$/.test(s.gaps) && s.gapHeads.join("|") === "Not checked: check these yourself|No data here: may need a site visit or a local source|Assumptions and caveats", `${label}: what still needs checking, grouped (${s.gaps}; ${s.gapHeads.join(", ")})`);
   check(await page.evaluate(() => { const c = document.querySelector(".run"); const order = [...c.children].map((e) => e.className.split(" ")[0]); return document.querySelector(".run .gaps").open && order.indexOf("gaps") === order.indexOf("flags") + 1 && document.querySelector(".run .flag .th")?.textContent.length > 2; }), `${label}: still-to-check sits open right under the flags; each flag names its topic`);
   check(await page.evaluate(() => /^Indicative desk screening from public data\./.test(document.querySelector(".run .disclaimer").textContent) && document.querySelector(".run .disclaimer").textContent.length < 200 && !document.querySelector('.run [data-op="download"]').checkVisibility()), `${label}: short disclaimer on the card; download is under More`);
   await page.evaluate(() => { document.querySelector(".run .more").open = true; document.querySelector(".run .disclaimer").scrollIntoView({ block: "end" }); });
@@ -292,7 +297,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   check(!s.stale && s.flags.length === 1, `${label}: re-assessed at 1 km: one flag, offer gone`);
   await page.$eval(".run input[type=range]", (el) => { el.value = "50"; el.dispatchEvent(new Event("input", { bubbles: true })); });
   s = await st();
-  check(s.onMap === 6 && s.stale, `${label}: slider back to 50 km shows all 6 again, offers re-assess (no refetch)`);
+  check(s.onMap === 7 && s.stale, `${label}: slider back to 50 km shows all 7 again, offers re-assess (no refetch)`);
   await page.click(".run .flag summary");
   await page.waitForTimeout(300);
   s = await st();
@@ -313,7 +318,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await page.click('.run [data-scope="around"]');
   await page.waitForTimeout(300);
   s = await st();
-  check(!s.insideChecked && s.onMap === 6 && s.mask === 0 && s.rings > 0 && s.out === "50 km", `${label}: back to area and surroundings at 50 km (${s.onMap}, ${s.out})`);
+  check(!s.insideChecked && s.onMap === 7 && s.mask === 0 && s.rings > 0 && s.out === "50 km", `${label}: back to area and surroundings at 50 km (${s.onMap}, ${s.out})`);
   // Settings: units, colour, licence switches.
   if (label === "phone") await page.evaluate(() => document.getElementById("panel").classList.remove("collapsed"));
   await page.click("#gear");
@@ -358,7 +363,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   page.on("pageerror", (e) => errors.push(e.message));
   await page.route(/openfreemap|nominatim|wikidata|overpass/, (r) => r.abort());
   await page.route(/tobler-api.*\/v1\/messages/, async (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(model(JSON.parse(r.request().postData()))) }));
-  await page.route(/tobler-api.*\/atlas/, async (r) => { const b = JSON.parse(r.request().postData()); r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ jsonrpc: "2.0", id: 1, result: { structuredContent: atlas(b.params.name, b.params.arguments) } }) }); });
+  await page.route(/tobler-api.*\/atlas/, async (r) => { const b = JSON.parse(r.request().postData()); let out; try { out = { result: { structuredContent: atlas(b.params.name, b.params.arguments) } }; } catch (e) { out = { error: { code: -32000, message: e.message } }; } r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ jsonrpc: "2.0", id: 1, ...out }) }); });
   await page.goto("http://localhost:8000/");
   await page.waitForFunction(() => window.__ws?.draw, null, { timeout: 40000 });
   await page.evaluate((f) => window.__ws.host.addPlace({ feature: f, origin: { method: "drawn", at: new Date().toISOString() } }), SQUARE);

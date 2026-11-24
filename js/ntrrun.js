@@ -234,8 +234,12 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
   const searchArea = role.role === "search_area" && isArea(fp.feature);
   const searchNote = searchArea ? SEARCH_NOTE(siteKm2, role.why) : null;
   const inArea = new Map(); // name|distance → where in the search area, for the analyst's view of the tool output
+  const rawFound = new Map(); // dataset title → every feature a tool returned, before de-duplication (for the checks)
   const capture = (list, meta = {}) => {
     for (const c of list) {
+      const ds = c.source?.title || meta.dataset || "";
+      if (!rawFound.has(ds)) rawFound.set(ds, []);
+      rawFound.get(ds).push(c);
       const around = c.around_site ? c.area_km2 : aroundSiteKm2(siteKm2, c.geometry, c.distance_km);
       const dataset = c.source?.title || meta.dataset || "";
       const key = `${norm(dataset)}|${norm(c.name)}|${round(c.distance_km, 2)}`;
@@ -314,7 +318,8 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
     if (!u) continue;
     results.set(p.check.id, u);
     // In the run's list of sources too, so "what still needs checking" picks it up.
-    checked.push({ evidence: p.check.topic, dataset: `${p.check.label}${p.source?.region ? ` (${p.source.region})` : ""}`, result: "not checked", why: u.why, check: p.check.id });
+    const region = p.sources.length === 1 ? p.sources[0].region : null;
+    checked.push({ evidence: p.check.topic, dataset: `${p.check.label}${region ? ` (${region})` : ""}`, result: "not checked", why: u.why, check: p.check.id });
   }
   const fetchKm = (p) => Math.min(MAX_KM, Math.max(p.reach_km || 0, reach));
   const asFeats = (list) => list.map((x) => ({ name: x.name, distance_km: x.distance_km, around_site: !!(x.surrounds || x.around_site) }));
@@ -342,7 +347,17 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
       results.set(bp.check.id, K.notChecked(bp, String(e.message || e)));
     }
   }
-  const layers = plans.filter((p) => p.source?.atlas_id && !results.has(p.check.id));
+  // Atlas layers, each fetched once however many checks use it (JNCC's offshore set serves the SAC, SPA and marine
+  // checks), out to the furthest reach any of them needs.
+  const layerPlans = plans.filter((p) => !results.has(p.check.id) && p.sources.some((x) => x.atlas_id));
+  const layerFetch = new Map(); // atlas_id → { source, km, fields, name_field }
+  for (const p of layerPlans) for (const x of p.sources.filter((y) => y.atlas_id)) {
+    const l = layerFetch.get(x.atlas_id) || { source: x, km: 0, fields: new Set(), name_field: x.name_field || null };
+    l.km = Math.max(l.km, fetchKm(p));
+    for (const f of [x.code_field, x.filter?.field].filter(Boolean)) l.fields.add(f);
+    layerFetch.set(x.atlas_id, l);
+  }
+  const layers = [...layerFetch.values()];
   // Values read off rasters (catalogue/trusted.json "values"): elevation over the footprint on every site on land,
   // water depth offshore, and AIS vessel traffic when the sea is within the close band. In parallel with the layers.
   const vals = host.trusted?.values || {};
@@ -383,25 +398,37 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
     return { lines, notChecked };
   })() : null;
   onEvent({ type: "baseline", layers: layers.length + (seaJob ? 1 : 0) });
-  await Promise.allSettled(layers.map(async (p) => {
-    const rec = p.source.record || {};
-    const id = tools.useDataset({ id: p.source.atlas_id, title: rec.title || p.check.label, publisher: rec.publisher || "", licence: rec.licence || "", capabilities: ["query"], concepts: [] }, "B");
-    const input = { dataset: id, place: site.name, theme: K.mapTheme(p.check.topic), within_km: fetchKm(p) };
+  const layerAnswers = new Map(); // atlas_id → { features, meta } or { not_checked }
+  await Promise.allSettled(layers.map(async (l) => {
+    const x = l.source, rec = x.record || {};
+    const id = tools.useDataset({ id: x.atlas_id, title: rec.title || x.atlas_id, publisher: rec.publisher || "", licence: rec.licence || "", capabilities: ["query"], concepts: [] }, "B");
+    const check = layerPlans.find((p) => p.sources.includes(x));
+    const input = { dataset: id, place: site.name, theme: K.mapTheme(check.check.topic), within_km: l.km, ...(l.fields.size ? { fields: [...l.fields] } : {}), ...(l.name_field ? { name_field: l.name_field } : {}) };
     const t0 = Date.now();
     onEvent({ type: "tool_start", name: "get_data", input });
     try {
-      const output = await exec("get_data", input, { check: p.check.id });
+      const output = await exec("get_data", input, { check: check.check.id });
       onEvent({ type: "tool", name: "get_data", input, output, ms: Date.now() - t0, baseline: true });
       const raw = lastOut.get(id);
-      if (!raw || raw.not_checked) { results.set(p.check.id, K.notChecked(p, raw?.not_checked || "no reply", raw || {})); return; }
-      const feats = evidence.filter((f) => f.properties.dataset === raw.dataset).map((f) => f.properties);
-      featsOf.set(p.check.id, feats);
-      results.set(p.check.id, K.fromFeatures(p, asFeats(feats), edges, { dataset: raw.dataset, publisher: raw.publisher, licence: raw.licence, checked_at: raw.checked_at, capped: !!raw.capped, fetched_km: raw.within_km }));
+      if (!raw || raw.not_checked) { layerAnswers.set(x.atlas_id, { not_checked: raw?.not_checked || "no reply", meta: raw || {} }); return; }
+      layerAnswers.set(x.atlas_id, { features: (rawFound.get(raw.dataset) || []).map((c) => ({ name: c.name, distance_km: c.distance_km, around_site: !!c.around_site, extra: c.extra || {} })),
+        meta: { dataset: raw.dataset, publisher: raw.publisher, licence: raw.licence, checked_at: raw.checked_at, capped: !!raw.capped, fetched_km: raw.within_km } });
     } catch (e) {
       onEvent({ type: "tool", name: "get_data", input, error: String(e.message || e), ms: Date.now() - t0, baseline: true });
-      results.set(p.check.id, K.notChecked(p, String(e.message || e)));
+      layerAnswers.set(x.atlas_id, { not_checked: String(e.message || e) });
     }
   }));
+  for (const p of layerPlans) {
+    const answers = p.sources.map((x) => (x.pending ? { source: x } : { source: x, ...(layerAnswers.get(x.atlas_id) || { not_checked: "not fetched" }) }));
+    const r = K.fromSources(p, answers, edges);
+    results.set(p.check.id, r);
+    // The analyst's nearest names: the features this check counted, from its own sources (after each source's filter).
+    const keep = (a) => (f) => f.dataset === a.meta?.dataset && (!a.source.filter || a.source.filter.values.includes(String(f.details?.[a.source.filter.field] ?? "")));
+    const ev = evidence.map((f) => f.properties);
+    featsOf.set(p.check.id, answers.filter((a) => a.meta?.dataset && !a.not_checked).flatMap((a) => ev.filter(keep(a))));
+    // A pending source beside answered ones is still a gap to list.
+    for (const a of answers.filter((y) => y.source.pending)) checked.push({ evidence: p.check.topic, dataset: `${p.check.label} (${a.source.region})`, result: "not checked", why: a.source.pending, check: p.check.id });
+  }
   const seaRes = seaJob ? await seaJob.catch((e) => ({ lines: [], notChecked: [`elevation, water depth and vessel traffic: not checked (${String(e.message || e).slice(0, 120)})`] })) : null;
   if (seaRes && seaJob) for (const p of [depthPlan, elevPlan, trafficPlan]) if (p && !results.has(p.check.id) && ((p === depthPlan && wantDepth) || (p === elevPlan && wantElev) || (p === trafficPlan && wantTraffic))) results.set(p.check.id, K.notChecked(p, seaRes.notChecked[0] || "no reading"));
   // In plan order (the catalogue's order), only checks that ran or were found wanting: a value check that didn't
@@ -420,9 +447,11 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
   for (const g of K.byTopic(catalogue, checkResults)) {
     baselineLines.push(`${g.label}:`);
     for (const r of g.results) {
-      const near = r.state === "found" && r.answer === "count_by_band" ? (featsOf.get(r.id) || []).filter((f) => f.distance_km <= (r.reach_km ?? 0) + 1e-9 || f.surrounds)
-        .sort((a, b) => a.distance_km - b.distance_km).slice(0, 3).map(nameOf) : [];
-      const src = r.answer === "value_at_site" && r.state === "found" ? "" : r.source?.dataset ? ` [${r.source.dataset}${r.source.publisher ? `, ${r.source.publisher}` : ""}]` : "";
+      const near = r.state === "found" && r.answer === "count_by_band" ? [...new Set((featsOf.get(r.id) || []).filter((f) => f.distance_km <= (r.reach_km ?? 0) + 1e-9 || f.surrounds)
+        .sort((a, b) => a.distance_km - b.distance_km).map(nameOf))].slice(0, 3) : [];
+      // Every source the check used (a UK check may read four nations' layers and JNCC's), titles only.
+      const srcs = (r.sources?.length ? r.sources : r.source ? [r.source] : []).filter((x) => x.dataset);
+      const src = r.answer === "value_at_site" && r.state === "found" ? "" : srcs.length ? ` [${srcs.map((x) => `${x.dataset}${x.state === "not_checked" ? ": not checked" : ""}`).join("; ")}]` : "";
       baselineLines.push(`- ${r.label}${r.must ? " (must)" : ""}: ${K.checkLine(r, { nearest: !near.length })}${near.length ? `; nearest ${near.join("; ")}` : ""}${r.partly ? ` (partly: ${r.partly})` : ""}${src}`);
     }
   }
@@ -524,7 +553,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
       checks: checkResults, checks_scale: scale, checks_version: catalogue.version || null, ...(noCheck.length ? { no_check_topics: noCheck } : {}),
       // Topic names travel with the run, so a share link can show them without the catalogue.
       topic_labels: Object.fromEntries((catalogue.topics || []).filter((t) => noCheck.includes(t.id) || checkResults.some((c) => c.topic === t.id)).map((t) => [t.id, t.label])),
-      baseline: { layers: layers.map((p) => p.source.record?.title || p.check.label), calls: baselineCalls }, disclaimer: DISCLAIMER,
+      baseline: { layers: layers.map((l) => l.source.record?.title || l.source.atlas_id), calls: baselineCalls }, disclaimer: DISCLAIMER,
       calls, usage, ...(parsed.json && !repaired ? {} : { debug }), ...(repaired ? { note: "The first result was cut off; the structured result was asked for again from the same evidence." } : {}), assessments: [],
     },
     features: [siteFeature, ...evidence],

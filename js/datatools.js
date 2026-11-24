@@ -184,7 +184,9 @@ export function createDataTools(host) {
       };
     },
 
-    async get_data({ dataset, place, within_km, name, days, theme }) {
+    // fields and name_field are for the run's checks, not the analyst (not in the tool's schema): attributes to keep on
+    // every feature whatever they're called (a site code, a flood zone, a grade), and the field that holds the name.
+    async get_data({ dataset, place, within_km, name, days, theme, fields = [], name_field = null }) {
       const d = datasets.get(String(dataset).trim().toUpperCase());
       if (!d) throw new Error(`"${dataset}" isn't a dataset id from find_data in this conversation. Use find_data first.`);
       const lic = d.service ? { class: d.licence_class, short: d.licence } : classifyLicence(d.licence);
@@ -221,12 +223,13 @@ export function createDataTools(host) {
         try {
           c = d.service
             ? candidate({ name: d.service.title.split(",")[0], type: d.title, geometry: f.geometry, source: { id: "trusted", key: d.service.key, title: d.title, publisher: d.publisher, licence: d.licence, authoritative: true } })
-            : atlasCandidate(f, d, pickName(f.properties || {}) || d.title);
+            : atlasCandidate(f, d, (name_field && f.properties?.[name_field] != null && String(f.properties[name_field]).trim()) || pickName(f.properties || {}) || d.title);
         } catch { continue; }
         c.distance_km = round(dist, 2);
         const around = aroundSiteKm2(siteKm2, f.geometry, dist);
         if (around) { c.around_site = true; c.area_km2 = Math.round(around); }
         c.extra = keyAttributes(f.properties || {});
+        for (const k of fields) if (f.properties?.[k] != null && f.properties[k] !== "") c.extra[k] = f.properties[k];
         found.push(c);
       }
       // Nearest first; features inside the place are ordered by distance from its centre.

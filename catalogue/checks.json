@@ -1,143 +1,1048 @@
 {
-  "about": "Checks as data (plan item 1; design note claude/checks-design.md, agreed by Rob 23 Nov 2026). A check is one line on the report: a neutral topic, the layers that answer it in each region, the kind of answer, and how far it looks at each scale. The run carries out every check that applies, in code, before the analyst starts, and each comes back as found, none found, or not checked with the reason. Replaces 'baseline' in trusted.json. Edit by hand; js/checks.js reads it and test/checks.test.mjs and the invariants test check it.",
-  "version": "1",
+  "about": "Checks as data (plan item 1; design note claude/checks-design.md, agreed by Rob 23 Nov 2026). A check is one line on the report: a neutral topic, the layers that answer it in each region, the kind of answer, and how far it looks at each scale. The run carries out every check that applies, in code, before the analyst starts, and each comes back as found, none found, or not checked with the reason. Replaces 'baseline' in trusted.json. Version 2 (24 Nov): the UK statutory sites from the atlas's fixed records (22 Nov). Edit by hand; js/checks.js reads it and test/checks.test.mjs and the invariants test check it.",
+  "version": "2",
   "fields": {
     "answer": "count_by_band (features per distance band, plus the nearest), value_at_site (a reading over the site: elevation, depth, traffic) or inside (whether the site is inside or touching one)",
     "reach_km": "how far the check looks at each scale, from the footprint edge. null means the check doesn't apply at that scale. Value checks have no reach (they read the site). Reach values are a first cut from research-reach-evidence.md, defaults to tune on the example sites.",
-    "applies": "setting: any, land (onshore), offshore, or sea (offshore or the coast within reach). where: a [west, south, east, north] box the site must overlap for the check to apply at all (e.g. tropical coral reefs); without it, the check applies everywhere in that setting.",
+    "applies": "setting: any, land (onshore), offshore, or sea (offshore or the coast within reach). where: a [west, south, east, north] box the site must overlap for the check to apply at all (e.g. tropical coral reefs); without it, the check applies everywhere in that setting. countries: on land, the site must be in one of these (UK-only checks); at sea the box decides.",
     "must": "a check whose topic can't be called clear without it; drives the decision rule (js/industry.js settleDecision)",
-    "sources": "per region, first match wins. countries (onshore: the site must be in one), not_countries, and where (a box the site must overlap; offshore sites match on the box). atlas_id: an AI Living World Atlas record; record holds its title, publisher and licence as the atlas gave them on as_of (the atlas contract has no record-by-id lookup, so the run doesn't fetch them). tool: a Tobler tool instead of an atlas layer (boundaries, elevation, depth, traffic). pending: a layer we know exists but can't use yet (not checked, with this reason). If no source matches, the answer is not checked: no source for this region."
+    "sources": "Per region. Every source that covers what the check's reach can touch is used, and the results are merged (a site near a border needs both nations' layers). countries (onshore: the site must be in one), not_countries, and where (a box the site's box, grown by the reach, must overlap; offshore sites match on the box). atlas_id: an AI Living World Atlas record; record holds its title, publisher and licence as the atlas gave them on as_of (the atlas contract has no record-by-id lookup). name_field: the attribute holding the feature's name. code_field: a site code, so the same site in two layers counts once. filter: keep only features whose field has one of these values (JNCC's offshore layer holds several designations). supplementary: its absence doesn't stop a 'none found' when another source answered. tool: a Tobler tool instead of an atlas layer (boundaries, elevation, depth, traffic). setting: as for applies, for one source (JNCC's offshore layer only at sea). pending: a layer we know exists but can't use yet. If no source covers the site, the answer is not checked: no source for this region."
   },
   "scales": {
     "about": "Distance bands per scale (agreed 23 Nov; docs/conceptual-model.md). Until plan item 3 puts them in the profile, the run picks the scale from the screening distances already chosen (js/checks.js screenScale).",
-    "local": [0.05, 0.25, 0.5, 2],
-    "regional": [2, 5, 10, 20],
-    "global": [10, 20, 50, 100]
+    "local": [
+      0.05,
+      0.25,
+      0.5,
+      2
+    ],
+    "regional": [
+      2,
+      5,
+      10,
+      20
+    ],
+    "global": [
+      10,
+      20,
+      50,
+      100
+    ]
   },
   "topics": [
-    { "id": "biodiversity", "label": "Biodiversity" },
-    { "id": "water", "label": "Water" },
-    { "id": "ground-soil", "label": "Ground and soil" },
-    { "id": "land-use", "label": "Land use" },
-    { "id": "heritage", "label": "Heritage" },
-    { "id": "landscape-visual", "label": "Landscape and visual" },
-    { "id": "community-health", "label": "Community and health" },
-    { "id": "air-climate", "label": "Air and climate" },
-    { "id": "hazards", "label": "Hazards" },
-    { "id": "material-assets", "label": "Material assets" },
-    { "id": "topography", "label": "Topography and bathymetry" },
-    { "id": "context", "label": "Context" },
-    { "id": "indigenous", "label": "Indigenous Peoples", "only_scale": "global", "about": "its own line for global and lender work" }
+    {
+      "id": "biodiversity",
+      "label": "Biodiversity"
+    },
+    {
+      "id": "water",
+      "label": "Water"
+    },
+    {
+      "id": "ground-soil",
+      "label": "Ground and soil"
+    },
+    {
+      "id": "land-use",
+      "label": "Land use"
+    },
+    {
+      "id": "heritage",
+      "label": "Heritage"
+    },
+    {
+      "id": "landscape-visual",
+      "label": "Landscape and visual"
+    },
+    {
+      "id": "community-health",
+      "label": "Community and health"
+    },
+    {
+      "id": "air-climate",
+      "label": "Air and climate"
+    },
+    {
+      "id": "hazards",
+      "label": "Hazards"
+    },
+    {
+      "id": "material-assets",
+      "label": "Material assets"
+    },
+    {
+      "id": "topography",
+      "label": "Topography and bathymetry"
+    },
+    {
+      "id": "context",
+      "label": "Context"
+    },
+    {
+      "id": "indigenous",
+      "label": "Indigenous Peoples",
+      "only_scale": "global",
+      "about": "its own line for global and lender work"
+    }
   ],
   "checks": [
     {
-      "id": "bio.sac", "topic": "biodiversity", "label": "Special Areas of Conservation",
-      "answer": "count_by_band", "reach_km": { "local": 2, "regional": 10, "global": 50 },
+      "id": "bio.sac",
+      "topic": "biodiversity",
+      "label": "Special Areas of Conservation",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 2,
+        "regional": 10,
+        "global": 50
+      },
       "reach_why": "International sites: 10 km in UK practice (CIEEM preliminary ecological appraisal desk studies; wind and solar scoping reports)",
-      "applies": { "setting": "any", "where": [-32, 27, 45, 72] }, "must": true,
+      "applies": {
+        "setting": "any",
+        "where": [
+          -32,
+          27,
+          45,
+          72
+        ]
+      },
+      "must": true,
       "sources": [
-        { "region": "UK", "countries": ["United Kingdom"], "where": [-12, 49.8, 2.5, 61.5], "pending": "the UK list (JNCC) isn't in Tobler's data yet (asked of the atlas, 22 Nov)" },
-        { "region": "EU (not UK since 2021)", "not_countries": ["United Kingdom"], "where": [-32, 27, 45, 72], "atlas_id": "2764f9d94e700980",
-          "record": { "title": "Natura 2000: Habitats Directive Sites (pSCI, SCI or SAC)", "publisher": "European Environment Agency", "licence": "© EEA, Copenhagen, 2021 (EEA reuse policy: attribution)", "as_of": "2026-11-18" } }
+        {
+          "region": "England",
+          "where": [
+            -7.13,
+            49.82,
+            3.61,
+            55.85
+          ],
+          "atlas_id": "a9cad137cd6e2466",
+          "record": {
+            "title": "Special Areas of Conservation (SAC), England (Natural England)",
+            "publisher": "Natural England",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "SAC_NAME",
+          "code_field": "SAC_CODE"
+        },
+        {
+          "region": "Scotland",
+          "where": [
+            -20.19,
+            53.66,
+            1.71,
+            60.77
+          ],
+          "atlas_id": "7d382e1686a08bff",
+          "record": {
+            "title": "Special Areas of Conservation (SAC), Scotland (NatureScot)",
+            "publisher": "NatureScot",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "NAME",
+          "code_field": "PA_CODE"
+        },
+        {
+          "region": "Wales",
+          "where": [
+            -5.95,
+            50.24,
+            -2.36,
+            53.92
+          ],
+          "atlas_id": "f1f2acb0cb971df9",
+          "record": {
+            "title": "Special Areas of Conservation (SAC), Wales (Natural Resources Wales)",
+            "publisher": "Natural Resources Wales",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "SAC_name",
+          "code_field": "Site_code"
+        },
+        {
+          "region": "Northern Ireland",
+          "where": [
+            -8.25,
+            53.95,
+            -5.3,
+            55.45
+          ],
+          "atlas_id": "da17adda6e50b6da",
+          "record": {
+            "title": "Special Areas of Conservation (SAC), Northern Ireland (DAERA)",
+            "publisher": "Department of Agriculture, Environment and Rural Affairs (DAERA), Northern Ireland Environment Agency",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "name",
+          "code_field": "reference"
+        },
+        {
+          "region": "UK offshore, beyond 12 nm",
+          "where": [
+            -19.25,
+            48.17,
+            3.25,
+            63.89
+          ],
+          "atlas_id": "1d6371b702df0abc",
+          "record": {
+            "title": "UK offshore Marine Protected Areas (JNCC)",
+            "publisher": "Joint Nature Conservation Committee (JNCC)",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "SITE_NAME",
+          "code_field": "SITE_CODE",
+          "filter": {
+            "field": "SITE_STATU",
+            "values": [
+              "SAC"
+            ]
+          },
+          "setting": "sea"
+        },
+        {
+          "region": "EU (not UK since 2021)",
+          "not_countries": [
+            "United Kingdom"
+          ],
+          "where": [
+            -32,
+            27,
+            45,
+            72
+          ],
+          "atlas_id": "2764f9d94e700980",
+          "record": {
+            "title": "Natura 2000: Habitats Directive Sites (pSCI, SCI or SAC)",
+            "publisher": "European Environment Agency",
+            "licence": "© EEA, Copenhagen, 2021 (EEA reuse policy: attribution)",
+            "as_of": "2026-11-18"
+          }
+        }
       ]
     },
     {
-      "id": "bio.spa", "topic": "biodiversity", "label": "Special Protection Areas (birds)",
-      "answer": "count_by_band", "reach_km": { "local": 2, "regional": 10, "global": 50 },
+      "id": "bio.spa",
+      "topic": "biodiversity",
+      "label": "Special Protection Areas (birds)",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 2,
+        "regional": 10,
+        "global": 50
+      },
       "reach_why": "International sites: 10 km in UK practice; bird SPAs further for wind (functional linkage), set by the asset type later with a reason",
-      "applies": { "setting": "any", "where": [-32, 27, 45, 72] }, "must": true,
+      "applies": {
+        "setting": "any",
+        "where": [
+          -32,
+          27,
+          45,
+          72
+        ]
+      },
+      "must": true,
       "sources": [
-        { "region": "UK", "countries": ["United Kingdom"], "where": [-12, 49.8, 2.5, 61.5], "pending": "the UK list (JNCC) isn't in Tobler's data yet (asked of the atlas, 22 Nov)" },
-        { "region": "EU (not UK since 2021)", "not_countries": ["United Kingdom"], "where": [-32, 27, 45, 72], "atlas_id": "68cb5df76ffaecad",
-          "record": { "title": "Natura 2000: Birds Directive Sites (SPA)", "publisher": "European Environment Agency", "licence": "© EEA, Copenhagen, 2021 (EEA reuse policy: attribution)", "as_of": "2026-11-18" } }
+        {
+          "region": "England",
+          "where": [
+            -7.09,
+            49.85,
+            2.63,
+            55.67
+          ],
+          "atlas_id": "8b28077c10e3e057",
+          "record": {
+            "title": "Special Protection Areas (SPA), England (Natural England)",
+            "publisher": "Natural England",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "SPA_NAME",
+          "code_field": "SPA_CODE"
+        },
+        {
+          "region": "Scotland",
+          "where": [
+            -9.61,
+            54.38,
+            -0.72,
+            60.88
+          ],
+          "atlas_id": "b10cb9d7a2892f7f",
+          "record": {
+            "title": "Special Protection Areas (SPA), Scotland (NatureScot)",
+            "publisher": "NatureScot",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "NAME",
+          "code_field": "PA_CODE"
+        },
+        {
+          "region": "Wales",
+          "where": [
+            -6.07,
+            51.16,
+            -2.38,
+            54.01
+          ],
+          "atlas_id": "0f71127c51a2172c",
+          "record": {
+            "title": "Special Protection Areas (SPA), Wales (Natural Resources Wales)",
+            "publisher": "Natural Resources Wales",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "SPA_Name",
+          "code_field": "SPA_code"
+        },
+        {
+          "region": "Northern Ireland",
+          "where": [
+            -8.25,
+            53.95,
+            -5.3,
+            55.45
+          ],
+          "atlas_id": "7571a1f57be683da",
+          "record": {
+            "title": "Special Protection Areas (SPA), Northern Ireland (DAERA)",
+            "publisher": "Department of Agriculture, Environment and Rural Affairs (DAERA), Northern Ireland Environment Agency",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "name",
+          "code_field": "reference"
+        },
+        {
+          "region": "UK offshore, beyond 12 nm",
+          "where": [
+            -19.25,
+            48.17,
+            3.25,
+            63.89
+          ],
+          "atlas_id": "1d6371b702df0abc",
+          "record": {
+            "title": "UK offshore Marine Protected Areas (JNCC)",
+            "publisher": "Joint Nature Conservation Committee (JNCC)",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "SITE_NAME",
+          "code_field": "SITE_CODE",
+          "filter": {
+            "field": "SITE_STATU",
+            "values": [
+              "SPA"
+            ]
+          },
+          "setting": "sea"
+        },
+        {
+          "region": "EU (not UK since 2021)",
+          "not_countries": [
+            "United Kingdom"
+          ],
+          "where": [
+            -32,
+            27,
+            45,
+            72
+          ],
+          "atlas_id": "68cb5df76ffaecad",
+          "record": {
+            "title": "Natura 2000: Birds Directive Sites (SPA)",
+            "publisher": "European Environment Agency",
+            "licence": "© EEA, Copenhagen, 2021 (EEA reuse policy: attribution)",
+            "as_of": "2026-11-18"
+          }
+        }
       ]
     },
     {
-      "id": "bio.national-sites", "topic": "biodiversity", "label": "Nationally designated sites",
-      "answer": "count_by_band", "reach_km": { "local": 2, "regional": 5, "global": 20 },
+      "id": "bio.ramsar",
+      "topic": "biodiversity",
+      "label": "Ramsar sites (wetlands)",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 2,
+        "regional": 10,
+        "global": 50
+      },
+      "reach_why": "International sites: 10 km in UK practice (CIEEM desk studies)",
+      "applies": {
+        "setting": "any",
+        "where": [
+          -20.5,
+          48.1,
+          3.7,
+          64.0
+        ],
+        "countries": [
+          "United Kingdom"
+        ]
+      },
+      "must": true,
+      "sources": [
+        {
+          "region": "England",
+          "where": [
+            -7.05,
+            49.86,
+            2.0,
+            55.69
+          ],
+          "atlas_id": "fc67624f3bd09663",
+          "record": {
+            "title": "Ramsar sites (wetlands of international importance), England (Natural England)",
+            "publisher": "Natural England",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "NAME",
+          "code_field": "CODE"
+        },
+        {
+          "region": "Scotland",
+          "where": [
+            -8.03,
+            54.69,
+            -1.34,
+            60.59
+          ],
+          "atlas_id": "b2f1c178d39c0d0e",
+          "record": {
+            "title": "Ramsar sites (wetlands of international importance), Scotland (NatureScot)",
+            "publisher": "NatureScot",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "NAME",
+          "code_field": "PA_CODE"
+        },
+        {
+          "region": "Wales",
+          "where": [
+            -4.55,
+            51.16,
+            -2.38,
+            53.39
+          ],
+          "atlas_id": "a6fa6c34e1ffe4c1",
+          "record": {
+            "title": "Ramsar sites (wetlands of international importance), Wales (Natural Resources Wales)",
+            "publisher": "Natural Resources Wales",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "RAM_name",
+          "code_field": "RAM_code"
+        },
+        {
+          "region": "Northern Ireland",
+          "where": [
+            -8.25,
+            53.95,
+            -5.3,
+            55.45
+          ],
+          "atlas_id": "a13d205bd42efeb8",
+          "record": {
+            "title": "Ramsar sites (wetlands of international importance), Northern Ireland (DAERA)",
+            "publisher": "Department of Agriculture, Environment and Rural Affairs (DAERA), Northern Ireland Environment Agency",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "name",
+          "code_field": "reference"
+        }
+      ]
+    },
+    {
+      "id": "bio.national-sites",
+      "topic": "biodiversity",
+      "label": "Nationally designated sites (SSSI and equivalents)",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 2,
+        "regional": 5,
+        "global": 20
+      },
       "reach_why": "National sites (SSSI and equivalents): 2 to 5 km in UK practice",
-      "applies": { "setting": "any" }, "must": true,
+      "applies": {
+        "setting": "any"
+      },
+      "must": true,
       "sources": [
-        { "region": "Europe (CDDA)", "where": [-32, 27, 45, 72], "atlas_id": "26326b863be227ce",
-          "record": { "title": "Nationally designated areas (CDDA)", "publisher": "European Environment Agency", "licence": "© European Environment Agency (EEA reuse policy: attribution)", "as_of": "2026-11-18" } }
+        {
+          "region": "England",
+          "where": [
+            -7.05,
+            49.86,
+            2.06,
+            55.74
+          ],
+          "atlas_id": "0c53cecc65701f0c",
+          "record": {
+            "title": "Sites of Special Scientific Interest (SSSI), England (Natural England)",
+            "publisher": "Natural England",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "NAME",
+          "code_field": "REF_CODE"
+        },
+        {
+          "region": "Scotland",
+          "where": [
+            -14.64,
+            54.19,
+            -0.76,
+            60.86
+          ],
+          "atlas_id": "c6e90f0435ff9097",
+          "record": {
+            "title": "Sites of Special Scientific Interest (SSSI), Scotland (NatureScot)",
+            "publisher": "NatureScot",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "NAME",
+          "code_field": "PA_CODE"
+        },
+        {
+          "region": "Wales",
+          "where": [
+            -5.81,
+            51.32,
+            -2.64,
+            53.45
+          ],
+          "atlas_id": "0761e0de1e55f269",
+          "record": {
+            "title": "Sites of Special Scientific Interest (SSSI), Wales (Natural Resources Wales)",
+            "publisher": "Natural Resources Wales",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "SSSI_Name",
+          "code_field": "SSSI_Code"
+        },
+        {
+          "region": "Northern Ireland",
+          "where": [
+            -8.25,
+            53.95,
+            -5.3,
+            55.45
+          ],
+          "atlas_id": "e4d3902ce86a9334",
+          "record": {
+            "title": "Areas of Special Scientific Interest (ASSI), Northern Ireland (DAERA)",
+            "publisher": "Department of Agriculture, Environment and Rural Affairs (DAERA), Northern Ireland Environment Agency",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "name",
+          "code_field": "reference"
+        },
+        {
+          "region": "Europe outside the UK (CDDA)",
+          "where": [
+            -32,
+            27,
+            45,
+            72
+          ],
+          "atlas_id": "26326b863be227ce",
+          "record": {
+            "title": "Nationally designated areas (CDDA)",
+            "publisher": "European Environment Agency",
+            "licence": "© European Environment Agency (EEA reuse policy: attribution)",
+            "as_of": "2026-11-18"
+          },
+          "not_countries": [
+            "United Kingdom"
+          ]
+        }
       ]
     },
     {
-      "id": "bio.marine-protected", "topic": "biodiversity", "label": "Marine and coastal protected areas",
-      "answer": "count_by_band", "reach_km": { "local": 2, "regional": 10, "global": 50 },
-      "reach_why": "As for international sites; WDPA holds marine protected areas that national lists may not",
-      "applies": { "setting": "sea" }, "must": true,
+      "id": "bio.marine-protected",
+      "topic": "biodiversity",
+      "label": "Marine and coastal protected areas",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 2,
+        "regional": 10,
+        "global": 50
+      },
+      "reach_why": "As for international sites. The UK's own marine layers (MCZ, NCMPA, NI MPAs, JNCC offshore) are open; WDPA adds sites outside the UK",
+      "applies": {
+        "setting": "sea"
+      },
+      "must": true,
       "sources": [
-        { "region": "European seas and coasts (WDPA via EMODnet)", "where": [-45, 24, 50, 85], "atlas_id": "154dfce48e32f9ee",
-          "record": { "title": "World Database on Protected Areas (European seas and coasts, via EMODnet)", "publisher": "EMODnet Human Activities (data: UNEP-WCMC and IUCN)", "licence": "WDPA terms: no commercial use without a licence from UNEP-WCMC (data via EMODnet, CC-BY 4.0)", "as_of": "2026-11-18" },
-          "note": "Non-commercial: not checked unless non-commercial data is switched on in Settings." }
+        {
+          "region": "England",
+          "where": [
+            -11.39,
+            48.15,
+            3.24,
+            56.58
+          ],
+          "atlas_id": "2470b667af95db9c",
+          "record": {
+            "title": "Marine Conservation Zones (MCZ), England (Natural England)",
+            "publisher": "Natural England",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "MCZ_NAME",
+          "code_field": "MCZ_CODE"
+        },
+        {
+          "region": "Scotland",
+          "where": [
+            -19.15,
+            54.3,
+            2.62,
+            63.82
+          ],
+          "atlas_id": "f682edebaabd1b8b",
+          "record": {
+            "title": "Nature Conservation Marine Protected Areas (NCMPA), inshore, Scotland (NatureScot)",
+            "publisher": "NatureScot",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "NAME",
+          "code_field": "PA_CODE"
+        },
+        {
+          "region": "Wales",
+          "where": [
+            -5.32,
+            51.72,
+            -5.22,
+            51.75
+          ],
+          "atlas_id": "10f54cd67c434aa8",
+          "record": {
+            "title": "Marine Conservation Zones (MCZ), Wales (Natural Resources Wales)",
+            "publisher": "Natural Resources Wales",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "MNR_Name",
+          "code_field": "MNR_Code"
+        },
+        {
+          "region": "Northern Ireland",
+          "where": [
+            -7.26,
+            53.74,
+            -4.87,
+            55.38
+          ],
+          "atlas_id": "6f8ffc3a4d831d53",
+          "record": {
+            "title": "Marine Protected Areas (SAC, SPA, MCZ, ASSI with marine parts), Northern Ireland (DAERA)",
+            "publisher": "Department of Agriculture, Environment and Rural Affairs (DAERA), Northern Ireland Environment Agency",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "NAME",
+          "code_field": "Site_Code"
+        },
+        {
+          "region": "UK offshore, beyond 12 nm",
+          "where": [
+            -19.25,
+            48.17,
+            3.25,
+            63.89
+          ],
+          "atlas_id": "1d6371b702df0abc",
+          "record": {
+            "title": "UK offshore Marine Protected Areas (JNCC)",
+            "publisher": "Joint Nature Conservation Committee (JNCC)",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "SITE_NAME",
+          "code_field": "SITE_CODE",
+          "setting": "sea",
+          "filter": {
+            "field": "SITE_STATU",
+            "values": [
+              "MCZ - Secretary of State",
+              "NCMPA",
+              "HPMA (MCZ)",
+              "MPA"
+            ]
+          }
+        },
+        {
+          "region": "European seas and coasts (WDPA via EMODnet)",
+          "where": [
+            -45,
+            24,
+            50,
+            85
+          ],
+          "atlas_id": "154dfce48e32f9ee",
+          "record": {
+            "title": "World Database on Protected Areas (European seas and coasts, via EMODnet)",
+            "publisher": "EMODnet Human Activities (data: UNEP-WCMC and IUCN)",
+            "licence": "WDPA terms: no commercial use without a licence from UNEP-WCMC (data via EMODnet, CC-BY 4.0)",
+            "as_of": "2026-11-18"
+          },
+          "note": "Non-commercial: not checked unless non-commercial data is switched on in Settings. Supplementary where the UK's own layers cover the site, so its absence doesn't stop a 'none found' there.",
+          "supplementary": true
+        }
       ]
     },
     {
-      "id": "bio.marine-mammal-areas", "topic": "biodiversity", "label": "Important Marine Mammal Areas",
-      "answer": "count_by_band", "reach_km": { "local": null, "regional": 20, "global": 50 },
+      "id": "bio.ancient-woodland",
+      "topic": "biodiversity",
+      "label": "Ancient woodland",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0.5,
+        "regional": 1,
+        "global": null
+      },
+      "reach_why": "Irreplaceable habitat: 1 km in CIEEM practice for ancient woodland and priority habitats",
+      "applies": {
+        "setting": "land",
+        "where": [
+          -20.5,
+          48.1,
+          3.7,
+          64.0
+        ],
+        "countries": [
+          "United Kingdom"
+        ]
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "England",
+          "where": [
+            -6.05,
+            50.03,
+            2.04,
+            55.71
+          ],
+          "atlas_id": "4d20427c9827e672",
+          "record": {
+            "title": "Ancient Woodland, England (Natural England)",
+            "publisher": "Natural England",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "NAME"
+        },
+        {
+          "region": "Scotland",
+          "where": [
+            -6.79,
+            54.64,
+            -1.82,
+            58.65
+          ],
+          "atlas_id": "83edcb984cbc578d",
+          "record": {
+            "title": "Ancient Woodland Inventory, Scotland (NatureScot)",
+            "publisher": "NatureScot",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "SITE_NAME"
+        },
+        {
+          "region": "Wales",
+          "where": [
+            -5.32,
+            51.35,
+            -2.64,
+            53.44
+          ],
+          "atlas_id": "dae5eef189e09f22",
+          "record": {
+            "title": "Ancient Woodland Inventory 2021, Wales (Natural Resources Wales)",
+            "publisher": "Natural Resources Wales",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-22"
+          },
+          "name_field": "CATEGORY_NAME"
+        },
+        {
+          "region": "Northern Ireland",
+          "where": [
+            -8.2,
+            54.0,
+            -5.4,
+            55.4
+          ],
+          "pending": "no Northern Ireland ancient woodland layer in Tobler's data"
+        }
+      ]
+    },
+    {
+      "id": "bio.marine-mammal-areas",
+      "topic": "biodiversity",
+      "label": "Important Marine Mammal Areas",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": null,
+        "regional": 20,
+        "global": 50
+      },
       "reach_why": "Wide-ranging species: underwater noise and vessel effects reach tens of kilometres",
-      "applies": { "setting": "sea" }, "must": false,
+      "applies": {
+        "setting": "sea"
+      },
+      "must": false,
       "sources": [
-        { "region": "World", "where": [-180, -90, 180, 90], "atlas_id": "f89a739e0de5befe",
-          "record": { "title": "IUCN Important Marine Mammal Areas", "publisher": "UN Environment Programme World Conservation Monitoring Centre", "licence": "IUCN Joint SSC/WCPA Marine Mammal Protected Areas Task Force: check terms before commercial use", "as_of": "2026-11-18" } }
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "atlas_id": "f89a739e0de5befe",
+          "record": {
+            "title": "IUCN Important Marine Mammal Areas",
+            "publisher": "UN Environment Programme World Conservation Monitoring Centre",
+            "licence": "IUCN Joint SSC/WCPA Marine Mammal Protected Areas Task Force: check terms before commercial use",
+            "as_of": "2026-11-18"
+          }
+        }
       ]
     },
     {
-      "id": "bio.coral-reefs", "topic": "biodiversity", "label": "Warm-water coral reefs",
-      "answer": "count_by_band", "reach_km": { "local": null, "regional": 10, "global": 50 },
+      "id": "bio.coral-reefs",
+      "topic": "biodiversity",
+      "label": "Warm-water coral reefs",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": null,
+        "regional": 10,
+        "global": 50
+      },
       "reach_why": "Sediment plumes and spill reach",
-      "applies": { "setting": "sea", "where": [-180, -35, 180, 35] }, "must": false,
+      "applies": {
+        "setting": "sea",
+        "where": [
+          -180,
+          -35,
+          180,
+          35
+        ]
+      },
+      "must": false,
       "sources": [
-        { "region": "Tropics", "where": [-180, -35, 180, 35], "atlas_id": "26712d28f51a6645",
-          "record": { "title": "Global Distribution of Coral Reefs (2003)", "publisher": "UN Environment Programme World Conservation Monitoring Centre", "licence": "UNEP-WCMC (2003): check terms before commercial use", "as_of": "2026-11-18" } }
+        {
+          "region": "Tropics",
+          "where": [
+            -180,
+            -35,
+            180,
+            35
+          ],
+          "atlas_id": "26712d28f51a6645",
+          "record": {
+            "title": "Global Distribution of Coral Reefs (2003)",
+            "publisher": "UN Environment Programme World Conservation Monitoring Centre",
+            "licence": "UNEP-WCMC (2003): check terms before commercial use",
+            "as_of": "2026-11-18"
+          }
+        }
       ]
     },
     {
-      "id": "bio.us-critical-habitat", "topic": "biodiversity", "label": "US critical habitat (NMFS)",
-      "answer": "count_by_band", "reach_km": { "local": 2, "regional": 10, "global": 50 },
+      "id": "bio.us-critical-habitat",
+      "topic": "biodiversity",
+      "label": "US critical habitat (NMFS)",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 2,
+        "regional": 10,
+        "global": 50
+      },
       "reach_why": "As for international sites",
-      "applies": { "setting": "any", "where": [-180, 15, -60, 72] }, "must": false,
+      "applies": {
+        "setting": "any",
+        "where": [
+          -180,
+          15,
+          -60,
+          72
+        ]
+      },
+      "must": false,
       "sources": [
-        { "region": "US waters and coasts", "where": [-180, 15, -60, 72], "atlas_id": "06ab03dddac3cdd2",
-          "record": { "title": "Critical Habitat Areas by NMFS", "publisher": "NOAA (National Marine Fisheries Service)", "licence": "US federal government work: public domain", "as_of": "2026-11-18" } }
+        {
+          "region": "US waters and coasts",
+          "where": [
+            -180,
+            15,
+            -60,
+            72
+          ],
+          "atlas_id": "06ab03dddac3cdd2",
+          "record": {
+            "title": "Critical Habitat Areas by NMFS",
+            "publisher": "NOAA (National Marine Fisheries Service)",
+            "licence": "US federal government work: public domain",
+            "as_of": "2026-11-18"
+          }
+        }
       ]
     },
     {
-      "id": "material.marpol-special-areas", "topic": "material-assets", "label": "MARPOL special areas",
-      "answer": "inside", "reach_km": { "local": null, "regional": 0, "global": 0 },
+      "id": "material.marpol-special-areas",
+      "topic": "material-assets",
+      "label": "MARPOL special areas",
+      "answer": "inside",
+      "reach_km": {
+        "local": null,
+        "regional": 0,
+        "global": 0
+      },
       "reach_why": "Rules for ships apply inside the area; distance doesn't matter",
-      "applies": { "setting": "sea" }, "must": false,
+      "applies": {
+        "setting": "sea"
+      },
+      "must": false,
       "sources": [
-        { "region": "World", "where": [-180, -90, 180, 90], "atlas_id": "751ddc65885f897d",
-          "record": { "title": "Special Areas under MARPOL", "publisher": "UN Environment Programme World Conservation Monitoring Centre (data: IMO)", "licence": "International Maritime Organization: check terms before commercial use", "as_of": "2026-11-18" } }
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "atlas_id": "751ddc65885f897d",
+          "record": {
+            "title": "Special Areas under MARPOL",
+            "publisher": "UN Environment Programme World Conservation Monitoring Centre (data: IMO)",
+            "licence": "International Maritime Organization: check terms before commercial use",
+            "as_of": "2026-11-18"
+          }
+        }
       ]
     },
     {
-      "id": "material.vessel-traffic", "topic": "material-assets", "label": "Vessel traffic (AIS)",
-      "answer": "value_at_site", "reach_km": null,
+      "id": "material.vessel-traffic",
+      "topic": "material-assets",
+      "label": "Vessel traffic (AIS)",
+      "answer": "value_at_site",
+      "reach_km": null,
       "reach_why": "Read on the site and out to the close band",
-      "applies": { "setting": "sea" }, "must": false,
-      "sources": [ { "region": "EU waters and neighbouring seas", "where": [-45, 24, 50, 85], "tool": "traffic" } ]
+      "applies": {
+        "setting": "sea"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "EU waters and neighbouring seas",
+          "where": [
+            -45,
+            24,
+            50,
+            85
+          ],
+          "tool": "traffic"
+        }
+      ]
     },
     {
-      "id": "topo.elevation", "topic": "topography", "label": "Elevation",
-      "answer": "value_at_site", "reach_km": null,
-      "applies": { "setting": "land" }, "must": false,
-      "sources": [ { "region": "World", "where": [-180, -90, 180, 90], "tool": "elevation" } ]
+      "id": "topo.elevation",
+      "topic": "topography",
+      "label": "Elevation",
+      "answer": "value_at_site",
+      "reach_km": null,
+      "applies": {
+        "setting": "land"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "tool": "elevation"
+        }
+      ]
     },
     {
-      "id": "topo.water-depth", "topic": "topography", "label": "Water depth",
-      "answer": "value_at_site", "reach_km": null,
-      "applies": { "setting": "offshore" }, "must": false,
-      "sources": [ { "region": "World", "where": [-180, -90, 180, 90], "tool": "depth" } ]
+      "id": "topo.water-depth",
+      "topic": "topography",
+      "label": "Water depth",
+      "answer": "value_at_site",
+      "reach_km": null,
+      "applies": {
+        "setting": "offshore"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "tool": "depth"
+        }
+      ]
     },
     {
-      "id": "context.boundaries", "topic": "context", "label": "National and maritime boundaries",
-      "answer": "count_by_band", "reach_km": { "local": 2, "regional": 20, "global": 100 },
+      "id": "context.boundaries",
+      "topic": "context",
+      "label": "National and maritime boundaries",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 2,
+        "regional": 20,
+        "global": 100
+      },
       "reach_why": "Transboundary effects and permitting: another country within reach changes who must be consulted",
-      "applies": { "setting": "any" }, "must": false,
-      "sources": [ { "region": "World", "where": [-180, -90, 180, 90], "tool": "boundaries" } ]
+      "applies": {
+        "setting": "any"
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "World",
+          "where": [
+            -180,
+            -90,
+            180,
+            90
+          ],
+          "tool": "boundaries"
+        }
+      ]
     }
   ]
 }

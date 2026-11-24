@@ -14,6 +14,7 @@ const ids = (plans) => plans.map((p) => p.check.id);
 await test("the catalogue: twelve topics plus Indigenous Peoples for global work; every check sound", () => {
   const topics = cat.topics.map((t) => t.id);
   assert.equal(topics.filter((t) => t !== "indigenous").length, 12);
+  assert.equal(cat.version, "2");
   assert.ok(topics.includes("topography") && topics.includes("hazards"));
   assert.deepEqual(Object.keys(cat.scales).filter((k) => k !== "about"), ["local", "regional", "global"]);
   assert.deepEqual(cat.scales.global, [10, 20, 50, 100]);
@@ -54,22 +55,33 @@ await test("bands inside a reach, and their labels", () => {
 await test("selection by setting, region and scale; sources by country and box", () => {
   // Onshore in the Netherlands, regional: the EU Natura layers, CDDA, US habitat and sea checks left out.
   const nl = K.planChecks(cat, { bbox: box(4.93, 51.49), countries: ["Netherlands"], offshore: false, sea: false }, "regional");
-  assert.deepEqual(ids(nl), ["bio.sac", "bio.spa", "bio.national-sites", "topo.elevation", "context.boundaries"]);
-  assert.equal(nl[0].source.atlas_id, "2764f9d94e700980");
+  assert.deepEqual(ids(nl), ["bio.sac", "bio.spa", "bio.national-sites", "topo.elevation", "context.boundaries"], "no UK-only checks in the Netherlands");
+  assert.deepEqual(nl[0].sources.map((x) => x.atlas_id), ["2764f9d94e700980"]);
   assert.equal(nl[0].reach_km, 10);
-  // Onshore in Scotland: the UK source wins (pending), not the EU layer that no longer holds UK sites.
+  const regions = (plans, id) => plans.find((p) => p.check.id === id).sources.map((x) => x.region);
+  // Linlithgow, local: Scotland's layers only (England's are out of a 2 km reach; JNCC is for the sea; EU not in the UK).
   const sc = K.planChecks(cat, { bbox: box(-3.6, 55.97), countries: ["United Kingdom"], offshore: false, sea: false }, "local");
-  assert.ok(sc[0].source.pending);
-  assert.equal(sc[0].reach_km, 2);
-  // Northern France, inside the UK's sea box: the country decides on land.
+  assert.deepEqual(regions(sc, "bio.sac"), ["Scotland"]);
+  assert.deepEqual(regions(sc, "bio.national-sites"), ["Scotland"]);
+  assert.deepEqual(regions(sc, "bio.ancient-woodland"), ["Scotland"]);
+  assert.ok(ids(sc).includes("bio.ramsar"));
+  // Berwick, regional (10 km): both nations, because the reach crosses the border.
+  const bw = K.planChecks(cat, { bbox: box(-2.0, 55.77, 0.01), countries: ["United Kingdom"], offshore: false, sea: true }, "regional");
+  assert.deepEqual(regions(bw, "bio.sac"), ["England", "Scotland", "UK offshore, beyond 12 nm"]);
+  // Belfast: Northern Ireland; ancient woodland there has no layer (pending), so the check says so.
+  const bf = K.planChecks(cat, { bbox: box(-5.93, 54.6), countries: ["United Kingdom"], offshore: false, sea: false }, "local");
+  assert.ok(regions(bf, "bio.sac").includes("Northern Ireland"));
+  const awNI = bf.find((p) => p.check.id === "bio.ancient-woodland");
+  assert.equal(K.unsourced({ ...awNI, sources: awNI.sources.filter((x) => x.region === "Northern Ireland") }).reason, "pending");
+  // Northern France, inside the UK's boxes: the country decides on land (EU layer, no UK-only checks).
   const fr = K.planChecks(cat, { bbox: box(1.85, 50.9), countries: ["France"], offshore: false, sea: true }, "regional");
-  assert.equal(fr[0].source.atlas_id, "2764f9d94e700980");
-  // Offshore UK North Sea: matched on the box.
+  assert.ok(fr.find((p) => p.check.id === "bio.sac").sources.some((x) => x.atlas_id === "2764f9d94e700980"));
+  assert.ok(!ids(fr).includes("bio.ramsar") && !ids(fr).includes("bio.ancient-woodland"));
+  // Dogger Bank, global: JNCC's offshore layer and the EU's (the Dutch Doggersbank), and England's in its box.
   const ns = K.planChecks(cat, { bbox: box(1.9, 54.8, 0.3), countries: [], offshore: true, sea: true }, "global");
-  assert.ok(ns.find((p) => p.check.id === "bio.sac").source.pending);
-  assert.ok(ids(ns).includes("topo.water-depth") && !ids(ns).includes("topo.elevation"));
-  // Offshore Dutch waters: the EU layer.
-  assert.equal(K.planChecks(cat, { bbox: box(3.5, 53.5), countries: [], offshore: true, sea: true }, "global").find((p) => p.check.id === "bio.sac").source.atlas_id, "2764f9d94e700980");
+  const sac = regions(ns, "bio.sac");
+  assert.ok(sac.includes("UK offshore, beyond 12 nm") && sac.includes("EU (not UK since 2021)"), sac.join());
+  assert.ok(ids(ns).includes("topo.water-depth") && !ids(ns).includes("topo.elevation") && !ids(ns).includes("bio.ancient-woodland"));
   // Kenya onshore: Natura doesn't apply at all; national sites apply but have no source here.
   const ke = K.planChecks(cat, { bbox: box(36.8, -1.3), countries: ["Kenya"], offshore: false, sea: false }, "regional");
   assert.ok(!ids(ke).includes("bio.sac"));
@@ -114,7 +126,7 @@ await test("every state: found by band, none found, not checked for each reason"
   assert.equal(lic.state, "not_checked"); assert.equal(lic.reason, "licence");
   assert.doesNotMatch(lic.why, /Tobler leaves/, "first sentence only");
   assert.equal(K.notChecked(sac, "The publisher's service didn't answer: 503").reason, "failed");
-  assert.equal(K.unsourced({ ...sac, source: cat.checks[0].sources[0] }).reason, "pending");
+  assert.equal(K.unsourced({ ...sac, sources: [{ region: "X", pending: "not in yet" }] }).reason, "pending");
   assert.match(K.checkLine(K.unsourced({ ...sac, source: null })), /^not checked: no source for this region$/);
   // Inside.
   const m = K.fromFeatures(plan("material.marpol-special-areas"), [{ name: "North West European waters", distance_km: 0, around_site: true }], [], {});
@@ -126,6 +138,50 @@ await test("every state: found by band, none found, not checked for each reason"
   // Values.
   const v = K.fromValue(plan("topo.elevation"), { text: "about 25 m", meta: { dataset: "DEM", publisher: "NOAA" } });
   assert.equal(K.checkLine(v), "about 25 m");
+});
+
+await test("several sources: filtered, counted once by code or name, partly checked, supplementary", () => {
+  const sac = plan("bio.sac");
+  const [ne, ns, , , jncc] = sac.check.sources;
+  const site = (name, km, extra = {}) => ({ name, distance_km: km, extra });
+  const meta = (dataset) => ({ dataset, publisher: "p", licence: "OGL", checked_at: "2026-11-24", fetched_km: 20 });
+  const r = K.fromSources(sac, [
+    { source: ne, features: [site("Berwickshire and North Northumberland Coast", 3, { SAC_CODE: "UK0017072" })], meta: meta("NE SAC") },
+    { source: ns, features: [site("Berwickshire and North Northumberland Coast", 2.5, { PA_CODE: "UK0017072" }), site("River Tweed", 0, { PA_CODE: "UK0012691" })], meta: meta("NS SAC") },
+    { source: jncc, features: [site("Some MCZ", 6, { SITE_CODE: "UKMCZ0001", SITE_STATU: "MCZ - Secretary of State" })], meta: meta("JNCC") },
+  ], cat.scales.regional);
+  assert.equal(r.state, "found");
+  assert.equal(r.count, 2, "same code in two nations' layers counts once; the MCZ isn't a SAC");
+  assert.equal(r.nearest.name, "River Tweed");
+  assert.deepEqual(r.bands.find((b) => b.label === "2–5 km").count, 1);
+  assert.equal(r.sources.length, 3);
+  // One nation's layer failed: a found result says so; a none-found result becomes not checked (partly).
+  const down = { source: ne, not_checked: "The publisher's service didn't answer: 503. Report it as not checked." };
+  const f2 = K.fromSources(sac, [down, { source: ns, features: [site("River Tweed", 0, { PA_CODE: "UK0012691" })], meta: meta("NS SAC") }], cat.scales.regional);
+  assert.equal(f2.state, "found");
+  assert.equal(f2.partly, "Natural England didn't answer");
+  const n2 = K.fromSources(sac, [down, { source: ns, features: [], meta: meta("NS SAC") }], cat.scales.regional);
+  assert.equal(n2.state, "not_checked");
+  assert.equal(n2.reason, "partly");
+  assert.equal(K.checkLine(n2), "not checked: Natural England didn't answer (none in the others)");
+  // Every source down: not checked, failed; every source licence-blocked: not checked, licence.
+  assert.equal(K.fromSources(sac, [down, { ...down, source: ns }], cat.scales.regional).reason, "failed");
+  // WDPA is supplementary: switched off beside the UK's own layers, "none found" stands; alone (French waters), not checked.
+  const mp = plan("bio.marine-protected");
+  const wdpa = mp.check.sources.find((x) => x.supplementary);
+  const lic = { source: wdpa, not_checked: "This dataset's licence is non-commercial (e.g. WDPA)." };
+  const uk = K.fromSources(mp, [{ source: mp.check.sources[0], features: [], meta: meta("NE MCZ") }, lic], cat.scales.regional);
+  assert.equal(uk.state, "none");
+  assert.equal(uk.partly, undefined);
+  const fr = K.fromSources(mp, [lic], cat.scales.regional);
+  assert.equal(fr.state, "not_checked"); assert.equal(fr.reason, "licence");
+  // A source with no code: the same name within half a kilometre counts once.
+  const mpJncc = mp.check.sources.find((x) => x.atlas_id === "1d6371b702df0abc");
+  const both = K.fromSources(plan("bio.marine-protected", "global"), [{ source: mpJncc, features: [site("Sponge Belt", 20, { SITE_CODE: "X1", SITE_STATU: "NCMPA" })], meta: meta("JNCC") },
+    { source: wdpa, features: [site("Sponge Belt", 20.2)], meta: meta("WDPA") }], cat.scales.global);
+  assert.equal(both.count, 1);
+  // The card and report list every source.
+  assert.equal(K.checksView({ checks: [r], topic_labels: { biodiversity: "Biodiversity" } }).groups[0].items[0].source, "NE SAC (p); NS SAC (p); JNCC (p)");
 });
 
 await test("topics with no check, the summary lines, and grouping by topic", () => {
@@ -156,7 +212,7 @@ await test("the decision rule: insufficient evidence when every must-check for a
   assert.match(up.changed, /must-checks were reached/);
   assert.equal(settleDecision({ value: "major issue", why: "" }, { checks: all }).value, "major issue", "something serious stays");
   // Pending and no-source count as not checked.
-  assert.deepEqual(K.topicsShort([K.unsourced({ ...plan("bio.sac"), source: cat.checks[0].sources[0] })]), ["biodiversity"]);
+  assert.deepEqual(K.topicsShort([K.unsourced({ ...plan("bio.sac"), sources: [{ region: "X", pending: "not in yet" }] })]), ["biodiversity"]);
   // A run from before checks keeps the old rule.
   assert.equal(settleDecision({ value: "progress", why: "" }, { checked: [] }).value, "insufficient evidence");
   assert.equal(settleDecision({ value: "progress", why: "" }, { checked: [{ evidence: "biodiversity", result: "none in dataset" }] }).value, "progress");
