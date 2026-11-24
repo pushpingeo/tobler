@@ -19,7 +19,10 @@ const queue = [];
 const msg = (content, stop = "end_turn") => ({ id: "m", type: "message", role: "assistant", stop_reason: stop, content, usage: { input_tokens: 1, output_tokens: 1 } });
 await page.route(/tobler-api.*\/v1\/messages/, (r) => {
   sent.push(JSON.parse(r.request().postData()));
-  r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(queue.shift() || msg([{ type: "text", text: "Done." }])) });
+  const body = JSON.parse(r.request().postData());
+  let next = queue.shift() || msg([{ type: "text", text: "Done." }]);
+  if (typeof next === "function") next = next(JSON.stringify(body.messages.at(-1).content));
+  r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(next) });
 });
 await page.goto("http://localhost:8000/");
 await page.waitForFunction(() => window.__ws?.map?.loaded?.() || document.querySelector(".maplibregl-canvas"), null, { timeout: 30000 });
@@ -71,6 +74,25 @@ queue.push(msg([use("t3", "remove_place", { place: "Ben Nevis SAC", reason: "the
 await turn("Please remove Ben Nevis SAC.");
 state = await page.evaluate(() => window.__ws.host.places().map((p) => p.name));
 check(!state.includes("Ben Nevis SAC"), `an accepted place goes when the person asks (${JSON.stringify(state)})`);
+
+// A place and an activity in one message (Rob, 24 Nov): "screen a warehouse location in Livingston". The analyst
+// finds Livingston and tries to screen it straight away; the screen is held until the person has seen the place.
+await page.route(/nominatim/, (r) => r.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" },
+  body: JSON.stringify([{ osm_type: "relation", osm_id: 1, lat: "55.886", lon: "-3.522", category: "place", type: "town", name: "Livingston", display_name: "Livingston, West Lothian, Scotland, United Kingdom", importance: 0.6, address: { country: "United Kingdom" } }]) }));
+let placeName = "";
+queue.push(
+  msg([use("t4", "find_place", { query: "Livingston" })], "tool_use"),
+  (last) => msg([use("t5", "make_place", { anchor: (last.match(/C\d+/) || [])[0], shape: "circle", radius_km: 3, words: "a warehouse location in Livingston", match: "named_place", reason: "the town named" })], "tool_use"),
+  (last) => { placeName = (last.match(/\\"place\\":\\"([^\\]+)/) || last.match(/\\"name\\":\\"([^\\]+)/) || [])[1] || "Livingston"; return msg([use("t6", "screen_site", { place: placeName, asset_type: "other", planned: "a warehouse" })], "tool_use"); },
+  msg([{ type: "text", text: "I've put Livingston on the map. Is that the right place?" }]),
+);
+await turn("I would like to screen a warehouse location in Livingston");
+const held = JSON.stringify(sent.at(-1)?.messages?.at(-1)?.content || "");
+const lv = await page.evaluate(() => ({ runs: document.querySelectorAll(".run").length, proposed: window.__ws.host.places().filter((p) => p.status === "proposed").map((p) => p.name), trace: [...document.querySelectorAll(".trace li")].map((li) => li.textContent).join(" | ") }));
+check(/not_yet/.test(held) && /haven't seen it/.test(held), `the screen is held until the person has seen ${placeName} (${held.slice(0, 160)})`);
+check(lv.runs === 0 && lv.proposed.length >= 1, `no run card; the place waits as a proposal (${JSON.stringify(lv.proposed)})`);
+check(/Not screened yet/.test(lv.trace), "the working-out says it wasn't screened yet");
+await page.screenshot({ path: "/tmp/choice-livingston.png" });
 
 check(errors.length === 0, `no page errors${errors.length ? `: ${errors.join(" | ")}` : ""}`);
 

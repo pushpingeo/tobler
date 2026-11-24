@@ -125,6 +125,7 @@ for (const conv of convs) {
     const t0 = Date.now();
     const timing = { model: 0, rounds: 0, tools: [] };
     console.log(`\n> ${text}`);
+    tools.newTurn();
     said.push(text);
     try {
       const res = await runTurn({

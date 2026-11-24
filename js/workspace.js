@@ -1976,6 +1976,7 @@ async function send(text, forModel = text) {
   // rather than searching for them as a name (Rob, 20 Nov).
   if (forModel === text) { const note = coordinateNote(text); if (note) forModel = `${text}\n\n${note}`; }
   busy = true;
+  tools.newTurn();
   said.push(text);
   $("ask").classList.add("busy");
   const asked = el("div", text, "msg user");
@@ -2070,7 +2071,7 @@ function traceLine(ev) {
     case "get_place": return `Read ${i.place}`;
     case "find_data": return `Searched the catalogue for “${i.text}”: ${o.datasets?.length || 0} datasets${o.not_checked ? " (catalogue not checked)" : ""}`;
     case "get_data": return o.not_checked ? `Fetched ${o.dataset || i.dataset}: not checked (${String(o.not_checked).slice(0, 80)})` : `Fetched ${o.dataset} (${o.publisher}): ${o.within_distance} within ${o.within_km} km`;
-    case "screen_site": return o.run ? `Screened ${o.site} (${o.run}): ${o.flags} flags; ${o.distances}` : `Screening: ${o.not_available || "no result"}`;
+    case "screen_site": return o.run ? `Screened ${o.site} (${o.run}): ${o.flags} flags; ${o.distances}` : (o.not_yet ? `Not screened yet: ${o.not_yet}` : `Screening: ${o.not_available || "no result"}`);
     case "get_run": return `Read the screen ${o.run || ""}`;
     case "remove_place": return `Removed ${o.removed}`;
     case "ask_asset_type": return `Asked what's planned at ${o.place}`;

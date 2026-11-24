@@ -558,4 +558,35 @@ await test("distance checks must quote the person; a rebuild replaces its propos
   assert.equal(d.checks[0].pass, true);
 });
 
+await test("a place found from words isn't screened in the same turn: shown and asked first (Livingston, 24 Nov)", async () => {
+  const host = memoryHost();
+  const screened = [];
+  host.screening = { screen: async (i, p) => { screened.push(p.name); return { run: `R${screened.length}`, site: p.name }; } };
+  const t = createPlaceTools(host);
+  t.newTurn();
+  const found = await t.exec("find_place", { query: "Jackdaw platform" });
+  const c = found.candidates.find((x) => /JACKDAW/i.test(x.name));
+  await t.exec("make_place", { anchor: c.id, shape: "square", area_km2: 3, words: "screen the Jackdaw platform", match: "named_place", reason: "found" });
+  const name = host.list[0].name;
+  const held = await t.exec("screen_site", { place: name, asset_type: "platform" });
+  assert.equal(held.run, undefined, "not screened before the person has seen it");
+  assert.match(held.not_yet, /haven't seen it/);
+  assert.match(held.next, /ask if it's the right place/);
+  assert.equal(screened.length, 0);
+  // Next message ("yes, that's it"): screened.
+  t.newTurn();
+  assert.equal((await t.exec("screen_site", { place: name, asset_type: "platform" })).run, "R1");
+  // Accepted with the card's button: screened, whatever the turn.
+  await t.exec("make_place", { anchor: c.id, shape: "square", area_km2: 5, words: "5 km² round Jackdaw", match: "named_place", reason: "found" });
+  host.list[1].status = "accepted";
+  assert.equal((await t.exec("screen_site", { place: host.list[1].name, asset_type: "platform" })).run, "R2");
+  // Typed coordinates are the person's own: screened at once.
+  const typed = await t.exec("find_place", { query: "55.522759, -5.650122" });
+  await t.exec("make_place", { anchor: typed.candidates[0].id, shape: "point", words: "screen 55.522759, -5.650122", match: "named_place", reason: "typed" });
+  assert.equal((await t.exec("screen_site", { place: host.list[2].name, asset_type: "other" })).run, "R3");
+  // A drawn place (not built by make_place) is screened at once too.
+  host.list.push({ name: "Area 9", feature: host.list[0].feature, origin: { method: "drawn" }, status: "drawn", edits: [] });
+  assert.equal((await t.exec("screen_site", { place: "Area 9", asset_type: "other" })).run, "R4");
+});
+
 console.log(`${passed} place tests passed`);

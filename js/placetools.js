@@ -180,7 +180,7 @@ export function placeToolDefs(skills) {
     },
     {
       name: "screen_site",
-      description: "Screen a place for environmental constraints and environmental and social (E&S) risk (themes: land and livelihoods, biodiversity, Indigenous Peoples, cultural heritage, community health and safety, operating context). Runs the screening method as its own sealed run with the data tools, then shows a run card (flags first, evidence on the map, the distances used with a slider, gaps) and returns the headline. Use it for any request to screen a site or ask what risks, sensitivities or constraints it raises. The place must already exist (find or build it first). Distances come from the asset type and size unless the person gives their own. Takes 30 to 90 seconds.",
+      description: "Screen a place for environmental constraints and environmental and social (E&S) risk (themes: land and livelihoods, biodiversity, Indigenous Peoples, cultural heritage, community health and safety, operating context). Runs the screening method as its own sealed run with the data tools, then shows a run card (flags first, evidence on the map, the distances used with a slider, gaps) and returns the headline. Use it for any request to screen a site or ask what risks, sensitivities or constraints it raises. The place must already exist (find or build it first). Distances come from the asset type and size unless the person gives their own. A place you built from their words in this turn isn't screened until they've seen it: show it and ask first. Takes 30 to 90 seconds.",
       input_schema: {
         type: "object",
         properties: {
@@ -226,6 +226,10 @@ export function createPlaceTools(host) {
   const cands = new Map();
   let n = 0;
   const keep = (c) => { const id = `C${++n}`; cands.set(id, { ...c, id }); return id; };
+  // Places built from words in the current turn: the person hasn't seen them yet, so they aren't screened until the
+  // person has looked (Rob, 24 Nov: "screen a warehouse location in Livingston" found Livingston and screened it at
+  // once). Typed coordinates are exempt: they're exactly what the person gave. The page calls newTurn() per message.
+  const unseen = new Set();
 
   const resolve = (ref) => {
     if (!ref) throw new Error("No anchor given.");
@@ -602,6 +606,7 @@ export function createPlaceTools(host) {
       // Replacing: add the new place first (so a failure leaves the old one), then remove the old one and let the new
       // one take its name unless a new name was given.
       const p = host.addPlace({ feature: f, origin, scale: i.scale, name: placeName(i, a, f), given: i.name ? String(i.name).replace(/\s+/g, " ").trim() : null });
+      if (!["typed", "transformed"].includes(a.cand?.source?.id)) unseen.add(p);
       if (old && host.removePlace) {
         const oldName = old.name;
         host.removePlace(oldName, { by: "analyst", reason: "replaced by a rebuilt place" });
@@ -738,6 +743,10 @@ export function createPlaceTools(host) {
     if (!host.screening) return { not_available: "Screening isn't connected here." };
     const p = host.findPlace(i.place);
     if (!p) throw new Error(`No place called "${i.place}". Find or build the site first.`);
+    if (unseen.has(p) && p.status === "proposed") return {
+      not_yet: `${p.name} was found from the person's words just now and they haven't seen it yet, so it wasn't screened.`,
+      next: "Show it: say in a line or two what it is (the anchor and its source, the size, the confidence, and whether it's a search area rather than the site itself), then ask if it's the right place. Keep what they asked for (what's planned, any distances) and screen as soon as they confirm. End your turn.",
+    };
     return host.screening.screen(i, p);
   };
   // Coordinate reference (EPSG registry via the Worker): js/epsgtools.js.
@@ -772,6 +781,7 @@ export function createPlaceTools(host) {
   return {
     candidates: cands,
     datasets: data.datasets,
+    newTurn: () => unseen.clear(),
     useDataset: data.keepDataset,
     async exec(name, input) {
       if (!run[name]) throw new Error(`Unknown tool ${name}`);

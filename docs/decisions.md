@@ -2,6 +2,22 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 24 Nov 2026 (night): a place found from words is shown before it's screened
+- **Rob:** "screen a warehouse location in Livingston" found Livingston and went straight into the screen. It should
+  stop and ask whether the place is right first.
+- **In code** (`screen_site` in `js/placetools.js`): a place `make_place` built from words in the current turn, still
+  a proposal, isn't screened. The tool returns `not_yet` and tells the analyst to show the place (anchor, size,
+  confidence, search area or not), ask, keep what was asked for and screen once the person confirms. The page calls
+  `tools.newTurn()` for each message, so a typed "yes", the card's "Use this area" or an asset-type pick all go ahead.
+  A code guard rather than only a prompt line, because the make_place result already said "ask the person" and Haiku
+  went past it when the request also asked for a screen.
+- **Exempt:** typed or transformed coordinates, drawn shapes and site files: they're the person's own definition.
+  (Judgement call: an authoritative match, e.g. a published red line found by name, is still asked about.)
+- **Skill:** place-finding 4.15, step 5 says the same, so the method holds outside this page.
+- **Tests:** `places.test.mjs` (held, then screened next turn, accepted, typed coordinates, drawn);
+  `browser-choice.mjs` (the Livingston message: no run card, `not_yet` to the analyst, "Not screened yet" in the
+  working-out). Both fail on the old code.
+
 ## 24 Nov 2026 (late evening): Rob's licence calls: Crown Estate, contamination, radon, lidar and bathymetry
 - **Rob:** The Crown Estate's wind licence is fine; contamination on by default (the atlas checked the EA licence);
   radon OK; lidar where it exists, and bathymetry.
