@@ -1,14 +1,15 @@
 {
-  "about": "Checks as data (plan item 1; design note claude/checks-design.md, agreed by Rob 23 Nov 2026). A check is one line on the report: a neutral topic, the layers that answer it in each region, the kind of answer, and how far it looks at each scale. The run carries out every check that applies, in code, before the analyst starts, and each comes back as found, none found, or not checked with the reason. Replaces 'baseline' in trusted.json. Version 2 (24 Nov): the UK statutory sites from the atlas's fixed records (22 Nov). Version 3 (24 Nov): the UK pack (23 Nov): heritage, landscape, flood, farmland, peat and the SSSI Impact Risk Zones. Edit by hand; js/checks.js reads it and test/checks.test.mjs and the invariants test check it. Version 4 (24 Nov): checks fetch only to their own reach; World Heritage Site buffer zones apart from the sites. Version 5 (24 Nov): the coverage drive (claude/coverage-audit-2026-11-24.md): OpenStreetMap checks for infrastructure and community receptors everywhere; coal mining risk, active faults, source protection zones; offshore installations, wind farms, wind leases and cables; Indigenous territories (indicative).",
-  "version": "5",
+  "about": "Checks as data (plan item 1; design note claude/checks-design.md, agreed by Rob 23 Nov 2026). A check is one line on the report: a neutral topic, the layers that answer it in each region, the kind of answer, and how far it looks at each scale. The run carries out every check that applies, in code, before the analyst starts, and each comes back as found, none found, or not checked with the reason. Replaces 'baseline' in trusted.json. Version 2 (24 Nov): the UK statutory sites from the atlas's fixed records (22 Nov). Version 3 (24 Nov): the UK pack (23 Nov): heritage, landscape, flood, farmland, peat and the SSSI Impact Risk Zones. Edit by hand; js/checks.js reads it and test/checks.test.mjs and the invariants test check it. Version 4 (24 Nov): checks fetch only to their own reach; World Heritage Site buffer zones apart from the sites. Version 5 (24 Nov): the coverage drive (claude/coverage-audit-2026-11-24.md): OpenStreetMap checks for infrastructure and community receptors everywhere; coal mining risk, active faults, source protection zones; offshore installations, wind farms, wind leases and cables; Indigenous territories (indicative). Version 6 (24 Nov, Rob's licence calls): contamination (landfill, closed mining waste, council records, NI past land use, permitted sites, pollution incidents, the US EPA layers), radon, more Crown Estate leases and agreements, subsea pipelines.",
+  "version": "6",
   "fields": {
     "answer": "count_by_band (features per distance band, plus the nearest), value_at_site (a reading over the site: elevation, depth, traffic) or inside (whether the site is inside or touching one), or classes (which classes are on the site, with the share they cover, and the nearest of each within reach: flood zones, farmland grade, peat)",
     "reach_km": "how far the check looks at each scale, from the footprint edge. null means the check doesn't apply at that scale. Value checks have no reach (they read the site). Reach values are a first cut from research-reach-evidence.md, defaults to tune on the example sites.",
     "applies": "setting: any, land (onshore), offshore, sea (offshore or the coast within reach), or land_or_coast (onshore, or offshore with the coast within the check's own reach: heritage and landscape seen from the sea). where: a [west, south, east, north] box the site must overlap for the check to apply at all (e.g. tropical coral reefs); without it, the check applies everywhere in that setting. countries: on land, the site must be in one of these (UK-only checks); at sea the box decides.",
     "must": "a check whose topic can't be called clear without it; drives the decision rule (js/industry.js settleDecision)",
-    "sources": "Per region. Every source that covers what the check's reach can touch is used, and the results are merged (a site near a border needs both nations' layers). countries (onshore: the site must be in one), not_countries, and where (a box the site's box, grown by the reach, must overlap; offshore sites match on the box). atlas_id: an AI Living World Atlas record; record holds its title, publisher and licence as the atlas gave them on as_of (the atlas contract has no record-by-id lookup). name_field: the attribute holding the feature's name. code_field: a site code, so the same site in two layers counts once. filter: keep only features whose field has one of these values (JNCC's offshore layer holds several designations). supplementary: its absence doesn't stop a 'none found' when another source answered. tool: a Tobler tool instead of an atlas layer (boundaries, elevation, depth, traffic). setting: as for applies, for one source (JNCC's offshore layer only at sea). pending: a layer we know exists but can't use yet. If no source covers the site, the answer is not checked: no source for this region. class_field and classes: the field that holds a class, and its values mapped to labels (values not mapped are left out); class_prefix instead of a map; class: a layer that is one class. keep_fields: more attributes to keep on each feature (a grade). dense: a layer with many features (listed buildings), fetched only to the check's own reach so the 100-feature limit doesn't cut the count; class and inside checks always fetch only to their own reach. where_any: several boxes, any of which will do (the rough nation outlines in regions). name_filter: include or exclude features whose name matches (case-insensitive), e.g. buffer zones. detail_prefix: put before a kept field in the card's list (Grade, Category). osm: an OpenStreetMap kind (js/osmchecks.js OSM_KINDS), fetched in one Overpass query per run; completeness varies, so never a must-check.",
+    "sources": "Per region. Every source that covers what the check's reach can touch is used, and the results are merged (a site near a border needs both nations' layers). countries (onshore: the site must be in one), not_countries, and where (a box the site's box, grown by the reach, must overlap; offshore sites match on the box). atlas_id: an AI Living World Atlas record; record holds its title, publisher and licence as the atlas gave them on as_of (the atlas contract has no record-by-id lookup). name_field: the attribute holding the feature's name. code_field: a site code, so the same site in two layers counts once. filter: keep only features whose field has one of these values (JNCC's offshore layer holds several designations). supplementary: its absence doesn't stop a 'none found' when another source answered. tool: a Tobler tool instead of an atlas layer (boundaries, elevation, depth, traffic). setting: as for applies, for one source (JNCC's offshore layer only at sea). pending: a layer we know exists but can't use yet. If no source covers the site, the answer is not checked: no source for this region. class_field and classes: the field that holds a class, and its values mapped to labels (values not mapped are left out); class_prefix instead of a map; class: a layer that is one class. keep_fields: more attributes to keep on each feature (a grade). dense: a layer with many features (listed buildings), fetched only to the check's own reach so the 100-feature limit doesn't cut the count; class and inside checks always fetch only to their own reach. where_any: several boxes, any of which will do (the rough nation outlines in regions). name_filter: include or exclude features whose name matches (case-insensitive), e.g. buffer zones. detail_prefix: put before a kept field in the card's list (Grade, Category). osm: an OpenStreetMap kind (js/osmchecks.js OSM_KINDS), fetched in one Overpass query per run; completeness varies, so never a must-check. partial: this source covers only part of what it's about (a few councils, EPA-funded brownfields); its silence never reads as a clear none, and the line says which records were read.",
     "decode": "irz: an inside check whose zones are read for the development (catalogue/sssi_irz_codes.json; the profile's irz_categories by asset type)",
-    "class_order": "classes, most significant first (a label starting with one of these)"
+    "class_order": "classes, most significant first (a label starting with one of these)",
+    "caveat": "A line shown once on the card and in the report whenever this check runs (the contamination checks: an early screen of open records, not a contaminated land report)."
   },
   "scales": {
     "about": "Distance bands per scale (agreed 23 Nov; docs/conceptual-model.md). Until plan item 3 puts them in the profile, the run picks the scale from the screening distances already chosen (js/checks.js screenScale).",
@@ -1390,6 +1391,236 @@
       ]
     },
     {
+      "id": "community.radon",
+      "topic": "community-health",
+      "label": "Radon potential",
+      "answer": "classes",
+      "reach_km": {
+        "local": 0,
+        "regional": 0,
+        "global": null
+      },
+      "reach_why": "The land the site takes: in higher classes, new homes and workplaces need radon protection; class 2 and above, measurement is advised.",
+      "applies": {
+        "setting": "land",
+        "where": [
+          -14.0,
+          49.8,
+          2.5,
+          61.0
+        ],
+        "countries": [
+          "United Kingdom"
+        ]
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "UK",
+          "atlas_id": "3f1f871836efd2da",
+          "record": {
+            "title": "Maximum radon potential, 1 km grid, UK and Isle of Man (UK Health Security Agency)",
+            "publisher": "UK Health Security Agency",
+            "licence": "Open Government Licence (accepted, Rob, 24 Nov 2026)",
+            "as_of": "2026-11-24"
+          },
+          "class_field": "CLASS_MAX",
+          "classes": {
+            "1": "Class 1 (under 1% of homes at or above the Action Level)",
+            "2": "Class 2 (1–3%)",
+            "3": "Class 3 (3–5%)",
+            "4": "Class 4 (5–10%)",
+            "5": "Class 5 (10–30%)",
+            "6": "Class 6 (over 30%)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "air.permitted-sites",
+      "topic": "air-climate",
+      "label": "Permitted industrial and waste sites",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0.5,
+        "regional": 1,
+        "global": null
+      },
+      "reach_why": "Sources of emissions, odour and noise near the site, and of past contamination.",
+      "applies": {
+        "setting": "land",
+        "where": [
+          -14.0,
+          49.8,
+          2.5,
+          61.0
+        ],
+        "countries": [
+          "United Kingdom"
+        ]
+      },
+      "must": false,
+      "caveat": "An early screen of open records, not a contaminated land report. If anything here matters, the next step is a full environmental search.",
+      "sources": [
+        {
+          "region": "Scotland",
+          "atlas_id": "b32daeca2c368112",
+          "record": {
+            "title": "Granted authorisations, Scotland (SEPA)",
+            "publisher": "Scottish Environment Protection Agency",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "authorisation_description",
+          "code_field": "authorisation_no",
+          "keep_fields": [
+            "authorisation_level"
+          ],
+          "filter": {
+            "field": "regulatory_area",
+            "values": [
+              "Industrial Activities",
+              "Waste",
+              "Radioactive Substances"
+            ]
+          },
+          "where_any": [
+            [
+              -9.0,
+              54.6,
+              -0.6,
+              61.0
+            ]
+          ]
+        },
+        {
+          "region": "England",
+          "pending": "the Environment Agency publishes permits only as downloads, not as a service",
+          "where_any": [
+            [
+              -6.5,
+              49.85,
+              1.8,
+              51.38
+            ],
+            [
+              -2.72,
+              51.38,
+              1.8,
+              54.58
+            ],
+            [
+              -3.65,
+              53.3,
+              -2.72,
+              54.58
+            ],
+            [
+              -3.1,
+              54.58,
+              -1.45,
+              55.81
+            ]
+          ]
+        },
+        {
+          "region": "Wales",
+          "pending": "Natural Resources Wales doesn't grant re-use of its full data (a redacted copy under its own licence): not used until Rob decides",
+          "where_any": [
+            [
+              -5.7,
+              51.38,
+              -2.72,
+              53.45
+            ]
+          ]
+        },
+        {
+          "region": "Northern Ireland",
+          "pending": "no permitted-sites layer for Northern Ireland in Tobler's data (trade discharge consents aren't used yet)",
+          "where_any": [
+            [
+              -8.2,
+              54.0,
+              -5.4,
+              55.4
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "air.us-emission-sources",
+      "topic": "air-climate",
+      "label": "Toxic release and major air emission sources (EPA)",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0.5,
+        "regional": 1,
+        "global": null
+      },
+      "reach_why": "Facilities reporting toxic releases or holding major air permits near the site.",
+      "applies": {
+        "setting": "land",
+        "where": [
+          -180.0,
+          13.0,
+          -60.0,
+          72.0
+        ],
+        "countries": [
+          "United States of America",
+          "United States"
+        ]
+      },
+      "must": false,
+      "caveat": "An early screen of open records, not a contaminated land report. If anything here matters, the next step is a full environmental search.",
+      "sources": [
+        {
+          "region": "United States",
+          "where": [
+            -180.0,
+            13.0,
+            -60.0,
+            72.0
+          ],
+          "atlas_id": "287038202610ca08",
+          "record": {
+            "title": "Toxics Release Inventory reporting facilities (EPA)",
+            "publisher": "U.S. Environmental Protection Agency",
+            "licence": "Public domain (US federal work; U.S. Environmental Protection Agency)",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "PRIMARY_NAME",
+          "code_field": "REGISTRY_ID"
+        },
+        {
+          "region": "United States",
+          "where": [
+            -180.0,
+            13.0,
+            -60.0,
+            72.0
+          ],
+          "atlas_id": "41198ffb356b4b40",
+          "record": {
+            "title": "Air emission sources in EPA's compliance system (EPA, ICIS-Air)",
+            "publisher": "U.S. Environmental Protection Agency",
+            "licence": "Public domain (US federal work; U.S. Environmental Protection Agency)",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "PRIMARY_NAME",
+          "code_field": "REGISTRY_ID",
+          "filter": {
+            "field": "INTEREST_TYPE",
+            "values": [
+              "AIR MAJOR"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "id": "hazards.coal-mining",
       "topic": "hazards",
       "label": "Coal mining: development high risk area",
@@ -1899,17 +2130,74 @@
           "record": {
             "title": "Wind Site Agreements (England, Wales & NI), The Crown Estate",
             "publisher": "The Crown Estate",
-            "licence": "The Crown Estate Open Data Licence (GIS) v1.1: check its terms before commercial use",
+            "licence": "The Crown Estate Open Data Licence (GIS) v1.1 (accepted for use, Rob, 24 Nov 2026)",
             "as_of": "2026-11-24"
           },
           "name_field": "Name_Prop"
+        },
+        {
+          "region": "Scotland's seas",
+          "where": [
+            -14.0,
+            54.6,
+            2.0,
+            62.0
+          ],
+          "atlas_id": "d769096b70ee72bb",
+          "record": {
+            "title": "ScotWind Offers (Crown Estate Scotland)",
+            "publisher": "Crown Estate Scotland",
+            "licence": "Open Government Licence (Crown Estate Scotland Spatial Hub)",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "Lead_App",
+          "keep_fields": [
+            "Technology"
+          ]
+        },
+        {
+          "region": "Scotland's seas",
+          "where": [
+            -14.0,
+            54.6,
+            2.0,
+            62.0
+          ],
+          "atlas_id": "2b0ba4d2646c0a50",
+          "record": {
+            "title": "INTOG Application Areas (Crown Estate Scotland)",
+            "publisher": "Crown Estate Scotland",
+            "licence": "Open Government Licence (Crown Estate Scotland Spatial Hub)",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "Lead_App",
+          "keep_fields": [
+            "Technology"
+          ]
+        },
+        {
+          "region": "England, Wales and Northern Ireland seas",
+          "where": [
+            -11.0,
+            48.0,
+            4.0,
+            56.0
+          ],
+          "atlas_id": "b19662f3493ef9a3",
+          "record": {
+            "title": "Offshore Wind Leasing Round 5 - Project Development Areas (The Crown Estate)",
+            "publisher": "The Crown Estate",
+            "licence": "The Crown Estate Open Data Licence (GIS) v1.1 (accepted for use, Rob, 24 Nov 2026)",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "Name"
         }
       ]
     },
     {
       "id": "material.cables",
       "topic": "material-assets",
-      "label": "Subsea cables",
+      "label": "Subsea cables and cable agreements",
       "answer": "count_by_band",
       "reach_km": {
         "local": null,
@@ -1945,8 +2233,114 @@
           }
         },
         {
-          "region": "UK power cables",
-          "pending": "UK power cables (interconnectors, wind export cables) aren't in Tobler's data yet; asked of the atlas",
+          "region": "England, Wales and Northern Ireland seas",
+          "where": [
+            -11.0,
+            48.0,
+            4.0,
+            56.0
+          ],
+          "atlas_id": "0db236263e88622b",
+          "record": {
+            "title": "Wind Cable Agreements (England, Wales & NI), The Crown Estate",
+            "publisher": "The Crown Estate",
+            "licence": "The Crown Estate Open Data Licence (GIS) v1.1 (accepted for use, Rob, 24 Nov 2026)",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "Name_Prop",
+          "keep_fields": [
+            "Infra_Stat"
+          ]
+        },
+        {
+          "region": "Scotland's seas",
+          "where": [
+            -14.0,
+            54.6,
+            2.0,
+            62.0
+          ],
+          "atlas_id": "16a401bb82d4d010",
+          "record": {
+            "title": "Cables (Crown Estate Scotland)",
+            "publisher": "Crown Estate Scotland",
+            "licence": "Open Government Licence (Crown Estate Scotland Spatial Hub)",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "Lease_Description"
+        },
+        {
+          "region": "UK power cables (interconnectors)",
+          "pending": "UK interconnectors outside Crown Estate agreements aren't in Tobler's data yet; asked of the atlas",
+          "where": [
+            -14.0,
+            48.0,
+            4.0,
+            62.0
+          ],
+          "supplementary": true
+        }
+      ]
+    },
+    {
+      "id": "material.subsea-pipelines",
+      "topic": "material-assets",
+      "label": "Subsea pipelines and pipeline agreements",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": null,
+        "regional": 2,
+        "global": 10
+      },
+      "reach_why": "Crossing agreements and separation distances for new cables, foundations and anchoring.",
+      "applies": {
+        "setting": "sea",
+        "where": [
+          -14.0,
+          48.0,
+          4.0,
+          62.0
+        ]
+      },
+      "must": false,
+      "sources": [
+        {
+          "region": "Scotland's seas",
+          "where": [
+            -14.0,
+            54.6,
+            2.0,
+            62.0
+          ],
+          "atlas_id": "c026fa004eab396c",
+          "record": {
+            "title": "Pipelines (Crown Estate Scotland)",
+            "publisher": "Crown Estate Scotland",
+            "licence": "Open Government Licence (Crown Estate Scotland Spatial Hub)",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "Lease_Description"
+        },
+        {
+          "region": "England, Wales and Northern Ireland seas",
+          "where": [
+            -11.0,
+            48.0,
+            4.0,
+            56.0
+          ],
+          "atlas_id": "d562171a3698a42b",
+          "record": {
+            "title": "Natural Gas Storage Pipeline Agreements (England, Wales & NI), The Crown Estate",
+            "publisher": "The Crown Estate",
+            "licence": "The Crown Estate Open Data Licence (GIS) v1.1 (accepted for use, Rob, 24 Nov 2026)",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "Name_Prop"
+        },
+        {
+          "region": "UK oil and gas pipelines",
+          "pending": "the North Sea Transition Authority's pipelines aren't in Tobler's data yet; asked of the atlas",
           "where": [
             -14.0,
             48.0,
@@ -3965,6 +4359,157 @@
       ]
     },
     {
+      "id": "water.pollution-incidents",
+      "topic": "water",
+      "label": "Water pollution incidents",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0.5,
+        "regional": 1,
+        "global": null
+      },
+      "reach_why": "Where pollution has reached water nearby: a pointer to sources and pathways.",
+      "applies": {
+        "setting": "land",
+        "where": [
+          -14.0,
+          49.8,
+          2.5,
+          61.0
+        ],
+        "countries": [
+          "United Kingdom"
+        ]
+      },
+      "must": false,
+      "caveat": "An early screen of open records, not a contaminated land report. If anything here matters, the next step is a full environmental search.",
+      "sources": [
+        {
+          "region": "Northern Ireland",
+          "atlas_id": "ca262452381e06c6",
+          "record": {
+            "title": "Confirmed water pollution incidents per 1 km square, 2011-2024, Northern Ireland (DAERA)",
+            "publisher": "Department of Agriculture, Environment and Rural Affairs",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-24"
+          },
+          "code_field": "gridsq",
+          "keep_fields": [
+            "totals"
+          ],
+          "where_any": [
+            [
+              -8.2,
+              54.0,
+              -5.4,
+              55.4
+            ]
+          ]
+        },
+        {
+          "region": "England",
+          "pending": "the Environment Agency publishes incidents only as downloads",
+          "where_any": [
+            [
+              -6.5,
+              49.85,
+              1.8,
+              51.38
+            ],
+            [
+              -2.72,
+              51.38,
+              1.8,
+              54.58
+            ],
+            [
+              -3.65,
+              53.3,
+              -2.72,
+              54.58
+            ],
+            [
+              -3.1,
+              54.58,
+              -1.45,
+              55.81
+            ]
+          ]
+        },
+        {
+          "region": "Wales",
+          "pending": "Natural Resources Wales publishes incidents only as a download",
+          "where_any": [
+            [
+              -5.7,
+              51.38,
+              -2.72,
+              53.45
+            ]
+          ]
+        },
+        {
+          "region": "Scotland",
+          "pending": "no pollution incident layer for Scotland",
+          "where_any": [
+            [
+              -9.0,
+              54.6,
+              -0.6,
+              61.0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "water.us-discharges",
+      "topic": "water",
+      "label": "Major water discharge permits (EPA)",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0.5,
+        "regional": 1,
+        "global": null
+      },
+      "reach_why": "Permitted discharges to water near the site.",
+      "applies": {
+        "setting": "land",
+        "where": [
+          -180.0,
+          13.0,
+          -60.0,
+          72.0
+        ],
+        "countries": [
+          "United States of America",
+          "United States"
+        ]
+      },
+      "must": false,
+      "caveat": "An early screen of open records, not a contaminated land report. If anything here matters, the next step is a full environmental search.",
+      "sources": [
+        {
+          "region": "United States",
+          "where": [
+            -180.0,
+            13.0,
+            -60.0,
+            72.0
+          ],
+          "atlas_id": "33493d9c2306128a",
+          "record": {
+            "title": "Major water discharge permits (EPA, NPDES major)",
+            "publisher": "U.S. Environmental Protection Agency",
+            "licence": "Public domain (US federal work; U.S. Environmental Protection Agency)",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "PRIMARY_NAME",
+          "code_field": "REGISTRY_ID"
+        }
+      ]
+    },
+    {
       "id": "land.farmland-grade",
       "topic": "land-use",
       "label": "Farmland grade",
@@ -4306,6 +4851,596 @@
         "Class 2",
         "Class 5",
         "Class 3"
+      ]
+    },
+    {
+      "id": "ground.landfill",
+      "topic": "ground-soil",
+      "label": "Landfill (historic and authorised)",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0.25,
+        "regional": 1,
+        "global": null
+      },
+      "reach_why": "Landfill gas and leachate can travel a few hundred metres; established practice screens to 250 m, and to 1 km for larger sites.",
+      "applies": {
+        "setting": "land",
+        "where": [
+          -14.0,
+          49.8,
+          2.5,
+          61.0
+        ],
+        "countries": [
+          "United Kingdom"
+        ]
+      },
+      "must": false,
+      "caveat": "An early screen of open records, not a contaminated land report. If anything here matters, the next step is a full environmental search.",
+      "sources": [
+        {
+          "region": "England",
+          "atlas_id": "3a4c49302d01deb3",
+          "record": {
+            "title": "Historic Landfill Sites, England (Environment Agency)",
+            "publisher": "Environment Agency",
+            "licence": "Environment Agency Conditional Licence (accepted for screening, Rob, 24 Nov 2026: site names and dates only, no personal fields; re-read by Nov 2027)",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "site_name",
+          "code_field": "hld_ref",
+          "where_any": [
+            [
+              -6.5,
+              49.85,
+              1.8,
+              51.38
+            ],
+            [
+              -2.72,
+              51.38,
+              1.8,
+              54.58
+            ],
+            [
+              -3.65,
+              53.3,
+              -2.72,
+              54.58
+            ],
+            [
+              -3.1,
+              54.58,
+              -1.45,
+              55.81
+            ]
+          ]
+        },
+        {
+          "region": "England",
+          "atlas_id": "7c9fa9e8c48a162a",
+          "record": {
+            "title": "Authorised Landfill Site Boundaries, England (Environment Agency)",
+            "publisher": "Environment Agency",
+            "licence": "Environment Agency Conditional Licence (accepted for screening, Rob, 24 Nov 2026: site names and dates only, no personal fields; re-read by Nov 2027)",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "site_name",
+          "code_field": "lic_nmbr",
+          "keep_fields": [
+            "status"
+          ],
+          "where_any": [
+            [
+              -6.5,
+              49.85,
+              1.8,
+              51.38
+            ],
+            [
+              -2.72,
+              51.38,
+              1.8,
+              54.58
+            ],
+            [
+              -3.65,
+              53.3,
+              -2.72,
+              54.58
+            ],
+            [
+              -3.1,
+              54.58,
+              -1.45,
+              55.81
+            ]
+          ]
+        },
+        {
+          "region": "Wales",
+          "pending": "Natural Resources Wales doesn't grant re-use of its full data (a redacted copy under its own licence): not used until Rob decides",
+          "where_any": [
+            [
+              -5.7,
+              51.38,
+              -2.72,
+              53.45
+            ]
+          ]
+        },
+        {
+          "region": "Scotland",
+          "pending": "Scotland has no national landfill layer (SEPA's permits are under permitted sites)",
+          "where_any": [
+            [
+              -9.0,
+              54.6,
+              -0.6,
+              61.0
+            ]
+          ]
+        },
+        {
+          "region": "Northern Ireland",
+          "pending": "no national landfill layer for Northern Ireland (see historical land use)",
+          "where_any": [
+            [
+              -8.2,
+              54.0,
+              -5.4,
+              55.4
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ground.mining-waste",
+      "topic": "ground-soil",
+      "label": "Closed mining waste facilities",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0.25,
+        "regional": 1,
+        "global": null
+      },
+      "reach_why": "Spoil heaps and tailings: instability and contaminated run-off near the site.",
+      "applies": {
+        "setting": "land",
+        "where": [
+          -14.0,
+          49.8,
+          2.5,
+          61.0
+        ],
+        "countries": [
+          "United Kingdom"
+        ]
+      },
+      "must": false,
+      "caveat": "An early screen of open records, not a contaminated land report. If anything here matters, the next step is a full environmental search.",
+      "sources": [
+        {
+          "region": "England",
+          "atlas_id": "7719defbb5b780ef",
+          "record": {
+            "title": "Inventory of Closed Mining Waste Facilities, England (Environment Agency)",
+            "publisher": "Environment Agency",
+            "licence": "Licence not stated by the publisher",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "name",
+          "code_field": "urn",
+          "keep_fields": [
+            "mine_type"
+          ],
+          "where_any": [
+            [
+              -6.5,
+              49.85,
+              1.8,
+              51.38
+            ],
+            [
+              -2.72,
+              51.38,
+              1.8,
+              54.58
+            ],
+            [
+              -3.65,
+              53.3,
+              -2.72,
+              54.58
+            ],
+            [
+              -3.1,
+              54.58,
+              -1.45,
+              55.81
+            ]
+          ]
+        },
+        {
+          "region": "Wales",
+          "atlas_id": "4f4d8e01d0678a76",
+          "record": {
+            "title": "Inventory of Closed Mining Waste Facilities, Wales (Natural Resources Wales)",
+            "publisher": "Natural Resources Wales",
+            "licence": "Open Government Licence",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "NAME",
+          "code_field": "URN",
+          "keep_fields": [
+            "MINE_TYPE"
+          ],
+          "where_any": [
+            [
+              -5.7,
+              51.38,
+              -2.72,
+              53.45
+            ]
+          ]
+        },
+        {
+          "region": "Scotland",
+          "pending": "no closed mining waste inventory for Scotland in Tobler's data",
+          "where_any": [
+            [
+              -9.0,
+              54.6,
+              -0.6,
+              61.0
+            ]
+          ]
+        },
+        {
+          "region": "Northern Ireland",
+          "pending": "no closed mining waste inventory for Northern Ireland in Tobler's data",
+          "where_any": [
+            [
+              -8.2,
+              54.0,
+              -5.4,
+              55.4
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ground.council-records",
+      "topic": "ground-soil",
+      "label": "Council contaminated land records",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0.25,
+        "regional": 0.5,
+        "global": null
+      },
+      "reach_why": "Councils' own records of possibly contaminated land. Only a few councils publish them, so the check applies only inside those councils (elsewhere the caveat's next step, a full environmental search, covers it), and inside them silence isn't a clear answer.",
+      "applies": {
+        "setting": "land",
+        "where_any": [
+          [
+            -1.56,
+            52.86,
+            -1.39,
+            52.97
+          ],
+          [
+            -0.155,
+            51.41,
+            -0.075,
+            51.51
+          ],
+          [
+            -0.155,
+            51.41,
+            -0.075,
+            51.51
+          ],
+          [
+            -1.8,
+            53.3,
+            -1.32,
+            53.5
+          ],
+          [
+            -3.92,
+            56.05,
+            -3.58,
+            56.2
+          ]
+        ],
+        "countries": [
+          "United Kingdom"
+        ]
+      },
+      "must": false,
+      "caveat": "An early screen of open records, not a contaminated land report. If anything here matters, the next step is a full environmental search.",
+      "sources": [
+        {
+          "region": "Derby",
+          "where": [
+            -1.56,
+            52.86,
+            -1.39,
+            52.97
+          ],
+          "atlas_id": "5ef41092de2010de",
+          "record": {
+            "title": "Potentially Contaminated Sites, Derby (Derby City Council)",
+            "publisher": "Derby City Council",
+            "licence": "Licence not stated by the publisher",
+            "as_of": "2026-11-24"
+          },
+          "keep_fields": [
+            "Land_Use"
+          ],
+          "partial": "Derby City Council's potentially contaminated sites"
+        },
+        {
+          "region": "Lambeth",
+          "where": [
+            -0.155,
+            51.41,
+            -0.075,
+            51.51
+          ],
+          "atlas_id": "164c454dced356b7",
+          "record": {
+            "title": "Contaminated Land (Possible), Lambeth (London Borough of Lambeth)",
+            "publisher": "London Borough of Lambeth",
+            "licence": "Licence not stated by the publisher",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "ADDRESS_1",
+          "keep_fields": [
+            "DESCRIPTION"
+          ],
+          "partial": "Lambeth's possible contaminated land"
+        },
+        {
+          "region": "Lambeth",
+          "where": [
+            -0.155,
+            51.41,
+            -0.075,
+            51.51
+          ],
+          "atlas_id": "ac1475ee668c32b4",
+          "record": {
+            "title": "Historic Landfill Sites, Lambeth (London Borough of Lambeth)",
+            "publisher": "London Borough of Lambeth",
+            "licence": "Licence not stated by the publisher",
+            "as_of": "2026-11-24"
+          },
+          "partial": "Lambeth's historic landfill"
+        },
+        {
+          "region": "Sheffield",
+          "where": [
+            -1.8,
+            53.3,
+            -1.32,
+            53.5
+          ],
+          "atlas_id": "8d25d1f7b39def53",
+          "record": {
+            "title": "Contaminated Land register, Sheffield (Sheffield City Council)",
+            "publisher": "Sheffield City Council",
+            "licence": "Ordnance Survey INSPIRE end user licence",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "site_name",
+          "partial": "Sheffield's contaminated land register"
+        },
+        {
+          "region": "Clackmannanshire",
+          "where": [
+            -3.92,
+            56.05,
+            -3.58,
+            56.2
+          ],
+          "atlas_id": "e310e4158da08197",
+          "record": {
+            "title": "Potentially Contaminated Land, Clackmannanshire (Clackmannanshire Council)",
+            "publisher": "Clackmannanshire Council",
+            "licence": "Licence not stated by the publisher",
+            "as_of": "2026-11-24"
+          },
+          "partial": "Clackmannanshire Council's potentially contaminated land"
+        }
+      ]
+    },
+    {
+      "id": "ground.ni-land-use",
+      "topic": "ground-soil",
+      "label": "Past land use (Northern Ireland)",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0.25,
+        "regional": 1,
+        "global": null
+      },
+      "reach_why": "Past industrial and other uses that can leave contamination; a list of past uses, not of contamination.",
+      "applies": {
+        "setting": "land",
+        "where": [
+          -8.2,
+          54.0,
+          -5.4,
+          55.4
+        ],
+        "countries": [
+          "United Kingdom"
+        ]
+      },
+      "must": false,
+      "caveat": "An early screen of open records, not a contaminated land report. If anything here matters, the next step is a full environmental search.",
+      "sources": [
+        {
+          "region": "Northern Ireland",
+          "atlas_id": "ecea8189ad7c042f",
+          "record": {
+            "title": "Historical Land Use Database, Northern Ireland (NIEA)",
+            "publisher": "Northern Ireland Environment Agency",
+            "licence": "Open Government Licence v3.0",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "Descriptio",
+          "code_field": "Site_ID",
+          "where_any": [
+            [
+              -8.2,
+              54.0,
+              -5.4,
+              55.4
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ground.us-superfund",
+      "topic": "ground-soil",
+      "label": "Superfund sites (EPA)",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0.25,
+        "regional": 1,
+        "global": null
+      },
+      "reach_why": "Federal cleanup sites near the site; state cleanup lists aren't in EPA's records.",
+      "applies": {
+        "setting": "land",
+        "where": [
+          -180.0,
+          13.0,
+          -60.0,
+          72.0
+        ],
+        "countries": [
+          "United States of America",
+          "United States"
+        ]
+      },
+      "must": false,
+      "caveat": "An early screen of open records, not a contaminated land report. If anything here matters, the next step is a full environmental search.",
+      "sources": [
+        {
+          "region": "United States",
+          "where": [
+            -180.0,
+            13.0,
+            -60.0,
+            72.0
+          ],
+          "atlas_id": "a1a721163c4fb225",
+          "record": {
+            "title": "Superfund sites, NPL and non-NPL (EPA, SEMS)",
+            "publisher": "U.S. Environmental Protection Agency",
+            "licence": "Public domain (US federal work; U.S. Environmental Protection Agency)",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "PRIMARY_NAME",
+          "code_field": "REGISTRY_ID",
+          "keep_fields": [
+            "INTEREST_TYPE"
+          ],
+          "partial": "EPA's federal records (state cleanup sites aren't in them)"
+        }
+      ]
+    },
+    {
+      "id": "ground.us-cleanup",
+      "topic": "ground-soil",
+      "label": "Other cleanup and hazardous waste sites (EPA)",
+      "answer": "count_by_band",
+      "reach_km": {
+        "local": 0.25,
+        "regional": 1,
+        "global": null
+      },
+      "reach_why": "Brownfields, RCRA corrective action and hazardous waste facilities near the site.",
+      "applies": {
+        "setting": "land",
+        "where": [
+          -180.0,
+          13.0,
+          -60.0,
+          72.0
+        ],
+        "countries": [
+          "United States of America",
+          "United States"
+        ]
+      },
+      "must": false,
+      "caveat": "An early screen of open records, not a contaminated land report. If anything here matters, the next step is a full environmental search.",
+      "sources": [
+        {
+          "region": "United States",
+          "where": [
+            -180.0,
+            13.0,
+            -60.0,
+            72.0
+          ],
+          "atlas_id": "07c5b1364a229296",
+          "record": {
+            "title": "Hazardous waste treatment, storage and disposal facilities (EPA, RCRA TSD)",
+            "publisher": "U.S. Environmental Protection Agency",
+            "licence": "Public domain (US federal work; U.S. Environmental Protection Agency)",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "PRIMARY_NAME",
+          "code_field": "REGISTRY_ID"
+        },
+        {
+          "region": "United States",
+          "where": [
+            -180.0,
+            13.0,
+            -60.0,
+            72.0
+          ],
+          "atlas_id": "85b4bdc7c49e5055",
+          "record": {
+            "title": "Brownfield properties with EPA grant funding (EPA, ACRES)",
+            "publisher": "U.S. Environmental Protection Agency",
+            "licence": "Public domain (US federal work; U.S. Environmental Protection Agency)",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "PRIMARY_NAME",
+          "code_field": "REGISTRY_ID",
+          "partial": "EPA-funded brownfields only"
+        },
+        {
+          "region": "United States",
+          "where": [
+            -180.0,
+            13.0,
+            -60.0,
+            72.0
+          ],
+          "atlas_id": "8427fb0a7235a865",
+          "record": {
+            "title": "RCRA corrective action site boundaries (EPA)",
+            "publisher": "U.S. Environmental Protection Agency",
+            "licence": "Public domain (US federal work; U.S. Environmental Protection Agency)",
+            "as_of": "2026-11-24"
+          },
+          "name_field": "HANDLER_NAME",
+          "code_field": "HANDLER_ID",
+          "partial": "RCRA boundaries for EPA Regions 1, 3, 4, 7 and 10 only"
+        }
       ]
     },
     {

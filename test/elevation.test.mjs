@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as turf from "../js/vendor/turf.js";
 import * as R from "../js/reference.js";
-import { toElevation, elevationOver, elevationFrom, depthFrom, elevationSignificance, elevationLine, elevationShort } from "../js/elevation.js";
+import { toElevation, elevationOver, elevationFrom, sourceServes, depthFrom, elevationSignificance, elevationLine, elevationShort } from "../js/elevation.js";
 import { createPlaceTools } from "../js/placetools.js";
 
 const trusted = JSON.parse(readFileSync(new URL("../catalogue/trusted.json", import.meta.url), "utf8"));
-const NOAA = trusted.values.elevation[0];
+const NOAA = trusted.values.elevation.find((x) => /NOAA/.test(x.publisher));
 const json = (o) => ({ ok: true, status: 200, json: async () => o, text: async () => JSON.stringify(o) });
 const samples = (vals, extra = {}) => json({ samples: vals.map((v, i) => ({ locationId: i, value: String(v), resolution: 0.0041666, attributes: { Name: "ETOPO_2022_v1_15s_surface_elev" }, ...extra })) });
 const box = turf.bboxPolygon([1.4, 57.4, 1.6, 57.6]);
@@ -93,7 +93,8 @@ assert.match(elevationLine(E(3776, 3700, 3900), elevationSignificance(E(3776, 37
   assert.deepEqual(sea.elevation_m.typical, -150);
   assert.deepEqual(sea.water_depth_m, { typical: 150, shallowest: 140, deepest: 160 });
   assert.equal(sea.notable, undefined);
-  assert.match(sea.licence, /public domain/);
+  // All seabed from the land pass, so it's read again from EMODnet bathymetry (24 Nov).
+  assert.match(sea.licence, /EMODnet \(CC BY 4\.0\)/);
   next = [3700, 3776, 3900];
   const high = await tools.exec("get_elevation", { place: "La Paz" });
   assert.equal(high.water_depth_m, undefined);
@@ -102,6 +103,35 @@ assert.match(elevationLine(E(3776, 3700, 3900), elevationSignificance(E(3776, 37
   const mixed = await tools.exec("get_elevation", { place: "La Paz" });
   assert.match(mixed.water_depth_m, /may be sea, or land below sea level/);
   await assert.rejects(() => tools.exec("get_elevation", { place: "Nowhere" }), /isn.t a candidate id from this conversation or a place name/);
+}
+
+{
+  // National lidar first, where it covers the place (24 Nov): England's 1 m lidar for a site in England, falling through
+  // to the global model where the lidar has a gap; the bathymetry model never answers for a site on land.
+  const trusted = JSON.parse(readFileSync(new URL("../catalogue/trusted.json", import.meta.url), "utf8"));
+  const srcs = trusted.values.elevation;
+  assert.deepEqual(srcs.map((x) => x.serves || "both").slice(0, 3), ["land", "land", "sea"]);
+  const lin = { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [-3.6, 55.98] } }; // Linlithgow, Scotland
+  const peterborough = { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [-0.45, 52.69] } };
+  const dogger = { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [2.0, 54.8] } };
+  const names = (f, setting) => srcs.filter((x) => sourceServes(x, f, setting)).map((x) => x.publisher.split(" ")[0]);
+  assert.deepEqual(names(peterborough, "land"), ["Environment", "NOAA"]);
+  assert.deepEqual(names(lin, "land"), ["NOAA"], "England's lidar isn't asked about Scotland");
+  assert.deepEqual(names(dogger, "sea"), ["European", "NOAA"]);
+  const asked = [];
+  const fake = (answers) => async (url) => { asked.push(url.split("/rest/services/")[1].split("/ImageServer")[0]); const a = answers.shift();
+    return { ok: true, json: async () => ({ samples: a.map((v) => ({ value: v, resolution: 1, attributes: {} })) }) }; };
+  // A lidar gap (no values) falls through to NOAA, and the record says the finer source was tried.
+  const gap = await elevationFrom(srcs, { feature: peterborough, setting: "land", fetchFn: fake([["NoData"], [12]]), now: () => "t" });
+  assert.equal(gap.elevation.typical_m, 12);
+  assert.match(gap.checked.finer_tried[0], /^LIDAR Composite DTM 1 m, 2022 \(Environment Agency\): none in dataset/);
+  // Lidar answers: its cell size is in metres, not degrees.
+  asked.length = 0;
+  const lidar = await elevationFrom(srcs, { feature: peterborough, setting: "land", fetchFn: fake([[23.4]]), now: () => "t" });
+  assert.equal(lidar.elevation.dataset, "LIDAR Composite DTM 1 m, 2022 (Environment Agency)");
+  assert.equal(lidar.elevation.cell_m, 1);
+  assert.match(lidar.elevation.vertical_datum, /Newlyn/);
+  assert.deepEqual(asked, ["SURVEY/LIDAR_Composite_1m_DTM_2022_Elevation"]);
 }
 
 console.log("elevation tests passed");

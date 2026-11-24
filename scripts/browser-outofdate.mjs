@@ -80,6 +80,11 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
     return { shown: !s.hidden, text: s.querySelector("span").textContent, btn: s.querySelector("button").hidden ? "" : s.querySelector("button").textContent, dim: c.classList.contains("is-outdated"), meta: c.querySelector(".meta").textContent };
   }, i);
   check(!(await strip()).shown, `${label}: a fresh run isn't marked out of date`);
+  // The contamination checks apply on land in the UK, so their caveat shows once in the Checks section (24 Nov).
+  const cav = await page.evaluate(() => [...document.querySelectorAll(".run .checks p.caveat")].map((p) => p.textContent));
+  check(cav.length === 1 && /^An early screen of open records, not a contaminated land report\./.test(cav[0]), `${label}: the contamination caveat shows once on the card (${cav.length})`);
+  await page.evaluate(() => { const c = document.querySelector(".run .checks"); if (c) c.open = true; });
+  await page.locator(".run .checks").first().screenshot({ path: `/tmp/outofdate-${label}-checks.png` }).catch(() => {});
   const tree = () => page.evaluate(() => {
     const t = document.querySelector("#sitetree");
     return { hidden: t.hidden, count: t.querySelector(".count")?.textContent || "", sites: [...t.querySelectorAll(".site-row .name")].map((e) => e.textContent),

@@ -715,7 +715,14 @@ export function createPlaceTools(host) {
     const r = resolve(place);
     if (!r?.feature) throw new Error(`No place or candidate called "${place}".`);
     const sources = host.trusted?.values?.elevation || [];
-    const { elevation, checked } = await elevationFrom(sources, { feature: r.feature, fetchFn: host.fetchFn || globalThis.fetch, ...(host.now ? { now: host.now } : {}) });
+    // Land sources first (lidar, then the global model); a place that reads as all seabed, or has no land value, is
+    // read again from the sea sources (a bathymetry model) when there are any.
+    const opt = { feature: r.feature, fetchFn: host.fetchFn || globalThis.fetch, ...(host.now ? { now: host.now } : {}) };
+    let { elevation, checked } = await elevationFrom(sources, { ...opt, setting: "land" });
+    if ((!elevation || elevation.below_sea_level_points === elevation.points) && sources.some((x) => x.serves === "sea")) {
+      const sea = await elevationFrom(sources, { ...opt, setting: "sea" });
+      if (sea.elevation) ({ elevation, checked } = sea);
+    }
     if (!elevation) return { not_checked: checked.why || checked.result, dataset: checked.dataset };
     const sig = elevationSignificance(elevation);
     const atSea = elevation.below_sea_level_points === elevation.points;

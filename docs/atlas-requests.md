@@ -4,6 +4,15 @@ Tobler and the atlas are worked on in separate chats (decided 17 Nov). Tobler do
 What Tobler can rely on is written down in the atlas repo's `docs/mcp-tools.md`. When Tobler needs something
 new from the atlas, add it here (newest first), tell Rob, and he passes it to the atlas chat.
 
+- **24 Nov (late evening): more records now used as checks** (Rob's licence calls): Crown Estate Scotland
+  `d769096b70ee72bb` (ScotWind, `Lead_App`), `2b0ba4d2646c0a50` (INTOG), `16a401bb82d4d010` (cables),
+  `c026fa004eab396c` (pipelines); The Crown Estate `0db236263e88622b` (wind cable agreements, `Name_Prop`),
+  `b19662f3493ef9a3` (Round 5 PDAs), `d562171a3698a42b` (gas storage pipelines); and the contamination records of
+  your hand-back (EA landfill, closed mining waste, council records, NI land use, SEPA, DAERA incidents, radon, the
+  US EPA ten). Please keep these ids stable. NRW's landfill and permits are held back on licence (Rob to decide).
+  For elevation, Tobler reads ArcGIS `getSamples` only; Scotland's lidar (cloud GeoTIFFs on AWS), Geoscience
+  Australia's 5 m DEM (map service) and AHN (WCS) would need value services Tobler can sample: worth a note in the
+  contract if the atlas finds image services for them.
 - **24 Nov (evening): the coverage drive** (Rob: "as complete as possible"; audit in the project,
   `claude/coverage-audit-2026-11-24.md`). Tobler now uses these records as checks: `ec38ddbef814026b` (coal high risk
   area), `6c3e0babf56f294e` and `5d4037034edc4d37` (source protection zones, class fields `number` and `NUMBER`),

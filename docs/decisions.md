@@ -2,6 +2,41 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 24 Nov 2026 (late evening): Rob's licence calls: Crown Estate, contamination, radon, lidar and bathymetry
+- **Rob:** The Crown Estate's wind licence is fine; contamination on by default (the atlas checked the EA licence);
+  radon OK; lidar where it exists, and bathymetry.
+- **Crown Estate:** The Crown Estate's records now say "Open Data Licence (GIS) v1.1 (accepted for use, Rob)". More
+  agreements from both Crown Estates: ScotWind offers and INTOG areas, Round 5 project development areas (wind
+  leases); The Crown Estate's wind cable agreements and Crown Estate Scotland's cables (cables); a new check, subsea
+  pipelines and pipeline agreements (Crown Estate Scotland, The Crown Estate's gas storage pipelines; NSTA pending).
+- **Contamination, on by default** (catalogue version 6; the reply in `claude/contamination-tobler-reply.md`):
+  landfill (EA historic and authorised, under the EA Conditional Licence as accepted: names and dates only), closed
+  mining waste (EA, NRW), council records (Derby, Lambeth, Sheffield, Clackmannanshire: the check applies only inside
+  those councils), Northern Ireland's past land use, permitted sites (SEPA, filtered to industrial, waste and
+  radioactive), water pollution incidents (DAERA), and the US EPA layers (Superfund, other cleanup and hazardous waste
+  sites, toxic release and major air sources, major water discharges). None is a must-check.
+- **Natural Resources Wales held back:** NRW says it doesn't grant re-use of its full landfill and permit data, so
+  Wales shows "not checked" for those, with the reason, until Rob decides. (Its closed mining waste is OGL and used.)
+- **Partial sources** (`partial` on a source; the atlas's completeness "partial"): their silence never reads as a clear
+  none. Only partial records answering nothing: "none found … in the records read (…); the records are partial, so
+  this isn't a clear answer". Beside a complete source: "none found … (partial records: …)".
+- **Caveat** (`caveat` on a check): "An early screen of open records, not a contaminated land report. If anything here
+  matters, the next step is a full environmental search." Shown once in the Checks section on the card and in the
+  report whenever a check carrying it ran.
+- **Radon:** a classes check on the site (UKHSA 1 km grid, classes 1 to 6 by share of homes at the Action Level).
+- **Elevation:** sources now carry `where` and `serves` (land or sea). Order: England's 1 m lidar DTM (EA image
+  service, ODN), USGS 3DEP (NAVD 88), EMODnet bathymetry at sea (the EEA's image service, ~230 m, elevations; datum
+  not stated, EMODnet's DTM is to LAT), then NOAA's mosaic. A lidar gap falls through and the record lists the finer
+  sources tried. Cell size is read in metres where the service reports metres. `get_elevation` tries land sources,
+  then sea sources when the place reads as all seabed. **Not yet:** Scotland's lidar (WMS and cloud GeoTIFFs only),
+  Australia's 5 m DEM (a map service, not an image service), AHN (WCS); each needs another reader.
+- **Tested:** `npm test` (new tests: partial sources and the caveat; source choice by place and setting, lidar gap
+  fall-through, cell size in metres; the run test now finds every topic checked on an English site, permitted sites
+  honestly not checked in England); browser checks all pass (run card 163, out of date 46 with the caveat shown once on
+  an onshore card, search area 46, site files 44, ux 26, epsg 20, coords 18, cards 14, choice 8). **Not tested live:**
+  any new layer or elevation service from the page (CORS on the EA, USGS and EEA image services is unknown; a refusal
+  falls through to NOAA and is listed as tried).
+
 ## 24 Nov 2026 (night): the coverage drive, first batch (Rob: "fill the gaps… as complete as possible")
 - **Audit:** `claude/coverage-audit-2026-11-24.md` in the project: the twelve topics by market, what the atlas
   already holds (searched in its crawl results), what's waiting on Rob, and what to ask the atlas for.

@@ -15,7 +15,7 @@ const ids = (plans) => plans.map((p) => p.check.id);
 await test("the catalogue: twelve topics plus Indigenous Peoples for global work; every check sound", () => {
   const topics = cat.topics.map((t) => t.id);
   assert.equal(topics.filter((t) => t !== "indigenous").length, 12);
-  assert.equal(cat.version, "5");
+  assert.equal(cat.version, "6");
   assert.ok(topics.includes("topography") && topics.includes("hazards"));
   assert.deepEqual(Object.keys(cat.scales).filter((k) => k !== "about"), ["local", "regional", "global"]);
   assert.deepEqual(cat.scales.global, [10, 20, 50, 100]);
@@ -367,6 +367,31 @@ await test("a re-run says which checks changed", () => {
     "Elevation: new check, about 5 m",
   ]);
   assert.deepEqual(K.checksChanged(b, a).at(-1), "Elevation: not run this time (was about 5 m)");
+});
+
+await test("partial sources (council registers, EPA brownfields): silence is never a clear none; the caveat travels", () => {
+  const p = plan("ground.council-records");
+  const derby = p.check.sources.find((x) => x.region === "Derby");
+  const meta = { dataset: "Potentially Contaminated Sites, Derby", publisher: "Derby City Council", licence: "not stated", checked_at: "2026-11-24", fetched_km: 0.5 };
+  const none = K.fromSources(p, [{ source: derby, features: [], meta }], cat.scales.regional);
+  assert.equal(none.state, "none");
+  assert.equal(none.only_partial, true);
+  assert.match(K.checkLine(none), /^none found within 500 m in the records read \(Derby City Council's potentially contaminated sites\); the records are partial, so this isn't a clear answer$/);
+  const found = K.fromSources(p, [{ source: derby, features: [{ name: "Old gasworks", distance_km: 0.2, extra: {} }], meta }], cat.scales.regional);
+  assert.equal(found.state, "found");
+  // A complete source beside a partial one: none is a plain none, noting the partial records.
+  const us = plan("ground.us-cleanup");
+  const [tsd, brown] = us.check.sources;
+  const m2 = (d) => ({ dataset: d, publisher: "EPA", licence: "Public domain", checked_at: "2026-11-24", fetched_km: 1 });
+  const mixed = K.fromSources(us, [{ source: tsd, features: [], meta: m2("TSD") }, { source: brown, features: [], meta: m2("Brownfields") }], cat.scales.regional);
+  assert.ok(!mixed.only_partial);
+  assert.match(K.checkLine(mixed), /^none found within 1 km \(partial records: EPA-funded brownfields only\)$/);
+  // Every contamination check carries the caveat; landfill and permitted sites are never must-checks.
+  for (const id of ["ground.landfill", "ground.mining-waste", "ground.council-records", "air.permitted-sites", "water.pollution-incidents", "ground.us-superfund"]) {
+    const c = cat.checks.find((x) => x.id === id);
+    assert.match(c.caveat, /^An early screen of open records, not a contaminated land report/);
+    assert.equal(c.must, false);
+  }
 });
 
 console.log(`${passed} checks tests passed`);

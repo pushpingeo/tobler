@@ -168,6 +168,7 @@ function render(record) {
     }
     ckSec.append(t);
     if (cv.noCheck) ckSec.append(el("p", `${cv.noCheck.line}. They are listed under "Couldn't check" below.`, "made"));
+    for (const c of cv.caveats || []) ckSec.append(el("p", c, "made caveat"));
   }
 
   // 4. Evidence and gaps.

@@ -413,6 +413,7 @@ a { color: var(--sea); }
 .run li.check.nc .check-name { color: inherit; }
 .run li.check .must { margin-left: 5px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-2); border: 1px solid var(--rule); border-radius: 4px; padding: 0 3px; }
 .run details.nocheck { margin: 4px 0 2px; }
+.run .checks p.caveat { margin: 6px 0 2px; font-size: 12.5px; color: var(--ink-2); border-left: 2px solid var(--rule); padding-left: 8px; }
 .run details.nocheck p { margin: 2px 0 4px 18px; color: var(--ink-2); }
 .run .edit { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
 .run .edit .more { position: relative; }

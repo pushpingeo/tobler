@@ -32,7 +32,8 @@ assert.ok(pts.every((p) => turf.booleanPointInPolygon(p, box)));
   assert.equal(depth.land_points, 1);
   assert.equal(depth.cell_m, 464);
   assert.equal(checked.result, "features");
-  assert.equal(checked.publisher, ELEV[0].publisher);
+  // At sea in European waters, EMODnet bathymetry answers before the global model (24 Nov).
+  assert.equal(checked.publisher, ELEV.find((x) => x.serves === "sea").publisher);
   assert.equal(checked.evidence, "water depth");
 }
 // Depth: a failed service is "not checked", never zero; dry land is "none".

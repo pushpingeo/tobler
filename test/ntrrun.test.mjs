@@ -216,7 +216,7 @@ await test("sealed run: fetches out to the wider band, records evidence with pro
   const broken = r.checked.find((c) => c.dataset === "Heritage Ship Wrecks");
   assert.equal(broken.result, "not checked");
   assert.match(broken.why, /didn't answer/);
-  assert.equal(r.checked.find((c) => /pipelines/.test(c.dataset)).count, 3);
+  assert.equal(r.checked.find((c) => c.dataset === "UKCS pipelines (WGS84)").count, 3);
   assert.deepEqual(r.data_gaps, ["Key Biodiversity Areas not checked", "Heritage Ship Wrecks not checked (service failed)"]);
   // The model saw the run's distances and the fence rule, and no place-making tools.
   const first = model.calls[0];
@@ -880,9 +880,15 @@ await test("the UK pack on land: flood zones and farmland by share of the site, 
   assert.deepEqual(lb.map((f) => [f.name, f.detail, f.publisher, !!f.fid]), [["Church of St Mary", "Grade I", "Historic England", true], ["Barn", "Grade II", "Historic England", true]]);
   assert.ok(lb[0].distance_km < lb[1].distance_km);
   assert.deepEqual(by["water.flood-zones"].features.map((f) => [f.detail, f.coverage]), [["Flood Zone 3", 0.5]]);
-  // Topics left without a check: only air and climate since the coverage drive (24 Nov): community, hazards and
-  // material assets now have checks (OpenStreetMap, coal mining risk, active faults).
-  assert.deepEqual(r.no_check_topics, ["air-climate"]);
+  // Every topic has a check on an English site since the coverage drive (24 Nov). England's permitted sites are a
+  // download only, so that check is honestly not checked, with the reason.
+  assert.equal(r.no_check_topics, undefined);
+  assert.equal(by["air.permitted-sites"].state, "not_checked");
+  assert.match(by["air.permitted-sites"].why, /downloads/);
+  // The contamination checks carry one caveat, shown once on the card and in the report.
+  assert.ok(by["ground.landfill"] && by["community.radon"]);
+  const view = K.checksView(r);
+  assert.deepEqual(view.caveats, ["An early screen of open records, not a contaminated land report. If anything here matters, the next step is a full environmental search."]);
   // OpenStreetMap answered with nothing here: none found, from OpenStreetMap, never a must.
   const pl = by["material.power-lines"];
   assert.equal(pl.state, "none");

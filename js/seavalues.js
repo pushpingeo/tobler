@@ -19,7 +19,7 @@ export { samplePoints };
 // Water depth over the footprint, from the shared elevation tool (js/elevation.js: elevation positive up, whatever
 // the source's own sign; depth = -elevation). Returns { depth, checked } (depth null when not checked or no sea).
 export async function waterDepth({ site, sources, fetchFn = globalThis.fetch, now = () => new Date().toISOString() }) {
-  const { elevation, checked } = await elevationFrom(sources, { feature: site, fetchFn, now });
+  const { elevation, checked } = await elevationFrom(sources, { feature: site, fetchFn, now, setting: "sea" });
   const c = { ...checked, evidence: "water depth" };
   if (!elevation) return { depth: null, checked: c };
   if (!elevation.below_sea_level_points) return { depth: null, elevation, checked: { ...c, result: "none in dataset", why: "the site is above sea level in this model" } };

@@ -89,6 +89,8 @@ export async function elevationOver({ feature, source, fetchFn = globalThis.fetc
     if (!got.length) return { elevation: null, checked: { ...base, result: "none in dataset", why: "no values returned for this place" } };
     const vals = got.map((x) => x.m);
     const cells = got.map((x) => x.res).filter((x) => x > 0);
+    // Cell size: services in degrees (NOAA, the EEA's EMODnet copy) or in metres (England's lidar, USGS 3DEP).
+    const cellM = (v) => (source.resolution_units === "m" ? v : v * 111320);
     const rasters = [...new Set(got.map((x) => x.raster).filter(Boolean))].slice(0, 4);
     const elevation = {
       convention: "metres, positive up, relative to sea level",
@@ -96,7 +98,7 @@ export async function elevationOver({ feature, source, fetchFn = globalThis.fetc
       points: vals.length, below_sea_level_points: vals.filter((v) => v < 0).length,
       // The points below sea level on their own, so water depth isn't averaged with land.
       below: (() => { const b = vals.filter((v) => v < 0); return b.length ? { typical_m: Math.round(median(b)), min_m: Math.round(Math.min(...b)), max_m: Math.round(Math.max(...b)) } : null; })(),
-      cell_m: cells.length ? Math.round(Math.max(...cells) * 111320) : null, rasters,
+      cell_m: cells.length ? Math.max(1, Math.round(cellM(Math.max(...cells)))) : null, rasters,
       vertical_datum: source.vertical_datum,
       dataset: source.title, publisher: source.publisher, licence: source.licence, attribution: source.attribution, checked_at: base.checked_at,
     };
@@ -106,12 +108,27 @@ export async function elevationOver({ feature, source, fetchFn = globalThis.fetc
   }
 }
 
-// Try each source in order (finest first, as listed); the first that answers wins.
+// Whether a source serves this place: its box (`where`, [w, s, e, n]) holds the feature's centre, and it serves this
+// setting (`serves`: "land", "sea" or both when absent; a bathymetry model shouldn't answer for a site on land).
+export function sourceServes(source, feature, setting = null) {
+  if (setting && source.serves && source.serves !== setting) return false;
+  if (!source.where) return true;
+  let c;
+  try { c = turf.centroid(feature).geometry.coordinates; } catch { return true; }
+  const [w, so, e, n] = source.where;
+  return c[0] >= w && c[0] <= e && c[1] >= so && c[1] <= n;
+}
+
+// Try each source in order (finest first, as listed); the first that answers wins. Sources that don't cover the place
+// or the setting are skipped; one that covers it but has no values there (a lidar gap) falls through to the next.
+// The last answer records which finer sources were tried, so the card can say why a coarser one was used.
 export async function elevationFrom(sources, opts) {
   let last = null;
-  for (const source of sources || []) {
+  const tried = [];
+  for (const source of (sources || []).filter((x) => sourceServes(x, opts.feature, opts.setting || null))) {
+    if (last) tried.push(`${last.checked.dataset}: ${last.checked.result}${last.checked.why ? ` (${last.checked.why})` : ""}`);
     last = await elevationOver({ ...opts, source });
-    if (last.elevation) return last;
+    if (last.elevation) return tried.length ? { ...last, checked: { ...last.checked, finer_tried: tried } } : last;
   }
   return last || { elevation: null, checked: { evidence: "elevation", result: "not checked", why: "no elevation source configured" } };
 }

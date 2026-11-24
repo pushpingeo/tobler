@@ -1761,6 +1761,8 @@ function paintRun(entry) {
     nc.hidden = !cv.noCheck;
     if (cv.noCheck) { nc.querySelector("summary").textContent = cv.noCheck.line.split(":")[0]; const list = cv.noCheck.topics.map((t, i) => (i ? t.toLowerCase() : t)).join(", ");
       nc.querySelector("p").textContent = `${list}. Not checked by Tobler yet: search for these where they matter.`; }
+    ck.querySelectorAll(":scope > p.caveat").forEach((p) => p.remove());
+    for (const c of cv.caveats || []) nc.after(el("p", c, "caveat"));
     if (!ck.dataset.painted) { ck.open = !phone; ck.dataset.painted = "1"; }
     paintChecksOpen(card, entry);
   }

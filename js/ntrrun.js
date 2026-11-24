@@ -394,7 +394,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
     const t0 = Date.now();
     const [d, e, t] = await Promise.all([
       wantDepth ? waterDepth({ site: fp.feature, sources: elevSources, fetchFn, now }) : null,
-      wantElev ? elevationFrom(elevSources, { feature: fp.feature, fetchFn, now }) : null,
+      wantElev ? elevationFrom(elevSources, { feature: fp.feature, fetchFn, now, setting: "land" }) : null,
       wantTraffic ? vesselTraffic({ site: fp.feature, closeKm: distances.close, source: vals.traffic, fetchFn, now }) : null,
     ]);
     if (d) { checked.push({ ...d.checked, check: depthPlan.check.id }); if (d.depth) seaVals.depth = d.depth; if (d.elevation) elevation = d.elevation; }

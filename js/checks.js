@@ -113,7 +113,7 @@ export const topicLabel = (catalogue, id) => (catalogue?.topics || []).find((t) 
 const base = (plan) => {
   const c = plan.check;
   return { id: c.id, topic: c.topic, label: c.label, must: !!c.must, answer: c.answer, scale: plan.scale,
-    ...(c.answer !== "value_at_site" ? { reach_km: plan.reach_km } : {}), ...(c.reach_why ? { why_reach: c.reach_why } : {}) };
+    ...(c.answer !== "value_at_site" ? { reach_km: plan.reach_km } : {}), ...(c.reach_why ? { why_reach: c.reach_why } : {}), ...(c.caveat ? { caveat: c.caveat } : {}) };
 };
 const srcOf = (plan, extra = {}, s = plan.source || {}) => {
   return { region: s.region || null, ...(s.atlas_id ? { atlas_id: s.atlas_id } : {}), ...(s.tool ? { tool: s.tool } : {}),
@@ -239,7 +239,14 @@ export function fromSources(plan, answers = [], edges = [], opts = {}) {
   const matters = missing.filter((a) => !a.source.supplementary);
   if (matters.length) r.partly = matters.map((a) => `${whoOf(a)} ${shortWhy(a)}`).join("; ");
   if (r.state === "none" && matters.length) return { ...r, state: "not_checked", reason: "partly", why: `${r.partly} (none in the others)` };
-  return r;
+  return withPartial(r, ok);
+}
+// A source that covers only part of what it's about (a few councils' registers, EPA-funded brownfields: the atlas's
+// completeness "partial", 24 Nov): its silence never reads as "none". The line says which records were read.
+function withPartial(r, ok) {
+  const part = ok.filter((a) => a.source.partial).map((a) => a.source.partial);
+  if (!part.length) return r;
+  return { ...r, partial: [...new Set(part)].join("; "), ...(ok.every((a) => a.source.partial) ? { only_partial: true } : {}) };
 }
 
 // Whether a source keeps a feature: its field filter (JNCC's designations, NI's listed grades) and its name filter
@@ -299,8 +306,9 @@ function classesFrom(plan, ok, missing, sources, edges) {
   const matters = missing.filter((a) => !a.source.supplementary);
   if (matters.length) r.partly = matters.map((a) => `${whoOf(a)} ${shortWhy(a)}`).join("; ");
   if (r.state === "none" && matters.length) return { ...r, state: "not_checked", reason: "partly", why: `${r.partly} (none in the others)` };
-  return r;
+  return withPartial(r, ok);
 }
+
 
 // The SSSI Impact Risk Zones: the 13-digit irzcode (the IRZURL field's query parameter) read for the categories that
 // fit the development (the profile's irz_categories by asset type, plus "all consultations"). table: the atlas's
@@ -345,7 +353,7 @@ export function checkLine(r, { nearest: withNearest = true } = {}) {
   }
   const where = r.reach_km === 0 ? `inside or touching the ${r.search_area ? "search area" : "site"}` : `within ${km(r.reach_km)}${r.reach_wanted_km ? ` (of ${km(r.reach_wanted_km)}: the tools fetch to ${km(r.reach_km)})` : ""}`;
   if (r.answer === "inside") return r.inside ? `the ${r.search_area ? "search area" : "site"} is inside ${r.nearest?.name || "one"}${r.nearest?.around ? " (a wide area it lies within)" : ""}` : "the site isn't inside one";
-  if (r.state === "none") return `none found ${where}`;
+  if (r.state === "none") return r.only_partial ? `none found ${where} in the records read (${r.partial}); the records are partial, so this isn't a clear answer` : `none found ${where}${r.partial ? ` (partial records: ${r.partial})` : ""}`;
   const onSite = r.search_area ? "in the search area" : "on site";
   const bits = (r.bands || []).filter((b) => b.count).map((b) => `${b.count} ${b.from_km == null ? onSite : `at ${b.label}`}`);
   const nearest = withNearest && r.nearest ? `; nearest ${r.nearest.name}${r.nearest.around ? " (around the site)" : r.nearest.distance_km > 0 ? `, ${km(r.nearest.distance_km)}` : ` (${onSite})`}` : "";
@@ -422,7 +430,10 @@ export function checksView(run) {
       ...(r.partly ? { partly: r.partly } : {}) })),
   }));
   const noCheck = run.no_check_topics || [];
-  return { summary: checksSummary(run.checks), scale: run.checks_scale || null, groups,
+  // A check's caveat (the contamination checks: "an early screen of open records…") travels with the run and is
+  // shown once, whenever any check that carries it ran.
+  const caveats = [...new Set(run.checks.map((r) => r.caveat).filter(Boolean))];
+  return { summary: checksSummary(run.checks), scale: run.checks_scale || null, groups, ...(caveats.length ? { caveats } : {}),
     noCheck: noCheck.length ? { line: noCheckLine(cat, noCheck), topics: noCheck.map((t) => topicLabel(cat, t)) } : null };
 }
 
