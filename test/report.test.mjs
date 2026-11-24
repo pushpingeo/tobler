@@ -73,7 +73,7 @@ await test("the report: numbered labels on the features, one row per finding, fa
   assert.deepEqual(labels.features.map((f) => f.properties.label), ["F-01, F-02", "F-02"], "a feature behind two flags carries both IDs");
   const rows = findingRows(rec.tobler_run);
   assert.equal(rows[0].id, "F-01"); assert.equal(rows[0].severity, "medium"); assert.equal(rows[0].next_step, "Marine archaeology review");
-  assert.match(rows[0].theme, /Cultural heritage \(PS8\)/);
+  assert.equal(rows[0].theme, "Heritage");
   assert.equal(rows[1].evidence[1].traced, false);
   const evr = evidenceRows(rec.tobler_run);
   assert.equal(evr[0].source, "Seabed habitats"); assert.ok(evr[0].failed);

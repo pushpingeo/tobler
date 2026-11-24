@@ -411,11 +411,6 @@ export function noCheckLine(catalogue, topics = []) {
   return `${topics.length} topic${topics.length === 1 ? " has" : "s have"} no standard check yet: ${names.join(", ")}`;
 }
 
-// The topic a check's evidence takes on the map, until frameworks replace the six IFC themes (plan item 2).
-export const MAP_THEME = { biodiversity: "biodiversity", heritage: "heritage", "community-health": "community", "land-use": "land",
-  "material-assets": "community", indigenous: "indigenous" };
-export const mapTheme = (topic) => MAP_THEME[topic] || "context";
-
 // What the card and the report show, from a run record alone (a share link has no catalogue): the checks by topic,
 // each with its line and source, and the topics nothing checks yet. null for runs from before checks.
 export function checksView(run) {

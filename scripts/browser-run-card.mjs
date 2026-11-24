@@ -259,7 +259,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   s = await st();
   check(s.onMap === 2 && s.out === "1 km", `${label}: slider to 1 km leaves 1 finding and the wide area on the map (${s.onMap})`);
   check(s.stale && s.beyond === 1, `${label}: re-assess offered, wreck flag dimmed as beyond (${s.beyond})`);
-  check(/Nearest: community health and safety, Rosebank 9 inch Production flowline 1 \(on site\)/.test(s.nearest), `${label}: nearest-by-theme line (${s.nearest})`);
+  check(/Nearest: community and health, Rosebank 9 inch Production flowline 1 \(on site\)/.test(s.nearest), `${label}: nearest-by-topic line (an old record: its theme reads as a topic) (${s.nearest})`);
   check(/lies within a wide area: North West European waters\./.test(s.nearest) && !/Nearest:[^.]*North West European/.test(s.nearest), `${label}: a wide area around the site is counted apart, not as on site (${s.nearest})`);
   // Checks (plan item 1): UK waters, so the UK's own layers (24 Nov) beside the EU's; one SPA layer down; the run's
   // active faults (global, 24 Nov coverage drive) put Hazards in too;

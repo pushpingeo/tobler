@@ -6,7 +6,7 @@ import * as turf from "./vendor/turf.js";
 import { atlasCandidate, pickName, edgeDistanceKm, tidyName } from "./atlasfeatures.js";
 import { candidate } from "./gazetteer.js";
 import { classifyLicence, LICENCE_NOTE, licenceBlock } from "./licence.js";
-import { themeFor, THEME_IDS } from "./findings.js";
+import { themeFor, TOPIC_IDS } from "./findings.js";
 import { nearestKm } from "./nearness.js";
 
 // A wide area the site merely lies within (a sea, a region, a very large designation) isn't a feature "on site"
@@ -47,7 +47,7 @@ export const DATA_TOOL_DEFS = [
         within_km: { type: "number", description: "Also count features up to this far outside the place (0 to 50 km). Default 0 for an area, 10 for a point." },
         name: { type: "string", description: "Optional: only features with this text in a name-like field" },
         days: { type: "number", description: "For time-aware datasets (satellite detections): how many recent days, 1 to 5 (NASA FIRMS allows no more). Default 5." },
-        theme: { type: "string", enum: THEME_IDS, description: "Which screening theme this evidence is for (it sets the colour on the map): biodiversity, land (land and livelihoods, fishing), indigenous, heritage, community (community health and safety), context (operating context: infrastructure, other industry)." },
+        theme: { type: "string", enum: TOPIC_IDS, description: "Which topic this evidence is for (it sets the colour on the map): biodiversity, landscape-visual, water, ground-soil (contamination, geology, peat), land-use (farmland, land cover), hazards, air-climate, heritage, community-health (homes, schools, health care), indigenous, material-assets (infrastructure, other users of the sea, fishing), topography, context." },
       },
       required: ["dataset", "place"],
     },

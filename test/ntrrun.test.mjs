@@ -207,7 +207,7 @@ await test("sealed run: fetches out to the wider band, records evidence with pro
   assert.equal(record.features[0].properties.role, "site");
   // Flags: sorted by confidence; traced evidence carries fids; the regional-knowledge item is honestly untraced.
   assert.deepEqual(r.flags.map((f) => f.confidence), ["high", "medium", "low"]);
-  assert.equal(r.flags[0].theme, "community");
+  assert.equal(r.flags[0].theme, "community-health");
   assert.equal(r.flags[0].traced, 2);
   assert.equal(r.flags[0].evidence[1].band, "near");
   assert.equal(r.flags[2].traced, 0);
@@ -231,7 +231,7 @@ await test("slider helpers: findings within a distance, nearest per theme, flags
   assert.equal(evidenceWithin(record, 50).length, 11, "with the UK layers (two sites, each from two sources)");
   assert.equal(evidenceWithin(record, 40).length, 10);
   assert.equal(evidenceWithin(record, 10).length, 4);
-  assert.deepEqual(nearestByTheme(record, 10).map((x) => `${x.theme} ${x.name} ${x.distance_km}`), ["community Rosebank 9 inch Production flowline 1 0", "heritage Troldfos (Possibly) 2"]);
+  assert.deepEqual(nearestByTheme(record, 10).map((x) => `${x.theme} ${x.name} ${x.distance_km}`), ["community-health Rosebank 9 inch Production flowline 1 0", "heritage Troldfos (Possibly) 2"], "old theme values read as topics");
   const [pipes, wreck, birds] = record.tobler_run.flags;
   assert.equal(flagBeyond(pipes, 1), false);
   assert.equal(flagBeyond(wreck, 1), true);
@@ -287,7 +287,7 @@ await test("screen_site from the conversation: needs a place, runs sealed, retur
   const g = await t.exec("get_run", {});
   assert.equal(g.run, "R1");
   assert.equal(g.flags[0].evidence[0].traced, true);
-  assert.equal(g.flags[0].theme, "PS4");
+  assert.equal(g.flags[0].theme, "community-health", "PS codes from the IFC skill read as topics");
 });
 
 await test("outside the profile (housing): screened at once as a general screen; the caveat is in the run, the analyst's brief and a re-run", async () => {
@@ -393,6 +393,12 @@ await test("a sealed run can't build places, and a missing JSON block is reporte
   assert.equal(rec.tobler_run.flags.length, 0);
   assert.match(rec.tobler_run.parse_error, /no readable JSON/);
   assert.match(headline(rec).problem, /no readable JSON/);
+});
+
+await test("traceFlags reads a flag's topic (the skill since 24 Nov), and keeps PS codes and old themes readable", () => {
+  const f = traceFlags([{ risk: "a", topic: "water", confidence: "high", evidence: [] }, { risk: "b", theme: "PS8", confidence: "high", evidence: [] },
+    { risk: "c", theme: "land", confidence: "high", evidence: [] }, { risk: "d", topic: "made-up", confidence: "high", evidence: [] }], [], { near: 1, close: 5, wider: 20 });
+  assert.deepEqual(f.map((x) => `${x.risk} ${x.theme}`).sort(), ["a water", "b heritage", "c land-use", "d context"]);
 });
 
 await test("traceFlags maps PS codes to themes and leaves unknown evidence untraced", () => {
@@ -550,7 +556,7 @@ await test("offshore baseline also reads water depth and AIS vessel traffic, in 
   assert.match(first, /Vessel traffic \(AIS, 2023 annual average\): 0\.8 hours per km² a month on the site \(moderate\)/);
   const vt = rec.features.find((f) => f.properties.type === "vessel traffic density (AIS)");
   assert.ok(vt, "busiest traffic point kept as evidence");
-  assert.equal(vt.properties.theme, "community");
+  assert.equal(vt.properties.theme, "material-assets", "the vessel traffic check's topic");
   assert.match(vt.properties.licence, /CC-BY 4\.0/);
   // A flag on depth or traffic traces to the values the run read (there's no feature for depth).
   const t = traceFlags([{ risk: "Deepwater", theme: "context", confidence: "medium", evidence: [{ name: "Water depth about 150 m (140–160 m)", distance_km: 0, dataset: "" }, { name: "AIS vessel density, busiest sampled point", distance_km: 9, dataset: "EMODnet" }, { name: "Something made up", distance_km: 3, dataset: "" }] }], rec.features.filter((f) => f.properties.role === "evidence"), d, r.sea);

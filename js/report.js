@@ -3,13 +3,13 @@
 // numbered findings, one row per finding, the evidence and gaps, the method, sources and licences, the disclaimer.
 // No DOM, so it can be tested; js/reportpage.js draws it.
 import * as turf from "./vendor/turf.js";
-import { THEMES } from "./findings.js";
-import { THEME_CODE } from "./ntrrun.js";
+import { topicInfo } from "./findings.js";
 import { groupGaps } from "./gaps.js";
 import { noCheckGap, checksView } from "./checks.js";
 
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : "");
-export const themeLabel = (t) => `${THEMES[t]?.label || "Operating context"}${THEME_CODE[t] && THEME_CODE[t] !== "context" ? ` (${THEME_CODE[t]})` : ""}`;
+// A finding's topic as the report names it. Frameworks (plan item 3c) will choose the heading; until then the neutral topic.
+export const themeLabel = (t) => topicInfo(t).label;
 
 // Where each finding's ID goes on the map: on each feature behind it, at the point nearest the site (a polygon the
 // site sits in gets a point inside it). Features behind several flags carry all their IDs ("F-01, F-03").
@@ -48,7 +48,7 @@ function labelPoint(f, centre) {
 // One row per finding, in the order shown on the card.
 export function findingRows(run) {
   return run.flags.map((f) => ({
-    id: f.id || "", risk: f.risk, theme: themeLabel(f.theme), colour: THEMES[f.theme]?.colour || THEMES.context.colour,
+    id: f.id || "", risk: f.risk, theme: themeLabel(f.theme), colour: topicInfo(f.theme).colour,
     severity: f.severity || "not rated", confidence: f.confidence, nearest_km: f.nearest_km, why: f.why || "", next_step: f.next_step || "",
     relation: f.relation || null, confidence_capped: f.confidence_capped || null,
     evidence: (f.evidence || []).map((e) => ({ name: e.name || "Unnamed", distance_km: e.distance_km, band: e.band, dataset: e.dataset || "", publisher: e.publisher || "", checked: e.checked ? String(e.checked).slice(0, 10) : "", traced: !!e.traced,

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { chooseIndustry, industryNote, readDecision, settleDecision, biodiversityChecked, DECISIONS } from "../js/industry.js";
 import { parseSkill } from "../js/converse.js";
-import { THEME_CODE } from "../js/ntrrun.js";
+import { TOPICS, topicOf } from "../js/findings.js";
 
 let passed = 0;
 const test = async (name, fn) => { await fn(); passed++; console.log("ok", name); };
@@ -28,7 +28,8 @@ await test("every ready profile names a skill that exists, picks the distances t
     assert.ok(existsSync(new URL(`../${p.skill_file}`, import.meta.url)), `${p.id}: ${p.skill_file}`);
     assert.equal(parseSkill(readFileSync(new URL(`../${p.skill_file}`, import.meta.url), "utf8")).name, p.skill);
     for (const pick of p.asset_picks.picks) for (const t of [pick.type, pick.onshore, pick.offshore].filter(Boolean)) assert.ok(table.assets[t], `${p.id}: pick ${t} not in distances`);
-    for (const th of p.themes) assert.ok(th.id in THEME_CODE, `${p.id}: theme ${th.id}`);
+    // The profile's themes are IFC framework data until frameworks are data (plan item 3c); each reads as a topic.
+    for (const th of p.themes) assert.ok(TOPICS[topicOf(th.ifc || th.id)] && topicOf(th.ifc || th.id) !== "context" || th.id === "context", `${p.id}: theme ${th.id}`);
     assert.deepEqual(p.decisions, DECISIONS);
     for (const k of ["local", "regional", "global"]) assert.ok(p.examples[k]?.length, `${p.id}: ${k} examples`);
     assert.ok(p.wording.screen_chip && p.other_requests);

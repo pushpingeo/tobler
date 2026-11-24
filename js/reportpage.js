@@ -2,7 +2,7 @@
 // a web page with live maps; printed or saved as PDF it's an A4 report, with the maps as pictures (labels drawn in).
 import * as turf from "./vendor/turf.js";
 import * as U from "./units.js";
-import { THEMES } from "./findings.js";
+import { topicOf, topicInfo, colourExpression } from "./findings.js";
 import { decodeRun } from "./share.js";
 import { distancesLine } from "./distances.js";
 import { DISCLAIMER } from "./disclaimer.js";
@@ -110,9 +110,9 @@ function render(record) {
   const rows = findingRows(r);
   const findSec = el("section");
   findSec.append(el("h2", `Findings (${rows.length})`));
-  const themesUsed = [...new Set(r.flags.map((f) => f.theme))];
+  const themesUsed = [...new Set(r.flags.map((f) => topicOf(f.theme)))];
   const findFig = figure("findings-map", "The evidence behind each finding, labelled with its number. Shapes are simplified for display.",
-    [["site", searchArea ? "The search area" : "The site"], ...themesUsed.map((t) => [t, THEMES[t]?.label || "Operating context"])]);
+    [["site", searchArea ? "The search area" : "The site"], ...themesUsed.map((t) => [t, topicInfo(t).label])]);
   findSec.append(findFig.fig);
   if (!rows.length) findSec.append(el("p", "No findings were raised. See what was checked and the gaps below."));
   else {
@@ -230,7 +230,7 @@ function figure(id, caption, key) {
   const k = el("ul", null, "key");
   for (const [t, label] of key) {
     const li = el("li"); const sw = el("span", null, `sw ${t === "site" || t === "ring" ? t : ""}`);
-    if (THEMES[t]) sw.style.background = THEMES[t].colour;
+    if (t !== "site" && t !== "ring") sw.style.background = topicInfo(t).colour;
     li.append(sw, document.createTextNode(label)); k.append(li);
   }
   fig.append(box, img, cap, k);
@@ -251,7 +251,7 @@ function drawMap(f, { site, rings, evidence, labels, searchArea = false }) {
     const start = () => {
       if (started) return; started = true;
       const ringFs = rings.filter((v) => v > 0).map((v) => { const b = turf.buffer(site, v, { units: "kilometers", steps: 48 }); return b; });
-      const colour = ["match", ["get", "theme"], ...Object.entries(THEMES).flatMap(([k, t]) => [k, t.colour]), THEMES.context.colour];
+      const colour = colourExpression();
       map.addSource("ev", { type: "geojson", data: turf.featureCollection(evidence) });
       map.addLayer({ id: "ev-fill", type: "fill", source: "ev", filter: ["in", ["geometry-type"], ["literal", ["Polygon", "MultiPolygon"]]], paint: { "fill-color": colour, "fill-opacity": ["case", ["==", ["get", "surrounds"], true], 0.03, 0.14] } });
       map.addLayer({ id: "ev-line", type: "line", source: "ev", filter: ["!=", ["geometry-type"], "Point"], paint: { "line-color": colour, "line-width": 2 } });

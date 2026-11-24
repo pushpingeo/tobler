@@ -2,6 +2,28 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 24 Nov 2026 (night): the neutral topics on flags, the map and the report (plan item 3a)
+- **What:** the six IFC-based themes are gone from code. Flags, map features, the legend, popups and the report use
+  the thirteen topics in `catalogue/checks.json`; `js/findings.js` holds their colours and short names, and a test
+  keeps its names in step with the catalogue.
+- **Colours (judgement call):** a map puts every colour beside every other, and the dataviz validator passes no set
+  of more than three hues on all pairs. So the topics share six colours, today's five hues plus grey, and the legend,
+  labels and tap details carry the name: green biodiversity and landscape; blue water; ochre ground, land use,
+  hazards, air; magenta heritage; violet community and health, Indigenous Peoples; grey material assets, topography,
+  context. Orange was tried for ground and dropped: against green it was worse for red-green colour blindness (CVD
+  ΔE 3.2) than anything on today's map. Worst pair is unchanged (blue and violet, CVD 4.5).
+- **Old records keep working:** a feature's or flag's `theme` field now holds a topic id; the field name stays so old
+  share links and saved projects read. `topicOf` reads the six old themes and PS codes as topics (land → land use,
+  community → community and health, PS4–PS8). Old IFC "community" pipelines therefore read as community and health.
+- **Moved topic:** vessel traffic and fishing now sit under material assets (other users of the sea), not community or
+  land and livelihoods. Rivers sit under water.
+- **Skill:** ntr-screening 3.10-draft tags flags and fetches with a topic id; its evidence sections stay by PS theme
+  until the skill split (item 5). Tool enums list the topic ids.
+- **Lost for now:** the "(PS4)" codes on flags and in the report. IFC comes back as a framework choice in 3c.
+- **Tests:** topic names match the catalogue; old themes and PS codes read as topics with the right colours; at most
+  six colours; flags read a topic. All browser checks pass (the run-card check now expects the old record's pipeline
+  as community and health).
+
 ## 24 Nov 2026 (night): a place found from words is shown before it's screened
 - **Rob:** "screen a warehouse location in Livingston" found Livingston and went straight into the screen. It should
   stop and ask whether the place is right first.

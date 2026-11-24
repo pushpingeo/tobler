@@ -257,7 +257,7 @@ await test("findings: themes from the analyst, the feature type or the atlas con
   const F = await import("../js/findings.js");
   assert.equal(F.themeFor({ theme: "heritage", featureType: "protected area" }), "heritage");
   assert.equal(F.themeFor({ featureType: "protected area" }), "biodiversity");
-  assert.equal(F.themeFor({ concepts: ["marine-activity", "seabed-habitat"] }), "land");
+  assert.equal(F.themeFor({ concepts: ["marine-activity", "seabed-habitat"] }), "material-assets");
   assert.equal(F.themeFor({ concepts: ["oil-gas"] }), "context");
   assert.equal(F.themeFor({}), "context");
   assert.deepEqual([0, 0.9, 3, 12, null].map(F.bandOf), ["near", "near", "close", "wider", "wider"]);
@@ -302,6 +302,25 @@ await test("keyAttributes and geometryDistanceKm", () => {
   assert.equal(geometryDistanceKm(sq, { type: "Point", coordinates: [0.5, 0.5] }), 0);
   const d = geometryDistanceKm(sq, turf.bboxPolygon([1.1, 0, 2, 1]).geometry);
   assert.ok(Math.abs(d - 11.1) < 0.3, String(d));
+});
+
+await test("topics: names match the checks catalogue; old themes and PS codes read as topics, with the same colours", async () => {
+  const F = await import("../js/findings.js");
+  const cat = JSON.parse(readFileSync(new URL("../catalogue/checks.json", import.meta.url)));
+  assert.deepEqual(cat.topics.map((t) => [t.id, t.label]).sort(), Object.entries(F.TOPICS).map(([k, t]) => [k, t.label]).sort(),
+    "js/findings.js and catalogue/checks.json name the same topics");
+  for (const [old, topic] of [["land", "land-use"], ["community", "community-health"], ["indigenous", "indigenous"], ["PS4", "community-health"],
+    ["ps8", "heritage"], ["PS6", "biodiversity"], ["context", "context"], ["something else", "context"], [undefined, "context"]]) assert.equal(F.topicOf(old), topic, String(old));
+  // The map's colour expression gives old records the colour of their topic.
+  const expr = F.colourExpression();
+  const colourOf = (v) => { const i = expr.indexOf(v, 2); return i > 0 && i % 2 === 0 ? expr[i + 1] : expr.at(-1); };
+  assert.equal(colourOf("community"), F.TOPICS["community-health"].colour);
+  assert.equal(colourOf("land"), F.TOPICS["land-use"].colour);
+  assert.equal(colourOf("nonsense"), F.TOPICS.context.colour);
+  // Six map colours at most (the dataviz all-pairs limit is the reason; the legend names the topic).
+  assert.ok(new Set(Object.values(F.TOPICS).map((t) => t.colour)).size <= 6);
+  // Red is the site's colour, never a topic's.
+  assert.ok(!Object.values(F.TOPICS).some((t) => /^#(e3|eb|d9)[0-9a-f]{4}$/i.test(t.colour)));
 });
 
 console.log(`${passed} data tests passed`);

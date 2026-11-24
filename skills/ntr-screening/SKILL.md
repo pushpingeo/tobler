@@ -1,6 +1,6 @@
 ---
 name: ntr-screening
-version: 3.9-draft
+version: 3.10-draft
 description: Screen a site, onshore or offshore, for non-technical risk (NTR) from published spatial data. Flags anything that could become a risk, concern or delay (land and livelihoods, biodiversity, Indigenous Peoples, cultural heritage, community health and safety, and the operating context), with traced evidence and what wasn't checked. Use when someone asks what risks, sensitivities or constraints a site, block, field, route or area might raise.
 ---
 
@@ -34,7 +34,7 @@ State the distances used at the top of the result, and offer to change them.
 1. **Confirm the site:** location, onshore/offshore, asset type, stage, footprint and distances used.
 2. **Plan the evidence.** For each theme below, decide which kinds of evidence apply to this site (onshore, offshore or both).
 3. **Find the data.** For each kind of evidence, search for datasets with short, distinctive words (the "search words" below), two or three wordings at a time. Choose, in this order: trusted services and national or intergovernmental publishers; open licences; datasets whose features can be fetched; the most specific coverage (a national layer beats a global one where both exist). Use the everyday feature search for settlements, schools, hospitals, places of worship and cemeteries.
-4. **Fetch and measure.** Fetch each chosen dataset for the footprint **out to the wider band** (20 km onshore, 50 km offshore, unless the person set others), then sort what comes back into bands; don't fetch a shorter distance and call the rest clear. A protected area at 20 km offshore is still named. Say which theme each fetch is for (biodiversity, land, indigenous, heritage, community, context), so the result can be shown by theme. Record name, distance, band, source, licence and date for every feature used.
+4. **Fetch and measure.** Fetch each chosen dataset for the footprint **out to the wider band** (20 km onshore, 50 km offshore, unless the person set others), then sort what comes back into bands; don't fetch a shorter distance and call the rest clear. A protected area at 20 km offshore is still named. Say which topic each fetch is for (one of the topic ids the tools list: biodiversity, landscape-visual, water, ground-soil, land-use, hazards, air-climate, heritage, community-health, indigenous, material-assets, topography, context), so the result can be shown by topic. Record name, distance, band, source, licence and date for every feature used.
 5. **Raise flags** (below), one per distinct risk, most serious first.
 6. **State the gaps:** every kind of evidence that applies but wasn't found, failed, or was left out for licence reasons.
 
@@ -85,7 +85,7 @@ Search words are starting points; adapt them to the place and language (e.g. "Na
 **Context (no PS):** country risk only with a dated source; who lives and works around the site, especially sharp contrasts in wealth or land and sea use (*a common cause of conflict over jobs and compensation*).
 
 ## Raising flags
-Each flag says: **the risk** in plain words; **the evidence** (feature name as the data gives it, type, distance and band, dataset, publisher, licence, date checked); **why it matters** (cost, delay, conflict, reputation, legal); **severity**; **confidence**; the **next step**; and the **theme** (PS4–PS8 or context).
+Each flag says: **the risk** in plain words; **the evidence** (feature name as the data gives it, type, distance and band, dataset, publisher, licence, date checked); **why it matters** (cost, delay, conflict, reputation, legal); **severity**; **confidence**; the **next step**; and the **topic** (one of the topic ids; the report's headings come from the framework chosen for the job, not from you).
 
 Severity and confidence are separate: severity is how much it would matter if the evidence is right, confidence is how sure the evidence is. A possibly serious issue seen only in coarse global data is high severity, low confidence. **high** = could stop the project, force a redesign or move, or need a permit or consent that is hard to get; **medium** = likely to need specialist study, mitigation or engagement, adding cost or time; **low** = worth noting, unlikely to change the decision.
 
@@ -117,7 +117,7 @@ A short summary for the person, no more than 400 words: the decision and why (on
   "distances_km": {"near": 1, "close": 5, "wider": 20, "set_by": "default|person"},
   "decision": "progress|progress with targeted investigation|major issue|insufficient evidence",
   "decision_why": "",
-  "flags": [{"risk": "", "theme": "PS4|PS5|PS6|PS7|PS8|context", "severity": "high|medium|low", "confidence": "high|medium|low",
+  "flags": [{"risk": "", "topic": "biodiversity|landscape-visual|water|ground-soil|land-use|hazards|air-climate|heritage|community-health|indigenous|material-assets|topography|context", "severity": "high|medium|low", "confidence": "high|medium|low",
              "evidence": [{"name": "", "distance_km": 0, "band": "on site|near|close|wider", "dataset": "", "publisher": "", "licence": "", "checked": ""}],
              "why": "", "next_step": ""}],
   "checked": [{"evidence": "", "dataset": "", "publisher": "", "result": "features|none in dataset|not checked"}],

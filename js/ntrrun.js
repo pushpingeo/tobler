@@ -18,6 +18,7 @@ import { waterDepth, vesselTraffic, seaLines } from "./seavalues.js";
 import { elevationFrom, elevationSignificance, elevationLine, elevationShort } from "./elevation.js";
 import { readDecision, settleDecision } from "./industry.js";
 import * as K from "./checks.js";
+import { topicOf } from "./findings.js";
 import { osmAnswers } from "./osmchecks.js";
 import { overpassQuery } from "./gazetteer.js";
 import { placeRole, coverageIn, whereText, applySearchArea, reword, sameShape, SEARCH_BAND, SEARCH_NOTE } from "./siterole.js";
@@ -30,8 +31,8 @@ const bandOf = (p, d) => (p.surrounds ? AROUND : p.in_search_area && !(p.distanc
 // tobler-run/2 (23 Nov): adds the checks. Old share links (tobler-run/1, no checks) still open.
 export const RUN_SCHEMA = "tobler-run/2";
 export const SCREEN_TOOLS = ["get_place", "find_data", "get_data", "find_features_near", "get_elevation"];
-const THEME_OF = { PS4: "community", PS5: "land", PS6: "biodiversity", PS7: "indigenous", PS8: "heritage", context: "context" };
-export const THEME_CODE = Object.fromEntries(Object.entries(THEME_OF).map(([k, v]) => [v, k]));
+// Flags and findings carry a topic id in their "theme" field (the field name is kept for old records). Flags from
+// the IFC skill, or records from before 24 Nov, carry PS codes or the six old themes; topicOf reads them all.
 const CONF_ORDER = { high: 0, medium: 1, low: 2 };
 // Severity (how much it would matter if real) is kept apart from confidence (how sure the evidence is). A flag the
 // analyst didn't rate sorts after the rated ones of the same confidence; nothing is guessed for it.
@@ -182,7 +183,7 @@ export function traceFlags(flags, evidence, d, sea = null) {
     const traced = ev.filter((e) => e.traced);
     const dists = (traced.length ? traced : ev).map((e) => e.distance_km).filter((v) => v != null);
     return {
-      risk: String(flag.risk || "").trim(), theme: THEME_OF[flag.theme] || THEME_OF[String(flag.theme || "").toUpperCase()] || (THEME_CODE[flag.theme] ? flag.theme : "context"),
+      risk: String(flag.risk || "").trim(), theme: topicOf(flag.topic || flag.theme),
       confidence: CONF_ORDER[flag.confidence] != null ? flag.confidence : "low",
       severity: SEV_ORDER[flag.severity] != null ? flag.severity : null, why: flag.why || "",
       next_step: String(flag.next_step || "").trim(), evidence: ev,
@@ -336,7 +337,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
       onEvent({ type: "tool", name: "nearest_boundaries", input: { within_km: fetchKm(bp), sea }, ms: Date.now() - tb, baseline: true,
         output: { found: nb.evidence.map((e) => `${e.name} (${e.type}) ${e.distance_km} km`), checked: nb.checked.map((c) => `${c.dataset}: ${c.result}${c.why ? ` (${c.why})` : ""}`) } });
       const e0 = evidence.length;
-      capture(nb.evidence, { theme: K.mapTheme(bp.check.topic) });
+      capture(nb.evidence, { theme: topicOf(bp.check.topic) });
       boundaryFids = evidence.slice(e0).map((f) => f.properties.fid);
       for (const c of nb.checked) checked.push({ ...c, check: bp.check.id });
       const failed = nb.checked.filter((c) => c.result === "not checked");
@@ -399,7 +400,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
     ]);
     if (d) { checked.push({ ...d.checked, check: depthPlan.check.id }); if (d.depth) seaVals.depth = d.depth; if (d.elevation) elevation = d.elevation; }
     if (e) { checked.push({ ...e.checked, check: elevPlan.check.id }); if (e.elevation) { elevation = e.elevation; elevSig = elevationSignificance(elevation); } }
-    if (t) { checked.push({ ...t.checked, check: trafficPlan.check.id }); if (t.traffic) seaVals.traffic = t.traffic; capture(t.evidence, { theme: K.mapTheme(trafficPlan.check.topic) }); }
+    if (t) { checked.push({ ...t.checked, check: trafficPlan.check.id }); if (t.traffic) seaVals.traffic = t.traffic; capture(t.evidence, { theme: topicOf(trafficPlan.check.topic) }); }
     // The card's short line for each value (the source goes beside it, from the check's record).
     valueResult(depthPlan, d, () => (seaVals.depth ? seaLines({ depth: seaVals.depth })[0].split(". ")[0].replace(/^Water depth /, "") : null));
     valueResult(elevPlan, e, () => (elevation ? elevationShort(elevation, elevSig).replace(/ \(NOAA\)\.$/, "").replace(/^Elevation /, "") : null));
@@ -426,7 +427,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
       if (a.not_checked) { checked.push({ evidence: kind, dataset: `OpenStreetMap: ${kind}`, publisher: "OpenStreetMap contributors", result: "not checked", why: a.not_checked, check: plan.check.id }); continue; }
       checked.push({ evidence: kind, dataset: a.meta.dataset, publisher: a.meta.publisher, licence: a.meta.licence, result: a.features.length ? "features" : "none found", count: a.features.length, within_km: a.meta.fetched_km, checked_at: a.meta.checked_at, check: plan.check.id });
       capture(a.features.map((f) => ({ name: f.name, type: kind, geometry: f.geometry, distance_km: f.distance_km, extra: f.extra,
-        source: { title: a.meta.dataset, publisher: a.meta.publisher, licence: a.meta.licence, url: `https://www.openstreetmap.org/${f.osm}` } })), { theme: K.mapTheme(plan.check.topic) });
+        source: { title: a.meta.dataset, publisher: a.meta.publisher, licence: a.meta.licence, url: `https://www.openstreetmap.org/${f.osm}` } })), { theme: topicOf(plan.check.topic) });
     }
     onEvent({ type: "tool", name: "openstreetmap", input: { kinds }, ms: Date.now() - t0, baseline: true,
       output: Object.fromEntries([...got].map(([k, a]) => [k, a.not_checked ? `not checked (${a.not_checked})` : `${a.features.length} within ${a.meta.fetched_km} km`])) });
@@ -435,7 +436,7 @@ export async function runScreening({ host, site, inputs, distances, skill, callC
     const x = l.source, rec = x.record || {};
     const id = tools.useDataset({ id: x.atlas_id, title: rec.title || x.atlas_id, publisher: rec.publisher || "", licence: rec.licence || "", capabilities: ["query"], concepts: [] }, "B");
     const check = layerPlans.find((p) => p.sources.includes(x));
-    const input = { dataset: id, place: site.name, theme: K.mapTheme(check.check.topic), within_km: l.km, limit: 500, ...(l.fields.size ? { fields: [...l.fields] } : {}), ...(l.name_field ? { name_field: l.name_field } : {}) };
+    const input = { dataset: id, place: site.name, theme: topicOf(check.check.topic), within_km: l.km, limit: 500, ...(l.fields.size ? { fields: [...l.fields] } : {}), ...(l.name_field ? { name_field: l.name_field } : {}) };
     const t0 = Date.now();
     onEvent({ type: "tool_start", name: "get_data", input });
     try {
@@ -629,10 +630,10 @@ export function evidenceWithin(record, km) {
     .sort((a, b) => a.properties.distance_km - b.properties.distance_km);
 }
 
-// "First school at 1.3 km": the nearest finding of each theme within km.
+// "First school at 1.3 km": the nearest finding of each topic within km.
 export function nearestByTheme(record, km) {
   const out = new Map();
-  for (const f of evidenceWithin(record, km)) if (!f.properties.surrounds && !out.has(f.properties.theme)) out.set(f.properties.theme, f.properties);
+  for (const f of evidenceWithin(record, km)) if (!f.properties.surrounds && !out.has(topicOf(f.properties.theme))) out.set(topicOf(f.properties.theme), f.properties);
   return [...out.entries()].map(([theme, p]) => ({ theme, name: p.name, distance_km: p.distance_km }));
 }
 
@@ -650,7 +651,7 @@ export async function reassess({ record, km, skill, callClaude: call, now = () =
     reasons: [`re-assessed from the stored evidence within ${km} km (fetched to ${run.fetched_to_km} km)`, ...run.distances.reasons] };
   const ev = evidenceWithin(record, km).map((f) => {
     const p = f.properties;
-    return { name: p.name, type: p.type, theme: THEME_CODE[p.theme] || p.theme, distance_km: p.distance_km, band: bandOf(p, d), ...(p.in_search_area ? { in_search_area: whereText(p) } : {}), dataset: p.dataset, publisher: p.publisher, licence: p.licence, checked: p.checked_at, ...(p.details ? { details: p.details } : {}) };
+    return { name: p.name, type: p.type, theme: topicOf(p.theme), distance_km: p.distance_km, band: bandOf(p, d), ...(p.in_search_area ? { in_search_area: whereText(p) } : {}), dataset: p.dataset, publisher: p.publisher, licence: p.licence, checked: p.checked_at, ...(p.details ? { details: p.details } : {}) };
   });
   const insideOnly = km === 0 && isArea(record.features.find((f) => f.properties.role === "site"));
   const where = insideOnly ? "inside the area (inside it or touching its edge)" : `within ${km} km of the footprint edge`;
@@ -771,7 +772,7 @@ export function createScreening({ host, table, skill, callClaude, model = "", on
         run: r.id, site: r.site.name, scope: r.extent === "inside" ? "inside the area only" : "the site and its surroundings", asset: r.site.asset_label, stage: r.site.stage, distances: distancesLine(r.distances), assessed_within_km: r.assessed_within_km,
         ...(r.replaces ? { replaces: r.replaces } : {}), ...(r.replaced_by ? { replaced_by: `${r.replaced_by} (this run is out of date: the site was edited after it)` } : {}),
         ...(r.decision ? { decision: r.decision } : {}),
-        flags: r.flags.map((f) => ({ id: f.id, risk: f.risk, theme: THEME_CODE[f.theme] || f.theme, ...(f.severity ? { severity: f.severity } : {}), confidence: f.confidence, why: f.why, ...(f.next_step ? { next_step: f.next_step } : {}),
+        flags: r.flags.map((f) => ({ id: f.id, risk: f.risk, theme: topicOf(f.theme), ...(f.severity ? { severity: f.severity } : {}), confidence: f.confidence, why: f.why, ...(f.next_step ? { next_step: f.next_step } : {}),
           evidence: f.evidence.map((e) => ({ name: e.name, distance_km: e.distance_km, band: e.band, dataset: e.dataset, publisher: e.publisher, traced: e.traced })) })),
         checked: r.checked.map((c) => ({ dataset: c.dataset, publisher: c.publisher, result: c.result, ...(c.count ? { count: c.count } : {}), ...(c.why ? { why: c.why.slice(0, 160) } : {}) })),
         data_gaps: r.data_gaps,

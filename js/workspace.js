@@ -10,8 +10,8 @@ import { parseSkill, systemPrompt, buildMessages, runTurn, activityFor } from ".
 import { callClaude, LimitReached } from "./claude.js";
 import { atlasViaWorker, firmsViaWorker, epsgViaWorker } from "./atlasclient.js";
 import { CONFIG } from "./config.js";
-import { THEMES, THEME_SHORT, themeFor, bandOf, BAND_OPACITY, BIG_AREA_KM2, chooseLabels, ringDistances } from "./findings.js";
-import { createScreening, evidenceOf, evidenceWithin, nearestByTheme, flagBeyond, reassess, isArea, THEME_CODE } from "./ntrrun.js";
+import { TOPICS, topicOf, topicInfo, colourExpression, themeFor, bandOf, BAND_OPACITY, BIG_AREA_KM2, chooseLabels, ringDistances } from "./findings.js";
+import { createScreening, evidenceOf, evidenceWithin, nearestByTheme, flagBeyond, reassess, isArea } from "./ntrrun.js";
 import { groupGaps, gapSummary, GAP_GROUPS } from "./gaps.js";
 import { checksView, noCheckGap } from "./checks.js";
 import * as U from "./units.js";
@@ -220,10 +220,10 @@ function start() {
     map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; });
   }
-  // Findings: features from data searches, drawn by screening theme (js/findings.js). They stay for the session,
+  // Findings: features from data searches, drawn by topic (js/findings.js). They stay for the session,
   // until the person clears them; a later search never wipes them (Rosebank, 17 Nov). Big areas sit underneath,
   // quiet; distance from the site sets the emphasis.
-  const themeColour = ["match", ["get", "theme"], ...Object.entries(THEMES).flatMap(([k, t]) => [k, t.colour]), THEMES.context.colour];
+  const themeColour = colourExpression();
   const emphasis = ["match", ["get", "band"], "near", BAND_OPACITY.near, "close", BAND_OPACITY.close, BAND_OPACITY.wider];
   const big = [">", ["coalesce", ["get", "area_km2"], 0], BIG_AREA_KM2];
   map.addSource("rings", { type: "geojson", data: turf.featureCollection([]) });
@@ -416,8 +416,9 @@ function showCandidates(list) {
   map.getSource("cands")?.setData(turf.featureCollection(feats));
 }
 
-// Findings stay until cleared, one entry per feature id, drawn by theme; the analyst can bring them into view with
-// show_on_map. The legend (#key) lists the themes with counts and lets the person switch each off.
+// Findings stay until cleared, one entry per feature id, drawn by topic; the analyst can bring them into view with
+// show_on_map. The legend (#key) lists the topics with counts and lets the person switch each off. A finding's
+// "theme" property holds its topic id, normalised as it comes in (older records carry the six IFC-based themes).
 const findings = new Map();
 const hiddenThemes = new Set();
 let ringsAround = null;
@@ -430,7 +431,7 @@ function drawFindings() {
   drawKey();
 }
 function addFindings(list, meta = {}) {
-  const theme = meta.theme || themeFor({});
+  const theme = topicOf(meta.theme || themeFor({}));
   for (const c of list) {
     findings.set(c.id, { type: "Feature", geometry: c.geometry, properties: {
       id: c.id, label: c.name || c.type || "", theme, band: bandOf(c.distance_km), distance_km: c.distance_km ?? null,
@@ -475,7 +476,7 @@ function showFindings(ids) {
   map.fitBounds(turf.bbox(all), { padding: fitPadding(), maxZoom: 14 });
   return { shown: feats.length, on_map: findings.size };
 }
-// The map key: one row per theme on the map, with a count and a switch; doubles as the list of what's shown.
+// The map key: one row per topic on the map, with a count and a switch; doubles as the list of what's shown.
 let keyOpen = null;
 function drawKey() {
   const key = $("key");
@@ -485,7 +486,7 @@ function drawKey() {
   key.hidden = !counts.size;
   if (!counts.size) return;
   const list = key.querySelector("ul");
-  list.replaceChildren(...Object.entries(THEMES).filter(([k]) => counts.has(k)).map(([k, t]) => {
+  list.replaceChildren(...Object.entries(TOPICS).filter(([k]) => counts.has(k)).map(([k, t]) => {
     const li = document.createElement("li");
     const label = document.createElement("label");
     const box = document.createElement("input");
@@ -493,7 +494,7 @@ function drawKey() {
     box.addEventListener("change", () => { box.checked ? hiddenThemes.delete(k) : hiddenThemes.add(k); drawFindings(); });
     const sw = document.createElement("span"); sw.className = "swatch"; sw.style.background = t.colour;
     label.append(box, sw);
-    // The theme's name opens its findings by distance from the site, nearest first (24 Nov).
+    // The topic's name opens its findings by distance from the site, nearest first (24 Nov).
     const name = el("button", null, "key-name");
     name.type = "button";
     name.append(document.createTextNode(`${t.label} `), Object.assign(document.createElement("span"), { className: "count", textContent: counts.get(k) }));
@@ -529,7 +530,7 @@ function openPopup(p, lngLat) {
   const km = p.surrounds ? "around the site (a wide area it lies within) · " : p.in_search_area ? `${whereText(p)} · ` : p.distance_km == null || p.distance_km === "null" ? "" : +p.distance_km === 0 ? "on site · " : `${U.dist(+p.distance_km)} from the site · `;
   // The publisher only when the layer's title doesn't already name it ("... (JNCC)").
   const pub = p.publisher && !/\([^)]*\)\s*$/.test(p.dataset || "") && !String(p.dataset || "").includes(p.publisher) ? ` (${p.publisher})` : "";
-  what.textContent = `${THEMES[p.theme]?.label || ""} · ${km}${p.dataset}${pub}`;
+  what.textContent = `${topicInfo(p.theme).label} · ${km}${p.dataset}${pub}`;
   box.append(name, what);
   // Which of the run's checks counted it: the way back from the map to the card.
   const [runId, fid] = String(p.id || "").split(":");
@@ -1359,7 +1360,7 @@ function showRunOnMap(record, { fit = true, instant = false } = {}) {
     const p = f.properties;
     const band = p.band === "on site" || p.band === SEARCH_BAND ? "near" : p.band === "beyond" || p.band === "unknown" ? "wider" : p.band;
     findings.set(`${r.id}:${p.fid}`, { type: "Feature", geometry: f.geometry, properties: {
-      id: `${r.id}:${p.fid}`, run: r.id, label: p.name, theme: p.theme, band: p.surrounds ? "wider" : band, ...(p.surrounds ? { surrounds: true } : {}),
+      id: `${r.id}:${p.fid}`, run: r.id, label: p.name, theme: topicOf(p.theme), band: p.surrounds ? "wider" : band, ...(p.surrounds ? { surrounds: true } : {}),
       ...(p.in_search_area ? { in_search_area: true, ...(p.coverage != null ? { coverage: p.coverage } : {}), ...(p.side ? { side: p.side } : {}) } : {}), distance_km: p.distance_km, area_km2: p.area_km2 ?? null, dataset: p.dataset, publisher: p.publisher,
     } });
   }
@@ -1649,19 +1650,19 @@ function paintRun(entry) {
     if (f.severity) li.dataset.sev = f.severity;
     const d = document.createElement("details");
     const s = document.createElement("summary");
-    const sw = el("span", null, "swatch"); sw.style.background = THEMES[f.theme]?.colour || THEMES.context.colour; sw.title = THEMES[f.theme]?.label || "";
+    const sw = el("span", null, "swatch"); sw.style.background = topicInfo(f.theme).colour; sw.title = topicInfo(f.theme).label;
     const risk = el("span", null, "risk");
     if (f.id) risk.append(el("span", f.id, "fid"));
     risk.append(document.createTextNode(f.risk));
     // Under the flag: its topic in words (people think "heritage", not a colour) and, with a severity, the confidence.
     const sub = el("span", null, "sub");
-    sub.append(el("span", THEME_SHORT[f.theme] || THEMES[f.theme]?.label || "Context", "th"));
+    sub.append(el("span", topicInfo(f.theme).short, "th"));
     if (f.severity) sub.append(document.createTextNode(" · "), el("span", `${f.confidence} confidence${f.confidence_capped ? " (capped)" : ""}`, "cw"));
     risk.append(sub);
     s.append(el("span", f.severity || f.confidence, f.severity ? "sev" : "conf"), sw, risk, el("span", f.relation === SEARCH_BAND ? "in search area" : f.nearest_km == null ? "" : fmtKm(f.nearest_km), "dist"));
     s.title = `${f.severity ? `Severity ${f.severity}, ` : ""}confidence ${f.confidence}`;
     const body = el("div", null, "body");
-    body.append(el("p", `${THEMES[f.theme]?.label || "Operating context"}${THEME_CODE[f.theme] && THEME_CODE[f.theme] !== "context" ? ` (${THEME_CODE[f.theme]})` : ""}.${f.severity ? ` Severity ${f.severity}, confidence ${f.confidence}.` : ""} ${f.why || ""}${f.confidence_capped ? ` (Confidence ${f.confidence_capped}.)` : ""}`, "why"));
+    body.append(el("p", `${topicInfo(f.theme).label}.${f.severity ? ` Severity ${f.severity}, confidence ${f.confidence}.` : ""} ${f.why || ""}${f.confidence_capped ? ` (Confidence ${f.confidence_capped}.)` : ""}`, "why"));
     if (f.next_step) { const nx = el("p", null, "next"); nx.append(el("b", "Next step: "), document.createTextNode(f.next_step)); body.append(nx); }
     const ev = el("ul", null, "ev");
     for (const e of f.evidence) {
@@ -1790,7 +1791,7 @@ function paintReach(entry) {
   const where = inside ? (r.site.role === "search_area" ? "inside the search area or touching its edge" : "inside the area or touching its edge") : `within ${U.dist(km)}`;
   const wideLine = wide.length ? ` The site also lies within ${wide.length === 1 ? "a wide area" : `${wide.length} wide areas`}: ${wide.slice(0, 3).join("; ")}${wide.length > 3 ? ` and ${wide.length - 3} more` : ""}.` : "";
   card.querySelector(".nearest").textContent = (n
-    ? `${n} finding${n === 1 ? "" : "s"} ${where}. ${inside ? "Found" : "Nearest"}: ${near.map((x) => `${(THEMES[x.theme]?.label || x.theme).toLowerCase()}, ${x.name}${inside ? "" : ` (${r.site.role === "search_area" && x.distance_km === 0 ? "in the search area" : fmtKm(x.distance_km)})`}`).join("; ")}.`
+    ? `${n} finding${n === 1 ? "" : "s"} ${where}. ${inside ? "Found" : "Nearest"}: ${near.map((x) => `${topicInfo(x.theme).label.toLowerCase()}, ${x.name}${inside ? "" : ` (${r.site.role === "search_area" && x.distance_km === 0 ? "in the search area" : fmtKm(x.distance_km)})`}`).join("; ")}.`
     : `Nothing found ${where} in the sources checked.`) + wideLine;
   card.querySelectorAll(".flag").forEach((li, i) => {
     const f = r.flags[i];

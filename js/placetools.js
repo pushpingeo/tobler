@@ -11,7 +11,7 @@ import { atlasFindNamed, NAMED_KINDS, describeChecked } from "./atlasfeatures.js
 import { DATA_TOOL_DEFS, createDataTools, geometryDistanceKm } from "./datatools.js";
 import { EPSG_TOOL_DEFS, createEpsgTools } from "./epsgtools.js";
 import { elevationFrom, elevationSignificance } from "./elevation.js";
-import { themeFor, THEME_IDS } from "./findings.js";
+import { themeFor, TOPIC_IDS } from "./findings.js";
 import { ASSET_TYPES } from "./distances.js";
 import { searchAnchors, searchNominatim, searchNaturalEarth, searchWikidata, findFeaturesNear, featureOutline, FEATURE_TYPES, candidate, settlementNear } from "./gazetteer.js";
 import { parseCoordinates, formatLatLon } from "./coords.js";
@@ -76,7 +76,7 @@ export function placeToolDefs(skills) {
           feature_type: { type: "string", enum: Object.keys(FEATURE_TYPES) },
           radius_km: { type: "number", description: "Search radius, 0.5 to 50 km" },
           name: { type: "string", description: "Optional: part of the feature's name" },
-          theme: { type: "string", enum: THEME_IDS, description: "Optional, when screening: which theme this search is for (sets the colour on the map)." },
+          theme: { type: "string", enum: TOPIC_IDS, description: "Optional, when screening: which topic this search is for (sets the colour on the map): one of the topic ids, as for get_data." },
         },
         required: ["anchor", "feature_type", "radius_km"],
       },
