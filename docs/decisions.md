@@ -1666,3 +1666,5 @@ have no topic at all, though landscape, peat and farmland quality decided most o
   workflow makes `digests/README.md` in tobler-logs the newest digest plus links to the rest, so
   github.com/pushpingeo/tobler-logs/tree/main/digests always opens on it. A failed run still emails him through
   GitHub.
+- **Rob's go, 25 Nov:** the Worker now allows `https://asktobler.ai`, so the lab agent at asktobler.ai/ntr-lab/ runs
+  through it, under the same per-visitor limits as Tobler.
