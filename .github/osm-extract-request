@@ -2,4 +2,6 @@
 # 25 Nov: the first UK build, with GeoParquet, and every market's Geofabrik sizes for the cost estimate.
 # 25 Nov 11:15: the UK build to R2 (bucket atlas-data, data.asktobler.com).
 # 25 Nov 11:45: again, uploading through R2's S3 API (files over 300 MiB) and retrying Geofabrik downloads.
-uk parquet
+# 25 Nov 12:05: run 45604494864's manifest left out run 45602343478's extracts (Geofabrik refused the second run's
+# downloads for them; their files are in the bucket). Publish only: the live manifest plus that run's stats.
+uk publish-only stats-from 45602343478
