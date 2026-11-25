@@ -1540,7 +1540,7 @@ have no topic at all, though landscape, peat and farmland quality decided most o
   DuckDB-WASM would be tens of MB, and isn't vendored yet). GeoParquet 1.1 with a bbox column is written beside it
   from the same data, for DuckDB, QGIS and the atlas. Both sorted along a Hilbert curve.
 - **Order:** the copy first, when the whole of every kind's search box is inside the copy's outline (the real
-  outline, shrunk by 200 m when made, so the edge goes to Overpass); otherwise Overpass. If the copy can't be read,
+  outline, shrunk by about 1 km when made, so the edge goes to Overpass); otherwise Overpass. If the copy can't be read,
   Overpass, and the record says the copy failed (`copy_failed`). If both fail, "not checked" names both.
 - **Provenance:** `meta.via` ("copy" or "overpass"), `data_as_of` and `release`; the dataset title says
   "Tobler's copy, data as of …"; the run record's checked line carries `via` and `data_as_of`.
@@ -1552,3 +1552,9 @@ have no topic at all, though landscape, peat and farmland quality decided most o
   report (`data/osm-extracts/`).
 - **Licence:** a derived database of OpenStreetMap, ODbL 1.0; the manifest says so, and every feature keeps its
   osm.org link. If the files are public, they're offered under ODbL with attribution.
+- **First UK build (25 Nov, branch osm-copy, about 20 min):** 50 extracts (2.62 GB of Geofabrik downloads, 1.14 GB
+  after tags-filter), 23.5 million features, 7.6 GB of FlatGeobuf and 3.1 GB of GeoParquet. Buildings are 21.3
+  million of the features and 86% of the bytes. Data as of 24 Nov 21:21 UTC. 12 shapes skipped as broken. The
+  manifest was 580 kB with a 200 m outline tolerance; now 1 km (Geofabrik's outlines run out to sea).
+- **US:** Geofabrik lists both regional bundles and states under the US; the bundles are skipped
+  (`markets.us.skip`), so 54 extracts, 12.2 GB, the same as its single US file.

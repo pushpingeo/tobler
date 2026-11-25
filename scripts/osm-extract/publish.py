@@ -1,7 +1,8 @@
 """The manifest for one market's build: which extracts were built, when their data is from, where each file is, and
 the outline the copy covers. The browser reads it first (js/osmsnapshot.js).
 
-The outline is the union of the extracts that built, simplified and then shrunk by the same tolerance, so it never
+The outline is the union of the extracts that built, simplified and then shrunk by the same tolerance (about 1 km; Geofabrik's
+outlines run well out to sea, so the coast is still covered), so it never
 claims ground the copy doesn't hold: a site near its edge goes to Overpass instead (honest about gaps).
 
     python3 scripts/osm-extract/publish.py --regions regions.json --stats-dir stats --release 2026-11-25 --out manifest.json --report report.json
@@ -13,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import load_spec
 from shapely.geometry import shape, mapping
 
-TOL = 0.002  # degrees, about 200 m: simplify, then shrink by as much
+TOL = 0.01  # degrees, about 1 km: simplify, then shrink by as much (0.002 made a 580 kB UK manifest)
 
 
 def rounded(geom, nd=5):

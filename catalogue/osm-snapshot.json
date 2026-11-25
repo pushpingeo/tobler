@@ -211,7 +211,15 @@
       "name": "United States",
       "roots": [
         "us"
-      ]
+      ],
+      "skip": [
+        "us-midwest",
+        "us-northeast",
+        "us-pacific",
+        "us-south",
+        "us-west"
+      ],
+      "why": "Geofabrik lists both regional bundles and the states under the US; the bundles are skipped so each state is built once."
     }
   }
 }

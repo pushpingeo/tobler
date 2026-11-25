@@ -13,7 +13,7 @@ from build import load_spec
 UA = "Tobler OSM extract builder (github.com/pushpingeo/tobler)"
 
 
-def leaves(index, roots):
+def leaves(index, roots, skip=()):
     feats = {f["properties"]["id"]: f for f in index["features"]}
     kids = {}
     for f in index["features"]:
@@ -21,6 +21,7 @@ def leaves(index, roots):
         if p: kids.setdefault(p, []).append(f["properties"]["id"])
     out = []
     def walk(i):
+        if i in skip: return
         if i not in feats: raise SystemExit(f"Geofabrik has no extract called {i}")
         if kids.get(i): [walk(k) for k in sorted(kids[i])]
         else: out.append(feats[i])
@@ -47,7 +48,7 @@ def main(argv=None):
     if a.sizes:
         report = {}
         for m, md in spec["markets"].items():
-            ls, feats = leaves(index, md["roots"])
+            ls, feats = leaves(index, md["roots"], md.get("skip", ()))
             rows = []
             for f in ls:
                 p = f["properties"]
@@ -64,7 +65,7 @@ def main(argv=None):
         json.dump(report, open(a.out, "w"), indent=1)
         return 0
     if a.market not in spec["markets"]: ap.error(f"no market {a.market}; known: {', '.join(spec['markets'])}")
-    ls, _ = leaves(index, spec["markets"][a.market]["roots"])
+    ls, _ = leaves(index, spec["markets"][a.market]["roots"], spec["markets"][a.market].get("skip", ()))
     regions = [{"id": f["properties"]["id"], "name": f["properties"]["name"], "parent": f["properties"].get("parent"),
                 "pbf": f["properties"]["urls"]["pbf"], "shard": i % a.shards, "geometry": f["geometry"]} for i, f in enumerate(ls)]
     json.dump({"market": a.market, "regions": regions}, open(a.out, "w"))
