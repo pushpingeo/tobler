@@ -162,6 +162,13 @@ export function heldReply(o) {
   return `I've put **${o.place}** on the map: ${found}.${role} Is that the right place? If it is, say so (or use it from the card) and I'll run ${o.queued}. If not, tell me what to change, or draw the site.`;
 }
 
+// The line under a set of buttons, when the model didn't write one in the step that showed them.
+const BUTTONS = {
+  offer_skills: () => "Pick one above, or tell me in words what you'd like.",
+  ask_asset_type: () => "Pick one above, or tell me in words what's planned.",
+  offer_choices: (o) => [o.recommended_name ? `I'd go with **${o.recommended_name}**.` : "", sentence(o.reason), "Flick through them on the map and pick one."].filter(Boolean).join(" "),
+};
+
 // For runTurn's finish hook: the tools that end the conversation's turn, and the reply code writes for each.
 // screening: the page's createScreening service (for the run records). Returns null when the model should carry on.
 export function finishTurn(screening) {
@@ -177,6 +184,8 @@ export function finishTurn(screening) {
       // Held until the person has seen the place, said which part of it is the site, or picked an analysis.
       if (out.held) return heldReply(out);
     }
+    // Buttons are on screen: the turn ends here, so nothing runs or gets built until the person picks.
+    if (BUTTONS[name] && !out.not_available) return { text: BUTTONS[name](out, input), soft: true };
     return null;
   };
 }

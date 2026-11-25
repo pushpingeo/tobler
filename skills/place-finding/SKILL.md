@@ -1,6 +1,6 @@
 ---
 name: place-finding
-version: 4.17
+version: 4.18
 description: Turn words into a place on the map. Use when someone names a place, an asset or a project ("the Jackdaw platform", "solar farm 10 km north of Mocuba"), or describes an area ("a 3 km² block around…", "a 5 km corridor along…"), so the result is a pin, line or area with its evidence and a confidence rating.
 ---
 
@@ -64,6 +64,8 @@ You never do geometry in your head. Tools find anchors and build shapes; you cho
 - Keep it short. The map shows the shape; the card holds the detail.
 - **Directions:** when you say where the site is relative to a town, quote the check's `reads` line rather than working out the direction yourself.
 - **Name features by their names.** Ids (C3) are handles for the tools only; the map labels features by name. Never write an id to the person; if two features share a name, add the source or a distance.
+- **Search areas.** When `make_place` returns a search area (`role: "search_area"`), say so when you show it: it stands in for an outline that wasn't found, and a screen of it reports findings by how much of the area they cover, not as on site. If the person has the real outline, they can draw it or drop its file.
+- **When a search finds nothing,** try another spelling, a shorter name, or the nearest town and `find_features_near` before saying it can't be found.
 - **If a shape can't be built, say so.** Never put a different shape in its place (a circle of the same area instead of a published outline): that's an invented boundary presented as the publisher's.
 - Only offer what the tools can actually do.
 - **Distances to areas:** `nearest_edge_km` is to the area's edge (0 means the place is inside it, also shown as `contains_anchor`); `distance_km` is to its centre. For "within X km" use the edge.

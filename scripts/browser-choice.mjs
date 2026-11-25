@@ -149,8 +149,13 @@ await page.screenshot({ path: "/tmp/choice-chips.png" });
 
 // A place and what's planned, but no analysis named (Shell House, Perth, 24 Nov): the analyst offers the skills as
 // buttons; the screen button sends a screen request as the person's next message.
-queue.push(msg([use("t7", "offer_skills", { place: placeName })], "tool_use"), msg([{ type: "text", text: "Which would you like?" }]));
+// The buttons end the turn in code: the model isn't asked again, and code writes the line under them.
+queue.push(msg([use("t7", "offer_skills", { place: placeName })], "tool_use"));
+const callsBefore = sent.length;
 await turn(`I'd like to site a warehouse on ${placeName}`);
+check(sent.length - callsBefore === 1 && queue.length === 0, `the buttons end the turn with no second model call (${sent.length - callsBefore} call)`);
+const underPick = await page.evaluate(() => [...document.querySelectorAll(".msg.analyst")].at(-1)?.textContent || "");
+check(/Pick one above/.test(underPick), `code writes the line under the buttons when the model didn't (${underPick.slice(0, 60)})`);
 const pick = await page.evaluate(() => [...([...document.querySelectorAll(".skill-pick")].at(-1)?.querySelectorAll(".chip") || [])].map((b) => `${b.firstChild.textContent}${b.classList.contains("soon") ? " (soon)" : ""}`));
 check(pick.length === 3 && /^Screen/.test(pick[0]) && pick.includes("Contamination desk study") && pick.includes("Developable area"), `the skills offered as buttons (${JSON.stringify(pick)})`);
 await page.screenshot({ path: "/tmp/choice-skillpick.png" });

@@ -27,8 +27,8 @@ export const LICENCE_NOTE = {
   open: "open licence",
   "esri-mla": "Esri Master License Agreement: only for people who hold an Esri licence",
   "non-commercial": "non-commercial use only: used because the person switched on non-commercial data; never in commercial work",
-  unknown: "licence not stated: say so when you use it",
-  stated: "licence stated but not a standard open one: quote it and check before commercial use",
+  unknown: "licence not stated by the publisher",
+  stated: "licence stated but not a standard open one: not confirmed for commercial use",
 };
 
 // Whether a licence class may be used, given the person's settings: { esri: bool, nonCommercial: bool }.

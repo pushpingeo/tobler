@@ -1,6 +1,6 @@
 ---
 name: coordinate-reference
-version: 1.1-draft
+version: 1.2-draft
 description: Get coordinates right. Use whenever coordinates come in (typed, pasted, in a file, from a service), a result must be measured, overlaid or exported, or data in different datums meet, so every position says what system it's in, every change between systems is the right one for where the site is, and the accuracy accepted is recorded.
 ---
 
@@ -120,13 +120,18 @@ know nor need to:
   Then do as the person says and record it as their choice.
 - **Either way, ask** when the best option available is worse than the job tolerates, when the source datum itself is
   uncertain, or when the person has said the work is survey-grade.
+- `transformation_options` returns `ask: true` with the reason whenever one of these holds: then ask, and build nothing
+  from the coordinates until the person chooses. If no transformation covers the place, say so; never apply one from
+  elsewhere. If the best one needs a grid file the page can't apply, say so and ask before falling back to a less
+  accurate one.
 
 ### Chosen is not applied
 Choosing a transformation and applying it are two steps. Say an operation was **applied** only once a tool has
 computed the coordinates with it, and give how far the points moved and the stated accuracy; until then it was
 **chosen** or **recommended**. A shift quoted from a general figure ("110–125 m in the North Sea") is context, not the
 shift at this site. Never move coordinates yourself, and never use an operation outside its area of use without saying
-its stated accuracy doesn't hold there.
+its stated accuracy doesn't hold there (`transform` warns when points lie outside it: say so, and don't rely on them).
+When searching for a CRS by words, pick by area of use and kind, not name alone, and prefer ones that aren't deprecated.
 
 ## 5. Record it
 Every result that used coordinates records, with the result (a run record, an export's metadata):

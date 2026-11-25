@@ -915,8 +915,10 @@ const host = {
     const r = await resolveLayer(siteFile.file, layer, operation, { geodesy: fileGeodesy });
     paintFileCard();
     const { file } = siteFile;
-    if (file.features.length === 1 && file.features[0].kind === "polygon" && !file.layers.some((l) => l.crs.pending)) usePicked("parts", { force: true });
-    return r;
+    // One outline and nothing left to decide: it becomes the site at once. Otherwise the person picks from the card.
+    const made = file.features.length === 1 && file.features[0].kind === "polygon" && !file.layers.some((l) => l.crs.pending);
+    if (made) usePicked("parts", { force: true });
+    return { ...r, site_made: made, ...(made ? {} : { features_waiting: file.features.length }) };
   },
   addPlace({ feature, origin, scale, name, given, status = "proposed" }) {
     const id = crypto.randomUUID();

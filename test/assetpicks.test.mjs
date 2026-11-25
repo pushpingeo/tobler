@@ -29,12 +29,13 @@ const g = pickMessage("Area 1", null);
 assert.match(g.text, /general screen/);
 assert.match(g.forModel, /asset_type "other"/);
 
-// The tool: shows the buttons through the host, tells the analyst to stop there.
+// The tool: shows the buttons through the host; the turn ends in code (finishTurn), not by an instruction.
 const shown = [];
 const places = [{ name: "Point near Linlithgow", alias: "Point 1", feature: { type: "Feature", geometry: { type: "Point", coordinates: [-3.6, 55.97] } } }];
 const tools = createPlaceTools({ places: () => places, findPlace: (n) => places.find((p) => p.name === n || p.alias === n), askAssetType: async (name) => { shown.push(name); return { place: name, setting: "onshore" }; } });
 assert.ok(placeToolDefs([]).some((t) => t.name === "ask_asset_type"));
 const out = await tools.exec("ask_asset_type", { place: "Point 1" });
 assert.deepEqual(shown, ["Point near Linlithgow"]);
-assert.match(out.next || out.output?.next || JSON.stringify(out), /don't screen until they pick/);
+assert.equal(out.buttons_shown, true);
+assert.equal(out.next, undefined, "no instructions in the tool result: the turn ends in code (runreply BUTTONS)");
 console.log("asset pick tests passed");

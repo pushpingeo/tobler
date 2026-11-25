@@ -76,7 +76,7 @@ await test("typed coordinates are a place: read in code, not searched as a name 
   // Both readings on land (Nigeria and Niger): both offered.
   const both = await t.exec("find_place", { query: "12.5, 13.5" });
   assert.equal(both.candidates.length, 2);
-  assert.match(both.note, /offer_choices/);
+  assert.match(both.note, /Both readings are plausible/);
   // Mixed with a name: the coordinates come first, and the name is still searched.
   calls.length = 0;
   const m = await t.exec("find_place", { query: "Bellochantuy", also: ["55.5167, -5.7"] });
@@ -122,6 +122,8 @@ await test("make_place builds a 3 km² square on the anchor and records how", as
   const s2 = await t.exec("make_place", { anchor: id, shape: "circle", radius_km: 2, offset_km: 2, bearing_deg: 90, words: "a wind farm east of Jackdaw", match: "type_near_clues", reason: "x" });
   assert.equal(host.list[1].origin.role, "search_area");
   assert.match(s2.what_it_is, /^A search area \(built from clues round JACKDAW\)/);
+  assert.equal(s2.role, "search_area");
+  assert.equal(s2.next, undefined, "no instructions in the result");
   assert.match(await projectSummary(host.ref, host.list, null), /a search area \(the site's outline wasn't found\)/);
 });
 
@@ -531,7 +533,7 @@ await test("distance checks must quote the person; a rebuild replaces its propos
   assert.equal(b.checks[0].pass, false);
   const c = await t.exec("make_place", { anchor: "C1", shape: "point", words: "the summit", match: "name_and_type", reason: "x", replaces: "Ben Nevis" });
   assert.equal(c.failed_checks_left_out[0].quote, "about 4 km north-east of the Ben Nevis distillery", "a dropped failed check is listed, not hidden");
-  assert.match(c.about_them, /never drop one to raise the confidence/);
+  assert.match(c.about_them, /failed on the place this one replaces/);
   assert.equal(host.list.length, 1);
   // A corrected clue replaces the old one: nothing listed.
   host.said.push("sorry, about 6 km south-east of the distillery");

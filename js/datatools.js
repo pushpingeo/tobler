@@ -13,7 +13,7 @@ import { nearestKm } from "./nearness.js";
 // (Rob, 18 Nov: "North West European waters" and "Eastern Scotland" counted as on site for a box at Linlithgow).
 // It contains or touches the site and is at least 1,000 km² and 200 times the site's area. Returns its area, or 0.
 export const AROUND_MIN_KM2 = 1000;
-export const AROUND_NOTE = "Items marked around_site are wide areas the site lies within (seas, regions, very large designations), not features on the site. Mention one only where being inside it matters for this project.";
+export const AROUND_NOTE = "Items marked around_site are wide areas the site lies within (seas, regions, very large designations), not features on the site.";
 export function aroundSiteKm2(siteKm2, geometry, distKm) {
   if (distKm == null || distKm > 0 || !/Polygon/.test(geometry?.type || "")) return 0;
   const a = turf.area({ type: "Feature", properties: {}, geometry }) / 1e6;
@@ -187,7 +187,7 @@ export function createDataTools(host) {
         ...(esri.length && !esriOk() ? { left_out: `${esri.length} dataset${esri.length > 1 ? "s" : ""} under Esri's Master License Agreement (${esri.slice(0, 3).map((d) => d.title).join("; ")}). Tobler doesn't use those unless the person holds an Esri licence; mention it if it matters.` } : {}),
         ...(nc.length && !allow().nonCommercial ? { left_out_non_commercial: `${nc.length} dataset${nc.length > 1 ? "s" : ""} under non-commercial terms (${nc.slice(0, 3).map((d) => d.title).join("; ")}). Left out unless the person switches on non-commercial data in settings; list it as a gap if it matters.` } : {}),
         ...(failure ? { not_checked: `The catalogue search failed: ${failure}. Say the catalogue couldn't be checked; don't say the data doesn't exist.` } : {}),
-        note: shown.length ? undefined : `Nothing found for "${text}" in ${where.label}. Try other words before saying there's no such data, and say what you searched.`,
+        note: shown.length ? undefined : `Nothing found for "${text}" in ${where.label}.`,
       };
     },
 
@@ -254,11 +254,11 @@ export function createDataTools(host) {
         ...head, ...extra,
         returned_by_service: returned, inside_or_touching: inside, within_distance: kept.length,
         ...(around ? { around_the_site: around, around_note: AROUND_NOTE } : {}),
-        ...(returned === 0 ? { service_note: "The service returned no features at all for this box. If you expected some (e.g. a field's own pipelines), the layer may be the wrong one (check its title and publisher) or may not cover this area; look for another." } : {}),
+        ...(returned === 0 ? { service_note: "The service returned no features at all for this box." } : {}),
         nearest: kept.slice(0, 12).map((c) => ({ id: c.id, name: c.name, type: c.type, distance_km: c.distance_km, ...(c.around_site ? { around_site: true, area_km2: c.area_km2 } : {}), ...(Object.keys(c.extra).length ? { details: c.extra } : {}) })),
         ...(kept.length > 12 ? { more: kept.length - 12 } : {}),
         ...(!d.service && returned >= lim ? { capped: `The service returned its ${lim}-feature limit for this box, so there may be more.` } : {}),
-        ...(d.service?.time_aware ? { time_note: `Detections from the last ${extra.days_checked} days only, not a long record. Say so when reporting.` } : (d.capabilities || []).includes("time") ? { time_note: "A live, time-aware layer: it shows recent detections only (often the last 24 hours to 7 days). Say so when reporting." } : {}),
+        ...(d.service?.time_aware ? { time_note: `Detections from the last ${extra.days_checked} days only, not a long record.` } : (d.capabilities || []).includes("time") ? { time_note: "A live, time-aware layer: it shows recent detections only (often the last 24 hours to 7 days)." } : {}),
         ...(lic.class !== "open" ? { licence_note: LICENCE_NOTE[lic.class] } : {}),
       };
     },

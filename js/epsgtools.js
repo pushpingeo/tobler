@@ -107,12 +107,12 @@ export function decide(ranked, setting) {
   const best = usable.find((o) => o.can_apply) || null;
   const top = usable[0] || null;
   const out = { recommended: top?.code ?? null, setting };
-  if (!top) return { ...out, chosen: null, ask: true, why: "No transformation in the registry covers this place. Say so; don't apply one from elsewhere." };
-  if (setting === "ask") return { ...out, chosen: null, ask: true, why: "The person asked to choose transformations themselves: offer the options, recommended first, with their accuracy and area." };
-  if (!best) return { ...out, chosen: null, ask: true, why: `The best option (${top.name}) needs a grid file this page can't apply. Say so and ask before falling back to a less accurate one.` };
-  if (best.accuracy_m == null || best.accuracy_m > ASK_ABOVE_M) return { ...out, chosen: null, ask: true, why: `The best option that can be applied here is only ${best.accuracy_m == null ? "of unknown accuracy" : `good to about ${best.accuracy_m} m`}, worse than the ${ASK_ABOVE_M} m accepted without asking. Ask.` };
+  if (!top) return { ...out, chosen: null, ask: true, why: "No transformation in the registry covers this place." };
+  if (setting === "ask") return { ...out, chosen: null, ask: true, why: "The person chose to pick transformations themselves." };
+  if (!best) return { ...out, chosen: null, ask: true, why: `The best option (${top.name}) needs a grid file this page can't apply; the others are less accurate.` };
+  if (best.accuracy_m == null || best.accuracy_m > ASK_ABOVE_M) return { ...out, chosen: null, ask: true, why: `The best option that can be applied here is only ${best.accuracy_m == null ? "of unknown accuracy" : `good to about ${best.accuracy_m} m`}, worse than the ${ASK_ABOVE_M} m accepted without asking.` };
   const note = best.code !== top.code ? ` (${top.name}, ${top.accuracy_m ?? "?"} m, is better but needs a grid file this page can't apply)` : "";
-  return { ...out, chosen: best.code, ask: false, why: `Chosen for the person: ${best.name}, good to about ${best.accuracy_m} m here${note}. It is chosen, not yet applied: to move coordinates, call transform with operation ${best.code}, and only then say it was applied.` };
+  return { ...out, chosen: best.code, ask: false, why: `Chosen for the person: ${best.name}, good to about ${best.accuracy_m} m here${note}. Chosen, not yet applied: coordinates move only when transform runs with operation ${best.code}.` };
 }
 
 // typedAt(ref) → [lon, lat] only for coordinates the person typed (their numbers, before any datum is assumed).
@@ -305,9 +305,9 @@ export function createEpsgTools(host, locate, typedAt = () => null) {
         epsg_version: version ? `EPSG Dataset ${version.version} (${version.date})` : "EPSG dataset version not read",
         points: rows,
         ...(domain === "geog2D" ? { heights: "A 2D method: heights aren't carried through." } : {}),
-        ...(outside ? { warning: `${outside} of ${rows.length} point${rows.length > 1 ? "s lie" : " lies"} outside the operation's area of use (${operationRec.area_of_use}): its stated accuracy doesn't hold there. Say so; don't rely on those positions.` } : {}),
+        ...(outside ? { warning: `${outside} of ${rows.length} point${rows.length > 1 ? "s lie" : " lies"} outside the operation's area of use (${operationRec.area_of_use}): its stated accuracy doesn't hold there, and those positions aren't reliable.` } : {}),
         record: { operation: `EPSG:${op}`, name: rec.Name, accuracy_m: operationRec.accuracy_m, direction: operationRec.direction, epsg_version: version?.version ?? null, applied_in: "Tobler (js/transform.js), from the EPSG record's parameters" },
-        note: `Applied in code with EPSG:${op} (${rec.Name}), stated accuracy ${operationRec.accuracy_m ?? "unknown"} m. Tell the person in one line: what it was read as, that it was moved to ${toCrs.Name}, about how far, and the code. More only if they ask.`,
+        note: `Applied in code with EPSG:${op} (${rec.Name}), stated accuracy ${operationRec.accuracy_m ?? "unknown"} m.`,
       };
     },
 
@@ -316,7 +316,7 @@ export function createEpsgTools(host, locate, typedAt = () => null) {
       const c = codeOf(code);
       if (c) {
         try { return await describeCrs(c); }
-        catch (e) { return { error: `EPSG:${c}: ${e.message}`, hint: /404|no such/i.test(e.message) ? "No such code in EPSG. Check it, or search by words." : undefined }; }
+        catch (e) { return { error: `EPSG:${c}: ${e.message}`, hint: /404|no such/i.test(e.message) ? "No such code in the EPSG registry." : undefined }; }
       }
       const words = String(search || code || "").trim();
       if (!words) return { error: "Give a code or some words to search for." };
@@ -324,7 +324,6 @@ export function createEpsgTools(host, locate, typedAt = () => null) {
       return {
         query: words,
         results: (j.Results || []).map((r) => ({ code: r.Code, name: r.Name, kind: r.Type, area: r.Area, deprecated: !!r.Deprecated })),
-        note: "Pick by area of use and kind, not name alone; prefer ones that aren't deprecated. Look one up by code for its details.",
       };
     },
 
@@ -414,7 +413,7 @@ export function createEpsgTools(host, locate, typedAt = () => null) {
         listed: listed.length, deprecated_dropped: dropped, ...(live.length > MAX_CANDIDATES ? { only_first: MAX_CANDIDATES } : {}),
         outlines_checked: outlineChecked,
         ...(tgt === 4326 ? { wgs84_note: "WGS 84 (EPSG:4326) is a datum ensemble good to about 2 m; for screening that's below notice." } : {}),
-        source_note: "EPSG Geodetic Parameter Dataset (IOGP), apps.epsg.org, read live. Cite the transformation code and accuracy in the run record.",
+        source_note: "EPSG Geodetic Parameter Dataset (IOGP), apps.epsg.org, read live.",
       };
     },
   };

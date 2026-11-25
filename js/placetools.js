@@ -119,7 +119,7 @@ export function placeToolDefs(skills) {
     },
     {
       name: "offer_choices",
-      description: "When several found candidates could be what the person means and the difference matters, show them as choices: the person flicks through them on the map, each with its source, and picks one or takes your recommendation. Give two to five candidate ids in order of preference, the one you recommend, and a one-line reason. Then end your turn with a short question; their pick comes back as their next message.",
+      description: "When several found candidates could be what the person means and the difference matters, show them as choices: the person flicks through them on the map, each with its source, and picks one or takes your recommendation. Give two to five candidate ids in order of preference, the one you recommend, and a one-line reason. The turn ends as soon as they're shown, so write any line for the person in the same step as this call; their pick comes back as their next message.",
       input_schema: {
         type: "object",
         properties: {
@@ -206,7 +206,7 @@ export function placeToolDefs(skills) {
     },
     {
       name: "ask_asset_type",
-      description: "Before screening, when the person hasn't said what's planned at the place and it isn't clear from the place itself (a named oil field, a wind lease, their earlier words), show quick-pick buttons of asset types, with a general-screen option, instead of asking in words. Then end your turn with nothing more than a short line; their pick comes back as their next message and you screen then.",
+      description: "Before screening, when the person hasn't said what's planned at the place and it isn't clear from the place itself (a named oil field, a wind lease, their earlier words), show quick-pick buttons of asset types, with a general-screen option, instead of asking in words. The turn ends as soon as they're shown, so write any line for the person in the same step as this call; their pick comes back as their next message, and you screen then.",
       input_schema: { type: "object", properties: { place: { type: "string", description: "Place name" }, question: { type: "string", description: "Optional: the question above the buttons, if the default (\"What's planned at <place>?\") doesn't fit" } }, required: ["place"] },
     },
     {
@@ -225,7 +225,7 @@ export function placeToolDefs(skills) {
     },
     {
       name: "offer_skills",
-      description: "When a place is settled but the person hasn't said which analysis they want (they named a place and what's planned, but not a screen or another skill), show the skills on offer as buttons under your reply instead of choosing one for them. Then end your turn with one short line; their pick comes back as their next message.",
+      description: "When a place is settled but the person hasn't said which analysis they want (they named a place and what's planned, but not a screen or another skill), show the skills on offer as buttons under your reply instead of choosing one for them. The turn ends as soon as they're shown, so write any line for the person in the same step as this call; their pick comes back as their next message.",
       input_schema: { type: "object", properties: { place: { type: "string", description: "Place name" } }, required: ["place"] },
     },
     {
@@ -376,7 +376,7 @@ export function createPlaceTools(host) {
     ...(c.area_km2 != null ? { area_km2: c.area_km2 } : {}), ...(c.length_km != null ? { length_km: c.length_km } : {}),
     ...(c.distance_km != null ? { distance_km: c.distance_km, bearing_deg: c.bearing } : {}),
     ...(c.edge_km != null ? { nearest_edge_km: c.edge_km } : {}), ...(c.contains_anchor ? { contains_anchor: true } : {}),
-    ...(c.outline ? { has_outline: true, note: "Anchors on its centre; use shape \"feature\" for the area itself." } : {}),
+    ...(c.outline ? { has_outline: true, note: "Anchors on its centre; its outline is used with shape \"feature\"." } : {}),
     ...(Object.keys(c.extra || {}).length ? { details: c.extra } : {}),
   });
 
@@ -459,7 +459,7 @@ export function createPlaceTools(host) {
     async find_place({ query, also = [], near, country, kind, area }) {
       // "near" is a hint: if it isn't a candidate or place yet, search without it rather than fail the call.
       let nearAt = null, nearNote = null;
-      if (near) { try { nearAt = resolve(near).lonlat; } catch { nearNote = `"${near}" isn't a candidate id or place yet, so the search wasn't narrowed to it. Find it first if you need it.`; } }
+      if (near) { try { nearAt = resolve(near).lonlat; } catch { nearNote = `"${near}" isn't a candidate id or place yet, so the search wasn't narrowed to it.`; } }
       const asked = [...new Set([query, ...(Array.isArray(also) ? also : [])].map((x) => String(x || "").trim()).filter(Boolean))].slice(0, 4);
       // Coordinates aren't names: read them in code and keep them out of the name searches.
       const typed = [];
@@ -469,7 +469,7 @@ export function createPlaceTools(host) {
         .map((c) => `${c.input}: ${typedWgs.get(c.input).ask}`);
       if (undecided.length && !typed.length && !names.length) {
         return { searched_for: asked, candidates: [], needs_decision: undecided,
-          note: "The grid reference couldn't be converted to WGS84 without a decision. Load the coordinate-reference skill, tell the person the options, and don't place it until they choose." };
+          note: "The grid reference couldn't be converted to WGS84 without a decision, so nothing was placed." };
       }
       if (typed.length && !names.length) {
         // Two numbers that could be either way round: decided in code where land and sea tell them apart (a site
@@ -484,14 +484,14 @@ export function createPlaceTools(host) {
           let seaA = null, seaB = null;
           try { seaA = (await R.describe(host.ref, { type: "Feature", properties: {}, geometry: c.geometry })).offshore; seaB = (await R.describe(host.ref, { type: "Feature", properties: {}, geometry: other.geometry })).offshore; } catch { /* reference not loaded */ }
           if (seaA && seaB === false) { typed[i] = other; orderNote = `Read longitude first: as typed the other way it would be at sea (${c.name}), this way it's on land.`; }
-          else if (seaA === seaB) { typed.splice(i + 1, 0, other); i++; orderNote = "Both readings are plausible (both on land or both at sea): show both with offer_choices and let the person pick."; }
+          else if (seaA === seaB) { typed.splice(i + 1, 0, other); i++; orderNote = "Both readings are plausible (both on land or both at sea), so both are candidates."; }
         }
         const list = typed.map((c) => cands.get(keep(c)));
         // Where it is, in words: the settlement it's in or near (Nominatim reverse; skipped if that fails).
         await Promise.all(list.map(async (c) => { try { const near = await settlementNear(c.lonlat, { fetchFn: host.fetchFn, headers: host.headers }); if (near) c.extra.near = near; } catch { /* no name nearby */ } }));
         host.onCandidates?.(list);
         return { searched_for: asked, candidates: list.map(compact),
-          note: `Coordinates, read in code, not searched for as a name. Use the candidate as the anchor (match named_place).${orderNote ? ` ${orderNote}` : ""}` };
+          note: `Coordinates, read in code, not searched for as a name.${orderNote ? ` ${orderNote}` : ""}` };
       }
       const errors = [];
       // Every source and every spelling at once, the catalogue too; results keep this order (authoritative first).
@@ -527,7 +527,7 @@ export function createPlaceTools(host) {
       host.onCandidates?.(list);
       return { searched_for: names, candidates: list.slice(0, 12).map(compact), ...(list.length > 12 ? { more_candidates: list.length - 12 } : {}),
         ...(atlas ? { atlas: atlas.report } : {}), ...(errors.length ? { problems: [...new Set(errors)] } : {}), ...(nearNote ? { near_ignored: nearNote } : {}),
-        note: list.length ? undefined : "Nothing found. Try another spelling, a shorter name, or the nearest town and find_features_near." };
+        note: list.length ? undefined : "Nothing found." };
     },
 
     async find_features_near({ anchor, feature_type, radius_km, name, theme }) {
@@ -684,12 +684,10 @@ export function createPlaceTools(host) {
         if ((!i.name || norm(i.name) === norm(oldName)) && p.name !== oldName) host.renamePlace?.(p.name, oldName);
       }
       return { ...(await placeSummary(p)), ...(old ? { replaced: old.name } : {}), how: steps.join(", then "), confidence: rated.confidence, why: rated.rules,
-        ...(origin.role === "search_area" ? { what_it_is: `A search area (${origin.role_why}), standing in for an outline that wasn't found. Say so when you show it, and that a screen of it reports findings by how much of the area they cover, not as "on site". If the person has the real outline, they can draw it.` } : {}),
+        ...(origin.role === "search_area" ? { role: "search_area", role_why: origin.role_why, what_it_is: `A search area (${origin.role_why}), standing in for an outline that wasn't found. A screen of it reports findings by how much of the area they cover, not as on site.` } : {}),
         ...(checks.length ? { checks } : {}),
-        ...(dropped.length ? { failed_checks_left_out: dropped, about_them: "These clues failed on the place this one replaces and aren't checked now. Tell the person, unless they corrected the clue themselves; never drop one to raise the confidence." } : {}),
-        next: rated.confidence === "low" && checks.some((c) => c.pass === false)
-          ? "Shown as a proposal, low confidence because a check failed. Say which, and look for a feature that fits all the clues (find_features_near) before asking the person."
-          : "Shown on the map as a proposal. Report the confidence as given here, and ask the person if it's what they meant." };
+        ...(dropped.length ? { failed_checks_left_out: dropped, about_them: "These clues failed on the place this one replaces and aren't checked now." } : {}),
+        shown_as: "proposal" };
     },
 
     async remove_place({ place, reason }) {
@@ -709,19 +707,19 @@ export function createPlaceTools(host) {
       const fids = !features?.length || features.some((f) => String(f).toLowerCase() === "all") ? "all" : features;
       let built;
       try { built = placesFromFile(file, { fids, combine: combine || "parts", buffer_m: width_m ?? null, name: name || null }); }
-      catch (e) { if (e.needs_width) return { needs_width: true, next: e.message }; if (e.needs_decision) return { needs_decision: true, next: e.message }; throw e; }
+      catch (e) { if (e.needs_width) return { needs_width: true, why: e.message }; if (e.needs_decision) return { needs_decision: true, why: e.message }; throw e; }
       const made = [];
       for (const b of built) made.push(await placeSummary(host.addPlace({ ...b, status: "accepted" })));
       host.fileUsed?.();
       return { made, coordinates: file.layers.map((l) => l.crs.how), how: built.map((b) => b.origin.steps.join(", ")).filter(Boolean),
-        next: "The site is on the map, from the person's own file (high confidence: it's their outline). Say what was made in one line; mention the coordinate conversion only if it was guessed or flagged." };
+        confidence: "high", why: "the person's own outline, from their file" };
     },
 
     async set_file_transformation({ layer, operation }) {
       if (!host.loadedFile?.()) throw new Error("No file is waiting.");
       if (!host.resolveFileLayer) return { not_available: "This can't be settled here." };
       const r = await host.resolveFileLayer(layer, operation);
-      return { ...r, next: "Settled. Tell the person in one line what was applied. If the file has one outline it's now the site; otherwise they pick the site from the card (or say which and use use_file_features)." };
+      return { ...r, settled: true };
     },
 
     async run_study(i) {
@@ -743,14 +741,14 @@ export function createPlaceTools(host) {
       if (!p) throw new Error(`No place called "${place}".`);
       if (!host.offerSkills) return { not_available: "Ask in words which analysis they want." };
       const shown = host.offerSkills(p.name);
-      return { ...shown, next: "Buttons shown. End your turn with one short line at most; don't run anything until they pick." };
+      return { ...shown, buttons_shown: true };
     },
 
     async ask_asset_type({ place, question }) {
       if (!host.findPlace(place)) throw new Error(`No place called "${place}".`);
       if (!host.askAssetType) return { not_available: "Ask in words which asset type, or offer a general screen (asset_type other)." };
       const shown = await host.askAssetType(host.findPlace(place).name, question);
-      return { ...shown, next: "Buttons shown. End your turn with one short line at most; don't screen until they pick." };
+      return { ...shown, buttons_shown: true };
     },
 
     async offer_choices({ candidates, recommended, reason, question }) {
@@ -759,7 +757,7 @@ export function createPlaceTools(host) {
       const rec = cands.get(String(recommended).trim().toUpperCase());
       if (!rec || !list.includes(rec)) throw new Error("The recommended id must be one of the candidates.");
       host.offerChoices?.({ choices: list, recommended: rec, reason, question });
-      return { offered: list.length, recommended: rec.id, next: "Shown to the person. End your turn with one short question; don't build a place until they choose." };
+      return { offered: list.length, recommended: rec.id, recommended_name: rec.name, reason, buttons_shown: true };
     },
 
     async edit_place(i) {

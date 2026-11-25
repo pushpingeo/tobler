@@ -126,7 +126,7 @@ await test("find_data says what was searched when nothing matches, and retries o
   const r = await t.exec("find_data", { text: "seismic" });
   assert.equal(r.datasets.length, 0);
   assert.match(r.note, /Nothing found for "seismic"/);
-  assert.match(r.note, /Try other words/);
+  assert.match(r.note, /^Nothing found for "/);
 });
 
 await test("get_data on NASA FIRMS: detections inside the circle, all sensors asked, days, attribution and time caveat", async () => {

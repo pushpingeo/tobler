@@ -116,7 +116,7 @@ await t("transform: refuses what it can't do honestly (grid, wrong pair, places 
 await t("transformation_options: a chosen operation is described as chosen, not applied, and points to transform", async () => {
   const r = await createEpsgTools({ epsg: fakeEpsg(), transformationChoice: () => "choose" }, () => [-3.6, 55.97]).transformation_options({ source: "4277", at: "x" });
   assert.equal(r.chosen, 1314);
-  assert.match(r.why, /chosen, not yet applied: to move coordinates, call transform with operation 1314/);
+  assert.match(r.why, /Chosen, not yet applied: coordinates move only when transform runs with operation 1314/);
 });
 
 console.log(`\n${pass} transform tests passed`);

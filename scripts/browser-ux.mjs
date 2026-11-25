@@ -82,11 +82,13 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   check(pos.off >= -2 && pos.off <= 20 && pos.bottom > 50, `${label}: the turn's first result sits at the top of the conversation (offset ${pos.off} px, ${pos.bottom} px below)`);
 
   // Typed, with the analyst asking: the tool shows the same buttons.
-  queue.push(msg([{ type: "tool_use", id: "t1", name: "ask_asset_type", input: { place: "Kettlestoun site" } }], "tool_use"), msg([{ type: "text", text: "What's planned there?" }]));
+  // The model's own line, written in the same step as the call, is the reply; the turn ends in code with no second call.
+  queue.push(msg([{ type: "text", text: "Happy to. What's planned there?" }, { type: "tool_use", id: "t1", name: "ask_asset_type", input: { place: "Kettlestoun site" } }], "tool_use"));
   await page.fill("#say", "screen it");
   await page.click("#ask button[type=submit]");
   await page.waitForFunction(() => !document.getElementById("ask").classList.contains("busy"), null, { timeout: 10000 });
   check(await page.evaluate(() => document.querySelectorAll(".asset-pick:not(.done)").length === 1), `${label}: the analyst's ask_asset_type shows the buttons`);
+  check(queue.length === 0 && await page.evaluate(() => /^Happy to\. What's planned there\?/.test([...document.querySelectorAll(".msg.analyst")].at(-1)?.textContent || "")), `${label}: the turn ends at the buttons, with the model's own line`);
   // A short turn that fits stays at the bottom, as before.
   queue.push(msg([{ type: "text", text: "Fine." }]));
   await page.click('.asset-pick:not(.done) button.general');

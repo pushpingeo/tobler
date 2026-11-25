@@ -1,6 +1,6 @@
 ---
 name: ntr-screening
-version: 3.11-draft
+version: 3.12-draft
 description: Screen a site, onshore or offshore, for non-technical risk (NTR) from published spatial data. Flags anything that could become a risk, concern or delay (land and livelihoods, biodiversity, Indigenous Peoples, cultural heritage, community health and safety, and the operating context), with traced evidence and what wasn't checked. Use when someone asks what risks, sensitivities or constraints a site, block, field, route or area might raise.
 ---
 
@@ -107,6 +107,10 @@ Confidence: **high** = a mapped feature on site or in the near band, from a trus
 - Every feature used keeps its dataset, publisher, licence (as stated) and date checked. "Licence not stated" stays not stated.
 - A source that fails, times out or can't be fetched is **not checked**, never "nothing found". A dataset that answers with nothing means nothing *in that dataset*, not nothing at all.
 - Never invent a feature, name, distance or dataset. Never say data doesn't exist unless you searched for it, and then say what words and area you searched.
+- **Busy areas.** When a result is marked dense (many features, only the nearest listed), give the count and the nearest, say what they mean for the site, and don't list more: all of them are on the map and in the run.
+- **Wide areas round the site.** Items marked around_site (a sea, a region, a very large designation the site lies within) aren't features on the site. Mention one only where being inside it matters for this project.
+- **A service that returns nothing at all** for the box, where you'd expect something (a field's own pipelines), may be the wrong layer or not cover the area: check its title and publisher and look for another before treating it as none in dataset.
+- **Licences as returned.** A licence the publisher didn't state is "not stated"; one that's stated but not a standard open licence is quoted and isn't confirmed for commercial use. Say which when you use the data.
 
 ## Output
 A short summary for the person, no more than 400 words: the decision and why (one line), the site and distances used (one line), then the flags, most serious first, then the gaps. Then one JSON block:

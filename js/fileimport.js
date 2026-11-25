@@ -362,13 +362,13 @@ export function placesFromFile(file, { fids, combine = "parts", buffer_m = null,
   if (!pick.length) throw new Error("Pick at least one feature.");
   const waiting = [...new Set(pick.map((f) => file.layers.find((l) => l.name === f.layer)).filter((l) => l?.crs.pending))];
   if (waiting.length) {
-    const e = new Error(`The coordinates of ${waiting.map((l) => l.name).join(", ")} need a decision first: ${waiting[0].crs.pending.why} Ask the person (coordinate-reference skill), then call set_file_transformation.`);
+    const e = new Error(`The coordinates of ${waiting.map((l) => l.name).join(", ")} need a decision first: ${waiting[0].crs.pending.why}`);
     e.needs_decision = true;
     throw e;
   }
   const needWidth = pick.filter((f) => f.kind !== "polygon");
   if (needWidth.length && !(buffer_m > 0)) {
-    const e = new Error(`${needWidth.length === pick.length ? "These are" : "Some of these are"} ${[...new Set(needWidth.map((f) => `${f.kind}s`))].join(" and ")}, so they need a width to become a site: ask how wide (e.g. 1 m for the line itself, 30 m for a cable corridor).`);
+    const e = new Error(`${needWidth.length === pick.length ? "These are" : "Some of these are"} ${[...new Set(needWidth.map((f) => `${f.kind}s`))].join(" and ")}, so they need a width to become a site.`);
     e.needs_width = true;
     throw e;
   }

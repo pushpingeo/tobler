@@ -1,7 +1,7 @@
 // Prints every reply Tobler writes in code after a run or a hold, from the test fixtures, as markdown: the wording
 // sheet Rob reviews before it goes live (plan item 1, 25 Nov). Run: node scripts/reply-samples.mjs
 import * as F from "../test/fixtures/runreply-records.mjs";
-import { runReply, heldReply } from "../js/runreply.js";
+import { runReply, heldReply, finishTurn } from "../js/runreply.js";
 import { runDiff } from "../js/rundiff.js";
 import { notRaisedGap } from "../js/ntrrun.js";
 
@@ -38,6 +38,11 @@ add("Which part: a country", heldReply({ held: "which_part", place: "New Zealand
 add("Which part: a town point", heldReply({ held: "which_part", place: "Kelso", kind: "settlement", what: "a town or village", geometry: "Point", queued: "a constraints screen for an onshore wind farm" }));
 add("Which part: a road", heldReply({ held: "which_part", place: "Linlithgow Road", kind: "line", what: "a road", geometry: "Point", queued: "a constraints screen for a warehouse" }));
 add("No analysis chosen yet", heldReply({ held: "skills", place: "Shell House site" }), "The skill buttons are under it.");
+// Buttons end the turn in code; these lines show only when the model wrote nothing in the step that showed them.
+const fin = finishTurn({ runs: new Map() });
+add("Under the skill buttons (fallback)", fin("offer_skills", {}, { buttons_shown: true }).text, "Only when the model wrote no line of its own.");
+add("Under the asset-type buttons (fallback)", fin("ask_asset_type", {}, { buttons_shown: true }).text, "Only when the model wrote no line of its own.");
+add("Under the choices (fallback)", fin("offer_choices", {}, { recommended_name: "Linlithgow Palace", reason: "Historic Environment Scotland's record of the palace itself", buttons_shown: true }).text, "Only when the model wrote no line of its own.");
 
 out.push("## On the card, in the gaps\n");
 add("A flag whose evidence didn't trace", notRaisedGap({ risk: "Seabird colonies on Shetland may be in spill reach" }));

@@ -2,6 +2,38 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 26 Nov 2026 (overnight): the handover sweep: tool results are data (plan item 1, first part; Rob: "Handover sweep")
+- **What must always happen is in code.** The button tools (`offer_skills`, `ask_asset_type`, `offer_choices`) now end
+  the turn through `runTurn`'s `finish` hook, so nothing runs or gets built until the person picks. They used to say
+  "End your turn… don't screen until they pick" in their results. `finish` can now return `{ text, soft: true }`: the
+  turn ends, but the model's own line from that step is kept; code's line ("Pick one above, or tell me in words…") is
+  only the fallback. A run's reply in the same step still wins. The tool descriptions say to write any line in the same
+  step as the call.
+- **Facts stay in the results; how to report them moved out.** make_place (`next`, search-area wording, failed clues),
+  the file tools (`next`, the needs-width and needs-decision messages), find_place (coordinates, grid references,
+  "nothing found"), the EPSG tools (`note`, `decide`'s `why`, crs_lookup, `source_note`), find_data and get_data
+  (`note`, `service_note`, `time_note`, around-site and licence notes) and the sealed screen's `dense` line now state
+  facts only. New data fields where a rule needed one: make_place `role`/`role_why`/`shown_as`; use_file_features
+  `confidence`/`why`; set_file_transformation `settled`, and `site_made`/`features_waiting` from the page;
+  offer_choices `recommended_name`/`reason`.
+- **Where the rules went:** the system prompt (coordinates read both ways → offer_choices; a grid reference or file
+  needing a decision → coordinate-reference skill, ask, build nothing; dropped files; reporting time-aware layers,
+  empty services, around-site areas and licences from get_data; buttons end the turn). Skills: place-finding 4.18
+  (search areas, a search that finds nothing), ntr-screening 3.12-draft (busy areas, around-site, empty services,
+  licences: the sealed screen reads these through `forAnalyst`), coordinate-reference 1.2-draft (`ask: true`, area of
+  use, CRS search).
+- **Kept:** error messages that name the right tool ("No place called X. Find or build the site first") are errors,
+  not steering; left as they are. `get_place`'s `what_it_is` is a fact.
+- **Guard:** `test/steering.test.mjs` (in `npm test`) scans the note-like fields of the tool files, the licence notes
+  and the around-site note for words that steer ("tell the person", "say so", "end your turn"…). It fails on the old
+  code with 20 hits. A word list, so it catches the usual phrasing, not every possible instruction.
+- **Approximations that can change an answer:** none in code. The risk is behavioural: the model now gets reporting
+  rules from the prompt and skills rather than at the moment of the result, so it may follow them less reliably (for
+  example forgetting to say a layer is recent detections only). Checked with a live replay (below).
+- **Tests:** `npm test`; all 12 browser checks (desktop and phone), served through a route wrapper because a local
+  server couldn't be started; `browser-choice` and `browser-ux` now check the buttons end the turn with one model call
+  (they had queued a second reply that leaked into the next turn). `reply-samples` prints the new fallback lines.
+
 ## 25 Nov 2026 (late night): no distance rings for a conversation search (Rob's Droves log)
 - **Rob:** "Screen a 10 km² area between Swaffham and Castle Acre for the proposed Droves solar farm". While looking
   for the solar farm by type round Castle Acre (`find_features_near`), the page drew the default 1/5/20 km rings round

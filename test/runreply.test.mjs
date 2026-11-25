@@ -100,6 +100,29 @@ await test("runTurn: after screen_site the turn ends with the code's reply; the 
   assert.equal(res2.text, "The screen failed: no place.");
 });
 
+await test("buttons end the turn in code: the model's own line is kept, code's line is the fallback", async () => {
+  const fin = finishTurn({ runs: new Map() });
+  assert.deepEqual(fin("offer_skills", { place: "Area 1" }, { place: "Area 1", offered: ["screen"], buttons_shown: true }), { text: "Pick one above, or tell me in words what you'd like.", soft: true });
+  assert.equal(fin("offer_choices", {}, { recommended_name: "Linlithgow Palace", reason: "Historic Environment Scotland's record, the one people mean", buttons_shown: true }).text,
+    "I'd go with **Linlithgow Palace**. Historic Environment Scotland's record, the one people mean. Flick through them on the map and pick one.");
+  assert.equal(fin("ask_asset_type", {}, { not_available: "Ask in words" }), null, "no buttons, no ending");
+  const step = (said) => async () => ({ stop_reason: "tool_use", usage: {}, content: [...(said ? [{ type: "text", text: said }] : []), { type: "tool_use", id: "t1", name: "ask_asset_type", input: { place: "Area 1" } }] });
+  for (const [said, want] of [["Found it: a 12 ha field.", "Found it: a 12 ha field."], [null, "Pick one above, or tell me in words what's planned."]]) {
+    let calls = 0;
+    const cc = step(said);
+    const res = await runTurn({ system: "s", messages: [{ role: "user", content: "x" }], tools: [], callClaude: async () => { calls++; return cc(); },
+      exec: async () => ({ place: "Area 1", buttons_shown: true }), finish: fin });
+    assert.equal(calls, 1, "the model isn't asked again after the buttons");
+    assert.equal(res.stopReason, "finished_in_code");
+    assert.equal(res.text, want);
+  }
+  // A run in the same step wins over buttons.
+  const both = await runTurn({ system: "s", messages: [{ role: "user", content: "x" }], tools: [],
+    callClaude: async () => ({ stop_reason: "tool_use", usage: {}, content: [{ type: "text", text: "On it." }, { type: "tool_use", id: "a", name: "offer_skills", input: {} }, { type: "tool_use", id: "b", name: "screen_site", input: {} }] }),
+    exec: async (n) => (n === "screen_site" ? { not_available: "Nothing to screen offshore here" } : { buttons_shown: true }), finish: fin });
+  assert.equal(both.text, "Nothing to screen offshore here.");
+});
+
 await test("the run tools' results are data: no instructions to the model", () => {
   const STEER = /\b(reply|say|tell the person|don't repeat|end your turn|mention)\b/i;
   for (const rec of [F.oracleSolar, F.kelsoSearchArea, F.stanlowStudy]) {

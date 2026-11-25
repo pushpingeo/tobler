@@ -81,7 +81,7 @@ export function forAnalyst(name, out) {
   const shown = list.slice(0, DENSE_SHOW);
   const { not_listed, listed, ...rest } = out;
   return { ...rest, [key]: shown, listed: shown.length,
-    dense: `${total} found: a busy area. Only the nearest ${shown.length} are shown here (all are on the map and in the run). Report the count and the nearest, say what it means for the site, and don't list more.` };
+    dense: `${total} found: a busy area. Only the nearest ${shown.length} are listed here; all are on the map and in the run.` };
 }
 
 // The analyst's view of a tool's output on a search area: items inside it say where, and how much of it they cover.
