@@ -50,6 +50,7 @@ export function osmQuery(kinds, box) {
 // An Overpass element as a geometry: a node a point, a way a line (or an area if closed and not a line kind), a
 // relation its centre.
 export function elementGeometry(el, isLine) {
+  if (el.geojson) return el.geojson; // from Tobler's copy (js/osmsnapshot.js): already built, areas and relations whole
   if (el.type === "node") return { type: "Point", coordinates: [el.lon, el.lat] };
   if (el.type === "way" && el.geometry?.length) {
     const cs = el.geometry.map((p) => [p.lon, p.lat]);
@@ -61,20 +62,32 @@ export function elementGeometry(el, isLine) {
 }
 
 // The answer for each kind: features within its own km of the site (nearest first), or why it couldn't be checked.
-// query(q) runs an Overpass query (js/gazetteer.js overpassQuery: fallbacks, and "not answering" when all fail).
-export async function osmAnswers({ wants, site, query, now = () => new Date().toISOString() }) {
+// snapshot(kinds, boxOf), if given, is Tobler's own copy (js/osmsnapshot.js), asked first: null means "not here" and
+// a throw means it couldn't be read; either way query(q) runs an Overpass query (js/gazetteer.js overpassQuery:
+// fallbacks, and "not answering" when all fail). meta.via says which answered; data_as_of is the copy's date.
+export async function osmAnswers({ wants, site, query, snapshot = null, now = () => new Date().toISOString() }) {
   const kinds = [...wants.keys()].filter((k) => OSM_KINDS[k]);
   const out = new Map();
   if (!kinds.length) return out;
-  let json;
-  try { json = await query(osmQuery(kinds, (k) => grownBox(site, wants.get(k)))); }
-  catch (e) {
-    for (const k of kinds) out.set(k, { not_checked: String(e.message || e).slice(0, 200) });
-    return out;
+  const boxOf = (k) => grownBox(site, wants.get(k));
+  let json = null, via = "overpass", snapErr = null;
+  if (snapshot) {
+    try { json = await snapshot(kinds, boxOf); if (json) via = "copy"; }
+    catch (e) { snapErr = String(e.message || e); }
+  }
+  if (!json) {
+    try { json = await query(osmQuery(kinds, boxOf)); }
+    catch (e) {
+      const why = String(e.message || e).slice(0, 200);
+      for (const k of kinds) out.set(k, { not_checked: snapErr ? `${snapErr.slice(0, 120)}; then ${why}` : why });
+      return out;
+    }
   }
   const els = json?.elements || [];
-  const capped = els.filter((e) => e.type !== "relation").length >= MAX_ELEMENTS;
+  const capped = via === "copy" ? !!json.capped : els.filter((e) => e.type !== "relation").length >= MAX_ELEMENTS;
   const checkedAt = now();
+  const source = via === "copy" ? { via, data_as_of: json.data_as_of || null, release: json.release || null }
+    : { via, ...(snapErr ? { copy_failed: snapErr.slice(0, 160) } : {}) };
   for (const k of kinds) {
     const def = OSM_KINDS[k], within = wants.get(k);
     const features = [];
@@ -106,7 +119,7 @@ export async function osmAnswers({ wants, site, query, now = () => new Date().to
       }
       features.length = 0; features.push(...kept);
     }
-    out.set(k, { features, meta: { dataset: osmTitle(k), publisher: "OpenStreetMap contributors", licence: "ODbL 1.0 (© OpenStreetMap contributors)", checked_at: checkedAt, capped, fetched_km: within } });
+    out.set(k, { features, meta: { dataset: via === "copy" ? copyTitle(k, source.data_as_of) : osmTitle(k), publisher: "OpenStreetMap contributors", licence: "ODbL 1.0 (© OpenStreetMap contributors)", checked_at: checkedAt, capped, fetched_km: within, ...source } });
   }
   return out;
 }
@@ -114,3 +127,5 @@ const PLURAL = { "power line": "power lines", substation: "substations", pipelin
   "wind turbine": "wind turbines", homes: "residential land", school: "schools", "health care": "hospitals, clinics and care homes",
   building: "buildings", "water body": "water bodies", watercourse: "rivers, streams and ditches" };
 export const osmTitle = (kind) => `OpenStreetMap: ${PLURAL[kind] || kind} (completeness varies)`;
+// From Tobler's copy, the title says how old the data is.
+export const copyTitle = (kind, asOf) => osmTitle(kind).replace(/\)$/, `; Tobler's copy${asOf ? `, data as of ${String(asOf).slice(0, 10)}` : ""})`);

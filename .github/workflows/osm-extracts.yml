@@ -1,0 +1,154 @@
+name: OpenStreetMap copy (per market)
+# Tobler's own copy of OpenStreetMap, so site checks don't wait on the public Overpass servers (25 Nov).
+# Downloads each market's Geofabrik extracts, keeps only the kinds in catalogue/osm-snapshot.json, writes FlatGeobuf
+# (and GeoParquet) per extract and group, and uploads them to R2 when the repo variable OSM_R2_BUCKET is set.
+# Without it, it only builds and commits a size report (data/osm-extracts/), which is how the cost estimate was made.
+# Runs by hand, when .github/osm-extract-request changes, and weekly once the bucket is set.
+on:
+  workflow_dispatch:
+    inputs:
+      market: { description: "uk, nl, au or us", default: "uk" }
+      parquet: { description: "Also write GeoParquet (yes/no)", default: "yes" }
+      sizes: { description: "Also list every market's extract sizes (yes/no)", default: "no" }
+  push:
+    branches: [main, osm-copy]
+    paths: [".github/osm-extract-request"]
+  schedule:
+    - cron: "17 3 * * 1"
+permissions:
+  contents: write
+concurrency: osm-extracts
+env:
+  UA: "Tobler OSM extract builder (github.com/pushpingeo/tobler)"
+jobs:
+  plan:
+    if: github.event_name != 'schedule' || vars.OSM_R2_BUCKET != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      shards: ${{ steps.p.outputs.shards }}
+      market: ${{ steps.p.outputs.market }}
+      parquet: ${{ steps.p.outputs.parquet }}
+      release: ${{ steps.p.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -q osmium shapely
+      - id: p
+        working-directory: scripts/osm-extract
+        run: |
+          # The request file: "market [parquet] [sizes]", e.g. "uk parquet sizes". Lines starting # are notes.
+          REQ=$(grep -v '^#' ../../.github/osm-extract-request 2>/dev/null | head -1 || true)
+          MARKET="${{ github.event.inputs.market }}"; PARQUET="${{ github.event.inputs.parquet }}"; SIZES="${{ github.event.inputs.sizes }}"
+          if [ -z "$MARKET" ]; then MARKET=$(echo "$REQ" | awk '{print $1}'); fi
+          [ -z "$MARKET" ] && MARKET=uk
+          echo "$REQ" | grep -qw parquet && PARQUET=yes
+          echo "$REQ" | grep -qw sizes && SIZES=yes
+          curl -sfL -A "$UA" --retry 3 -o index-v1.json https://download.geofabrik.de/index-v1.json
+          python3 plan.py --market "$MARKET" --index index-v1.json --out regions.json --shards 6
+          if [ "$SIZES" = "yes" ]; then python3 plan.py --sizes --index index-v1.json --out sizes.json; fi
+          echo "market=$MARKET" >> $GITHUB_OUTPUT
+          echo "parquet=${PARQUET:-no}" >> $GITHUB_OUTPUT
+          echo "release=$(date -u +%Y-%m-%d)" >> $GITHUB_OUTPUT
+          echo "shards=$(python3 -c "import json;print(json.dumps(sorted({r['shard'] for r in json.load(open('regions.json'))['regions']})))")" >> $GITHUB_OUTPUT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plan
+          path: |
+            scripts/osm-extract/regions.json
+            scripts/osm-extract/sizes.json
+          if-no-files-found: ignore
+          retention-days: 3
+
+  build:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        shard: ${{ fromJson(needs.plan.outputs.shards) }}
+    env:
+      BUCKET: ${{ vars.OSM_R2_BUCKET }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        if: env.BUCKET != ''
+        with: { node-version: 22 }
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool
+          pip install -q osmium shapely geopandas pyogrio pyarrow
+      - uses: actions/download-artifact@v4
+        with: { name: plan, path: plan }
+      - name: Build this shard's extracts
+        working-directory: scripts/osm-extract
+        run: |
+          FILTER=$(python3 build.py --print-filter)
+          for row in $(python3 -c "import json;[print(r['id']+'|'+r['pbf']) for r in json.load(open('../../plan/regions.json'))['regions'] if r['shard']==${{ matrix.shard }}]"); do
+            id=${row%%|*}; url=${row#*|}
+            echo "::group::$id"
+            curl -sfL -A "$UA" --retry 3 -o in.osm.pbf "$url" || { echo "::warning::$id: download failed"; echo "::endgroup::"; continue; }
+            osmium tags-filter --overwrite -o filtered.osm.pbf in.osm.pbf $FILTER
+            python3 build.py --pbf filtered.osm.pbf --region "$id" --out "../../out/$id" --source-bytes $(stat -c %s in.osm.pbf) \
+              ${{ needs.plan.outputs.parquet == 'yes' && '--parquet' || '' }} || echo "::warning::$id: build failed"
+            rm -f in.osm.pbf filtered.osm.pbf
+            echo "::endgroup::"
+          done
+      - name: Upload to R2
+        if: env.BUCKET != ''
+        run: |
+          for d in out/*/; do id=$(basename "$d")
+            for f in "$d"*.fgb "$d"*.parquet; do [ -e "$f" ] || continue
+              npx -y wrangler@4 r2 object put "$BUCKET/osm/${{ needs.plan.outputs.release }}/$id/$(basename "$f")" --file "$f" --remote \
+                --content-type application/octet-stream --cache-control "public, max-age=31536000, immutable" >/dev/null
+            done
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stats-${{ matrix.shard }}
+          path: out/*/stats.json
+          retention-days: 3
+
+  publish:
+    needs: [plan, build]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BUCKET: ${{ vars.OSM_R2_BUCKET }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: pip install -q osmium shapely
+      - uses: actions/download-artifact@v4
+        with: { path: art }
+      - name: Manifest and report
+        run: |
+          M=${{ needs.plan.outputs.market }}; R=${{ needs.plan.outputs.release }}
+          mkdir -p data/osm-extracts
+          python3 scripts/osm-extract/publish.py --regions art/plan/regions.json --stats-dir art --release "$R" \
+            --out manifest.json --report "data/osm-extracts/report-$M.json" || echo "::warning::some extracts didn't build"
+          [ -f art/plan/sizes.json ] && cp art/plan/sizes.json data/osm-extracts/geofabrik-sizes.json || true
+      - name: Publish the manifest last (so readers never see half a release)
+        if: env.BUCKET != ''
+        run: |
+          npx -y wrangler@4 r2 object put "$BUCKET/osm/${{ needs.plan.outputs.market }}.json" --file manifest.json --remote \
+            --content-type application/json --cache-control "public, max-age=300"
+      - name: Commit the report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/osm-extracts
+          git diff --cached --quiet || git commit -m "OpenStreetMap copy: ${{ needs.plan.outputs.market }} report"
+          git pull --rebase && git push

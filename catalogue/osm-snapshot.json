@@ -1,0 +1,217 @@
+{
+  "about": "What Tobler's own copy of OpenStreetMap keeps (25 Nov). Read by scripts/osm-extract/build.py, which makes the files, and by js/osmsnapshot.js, which reads them. One entry per kind in js/osmchecks.js OSM_KINDS, with the same tags (test/osmsnapshot.test.mjs checks they agree). match: any one of these tag sets; a value of true means any value. types: n node, w way, a area (a closed way or a multipolygon relation). line: kept as the way's line, never as an area. group: which file the kind goes in, so a railway lookup never reads the buildings.",
+  "version": 1,
+  "groups": [
+    "transport",
+    "utilities",
+    "water",
+    "landuse",
+    "community",
+    "buildings"
+  ],
+  "keep_tags": [
+    "name",
+    "name:en",
+    "ref",
+    "voltage",
+    "operator",
+    "substance",
+    "usage",
+    "service",
+    "water",
+    "highway",
+    "railway",
+    "power",
+    "man_made",
+    "aeroway",
+    "generator:source",
+    "landuse",
+    "amenity",
+    "social_facility",
+    "building",
+    "natural",
+    "waterway"
+  ],
+  "kinds": {
+    "power line": {
+      "group": "utilities",
+      "types": "w",
+      "line": true,
+      "match": [
+        {
+          "power": "line"
+        }
+      ]
+    },
+    "substation": {
+      "group": "utilities",
+      "types": "nwa",
+      "match": [
+        {
+          "power": "substation"
+        }
+      ]
+    },
+    "pipeline": {
+      "group": "utilities",
+      "types": "w",
+      "line": true,
+      "match": [
+        {
+          "man_made": "pipeline"
+        }
+      ]
+    },
+    "wind turbine": {
+      "group": "utilities",
+      "types": "n",
+      "match": [
+        {
+          "power": "generator",
+          "generator:source": "wind"
+        }
+      ]
+    },
+    "main road": {
+      "group": "transport",
+      "types": "w",
+      "line": true,
+      "match": [
+        {
+          "highway": [
+            "motorway",
+            "trunk",
+            "primary"
+          ]
+        }
+      ]
+    },
+    "railway": {
+      "group": "transport",
+      "types": "w",
+      "line": true,
+      "match": [
+        {
+          "railway": "rail"
+        }
+      ]
+    },
+    "aerodrome": {
+      "group": "transport",
+      "types": "nwa",
+      "match": [
+        {
+          "aeroway": "aerodrome"
+        }
+      ]
+    },
+    "homes": {
+      "group": "landuse",
+      "types": "nwa",
+      "match": [
+        {
+          "landuse": "residential"
+        }
+      ]
+    },
+    "school": {
+      "group": "community",
+      "types": "nwa",
+      "match": [
+        {
+          "amenity": [
+            "school",
+            "kindergarten",
+            "college"
+          ]
+        }
+      ]
+    },
+    "health care": {
+      "group": "community",
+      "types": "nwa",
+      "match": [
+        {
+          "amenity": [
+            "hospital",
+            "clinic",
+            "nursing_home"
+          ]
+        },
+        {
+          "social_facility": "nursing_home"
+        }
+      ]
+    },
+    "building": {
+      "group": "buildings",
+      "types": "wa",
+      "match": [
+        {
+          "building": true
+        }
+      ]
+    },
+    "water body": {
+      "group": "water",
+      "types": "wa",
+      "match": [
+        {
+          "natural": "water"
+        },
+        {
+          "landuse": [
+            "reservoir",
+            "basin"
+          ]
+        }
+      ]
+    },
+    "watercourse": {
+      "group": "water",
+      "types": "w",
+      "line": true,
+      "match": [
+        {
+          "waterway": [
+            "river",
+            "stream",
+            "canal",
+            "ditch",
+            "drain"
+          ]
+        }
+      ]
+    }
+  },
+  "markets": {
+    "uk": {
+      "name": "United Kingdom, with Ireland",
+      "roots": [
+        "england",
+        "scotland",
+        "wales",
+        "ireland-and-northern-ireland"
+      ],
+      "why": "Northern Ireland only comes in Geofabrik's Ireland and Northern Ireland extract, so the Republic of Ireland comes too."
+    },
+    "nl": {
+      "name": "Netherlands",
+      "roots": [
+        "netherlands"
+      ]
+    },
+    "au": {
+      "name": "Australia",
+      "roots": [
+        "australia"
+      ]
+    },
+    "us": {
+      "name": "United States",
+      "roots": [
+        "us"
+      ]
+    }
+  }
+}

@@ -1524,3 +1524,31 @@ have no topic at all, though landscape, peat and farmland quality decided most o
   with "Counted in"; the sheet lowers on a phone; tapping again closes; the map key opens its list), search-area 46,
   out-of-date 28, ux 26, choice 8, coords 18, epsg 20, cards 14, site files 44. Screenshots looked at.
 - **Not tested:** a live Linlithgow screen after the fix (the true counts need the real services).
+
+## 25 Nov 2026: Tobler's own copy of OpenStreetMap (Rob: "a more reliable solution")
+- **Why:** the public Overpass servers are volunteer-run and often busy; on Barnston (25 Nov) all three timed out and
+  every OpenStreetMap deduction in the area budget was "not checked". Our own 15 s overall limit made it worse
+  (the servers got 15, 11 and 7 s; the eval fetch log has good answers at 50–60 s).
+- **What:** a weekly GitHub Action (`.github/workflows/osm-extracts.yml`) downloads each market's Geofabrik extracts
+  (counties for England, then Scotland, Wales, and Ireland with Northern Ireland, which only comes that way), keeps
+  only the kinds in `catalogue/osm-snapshot.json`, and writes one file per extract per group (transport, utilities,
+  water, land use, community, buildings). A manifest per market (`<market>.json`) lists the files, the data date and
+  the outline the copy covers; it's uploaded last, so readers never see half a release.
+- **Same tags as Overpass:** `catalogue/osm-snapshot.json` mirrors `OSM_KINDS`; `test/osmsnapshot.test.mjs` fails if
+  they drift. The copy's answers go through the same `osmAnswers` sorting and measuring.
+- **Format (my call):** FlatGeobuf with its packed R-tree for lookups in the page (the reader is 53 KB, vendored;
+  DuckDB-WASM would be tens of MB, and isn't vendored yet). GeoParquet 1.1 with a bbox column is written beside it
+  from the same data, for DuckDB, QGIS and the atlas. Both sorted along a Hilbert curve.
+- **Order:** the copy first, when the whole of every kind's search box is inside the copy's outline (the real
+  outline, shrunk by 200 m when made, so the edge goes to Overpass); otherwise Overpass. If the copy can't be read,
+  Overpass, and the record says the copy failed (`copy_failed`). If both fail, "not checked" names both.
+- **Provenance:** `meta.via` ("copy" or "overpass"), `data_as_of` and `release`; the dataset title says
+  "Tobler's copy, data as of …"; the run record's checked line carries `via` and `data_as_of`.
+- **Better than Overpass in one way:** areas mapped as multipolygon relations (big lakes, some residential land,
+  some buildings) are whole polygons, not centre points. Building and water relations are a deliberate superset of
+  the Overpass selectors (which ask for ways only).
+- **Off until hosted:** `CONFIG.osmSnapshotBase` is empty, so nothing changes for visitors until Rob creates the R2
+  bucket and the workflow's variable `OSM_R2_BUCKET` is set. Without it the workflow only builds and commits a size
+  report (`data/osm-extracts/`).
+- **Licence:** a derived database of OpenStreetMap, ODbL 1.0; the manifest says so, and every feature keeps its
+  osm.org link. If the files are public, they're offered under ODbL with attribution.

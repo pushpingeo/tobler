@@ -11,4 +11,8 @@ export const CONFIG = {
   maxRounds: 10,
   // The workspace analyst: a screening asks for many datasets, so it gets more rounds per turn.
   workspaceRounds: 14,
+  // Tobler's own copy of OpenStreetMap (js/osmsnapshot.js, built by .github/workflows/osm-extracts.yml): the folder
+  // holding <market>.json manifests, ending in /. Empty: off, and every OpenStreetMap check goes to Overpass.
+  osmSnapshotBase: "",
+  osmSnapshotMarkets: ["uk"],
 };

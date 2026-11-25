@@ -1,6 +1,6 @@
 ---
 name: developable-area
-version: 0.1-draft
+version: 0.2-draft
 description: How much of a site could actually be built on. Starts from the gross area, takes off what can't be used and what should be kept clear, each with its reason and source, and shows what's left on the map, with soft constraints (usable at a cost) measured but not taken off. Use when someone asks for the developable area, net area, usable area, area discounting or "how many hectares can I really use", or picks the developable area.
 ---
 
@@ -43,7 +43,7 @@ Buffers are first cuts for site finding, to be changed: none of them is a planni
 
 ## Honest about gaps
 - A deduction whose data wasn't checked (a service failed, no data for this country) is listed as **not checked** with the reason. It's never a zero.
-- OpenStreetMap's completeness varies. Buildings, water and residential land mapped as a multipolygon relation are read only by their centre point, so their area isn't counted; the card says how many.
+- OpenStreetMap's completeness varies. It's read from Tobler's own weekly copy where the site is inside it (the UK first), which holds multipolygon relations as whole areas; otherwise from Overpass, where buildings, water and residential land mapped as a multipolygon relation are read only by their centre point, so their area isn't counted; the card says how many. The source line says which, and how old the copy's data is.
 - Outside the UK most designations and the flood, farmland and peat layers have no source. The budget then rests on OpenStreetMap alone and says so.
 
 ## After the run

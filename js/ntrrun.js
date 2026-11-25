@@ -21,6 +21,7 @@ import * as K from "./checks.js";
 import { topicOf } from "./findings.js";
 import { osmAnswers } from "./osmchecks.js";
 import { overpassQuery } from "./gazetteer.js";
+import { osmSnapshot } from "./osmsnapshot.js";
 import { areaBudget, budgetLines } from "./areabudget.js";
 import { budgetRules, resolveDeductions, reachByCheck, classMatches, budgetSummary } from "./developable.js";
 import { placeRole, coverageIn, whereText, applySearchArea, reword, sameShape, SEARCH_BAND, SEARCH_NOTE } from "./siterole.js";
@@ -485,17 +486,20 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     const t0 = Date.now();
     const kinds = [...osmWants.keys()];
     onEvent({ type: "tool_start", name: "openstreetmap", input: { kinds } });
-    const got = await osmAnswers({ wants: osmWants, site: fp.feature, query: (q) => overpassQuery(q, host.fetchFn || globalThis.fetch, host.headers || {}), now });
+    // Tobler's own copy of OpenStreetMap first (js/osmsnapshot.js), Overpass when the site is outside it or it can't
+    // be read. host.osmSnapshot: a test's own source, or null to go straight to Overpass.
+    const snapshot = host.osmSnapshot !== undefined ? host.osmSnapshot : osmSnapshot({ fetchFn: host.fetchFn || globalThis.fetch });
+    const got = await osmAnswers({ wants: osmWants, site: fp.feature, snapshot, query: (q) => overpassQuery(q, host.fetchFn || globalThis.fetch, host.headers || {}), now });
     for (const [kind, a] of got) {
       layerAnswers.set(`osm:${kind}`, a);
       const plan = layerPlans.find((p) => p.sources.some((x) => x.osm === kind));
       if (a.not_checked) { checked.push({ evidence: kind, dataset: `OpenStreetMap: ${kind}`, publisher: "OpenStreetMap contributors", result: "not checked", why: a.not_checked, check: plan.check.id }); continue; }
-      checked.push({ evidence: kind, dataset: a.meta.dataset, publisher: a.meta.publisher, licence: a.meta.licence, result: a.features.length ? "features" : "none found", count: a.features.length, within_km: a.meta.fetched_km, checked_at: a.meta.checked_at, check: plan.check.id });
+      checked.push({ evidence: kind, dataset: a.meta.dataset, publisher: a.meta.publisher, licence: a.meta.licence, result: a.features.length ? "features" : "none found", count: a.features.length, within_km: a.meta.fetched_km, checked_at: a.meta.checked_at, via: a.meta.via, ...(a.meta.data_as_of ? { data_as_of: a.meta.data_as_of } : {}), check: plan.check.id });
       capture(a.features.map((f) => ({ name: f.name, type: kind, geometry: f.geometry, distance_km: f.distance_km, extra: f.extra,
         source: { title: a.meta.dataset, publisher: a.meta.publisher, licence: a.meta.licence, url: `https://www.openstreetmap.org/${f.osm}` } })), { theme: topicOf(plan.check.topic) });
     }
     onEvent({ type: "tool", name: "openstreetmap", input: { kinds }, ms: Date.now() - t0, baseline: true,
-      output: Object.fromEntries([...got].map(([k, a]) => [k, a.not_checked ? `not checked (${a.not_checked})` : `${a.features.length} within ${a.meta.fetched_km} km`])) });
+      output: Object.fromEntries([...got].map(([k, a]) => [k, a.not_checked ? `not checked (${a.not_checked})` : `${a.features.length} within ${a.meta.fetched_km} km, ${a.meta.via === "copy" ? `Tobler's copy${a.meta.data_as_of ? ` (data as of ${String(a.meta.data_as_of).slice(0, 10)})` : ""}` : "Overpass"}`])) });
   })() : null;
   await Promise.allSettled([...(osmJob ? [osmJob] : []), ...layers.map(async (l) => {
     const x = l.source, rec = x.record || {};
