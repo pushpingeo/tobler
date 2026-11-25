@@ -1,3 +1,4 @@
 # What the OpenStreetMap copy workflow builds next (.github/workflows/osm-extracts.yml): "market [parquet] [sizes]".
 # 25 Nov: the first UK build, with GeoParquet, and every market's Geofabrik sizes for the cost estimate.
-uk parquet sizes
+# 25 Nov 11:15: the UK build to R2 (bucket atlas-data, data.asktobler.com).
+uk parquet
