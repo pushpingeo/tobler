@@ -22,7 +22,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
+      - name: Clone the private repo (earlier weeks' counts are read from it)
+        env: { TOKEN: "${{ secrets.TOBLER_LOGS_TOKEN }}" }
+        run: |
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/pushpingeo/tobler-logs.git" /tmp/logs-repo
+          mkdir -p /tmp/logs-repo/digests
       - name: Read the logs and write the digest
+        id: digest
         run: node scripts/log-digest.mjs
         env:
           ATLAS_MCP_KEY: "${{ secrets.ATLAS_MCP_KEY }}"
@@ -30,11 +36,13 @@ jobs:
           DAYS: "${{ inputs.days || '7' }}"
           DRY: "${{ inputs.dry }}"
           OUT_DIR: /tmp/digest
+          PREVIOUS_DIR: /tmp/logs-repo/digests
+      # Runs even when the reading failed: the digest then holds the numbers and says the reading failed,
+      # and the job still shows as failed (the step above exits 1), so GitHub tells Rob.
       - name: Commit to the private repo
-        env: { TOKEN: "${{ secrets.TOBLER_LOGS_TOKEN }}" }
+        if: always()
         run: |
-          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/pushpingeo/tobler-logs.git" /tmp/logs-repo
-          mkdir -p /tmp/logs-repo/digests
+          ls /tmp/digest/*.md >/dev/null 2>&1 || { echo "No digest was written."; exit 0; }
           cp /tmp/digest/* /tmp/logs-repo/digests/
           cd /tmp/logs-repo
           git config user.name "tobler-digest"; git config user.email "actions@users.noreply.github.com"

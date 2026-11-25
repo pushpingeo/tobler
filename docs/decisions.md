@@ -1641,3 +1641,22 @@ have no topic at all, though landscape, peat and farmland quality decided most o
   imports them from there. The invariants test's CDN exceptions are empty: no page in the repo loads from a CDN now.
 - **Not done:** the lab pages aren't served anywhere yet. Serving them at asktobler.ai would mean putting them under
   the lab site's `public/`, which is Rob's call.
+
+## 25 Nov 2026 (late): the weekly digest can't come out blank, and counts trust faults
+- **Why it was blank (confirmed):** the 23 Nov run's Action log shows 8,000 tokens out of 8,000 and no text: the
+  model thought until the limit. The reply limit is now 32,000, the prompt asks it to think briefly, and a reply with
+  no text writes the digest with the numbers and "the reading failed", then fails the job.
+- **Trust checks in code** (`scripts/log-checks.mjs`, plan item 1): long replies after a screen, numbers in a reply
+  not found in the session's record, evidence the run marked "not traced", runs naming more than one UK nation's
+  bodies, known open publishers not classed open, and screens over 120 s. Counts go to `<date>-checks.json` in
+  tobler-logs; the digest shows them beside up to four earlier weeks. Examples stay in the private digest; the public
+  Action log shows counts only.
+- **Approximations:** a reply number is traced if any number in the session's record rounds to it at the precision
+  written (or matches in m/km, ha/km²); a coincidence can pass a wrong number. Numbers from the place summary the
+  analyst reads aren't in the log yet, so they show as untraced. "Known open publishers" is a short hand list; one
+  layer can differ from its publisher's norm. None of these change an answer Tobler gives: they only steer the digest.
+- **On last week's logs:** 7 of 59 replies with numbers had one not in the record (unit conversions done by the
+  model, rounded country areas, place-summary numbers), 27 of 220 evidence items not traced, 1 of 18 runs naming two
+  nations, 74 of 622 datasets from known open publishers not classed open (mostly the European Environment Agency),
+  5 of 18 screens over 120 s.
+- The digest's brief now covers all three skills.
