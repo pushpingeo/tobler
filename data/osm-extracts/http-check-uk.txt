@@ -1,0 +1,53 @@
+## Manifest: https://data.asktobler.com/osm/uk.json
+HTTP/2 200 
+date: Wed, 25 Nov 2026 12:11:48 GMT
+content-type: application/json
+content-length: 435765
+last-modified: Wed, 25 Nov 2026 12:06:07 GMT
+vary: Origin
+access-control-expose-headers: Content-Range,Content-Length,Accept-Ranges,ETag
+accept-ranges: bytes
+access-control-allow-origin: https://asktobler.com
+cache-control: public, max-age=300
+etag: "0fdfb711ec5a66a6ed0b31327983d3cc"
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+server: cloudflare
+cf-cache-status: DYNAMIC
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=gIemPOPjaYvr2cEhxL19bM%2F51nrFawRDuIUr5YUr2bz50OClMWEyfCjJlAdLZc227nehS7NouTyZn0%2Bp4qCBpdRNwt2qIpb1YkKOeBZxkQmT%2FWL42FmbUDzELWGFBFjBMQKSy4c%3D"}]}
+cf-ray: a6008ed8edd56cd4-SJC
+
+release 2026-11-25 data_as_of {'oldest': '2026-11-24T21:21:23Z', 'newest': '2026-11-24T21:21:23Z'} regions 49
+
+## Range request: https://data.asktobler.com/osm/2026-11-25/bedfordshire/transport.fgb (bytes 0-1023, Origin https://asktobler.com)
+HTTP/2 206 
+date: Wed, 25 Nov 2026 12:11:48 GMT
+content-type: application/octet-stream
+content-length: 1024
+last-modified: Wed, 25 Nov 2026 11:23:18 GMT
+vary: Origin
+content-range: bytes 0-1023/1032712
+access-control-expose-headers: Content-Range,Content-Length,Accept-Ranges,ETag
+accept-ranges: bytes
+access-control-allow-origin: https://asktobler.com
+cache-control: public, max-age=31536000, immutable
+etag: "d8c9b17b858164d45b9e9d8648c7fc4e"
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+server: cloudflare
+cf-cache-status: DYNAMIC
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=FFGYJkWas9MCaz7RwIs9tuVLo%2B9ClL8gi0icaj9StGT2ylAoNv%2Focc0bmfOxLj7wOz5WzLk5JPempyRBSlFxD%2Fx7EzH1jyKUGEvErK%2FZOPKPNk%2BNISexTe1vnvePX08QeZxN6Vw%3D"}]}
+cf-ray: a6008edbfae6f947-SJC
+
+## Preflight (OPTIONS, Range header)
+HTTP/2 204 
+date: Wed, 25 Nov 2026 12:11:48 GMT
+access-control-allow-methods: GET, HEAD
+access-control-max-age: 3600
+access-control-allow-origin: https://asktobler.com
+vary: Origin
+access-control-allow-headers: range
+server: cloudflare
+cf-cache-status: DYNAMIC
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ox7N7iUXk1C7FGxnVrEWEyg1HhygdynHqzaBLyXdfH%2FpdOmvgNOdFL%2BPkRLjAuriFdJhWw7uRsqHp9r25URH2AcFgXK4rxdU84LFSFZA07CvMmZY7a%2FzLrAfbpy3L7hujMPJ8JM%3D"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+cf-ray: a6008edeb9581949-SJC
+

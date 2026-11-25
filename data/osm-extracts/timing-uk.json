@@ -1,0 +1,363 @@
+{
+  "base": "https://data.asktobler.com/osm/",
+  "at": "2026-11-25T12:11:58.755Z",
+  "runner": "GitHub Actions 1000002063",
+  "results": [
+    {
+      "site": "Barnston (Wirral), by the railway",
+      "ha": 10,
+      "scenario": "developable area",
+      "copy_cold": {
+        "seconds": 5.3,
+        "requests": 44,
+        "kb": 488,
+        "via": "copy",
+        "data_as_of": "2026-11-24T21:21:23Z",
+        "error": null,
+        "found": {
+          "building": 1,
+          "water body": 0,
+          "watercourse": 1,
+          "homes": 1,
+          "power line": 0,
+          "pipeline": 0,
+          "main road": 1,
+          "railway": 0
+        }
+      },
+      "copy_warm": {
+        "seconds": 2.67,
+        "requests": 43,
+        "kb": 488,
+        "via": "copy",
+        "data_as_of": "2026-11-24T21:21:23Z",
+        "error": null,
+        "found": {
+          "building": 1,
+          "water body": 0,
+          "watercourse": 1,
+          "homes": 1,
+          "power line": 0,
+          "pipeline": 0,
+          "main road": 1,
+          "railway": 0
+        }
+      },
+      "overpass_quick": {
+        "seconds": 12.05,
+        "answered": true,
+        "error": null,
+        "found": {
+          "building": 1,
+          "water body": 0,
+          "watercourse": 1,
+          "homes": 1,
+          "power line": 0,
+          "pipeline": 0,
+          "main road": 1,
+          "railway": 0
+        }
+      },
+      "overpass_patient": {
+        "seconds": 55,
+        "answered": false,
+        "error": "OpenStreetMap's Overpass service isn't answering right now (all three public servers failed within 55 s; last: timed out after 35 s).",
+        "found": null
+      },
+      "query_chars": 691
+    },
+    {
+      "site": "Barnston (Wirral), by the railway",
+      "ha": 10,
+      "scenario": "constraints screen (local)",
+      "copy_cold": {
+        "seconds": 3.41,
+        "requests": 37,
+        "kb": 927,
+        "via": "copy",
+        "data_as_of": "2026-11-24T21:21:23Z",
+        "error": null,
+        "found": {
+          "homes": 1,
+          "school": 1,
+          "health care": 0,
+          "power line": 2,
+          "substation": 3,
+          "pipeline": 0,
+          "main road": 1,
+          "railway": 1,
+          "aerodrome": 0,
+          "wind turbine": 0
+        }
+      },
+      "copy_warm": {
+        "seconds": 2.72,
+        "requests": 36,
+        "kb": 927,
+        "via": "copy",
+        "data_as_of": "2026-11-24T21:21:23Z",
+        "error": null,
+        "found": {
+          "homes": 1,
+          "school": 1,
+          "health care": 0,
+          "power line": 2,
+          "substation": 3,
+          "pipeline": 0,
+          "main road": 1,
+          "railway": 1,
+          "aerodrome": 0,
+          "wind turbine": 0
+        }
+      },
+      "overpass_quick": {
+        "seconds": 15,
+        "answered": false,
+        "error": "OpenStreetMap's Overpass service isn't answering right now (all three public servers failed within 15 s; last: timed out after 6.999 s).",
+        "found": null
+      },
+      "overpass_patient": {
+        "seconds": 55,
+        "answered": false,
+        "error": "OpenStreetMap's Overpass service isn't answering right now (all three public servers failed within 55 s; last: timed out after 35 s).",
+        "found": null
+      },
+      "query_chars": 879
+    },
+    {
+      "site": "London (Barking Riverside)",
+      "ha": 22,
+      "scenario": "developable area",
+      "copy_cold": {
+        "seconds": 4.92,
+        "requests": 36,
+        "kb": 582,
+        "via": "copy",
+        "data_as_of": "2026-11-24T21:21:23Z",
+        "error": null,
+        "found": {
+          "building": 2,
+          "water body": 1,
+          "watercourse": 1,
+          "homes": 2,
+          "power line": 1,
+          "pipeline": 0,
+          "main road": 0,
+          "railway": 0
+        }
+      },
+      "copy_warm": {
+        "seconds": 2.11,
+        "requests": 35,
+        "kb": 582,
+        "via": "copy",
+        "data_as_of": "2026-11-24T21:21:23Z",
+        "error": null,
+        "found": {
+          "building": 2,
+          "water body": 1,
+          "watercourse": 1,
+          "homes": 2,
+          "power line": 1,
+          "pipeline": 0,
+          "main road": 0,
+          "railway": 0
+        }
+      },
+      "overpass_quick": {
+        "seconds": 15,
+        "answered": false,
+        "error": "OpenStreetMap's Overpass service isn't answering right now (all three public servers failed within 15 s; last: timed out after 6.999 s).",
+        "found": null
+      },
+      "overpass_patient": {
+        "seconds": 55,
+        "answered": false,
+        "error": "OpenStreetMap's Overpass service isn't answering right now (all three public servers failed within 55 s; last: timed out after 34.999 s).",
+        "found": null
+      },
+      "query_chars": 673
+    },
+    {
+      "site": "London (Barking Riverside)",
+      "ha": 22,
+      "scenario": "constraints screen (local)",
+      "copy_cold": {
+        "seconds": 3.68,
+        "requests": 27,
+        "kb": 2203,
+        "via": "copy",
+        "data_as_of": "2026-11-24T21:21:23Z",
+        "error": null,
+        "found": {
+          "homes": 3,
+          "school": 10,
+          "health care": 3,
+          "power line": 6,
+          "substation": 64,
+          "pipeline": 0,
+          "main road": 0,
+          "railway": 2,
+          "aerodrome": 1,
+          "wind turbine": 1
+        }
+      },
+      "copy_warm": {
+        "seconds": 2.26,
+        "requests": 26,
+        "kb": 2203,
+        "via": "copy",
+        "data_as_of": "2026-11-24T21:21:23Z",
+        "error": null,
+        "found": {
+          "homes": 3,
+          "school": 10,
+          "health care": 3,
+          "power line": 6,
+          "substation": 64,
+          "pipeline": 0,
+          "main road": 0,
+          "railway": 2,
+          "aerodrome": 1,
+          "wind turbine": 1
+        }
+      },
+      "overpass_quick": {
+        "seconds": 15,
+        "answered": false,
+        "error": "OpenStreetMap's Overpass service isn't answering right now (all three public servers failed within 15 s; last: timed out after 6.999 s).",
+        "found": null
+      },
+      "overpass_patient": {
+        "seconds": 43.08,
+        "answered": true,
+        "error": null,
+        "found": {
+          "homes": 3,
+          "school": 10,
+          "health care": 3,
+          "power line": 6,
+          "substation": 64,
+          "pipeline": 0,
+          "main road": 0,
+          "railway": 2,
+          "aerodrome": 1,
+          "wind turbine": 1
+        }
+      },
+      "query_chars": 857
+    },
+    {
+      "site": "Highland (west of Lairg)",
+      "ha": 131,
+      "scenario": "developable area",
+      "copy_cold": {
+        "seconds": 2.95,
+        "requests": 23,
+        "kb": 504,
+        "via": "copy",
+        "data_as_of": "2026-11-24T21:21:23Z",
+        "error": null,
+        "found": {
+          "building": 0,
+          "water body": 1,
+          "watercourse": 0,
+          "homes": 0,
+          "power line": 0,
+          "pipeline": 0,
+          "main road": 1,
+          "railway": 0
+        }
+      },
+      "copy_warm": {
+        "seconds": 1.45,
+        "requests": 22,
+        "kb": 504,
+        "via": "copy",
+        "data_as_of": "2026-11-24T21:21:23Z",
+        "error": null,
+        "found": {
+          "building": 0,
+          "water body": 1,
+          "watercourse": 0,
+          "homes": 0,
+          "power line": 0,
+          "pipeline": 0,
+          "main road": 1,
+          "railway": 0
+        }
+      },
+      "overpass_quick": {
+        "seconds": 15,
+        "answered": false,
+        "error": "OpenStreetMap's Overpass service isn't answering right now (all three public servers failed within 15 s; last: timed out after 7 s).",
+        "found": null
+      },
+      "overpass_patient": {
+        "seconds": 55,
+        "answered": false,
+        "error": "OpenStreetMap's Overpass service isn't answering right now (all three public servers failed within 55 s; last: timed out after 35 s).",
+        "found": null
+      },
+      "query_chars": 691
+    },
+    {
+      "site": "Highland (west of Lairg)",
+      "ha": 131,
+      "scenario": "constraints screen (local)",
+      "copy_cold": {
+        "seconds": 1.5,
+        "requests": 14,
+        "kb": 132,
+        "via": "copy",
+        "data_as_of": "2026-11-24T21:21:23Z",
+        "error": null,
+        "found": {
+          "homes": 0,
+          "school": 0,
+          "health care": 0,
+          "power line": 1,
+          "substation": 6,
+          "pipeline": 0,
+          "main road": 1,
+          "railway": 0,
+          "aerodrome": 0,
+          "wind turbine": 1
+        }
+      },
+      "copy_warm": {
+        "seconds": 1.21,
+        "requests": 13,
+        "kb": 132,
+        "via": "copy",
+        "data_as_of": "2026-11-24T21:21:23Z",
+        "error": null,
+        "found": {
+          "homes": 0,
+          "school": 0,
+          "health care": 0,
+          "power line": 1,
+          "substation": 6,
+          "pipeline": 0,
+          "main road": 1,
+          "railway": 0,
+          "aerodrome": 0,
+          "wind turbine": 1
+        }
+      },
+      "overpass_quick": {
+        "seconds": 15,
+        "answered": false,
+        "error": "OpenStreetMap's Overpass service isn't answering right now (all three public servers failed within 15 s; last: timed out after 14.507 s).",
+        "found": null
+      },
+      "overpass_patient": {
+        "seconds": 55,
+        "answered": false,
+        "error": "OpenStreetMap's Overpass service isn't answering right now (all three public servers failed within 55 s; last: timed out after 34.999 s).",
+        "found": null
+      },
+      "query_chars": 879
+    }
+  ]
+}
