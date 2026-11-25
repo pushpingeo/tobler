@@ -1661,7 +1661,7 @@ have no topic at all, though landscape, peat and farmland quality decided most o
   5 of 18 screens over 120 s.
 - The digest's brief now covers all three skills.
 - **Later, 25 Nov:** a 32,000 limit wasn't enough either (the model thought through all of it on 37 sessions), so
-  the digest call now turns thinking off (`thinking: {type: "disabled"}`, documented for the Sonnet 5 family) and the
+  the digest call now turns thinking off (`thinking: {type: "between_tools"}`; the API refused "disabled" for this model and named this instead) and the
   limit is back to 16,000. Rob reads the digest on the web, not by email (his call, 25 Nov: lowest upkeep wins). The
   workflow makes `digests/README.md` in tobler-logs the newest digest plus links to the rest, so
   github.com/pushpingeo/tobler-logs/tree/main/digests always opens on it. A failed run still emails him through

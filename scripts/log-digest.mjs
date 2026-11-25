@@ -26,7 +26,7 @@ const MODEL = process.env.DIGEST_MODEL || "claude-sonnet-5-5";
 const MAX_TRANSCRIPT = 400_000; // characters sent to Claude in all
 // The model thinks by default, and thinking counts against max_tokens: on 23 Nov it used all 8,000, and on 25 Nov
 // all 32,000, despite a prompt asking it to think briefly. A prompt isn't a control. This is a reading job, so the
-// call turns thinking off (Messages API: thinking {type: "disabled"}), and the whole limit is for the digest.
+// call turns thinking off (Messages API: thinking {type: "between_tools"}: no thinking before the reply; this model refuses "disabled"), and the whole limit is for the digest.
 const MAX_TOKENS = 16_000;
 const readKey = createHash("sha256").update(`tobler-logs:${process.env.ATLAS_MCP_KEY || ""}`).digest("hex");
 
@@ -159,7 +159,7 @@ async function main() {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: MODEL, max_tokens: MAX_TOKENS, thinking: { type: "disabled" }, system: SYSTEM, messages: [{ role: "user", content: `Numbers worked out in code: ${JSON.stringify(stats)}\n\nTrust checks worked out in code:\n${JSON.stringify(checks)}\n\n<logs>\n${transcript(sessions)}\n</logs>` }] }),
+      body: JSON.stringify({ model: MODEL, max_tokens: MAX_TOKENS, thinking: { type: "between_tools" }, system: SYSTEM, messages: [{ role: "user", content: `Numbers worked out in code: ${JSON.stringify(stats)}\n\nTrust checks worked out in code:\n${JSON.stringify(checks)}\n\n<logs>\n${transcript(sessions)}\n</logs>` }] }),
     });
     const j = await r.json();
     const reading = r.ok ? readingFrom(j) : new Error(`Claude: ${r.status} ${j.error?.message || ""}`);
