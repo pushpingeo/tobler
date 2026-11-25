@@ -137,6 +137,8 @@ export function activityFor(name, input = {}) {
     case "set_file_transformation": return "Converting your file's coordinates";
     case "screen_site": return `Screening ${input.place} for environmental constraints and E&S risk (this takes a minute)`;
     case "get_run": return `Reading the screen ${input.run || ""}`.trim();
+    case "openstreetmap": return !input.overpass ? "Reading OpenStreetMap"
+      : input.patient ? "Asking OpenStreetMap's public servers (when they're busy this can take up to a minute)" : "Asking OpenStreetMap's public servers";
     case "show_on_map": return input.clear ? "Clearing the map" : "Showing the findings on the map";
     default: return `Running ${name}`;
   }

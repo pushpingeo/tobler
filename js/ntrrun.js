@@ -489,7 +489,12 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     // Tobler's own copy of OpenStreetMap first (js/osmsnapshot.js), Overpass when the site is outside it or it can't
     // be read. host.osmSnapshot: a test's own source, or null to go straight to Overpass.
     const snapshot = host.osmSnapshot !== undefined ? host.osmSnapshot : osmSnapshot({ fetchFn: host.fetchFn || globalThis.fetch });
-    const got = await osmAnswers({ wants: osmWants, site: fp.feature, snapshot, query: (q) => overpassQuery(q, host.fetchFn || globalThis.fetch, host.headers || {}), now });
+    // A study run is sealed and nobody waits on each step, so Overpass gets the patient wait (55 s, a retry); a
+    // constraints screen keeps the quick one (js/gazetteer.js OVERPASS_SPEEDS).
+    const patient = !!study;
+    const got = await osmAnswers({ wants: osmWants, site: fp.feature, snapshot, timeoutS: patient ? 50 : 25,
+      onOverpass: () => onEvent({ type: "tool_start", name: "openstreetmap", input: { kinds, overpass: true, patient } }),
+      query: (q) => overpassQuery(q, host.fetchFn || globalThis.fetch, host.headers || {}, { patient }), now });
     for (const [kind, a] of got) {
       layerAnswers.set(`osm:${kind}`, a);
       const plan = layerPlans.find((p) => p.sources.some((x) => x.osm === kind));

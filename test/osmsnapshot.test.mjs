@@ -8,6 +8,8 @@ import { readFileSync, statSync } from "node:fs";
 import * as turf from "../js/vendor/turf.js";
 import { OSM_KINDS, osmAnswers } from "../js/osmchecks.js";
 import { osmSnapshot, covers, forgetManifests } from "../js/osmsnapshot.js";
+import { findFeaturesNear, overpassQuery, overpassLatched, resetOverpass, OVERPASS_SPEEDS, ServiceDown } from "../js/gazetteer.js";
+import { osmQuery } from "../js/osmchecks.js";
 
 console.debug = () => {}; // the FlatGeobuf reader logs every range request
 let passed = 0;
@@ -160,6 +162,102 @@ await test("a kind the copy doesn't hold: the whole query goes to Overpass", asy
   forgetManifests();
   const s = osmSnapshot({ base, markets: ["uk"] });
   assert.equal(await s(["railway", "ferry terminal"], () => turf.bbox(site)), null);
+});
+
+// ---- The place search through the copy (js/gazetteer.js findFeaturesNear, 25 Nov) ----
+const overpassFetchNever = async () => { throw new Error("Overpass should not have been asked"); };
+await test("place search: a railway near a point comes from the copy, with its real line, not Overpass", async () => {
+  forgetManifests(); resetOverpass();
+  const r = await findFeaturesNear([-3.098, 53.303], "railway", 2, { fetchFn: overpassFetchNever, osmCopy: osmSnapshot({ base, markets: ["uk"] }) });
+  assert.deepEqual(r.candidates.map((c) => c.name), ["Borderlands Line"]);
+  const c = r.candidates[0];
+  assert.equal(c.source.id, "osm-copy");
+  assert.match(c.source.title, /Tobler's copy, data as of 2026-11-24/);
+  assert.equal(c.geometry.type, "LineString", "the real line, so no outline fetch later");
+  assert.ok(!c.approx);
+  assert.ok(c.distance_km < 0.2, `${c.distance_km}`);
+  assert.equal(r.sources[0].source, "OpenStreetMap (Tobler's copy)");
+  assert.equal(r.sources[0].data_as_of, "2026-11-24");
+});
+
+await test("place search: a name that doesn't match finds nothing in the copy (none, not an Overpass call)", async () => {
+  forgetManifests(); resetOverpass();
+  const r = await findFeaturesNear([-3.098, 53.303], "railway", 2, { name: "Settle", fetchFn: overpassFetchNever, osmCopy: osmSnapshot({ base, markets: ["uk"] }) });
+  assert.equal(r.total, 0);
+  assert.equal(r.sources[0].source, "OpenStreetMap (Tobler's copy)");
+});
+
+await test("place search: a type the copy doesn't hold (solar farm) still goes to Overpass", async () => {
+  forgetManifests(); resetOverpass();
+  let asked = 0;
+  const fetchFn = async () => { asked++; return new Response(JSON.stringify({ elements: [] }), { status: 200 }); };
+  const r = await findFeaturesNear([-3.098, 53.303], "solar farm", 2, { fetchFn, osmCopy: osmSnapshot({ base, markets: ["uk"] }) });
+  assert.equal(asked, 1);
+  assert.equal(r.sources[0].source, "OpenStreetMap");
+});
+
+await test("place search: the copy can't be read, so Overpass answers and the source line says the copy failed", async () => {
+  forgetManifests(); resetOverpass(); served.refuse = true;
+  try {
+    const fetchFn = async () => new Response(JSON.stringify({ elements: [] }), { status: 200 });
+    const r = await findFeaturesNear([-3.098, 53.303], "railway", 2, { fetchFn, osmCopy: osmSnapshot({ base, markets: ["uk"] }) });
+    assert.equal(r.sources[0].source, "OpenStreetMap");
+    assert.match(r.sources[0].copy_failed, /couldn't be read \(503\)/);
+  } finally { served.refuse = false; }
+});
+
+// ---- Overpass's two speeds (js/gazetteer.js OVERPASS_SPEEDS, 25 Nov) ----
+await test("Overpass: a quick lookup is stopped by the down latch; a patient one makes a real attempt and retries once", async () => {
+  resetOverpass();
+  const saved = JSON.parse(JSON.stringify(OVERPASS_SPEEDS));
+  Object.assign(OVERPASS_SPEEDS.quick, { budgetMs: 3000, staggerMs: 10 });
+  Object.assign(OVERPASS_SPEEDS.patient, { budgetMs: 4000, staggerMs: 10, pauseMs: 20, minRetryMs: 100 });
+  try {
+    let calls = 0;
+    const down = async () => { calls++; return new Response("busy", { status: 504 }); };
+    await assert.rejects(overpassQuery("[out:json];node(1);out;", down), ServiceDown);
+    assert.equal(calls, 3, "each server once");
+    assert.ok(overpassLatched());
+    calls = 0;
+    await assert.rejects(overpassQuery("[out:json];node(2);out;", down), /failed a moment ago/);
+    assert.equal(calls, 0, "quick: refused at once while latched");
+    // Patient: the first round fails fast, the retry is answered.
+    let n = 0;
+    const flaky = async () => (++n <= 3 ? new Response("busy", { status: 429 }) : new Response(JSON.stringify({ elements: [{ type: "node", id: 1 }] }), { status: 200 }));
+    const j = await overpassQuery("[out:json];node(3);out;", flaky, {}, { patient: true });
+    assert.equal(j.elements.length, 1);
+    assert.ok(n >= 4, `retried (${n} requests)`);
+    assert.ok(!overpassLatched(), "an answer clears the latch");
+  } finally { Object.assign(OVERPASS_SPEEDS.quick, saved.quick); Object.assign(OVERPASS_SPEEDS.patient, saved.patient); resetOverpass(); }
+});
+
+await test("Overpass: servers that fail fast don't wait out the stagger; a server that's working isn't joined early", async () => {
+  resetOverpass();
+  const saved = JSON.parse(JSON.stringify(OVERPASS_SPEEDS));
+  Object.assign(OVERPASS_SPEEDS.quick, { budgetMs: 8000, staggerMs: 3000 });
+  try {
+    let calls = 0; const t0 = Date.now();
+    await assert.rejects(overpassQuery("[out:json];node(4);out;", async () => { calls++; return new Response("busy", { status: 429 }); }), ServiceDown);
+    assert.equal(calls, 3);
+    assert.ok(Date.now() - t0 < 1000, `all three asked at once when each failed (${Date.now() - t0} ms)`);
+    resetOverpass(); calls = 0;
+    const slowOk = async () => { calls++; await new Promise((r) => setTimeout(r, 300)); return new Response(JSON.stringify({ elements: [] }), { status: 200 }); };
+    await overpassQuery("[out:json];node(5);out;", slowOk);
+    assert.equal(calls, 1, "a server still working gets its stagger to answer alone");
+  } finally { Object.assign(OVERPASS_SPEEDS.quick, saved.quick); resetOverpass(); }
+});
+
+await test("Overpass: the server's own limit is 50 s for a study run's query, 25 s otherwise", () => {
+  assert.match(osmQuery(["railway"], [0, 0, 1, 1]), /\[timeout:25\]/);
+  assert.match(osmQuery(["railway"], [0, 0, 1, 1], { timeoutS: 50 }), /\[timeout:50\]/);
+});
+
+await test("osmAnswers says just before it asks Overpass, so a run can show it's waiting", async () => {
+  forgetManifests();
+  const said = [];
+  await osmAnswers({ wants: new Map([["railway", 1]]), site: turf.bboxPolygon([-1.0, 52.0, -0.99, 52.01]), snapshot: osmSnapshot({ base, markets: ["uk"] }),
+    timeoutS: 50, onOverpass: () => said.push("overpass"), query: async (q) => { said.push(q.match(/timeout:(\d+)/)[1]); return { elements: [] }; } });
+  assert.deepEqual(said, ["overpass", "50"]);
 });
 
 server.close();

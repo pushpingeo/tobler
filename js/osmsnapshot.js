@@ -54,8 +54,9 @@ function element(f) {
 
 // The source osmAnswers takes: (kinds, boxOf) → { elements, via, data_as_of, release, capped } | null.
 // options: base (URL ending in /, default CONFIG.osmSnapshotBase), markets (default CONFIG.osmSnapshotMarkets),
-// fetchFn (for the manifest; the file reads use the page's fetch), timeoutMs.
-export function osmSnapshot({ base = CONFIG.osmSnapshotBase, markets = CONFIG.osmSnapshotMarkets || [], fetchFn = globalThis.fetch, timeoutMs = 20000 } = {}) {
+// fetchFn (for the manifest; the file reads use the page's fetch), timeoutMs, maxPerGroup (features read per group
+// before the answer is marked capped; the place search asks for fewer than the checks).
+export function osmSnapshot({ base = CONFIG.osmSnapshotBase, markets = CONFIG.osmSnapshotMarkets || [], fetchFn = globalThis.fetch, timeoutMs = 20000, maxPerGroup = MAX_PER_GROUP } = {}) {
   return async (kinds, boxOf) => {
     if (!base || !markets.length || !kinds.length) return null;
     const all = unionBox(kinds.map(boxOf));
@@ -93,9 +94,9 @@ export function osmSnapshot({ base = CONFIG.osmSnapshotBase, markets = CONFIG.os
             if (seen.has(key)) continue; // an extract's edge overlaps its neighbour's
             seen.add(key);
             elements.push(el);
-            if (++n >= MAX_PER_GROUP) { capped = true; break; }
+            if (++n >= maxPerGroup) { capped = true; break; }
           }
-          if (n >= MAX_PER_GROUP) break;
+          if (n >= maxPerGroup) break;
         }
       }));
     };

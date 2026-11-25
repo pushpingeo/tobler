@@ -5,6 +5,8 @@
 import * as turf from "./vendor/turf.js";
 import { fetchOverpass, OVERPASS_ENDPOINTS } from "./tools.js";
 import { atlasFeaturesNear, ATLAS_CONCEPTS, describeChecked } from "./atlasfeatures.js";
+import { osmSnapshot } from "./osmsnapshot.js";
+import { nearestKm } from "./nearness.js";
 
 const round = (v, d = 4) => Math.round(v * 10 ** d) / 10 ** d;
 
@@ -15,37 +17,57 @@ const remembered = (key, fn) => {
   return memo.get(key);
 };
 
-// Overpass: ask the server that answered last time; if it hasn't answered in 4 seconds, ask the next one too,
-// and so on (a staggered start, so a healthy server isn't asked three times). The whole search gives up after
-// 15 seconds, not 45 as when the servers were tried in turn. If every server fails, say so at once for the
-// next two minutes.
+// Overpass: ask the server that answered last time; if it hasn't answered in a few seconds, ask the next one too,
+// and so on (a staggered start, so a healthy server isn't asked three times). Two speeds:
+// - quick (a conversation's lookups): gives up after 15 s, servers 4 s apart. If every server fails, later quick
+//   lookups say so at once for two minutes (the "down" latch) rather than keep the person waiting.
+// - patient (sealed study runs, 25 Nov): up to 55 s, servers 10 s apart, because the eval fetch log has good answers
+//   at 50–60 s and a run has no one waiting on each step. The latch doesn't stop it: it makes a real attempt. If every
+//   server fails fast (a 429 or 504 in seconds) and time is left, it waits 5 s and tries once more.
+export const OVERPASS_SPEEDS = {
+  quick: { budgetMs: 15000, staggerMs: 4000, rounds: 1, pauseMs: 0, minRetryMs: 0 },
+  patient: { budgetMs: 55000, staggerMs: 10000, rounds: 2, pauseMs: 5000, minRetryMs: 15000 },
+};
 let fastest = 0;
 let overpassDownUntil = 0;
 export class ServiceDown extends Error {}
-async function overpass(q, fetchFn, headers) {
-  if (Date.now() < overpassDownUntil) throw new ServiceDown("OpenStreetMap's Overpass service isn't answering right now (all three public servers failed a moment ago).");
-  return remembered(`overpass:${q}`, async () => {
+export const overpassLatched = () => Date.now() < overpassDownUntil;
+export function resetOverpass() { fastest = 0; overpassDownUntil = 0; memo.clear(); } // for tests
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function overpass(q, fetchFn, headers, { patient = false } = {}) {
+  if (!patient && overpassLatched()) throw new ServiceDown("OpenStreetMap's Overpass service isn't answering right now (all three public servers failed a moment ago).");
+  const speed = OVERPASS_SPEEDS[patient ? "patient" : "quick"];
+  return remembered(`overpass:${patient ? "p" : "q"}:${q}`, async () => {
     let lastErr;
     const t0 = Date.now();
-    const tries = OVERPASS_ENDPOINTS.map((_, k) => (async () => {
-      const i = (fastest + k) % OVERPASS_ENDPOINTS.length;
-      if (k) await new Promise((r) => setTimeout(r, 4000 * k));
-      const left = 15000 - (Date.now() - t0);
-      if (left < 2000) throw new Error("out of time");
-      try { const j = await fetchOverpass(q, OVERPASS_ENDPOINTS[i], fetchFn, left, headers); return { j, i }; }
-      catch (e) { lastErr = e; throw e; }
-    })());
-    try {
-      const { j, i } = await Promise.any(tries);
-      fastest = i; overpassDownUntil = 0; return j;
-    } catch { /* all failed */ }
+    const left = () => speed.budgetMs - (Date.now() - t0);
+    for (let round = 0; round < speed.rounds; round++) {
+      if (round) { if (left() < speed.minRetryMs) break; await sleep(speed.pauseMs); }
+      // The next server is asked after the stagger, or at once if every server asked so far has already failed
+      // (a 429 or a refused connection says nothing about whether the next one is busy).
+      const tries = [];
+      for (let k = 0; k < OVERPASS_ENDPOINTS.length; k++) tries.push((async (earlier) => {
+        const i = (fastest + k) % OVERPASS_ENDPOINTS.length;
+        if (k) await Promise.race([sleep(speed.staggerMs * k), Promise.any(earlier).then(() => new Promise(() => {}), () => {})]);
+        const ms = left();
+        if (ms < 2000) throw new Error("out of time");
+        try { const j = await fetchOverpass(q, OVERPASS_ENDPOINTS[i], fetchFn, ms, headers); return { j, i }; }
+        catch (e) { lastErr = e; throw e; }
+      })(tries.slice()));
+      try {
+        const { j, i } = await Promise.any(tries);
+        fastest = i; overpassDownUntil = 0; return j;
+      } catch { /* every server failed this round */ }
+    }
     overpassDownUntil = Date.now() + 120000;
-    throw new ServiceDown(`OpenStreetMap's Overpass service isn't answering right now (all three public servers failed; last: ${lastErr?.message}).`);
+    const secs = Math.round((Date.now() - t0) / 1000);
+    throw new ServiceDown(`OpenStreetMap's Overpass service isn't answering right now (all three public servers failed within ${secs} s; last: ${lastErr?.message}).`);
   });
 }
 
 // For the checks' OpenStreetMap source (js/osmchecks.js): the same servers, fallbacks and "not answering" note.
-export const overpassQuery = (q, fetchFn = globalThis.fetch, headers = {}) => overpass(q, fetchFn, headers);
+// options.patient: a sealed study run's longer wait (OVERPASS_SPEEDS).
+export const overpassQuery = (q, fetchFn = globalThis.fetch, headers = {}, options = {}) => overpass(q, fetchFn, headers, options);
 
 // A candidate keeps its full geometry here; the model only ever sees a compact description.
 export function candidate({ name, type, geometry, source, extra = {} }) {
@@ -245,15 +267,85 @@ async function nearViaNominatim(lonlat, featureType, radiusKm, { fetchFn, header
   return { candidates: out.slice(0, limit), total: out.length, note: "Overpass was busy, so these came from Nominatim's search, which can miss unnamed or less prominent features." };
 }
 
+// ---- The same lookup through Tobler's copy of OpenStreetMap (js/osmsnapshot.js, 25 Nov) ----------------------
+// Only for the feature types whose Overpass selectors the copy holds with the same tags; the rest (solar farms,
+// mines, ports, universities, doctors…) aren't in the copy and go to Overpass as before. extra: a narrower tag test
+// within the copy's kind. Two are deliberate supersets of the Overpass selector: residential areas and the
+// aerodromes/substations also come as multipolygon relations, read whole (Overpass reads those ways only, or by
+// their bounding box).
+export const COPY_FEATURE_TYPES = {
+  substation: { kind: "substation" },
+  "main road": { kind: "main road" },
+  railway: { kind: "railway" },
+  pipeline: { kind: "pipeline" },
+  "power line": { kind: "power line" },
+  airport: { kind: "aerodrome" },
+  "residential area": { kind: "homes" },
+  river: { kind: "watercourse", extra: (t) => /^(river|canal)$/.test(t.waterway || "") },
+};
+// Fewer features per lookup than the checks read: a place search wants the nearest few, not every building.
+const COPY_MAX_PER_GROUP = 5000;
+const boxAround = ([lon, lat], km) => {
+  const dy = km / 110.574, dx = km / (111.32 * Math.max(0.05, Math.cos((lat * Math.PI) / 180)));
+  return [lon - dx, Math.max(-90, lat - dy), lon + dx, Math.min(90, lat + dy)];
+};
+// null when the copy can't answer this (switched off, a type it doesn't hold, or ground outside its outline);
+// throws when it can't be read. Candidates carry the feature's real shape, so no outline fetch is needed later.
+export async function findFeaturesNearCopy(lonlat, featureType, radiusKm, { name = null, limit = 15, snapshot = null } = {}) {
+  const ft = COPY_FEATURE_TYPES[featureType];
+  if (!ft || !snapshot) return null;
+  const km = Math.min(Math.max(radiusKm, 0.5), 50);
+  const box = boxAround(lonlat, km);
+  const got = await snapshot([ft.kind], () => box);
+  if (!got) return null;
+  const nameRe = name ? new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") : null;
+  const pt = { type: "Point", coordinates: lonlat };
+  const cands = [];
+  for (const el of got.elements || []) {
+    const t = el.tags || {};
+    if (ft.extra && !ft.extra(t)) continue;
+    if (nameRe && !nameRe.test(t.name || "")) continue;
+    const geometry = el.geojson;
+    if (!geometry) continue;
+    const c = candidate({
+      name: t.name || t["name:en"] || null, type: describeTags(t), geometry,
+      source: { id: "osm-copy", title: `OpenStreetMap (Tobler's copy${got.data_as_of ? `, data as of ${String(got.data_as_of).slice(0, 10)}` : ""})`, publisher: "OpenStreetMap contributors", licence: "ODbL 1.0", url: `https://www.openstreetmap.org/${el.type}/${el.id}` },
+      extra: pick(t, ["operator", "ref", "voltage", "substance"]),
+    });
+    let d = null;
+    try { d = nearestKm(pt, geometry); } catch { /* measure to its point instead */ }
+    if (d == null) d = turf.distance(lonlat, c.lonlat);
+    if (d > km + 1e-9) continue; // the box's corners are further than the radius
+    c.distance_km = round(d, 2);
+    c.edge_km = c.distance_km;
+    c.bearing = Math.round((turf.bearing(lonlat, c.lonlat) + 360) % 360);
+    cands.push(c);
+  }
+  const bySize = /farm|hydro|power plant|mine|port|platform|industrial|airport/.test(featureType);
+  cands.sort(bySize ? (a, b) => (b.area_km2 || 0) - (a.area_km2 || 0) || a.distance_km - b.distance_km : (a, b) => a.distance_km - b.distance_km);
+  return { candidates: cands.slice(0, limit), total: cands.length, via: "copy", data_as_of: got.data_as_of || null,
+    ...(got.capped ? { note: `Tobler's copy of OpenStreetMap stopped at ${COPY_MAX_PER_GROUP} features in this search, so some further away may be missing.` } : {}) };
+}
+
 // Asks the atlas and OpenStreetMap at the same time and merges what answers. Neither is required:
 // whatever fails is reported as "not checked", never as "none found".
-export async function findFeaturesNear(lonlat, featureType, radiusKm, { name = null, fetchFn = fetch, limit = 15, headers = {}, atlas = null, allow = {} } = {}) {
+// osmCopy: Tobler's copy of OpenStreetMap (default: the configured one; null to skip it), asked before Overpass for
+// the types it holds (COPY_FEATURE_TYPES). If the copy can't be read, Overpass, and the source line says so.
+export async function findFeaturesNear(lonlat, featureType, radiusKm, { name = null, fetchFn = fetch, limit = 15, headers = {}, atlas = null, allow = {}, osmCopy } = {}) {
   const parts = FEATURE_TYPES[featureType];
   if (!parts) throw new Error(`Unknown feature type. Use one of: ${Object.keys(FEATURE_TYPES).join(", ")}.`);
+  const copy = osmCopy !== undefined ? osmCopy : (COPY_FEATURE_TYPES[featureType] ? osmSnapshot({ maxPerGroup: COPY_MAX_PER_GROUP }) : null);
   const osmP = (async () => {
-    try { return await findFeaturesNearOverpass(lonlat, featureType, radiusKm, { name, fetchFn, limit, headers }); }
+    let copyFailed = null;
+    try {
+      const got = await findFeaturesNearCopy(lonlat, featureType, radiusKm, { name, limit, snapshot: copy });
+      if (got) return got;
+    } catch (e) { copyFailed = String(e.message || e).slice(0, 160); }
+    const withNote = (r) => (copyFailed ? { ...r, copy_failed: copyFailed } : r);
+    try { return withNote(await findFeaturesNearOverpass(lonlat, featureType, radiusKm, { name, fetchFn, limit, headers })); }
     catch (e) {
-      if (e instanceof ServiceDown && NOMINATIM_PHRASES[featureType] && !name) return nearViaNominatim(lonlat, featureType, radiusKm, { fetchFn, headers, limit });
+      if (e instanceof ServiceDown && NOMINATIM_PHRASES[featureType] && !name) return withNote(await nearViaNominatim(lonlat, featureType, radiusKm, { fetchFn, headers, limit }));
+      if (copyFailed) throw new Error(`${copyFailed}; then ${String(e.message || e).slice(0, 160)}`);
       throw e;
     }
   })();
@@ -277,7 +369,12 @@ export async function findFeaturesNear(lonlat, featureType, radiusKm, { name = n
       ...(at.value.layers_not_checked ? { more_layers_not_checked: at.value.layers_not_checked } : {}),
       ...(at.value.left_out?.length ? { left_out_for_licence: `${at.value.left_out.length} layer${at.value.left_out.length > 1 ? "s" : ""} (${at.value.left_out.slice(0, 2).map((x) => x.title).join("; ")}): ${at.value.left_out[0].why}` } : {}) });
   } else if (atlas && ATLAS_CONCEPTS[featureType]) sources.push({ source: "AI Living World Atlas", not_checked: String(at.reason?.message || at.reason || "unavailable").slice(0, 120) });
-  if (osm.status === "fulfilled") { cands.push(...osm.value.candidates); sources.push({ source: "OpenStreetMap", found: osm.value.total, ...(osm.value.note ? { note: osm.value.note } : {}) }); }
+  if (osm.status === "fulfilled") {
+    cands.push(...osm.value.candidates);
+    sources.push({ source: osm.value.via === "copy" ? "OpenStreetMap (Tobler's copy)" : "OpenStreetMap", found: osm.value.total,
+      ...(osm.value.data_as_of ? { data_as_of: String(osm.value.data_as_of).slice(0, 10) } : {}),
+      ...(osm.value.note ? { note: osm.value.note } : {}), ...(osm.value.copy_failed ? { copy_failed: osm.value.copy_failed } : {}) });
+  }
   else sources.push({ source: "OpenStreetMap", not_checked: String(osm.reason?.message || osm.reason).slice(0, 160) });
   if (!cands.length && osm.status === "rejected" && !(at.status === "fulfilled" && at.value)) throw osm.reason;
   const bySize = /farm|hydro|power plant|mine|port|platform|industrial|airport/.test(featureType);

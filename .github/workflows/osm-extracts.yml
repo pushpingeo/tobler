@@ -47,6 +47,10 @@ jobs:
           echo "probe $(date -u +%FT%TZ)" > probe.txt
           npx -y wrangler@4 r2 object put "$BUCKET/osm/_probe.txt" --file probe.txt --remote --content-type text/plain \
             || { echo "::error::The Cloudflare token can't write to R2 bucket $BUCKET: add Account / Workers R2 Storage / Edit to it"; exit 1; }
+          # The build uploads through R2's S3 API (multipart, for files over wrangler's 300 MiB): check that route too.
+          S3ENV=$(scripts/osm-extract/r2-s3-env.sh) || exit 1; eval "$S3ENV"; echo "::add-mask::$AWS_SECRET_ACCESS_KEY"
+          aws s3 cp probe.txt "s3://$BUCKET/osm/_probe-s3.txt" --endpoint-url "$R2_ENDPOINT" --only-show-errors \
+            || { echo "::error::R2's S3 API refused the token's derived credentials for bucket $BUCKET"; exit 1; }
       - run: pip install -q osmium shapely
       - id: p
         working-directory: scripts/osm-extract
@@ -106,22 +110,28 @@ jobs:
           for row in $(python3 -c "import json;[print(r['id']+'|'+r['pbf']) for r in json.load(open('../../plan/regions.json'))['regions'] if r['shard']==${{ matrix.shard }}]"); do
             id=${row%%|*}; url=${row#*|}
             echo "::group::$id"
-            curl -sfL -A "$UA" --retry 3 -o in.osm.pbf "$url" || { echo "::warning::$id: download failed"; echo "::endgroup::"; continue; }
+            # Geofabrik: retry with pauses (it slows or refuses heavy users), and say what it answered if it fails.
+            code=$(curl -sL -A "$UA" --retry 4 --retry-delay 30 --retry-all-errors -o in.osm.pbf -w '%{http_code}' "$url" || true)
+            if [ "$code" != "200" ]; then echo "::warning::$id: download failed (HTTP $code)"; rm -f in.osm.pbf; echo "::endgroup::"; continue; fi
             osmium tags-filter --overwrite -o filtered.osm.pbf in.osm.pbf $FILTER
             python3 build.py --pbf filtered.osm.pbf --region "$id" --out "../../out/$id" --source-bytes $(stat -c %s in.osm.pbf) \
               ${{ needs.plan.outputs.parquet == 'yes' && '--parquet' || '' }} || echo "::warning::$id: build failed"
             rm -f in.osm.pbf filtered.osm.pbf
             echo "::endgroup::"
           done
-      - name: Upload to R2
+      - name: Upload to R2 (S3 API, multipart for big files)
         if: env.BUCKET != ''
         run: |
+          S3ENV=$(scripts/osm-extract/r2-s3-env.sh) || exit 1; eval "$S3ENV"; echo "::add-mask::$AWS_SECRET_ACCESS_KEY"
+          failed=0
           for d in out/*/; do id=$(basename "$d")
-            for f in "$d"*.fgb "$d"*.parquet; do [ -e "$f" ] || continue
-              npx -y wrangler@4 r2 object put "$BUCKET/osm/${{ needs.plan.outputs.release }}/$id/$(basename "$f")" --file "$f" --remote \
-                --content-type application/octet-stream --cache-control "public, max-age=31536000, immutable" >/dev/null
-            done
+            # An extract whose files didn't all go up is left out of the manifest (no stats artifact for it).
+            if ! aws s3 cp "$d" "s3://$BUCKET/osm/${{ needs.plan.outputs.release }}/$id/" --recursive --exclude "*" --include "*.fgb" --include "*.parquet" \
+                 --endpoint-url "$R2_ENDPOINT" --content-type application/octet-stream --cache-control "public, max-age=31536000, immutable" --only-show-errors; then
+              echo "::warning::$id: upload failed; left out of this release"; rm -f "$d/stats.json"; failed=1
+            fi
           done
+          [ "$failed" = 0 ] || echo "::warning::some extracts weren't uploaded"
       - uses: actions/upload-artifact@v4
         with:
           name: stats-${{ matrix.shard }}

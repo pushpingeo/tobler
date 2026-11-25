@@ -40,11 +40,13 @@ export function grownBox(feature, km) {
 // multipolygon still counts, measured to its centre). box: one box for every kind, or a function kind → its own box
 // (25 Nov: each kind only as far out as its own reach, so buildings on a site don't fill the limit with a town).
 export const MAX_ELEMENTS = 4000;
-export function osmQuery(kinds, box) {
+// timeoutS: the server's own limit. Never shorter than the client will wait (a server still working after the
+// client gave up wastes its capacity and our answer): 25 s for quick lookups, 50 s for patient study runs.
+export function osmQuery(kinds, box, { timeoutS = 25 } = {}) {
   const bb = (x) => `(${x[1].toFixed(5)},${x[0].toFixed(5)},${x[3].toFixed(5)},${x[2].toFixed(5)})`;
   const boxOf = typeof box === "function" ? box : () => box;
   const stmts = kinds.flatMap((k) => (OSM_KINDS[k]?.sel || []).map((s) => `${s}${bb(boxOf(k))};`)).join("");
-  return `[out:json][timeout:25];(${stmts})->.a;(node.a;way.a;);out geom qt ${MAX_ELEMENTS};rel.a;out center qt 400;`;
+  return `[out:json][timeout:${timeoutS}];(${stmts})->.a;(node.a;way.a;);out geom qt ${MAX_ELEMENTS};rel.a;out center qt 400;`;
 }
 
 // An Overpass element as a geometry: a node a point, a way a line (or an area if closed and not a line kind), a
@@ -65,7 +67,9 @@ export function elementGeometry(el, isLine) {
 // snapshot(kinds, boxOf), if given, is Tobler's own copy (js/osmsnapshot.js), asked first: null means "not here" and
 // a throw means it couldn't be read; either way query(q) runs an Overpass query (js/gazetteer.js overpassQuery:
 // fallbacks, and "not answering" when all fail). meta.via says which answered; data_as_of is the copy's date.
-export async function osmAnswers({ wants, site, query, snapshot = null, now = () => new Date().toISOString() }) {
+// timeoutS: the Overpass server's own limit (osmQuery). onOverpass(): called just before Overpass is asked, so a run
+// can say it's waiting on the public servers.
+export async function osmAnswers({ wants, site, query, snapshot = null, timeoutS = 25, onOverpass = () => {}, now = () => new Date().toISOString() }) {
   const kinds = [...wants.keys()].filter((k) => OSM_KINDS[k]);
   const out = new Map();
   if (!kinds.length) return out;
@@ -76,7 +80,8 @@ export async function osmAnswers({ wants, site, query, snapshot = null, now = ()
     catch (e) { snapErr = String(e.message || e); }
   }
   if (!json) {
-    try { json = await query(osmQuery(kinds, boxOf)); }
+    onOverpass();
+    try { json = await query(osmQuery(kinds, boxOf, { timeoutS })); }
     catch (e) {
       const why = String(e.message || e).slice(0, 200);
       for (const k of kinds) out.set(k, { not_checked: snapErr ? `${snapErr.slice(0, 120)}; then ${why}` : why });
