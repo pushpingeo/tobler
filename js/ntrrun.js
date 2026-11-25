@@ -830,7 +830,8 @@ export async function reassess({ record, km, skill, callClaude: call, now = () =
   return record;
 }
 
-// What the conversation agent gets back: the headline only. Detail stays in the run (get_run).
+// What the conversation's tool gets back: the headline, as data only. The reply after a run is written in code
+// (js/runreply.js) and ends the turn, so nothing here tells the model what to say (plan item 1, 25 Nov).
 export function headline(record) {
   const r = record.tobler_run;
   const byConf = { high: 0, medium: 0, low: 0 };
@@ -843,10 +844,9 @@ export function headline(record) {
     top_flags: r.flags.slice(0, 5).map((f) => ({ id: f.id, risk: f.risk, ...(f.severity ? { severity: f.severity } : {}), confidence: f.confidence, theme: f.theme, nearest_km: f.nearest_km })),
     evidence_features: evidenceOf(record).length, sources_checked: r.checked.length, not_checked: notChecked.map((c) => c.dataset).slice(0, 6), gaps: r.data_gaps.length,
     ...(r.parse_error ? { problem: r.parse_error } : {}),
-    ...(r.replaces ? { replaces: `${r.replaces.run}, because ${r.replaces.why}. Say in a sentence what changed in the flags or the decision compared with ${r.replaces.run} (get_run ${r.replaces.run} if you need it).${r.replaces.checks_changed ? ` Checks that changed: ${r.replaces.checks_changed.length ? r.replaces.checks_changed.join("; ") : "none"}.` : ""}` } : {}),
+    ...(r.replaces ? { replaces: { run: r.replaces.run, why: r.replaces.why, ...(r.replaces.checks_changed ? { checks_changed: r.replaces.checks_changed } : {}) } } : {}),
     ...(r.checks ? { checks: K.checksSummary(r.checks).replace(/^Checks: /, "") } : {}),
-    ...(r.site.role === "search_area" ? { site_is: `a search area: ${r.site.role_why}. Findings inside it are "in the search area" with the share they cover, not "on site". Say this in your reply, and that the real outline (drawn, or from the application) would sharpen the screen.` } : {}),
-    note: "The run card under your reply shows the decision, the flags (F-01…), evidence, next steps, distances (with a slider) and gaps, and the map shows the evidence. Reply in two or three sentences: the most serious flags and the main gaps. Don't repeat the card.",
+    ...(r.site.role === "search_area" ? { site_is: `a search area: ${r.site.role_why}` } : {}),
   };
 }
 
@@ -860,9 +860,8 @@ export function budgetHeadline(record) {
     gross_ha: b.gross_ha, net_ha: b.net_ha, net_share: `${Math.round(b.net_share * 100)}%`, soft_ha: b.soft_ha,
     budget: budgetLines(b), ...(biggest?.ha > 0 ? { biggest_deduction: `${biggest.label}, ${biggest.ha} ha` } : {}),
     not_checked: nc, ...(b.changes.length ? { your_changes: b.changes } : {}),
-    ...(b.unknown?.length ? { not_rules: `These ids aren't deductions Tobler measures, so they were ignored: ${b.unknown.join(", ")}. Tell the person.` } : {}),
-    ...(r.replaces ? { replaces: `${r.replaces.run}, because ${r.replaces.why}. Say in a sentence how the net area changed.` } : {}),
-    note: "The developable area card under your reply shows the budget table, each deduction's reason and source, and what wasn't checked; the map shows what's left. Reply in two or three sentences: the net area and its share, the biggest deduction, and the biggest gap. Don't repeat the table.",
+    ...(b.unknown?.length ? { not_rules: b.unknown } : {}),
+    ...(r.replaces ? { replaces: { run: r.replaces.run, why: r.replaces.why } } : {}),
   };
 }
 
@@ -953,7 +952,7 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       }
       runs.set(id, record);
       onRun(record, place);
-      return { ...headline(record), note: `The ${entry.label.toLowerCase()} card under your reply shows the decision, the possible contaminant linkages (F-01…) with their next steps, the sources, pathways and receptors checked, and what a full desk study would add. Reply in two or three sentences: the decision, the most serious linkage, and the biggest gap. Don't repeat the card.` };
+      return headline(record);
     },
     // The developable area (25 Nov): an area budget on an outline, from the skill's rules for the asset type and the
     // person's own changes. Its checks run as a study's do; then the area_budget tool, and no model call.

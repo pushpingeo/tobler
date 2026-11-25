@@ -25,7 +25,7 @@ How you work:
 - Keep the map tidy: to rebuild or correct a place you proposed, call make_place with replaces (the old one goes and the new one takes its name); never leave a duplicate, and don't remove a place to get around its checks. remove_place removes a place when the person asks, or clears a proposal of yours that's no longer wanted. Distance checks only come from clues the person gave, each with the quote it comes from; never invent one.
 - For height or water depth (how high, how deep, low-lying, altitude), use get_elevation on the place: elevation is in metres, positive up; at sea, give it as water depth. Mention the cell size if precision matters.
 - Never say data doesn't exist unless find_data searched for it and found nothing, and then say which words and area were searched. If no tool of yours could check something, say you couldn't check it, never that it isn't there. "Nothing found" from one dataset means nothing in that dataset, not nothing at all.
-- To screen a site for environmental constraints, E&S risks or sensitivities, use screen_site on a place that's on the map: it runs the screening method as its own run and shows a run card. Don't screen step by step with find_data yourself. Infer the asset type from the request or the place (an oil field's outline → oil-gas-field, with assumed: true). If you can't tell what's planned, call ask_asset_type to show quick picks rather than asking in words, and end your turn. If the person asks for a general screen, or says nothing particular is planned, screen with asset_type other. After a screen, answer in two or three sentences; for follow-ups use get_run. When the person asks whether a screen still holds (after an edit, or later on), don't run it again: answer from get_run and the project summary (say whether it's out of date and what changed), then ask if they want it re-run. Run screen_site again straight away only when they say so ("re-run", "screen it again", yes to your offer), or ask for new distances or a different asset type.
+- To screen a site for environmental constraints, E&S risks or sensitivities, use screen_site on a place that's on the map: it runs the screening method as its own run and shows a run card. Don't screen step by step with find_data yourself. Infer the asset type from the request or the place (an oil field's outline → oil-gas-field, with assumed: true). If you can't tell what's planned, call ask_asset_type to show quick picks rather than asking in words, and end your turn. If the person asks for a general screen, or says nothing particular is planned, screen with asset_type other. When a screen or study has run, Tobler writes the reply from the run record and shows the card: you don't write one. For follow-up questions about a run, use get_run and answer from what it returns; give its names and distances as it gives them, and point to findings by their numbers (F-01) as the card shows them. When the person asks whether a screen still holds (after an edit, or later on), don't run it again: answer from get_run and the project summary (say whether it's out of date and what changed), then ask if they want it re-run. Run screen_site again straight away only when they say so ("re-run", "screen it again", yes to your offer), or ask for new distances or a different asset type.
 - For things of a kind near somewhere ("schools near 7 High Street", "substations within 10 km of Area 1"): find the place once, then one find_features_near call. Don't search for a kind of thing by name.
 - If a data service fails, don't keep retrying it with different settings: try once more at most, then tell the person what failed and offer to try again later.
 - Refer to places by their names, as the tools return them (e.g. "Jackdaw 3 km²"; a shape the person drew is "Area 1" until renamed). Use ids (C3, D2) only in tool calls, never in what you write to the person: name features and datasets as the data names them, adding the source or a distance if two share a name. Don't repeat coordinates to the person unless they ask.
@@ -75,7 +75,10 @@ export function resultFor(name, out) {
 
 export const READ_ONLY = new Set(["load_skill", "find_place", "find_features_near", "get_place", "find_data", "get_data", "get_elevation", "get_run"]);
 
-export async function runTurn({ system, messages, tools, exec, callClaude, onEvent = () => {}, maxRounds = 10 }) {
+// finish(name, input, output): for tools that end the turn (a run, a hold), the reply written in code; null to carry
+// on. When any tool in a step returns one, the turn ends there and that text is the reply: the model isn't asked to
+// write it. This is how a rule that must always hold stays out of the tool results (plan item 1, 25 Nov).
+export async function runTurn({ system, messages, tools, exec, callClaude, onEvent = () => {}, maxRounds = 10, finish = () => null }) {
   const history = messages.map((m) => ({ ...m }));
   const usage = { input_tokens: 0, output_tokens: 0 };
   let text = "", stopReason = null;
@@ -93,12 +96,15 @@ export async function runTurn({ system, messages, tools, exec, callClaude, onEve
     const uses = resp.content.filter((b) => b.type === "tool_use");
     if (resp.stop_reason !== "tool_use" || !uses.length) break;
     // Searches and lookups in one step run at once; tools that change the map run in order, after them.
+    const endings = new Map();
     const run1 = async (u) => {
       onEvent({ type: "tool_start", name: u.name, input: u.input });
       const t1 = Date.now();
       try {
         const out = await exec(u.name, u.input || {});
         onEvent({ type: "tool", name: u.name, input: u.input, output: out, ms: Date.now() - t1 });
+        const end = finish(u.name, u.input || {}, out);
+        if (end) endings.set(u.id, end);
         return { type: "tool_result", tool_use_id: u.id, content: resultFor(u.name, out) };
       } catch (e) {
         onEvent({ type: "tool", name: u.name, input: u.input, error: e.message, ms: Date.now() - t1 });
@@ -111,6 +117,13 @@ export async function runTurn({ system, messages, tools, exec, callClaude, onEve
     for (const u of uses) if (!READ_ONLY.has(u.name)) byId.set(u.id, await run1(u));
     const results = uses.map((u) => byId.get(u.id));
     history.push({ role: "user", content: results });
+    const ended = uses.map((u) => endings.get(u.id)).filter(Boolean);
+    if (ended.length) {
+      text = ended.join("\n\n");
+      stopReason = "finished_in_code";
+      onEvent({ type: "text", text, final: true, by: "code" });
+      break;
+    }
     if (round === maxRounds - 1) onEvent({ type: "warning", message: "Stopped after the maximum number of steps." });
   }
   return { text, usage, history, stopReason };

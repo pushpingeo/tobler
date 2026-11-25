@@ -342,13 +342,14 @@ await test("out-of-date runs: a re-run records its inputs and replaces the run m
   model = standardScript();
   const head = await h.screening.screen(input, p);
   assert.equal(head.run, "R2");
-  assert.match(head.replaces, /^R1, because the site was edited after it ran \(moved 2 km north/);
+  assert.equal(head.replaces.run, "R1");
+  assert.match(head.replaces.why, /^the site was edited after it ran \(moved 2 km north/);
   assert.equal(r1.tobler_run.replaced_by, "R2");
   assert.equal(shown[1].tobler_run.replaces.run, "R1");
   // Which checks moved: the square moved 2 km north, so the WDPA sponge belt is 2 km nearer.
   assert.ok(Array.isArray(shown[1].tobler_run.replaces.checks_changed));
   assert.ok(shown[1].tobler_run.replaces.checks_changed.some((l) => /^Marine and coastal protected areas: .* → .*Faroe-Shetland Sponge Belt/.test(l)), JSON.stringify(shown[1].tobler_run.replaces.checks_changed));
-  assert.match(head.replaces, /Checks that changed: .*Marine and coastal protected areas: /);
+  assert.ok(head.replaces.checks_changed.some((l) => /^Marine and coastal protected areas: /.test(l)), "the headline carries which checks changed, as data");
   assert.equal(siteChange(shown[1], p), null, "the new run is current");
   assert.match((await t.exec("get_run", { run: "R1" })).replaced_by, /^R2/);
   // The analyst screening an edited place itself (no replaces given) links the runs too.

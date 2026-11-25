@@ -6,6 +6,7 @@ import * as turf from "@turf/turf";
 import * as R from "../js/reference.js";
 import { createPlaceTools, placeToolDefs, projectSummary } from "../js/placetools.js";
 import { parseSkill, systemPrompt, buildMessages, runTurn } from "../js/converse.js";
+import { finishTurn } from "../js/runreply.js";
 import { coordinateNote } from "../js/coords.js";
 import { chooseIndustry, industryNote } from "../js/industry.js";
 import { atlasCall } from "./atlas-client.mjs";
@@ -25,7 +26,10 @@ const profile = JSON.parse(readFileSync(industries.industries.find((i) => i.id =
 const skill = parseSkill(readFileSync("skills/place-finding/SKILL.md", "utf8"));
 const ntr = parseSkill(readFileSync("skills/ntr-screening/SKILL.md", "utf8"));
 const crs = parseSkill(readFileSync("skills/coordinate-reference/SKILL.md", "utf8"));
-const allSkills = [skill, ntr, crs];
+// The studies run sealed, as in the page: their methods are read by the run, never loaded into the conversation.
+const study = (n) => parseSkill(readFileSync(`skills/${n}/SKILL.md`, "utf8"));
+const studySkills = (profile.skills_offered || []).filter((s) => s.skill).map((s) => study(s.skill));
+const allSkills = [skill, ntr, crs, ...studySkills];
 // EPSG registry through the live Worker, as the page does (the Worker serves Tobler's origin only).
 const epsgCall = async ({ path, query }) => {
   const r = await fetch("https://tobler-api.robdunfey.workers.dev/epsg", { method: "POST", headers: { "content-type": "application/json", origin: "https://asktobler.com" }, body: JSON.stringify({ path, query }) });
@@ -97,7 +101,7 @@ for (const conv of convs) {
   };
   const said = [];
   host.screening = createScreening({
-    host, table: distTable, skill: ntr, callClaude, model: "claude-haiku-5-5",
+    host, table: distTable, skill: ntr, skillFor: (n) => allSkills.find((x) => x.name === n), callClaude, model: "claude-haiku-5-5",
     onEvent: (ev) => {
       if (ev.type === "round") console.log(`     [screen round ${ev.round + 1}: ${(ev.ms / 1000).toFixed(1)} s, ${ev.input_tokens} in / ${ev.output_tokens} out, ${ev.tools} tool calls]`);
       if (ev.type === "tool") { const o = ev.output || {}; console.log(`     · screen ${ev.name} (${(ev.ms / 1000).toFixed(1)} s) ${JSON.stringify(ev.input).slice(0, 140)} → ${ev.error ? `ERROR ${ev.error}` : ev.name === "get_data" ? (o.not_checked ? `NOT CHECKED ${String(o.not_checked).slice(0, 120)}` : `${o.dataset}: ${o.within_distance} within ${o.within_km} km`) : ev.name === "find_data" ? (o.datasets || []).map((d) => `${d.id} ${d.title} (${d.publisher})`).join("; ").slice(0, 300) : ev.name === "find_features_near" ? `${o.found} found` : JSON.stringify(o).slice(0, 160)}`); }
@@ -129,10 +133,11 @@ for (const conv of convs) {
     said.push(text);
     try {
       const res = await runTurn({
-        system: systemPrompt({ skills: convSkills, loaded, comingSoon: ["net developable area and constraints-and-access analysis"], industryRule: profile.other_requests }),
+        system: systemPrompt({ skills: convSkills, loaded, comingSoon: ["constraints-and-access analysis"], industryRule: profile.other_requests }),
         messages: buildMessages({ recent, summary: [await projectSummary(ref, list, list.at(-1)?.name, null, runLines([...host.screening.runs.values()].map((record) => ({ record, change: siteChange(record, list.find((q) => q.id === record.tobler_run.place_id) || null), replacedBy: record.tobler_run.replaced_by })))), industryNote(profile, industries)].join("\n"), userText: coordinateNote(text) ? `${text}\n\n${coordinateNote(text)}` : text }),
         tools: placeToolDefs(convSkills),
         maxRounds: 14,
+        finish: finishTurn(host.screening),
         exec: (name, input) => tools.exec(name, input),
         callClaude,
         onEvent: (ev) => {

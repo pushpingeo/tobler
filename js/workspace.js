@@ -7,6 +7,7 @@ import * as G from "./geometry.js";
 import * as R from "./reference.js";
 import { placeToolDefs, createPlaceTools, projectSummary } from "./placetools.js";
 import { parseSkill, systemPrompt, buildMessages, runTurn, activityFor } from "./converse.js";
+import { finishTurn, runReply } from "./runreply.js";
 import { callClaude, LimitReached } from "./claude.js";
 import { atlasViaWorker, firmsViaWorker, epsgViaWorker } from "./atlasclient.js";
 import { CONFIG } from "./config.js";
@@ -984,7 +985,10 @@ host.screening = createScreening({
 });
 const tools = createPlaceTools(host);
 // The conversation doesn't load the NTR method itself: screen_site runs it as a sealed run.
-const conversationSkills = () => Object.values(skills).filter((s) => s.name !== (profile?.skill || "ntr-screening"));
+// Nor the methods of studies that run sealed (the desk study, the developable area): loaded into the conversation, the
+// desk study's Output section had the analyst rewrite the study in chat, JSON and all (review, 25 Nov).
+const sealedSkills = () => new Set([profile?.skill || "ntr-screening", ...(profile?.skills_offered || []).map((s) => s.skill).filter(Boolean)]);
+const conversationSkills = () => Object.values(skills).filter((s) => !sealedSkills().has(s.name));
 
 // Loads the industry index and the chosen (ready) profile, its screening skill if not already loaded, and puts its
 // wording and examples on the page. Called at start and when Settings → Industry changes.
@@ -2060,7 +2064,13 @@ function renderText(text) {
   const box = document.createElement("div");
   for (const block of text.split(/\n{2,}/)) {
     const lines = block.split("\n");
-    if (lines.every((l) => /^\s*[-*] /.test(l))) {
+    // A lead-in line and then a list ("2 flags, most serious first:" then "- F-01 …"): the line, then the list.
+    if (lines.length > 1 && !/^\s*[-*] /.test(lines[0]) && lines.slice(1).every((l) => /^\s*[-*] /.test(l))) {
+      box.append(inline(el("p"), lines[0]));
+      const ul = el("ul");
+      lines.slice(1).forEach((l) => ul.append(inline(el("li"), l.replace(/^\s*[-*] /, ""))));
+      box.append(ul);
+    } else if (lines.every((l) => /^\s*[-*] /.test(l))) {
       const ul = el("ul");
       lines.forEach((l) => ul.append(inline(el("li"), l.replace(/^\s*[-*] /, ""))));
       box.append(ul);
@@ -2145,11 +2155,12 @@ async function send(text, forModel = text) {
     const skillList = conversationSkills();
     runLog = turnLog; runSteps = steps;
     const res = await runTurn({
-      system: systemPrompt({ skills: skillList, loaded: skillList.filter((s) => loadedSkills.has(s.name)), comingSoon: ["net developable area and constraints-and-access analysis"], industryRule: profile?.other_requests || "" }),
+      system: systemPrompt({ skills: skillList, loaded: skillList.filter((s) => loadedSkills.has(s.name)), comingSoon: ["constraints-and-access analysis"], industryRule: profile?.other_requests || "" }),
       messages: buildMessages({ recent, summary, userText: forModel }),
       tools: placeToolDefs(skillList),
       maxRounds: CONFIG.workspaceRounds || 10,
       exec: (name, input) => tools.exec(name, input),
+      finish: finishTurn(host.screening),
       callClaude,
       onEvent: (ev) => {
         if (ev.type === "round") turnLog.events.push({ model_round: ev.round, ms: ev.ms, tokens_in: ev.input_tokens, tokens_out: ev.output_tokens, tool_calls: ev.tools });
