@@ -1,10 +1,10 @@
 {
  "market": "uk",
  "release": "2026-11-25",
- "built_at": "2026-11-25T11:32:24Z",
+ "built_at": "2026-11-25T12:05:54Z",
  "extracts": 50,
  "built": 17,
- "missing": [
+ "carried": [
   "berkshire",
   "bristol",
   "cambridgeshire",
@@ -34,17 +34,19 @@
   "tyne-and-wear",
   "warwickshire",
   "west-sussex",
-  "west-yorkshire",
   "worcestershire",
   "scotland",
   "ireland-and-northern-ireland"
+ ],
+ "missing": [
+  "west-yorkshire"
  ],
  "source_bytes": 685476844,
  "filtered_bytes": 290792657,
  "fgb_bytes": 1855435432,
  "parquet_bytes": 758473743,
  "features": 5726886,
- "manifest_bytes": 134557,
+ "manifest_bytes": 435765,
  "by_group": {
   "buildings": {
    "features": 5162149,
@@ -79,89 +81,12 @@
  },
  "regions": [
   {
-   "region": "buckinghamshire",
+   "region": "bedfordshire",
    "data_as_of": "2026-11-24T21:21:23Z",
-   "source_bytes": 22840091,
-   "filtered_bytes": 8335782,
-   "read_s": 6.1,
-   "total_s": 8.2,
-   "skipped": {
-    "bad_geometry": 0
-   }
-  },
-  {
-   "region": "rutland",
-   "data_as_of": "2026-11-24T21:21:23Z",
-   "source_bytes": 1956986,
-   "filtered_bytes": 555248,
-   "read_s": 0.3,
-   "total_s": 0.4,
-   "skipped": {
-    "bad_geometry": 0
-   }
-  },
-  {
-   "region": "gloucestershire",
-   "data_as_of": "2026-11-24T21:21:23Z",
-   "source_bytes": 41813073,
-   "filtered_bytes": 19466790,
-   "read_s": 16.4,
-   "total_s": 21.7,
-   "skipped": {
-    "bad_geometry": 0
-   }
-  },
-  {
-   "region": "isle-of-wight",
-   "data_as_of": "2026-11-24T21:21:23Z",
-   "source_bytes": 9105641,
-   "filtered_bytes": 4022546,
-   "read_s": 3.1,
-   "total_s": 4.0,
-   "skipped": {
-    "bad_geometry": 0
-   }
-  },
-  {
-   "region": "wiltshire",
-   "data_as_of": "2026-11-24T21:21:23Z",
-   "source_bytes": 34754755,
-   "filtered_bytes": 14723557,
-   "read_s": 12.8,
-   "total_s": 17.2,
-   "skipped": {
-    "bad_geometry": 0
-   }
-  },
-  {
-   "region": "devon",
-   "data_as_of": "2026-11-24T21:21:23Z",
-   "source_bytes": 58657420,
-   "filtered_bytes": 22035792,
-   "read_s": 16.7,
-   "total_s": 22.5,
-   "skipped": {
-    "bad_geometry": 2
-   }
-  },
-  {
-   "region": "surrey",
-   "data_as_of": "2026-11-24T21:21:23Z",
-   "source_bytes": 43496663,
-   "filtered_bytes": 18595464,
-   "read_s": 13.3,
-   "total_s": 18.1,
-   "skipped": {
-    "bad_geometry": 0
-   }
-  },
-  {
-   "region": "norfolk",
-   "data_as_of": "2026-11-24T21:21:23Z",
-   "source_bytes": 47326399,
-   "filtered_bytes": 22197687,
-   "read_s": 16.4,
-   "total_s": 22.1,
+   "source_bytes": 15242442,
+   "filtered_bytes": 6383959,
+   "read_s": 10.7,
+   "total_s": 13.4,
    "skipped": {
     "bad_geometry": 0
    }
@@ -189,45 +114,12 @@
    }
   },
   {
-   "region": "west-midlands",
+   "region": "hampshire",
    "data_as_of": "2026-11-24T21:21:23Z",
-   "source_bytes": 59982924,
-   "filtered_bytes": 36500734,
-   "read_s": 65.3,
-   "total_s": 80.2,
-   "skipped": {
-    "bad_geometry": 0
-   }
-  },
-  {
-   "region": "northumberland",
-   "data_as_of": "2026-11-24T21:21:23Z",
-   "source_bytes": 26312245,
-   "filtered_bytes": 10271505,
-   "read_s": 15.1,
-   "total_s": 18.8,
-   "skipped": {
-    "bad_geometry": 0
-   }
-  },
-  {
-   "region": "bedfordshire",
-   "data_as_of": "2026-11-24T21:21:23Z",
-   "source_bytes": 15242442,
-   "filtered_bytes": 6383959,
-   "read_s": 10.7,
-   "total_s": 13.4,
-   "skipped": {
-    "bad_geometry": 0
-   }
-  },
-  {
-   "region": "wales",
-   "data_as_of": "2026-11-24T21:21:23Z",
-   "source_bytes": 151742205,
-   "filtered_bytes": 56905861,
-   "read_s": 82.0,
-   "total_s": 103.7,
+   "source_bytes": 62640778,
+   "filtered_bytes": 26967133,
+   "read_s": 45.8,
+   "total_s": 56.6,
    "skipped": {
     "bad_geometry": 0
    }
@@ -244,12 +136,12 @@
    }
   },
   {
-   "region": "hampshire",
+   "region": "northumberland",
    "data_as_of": "2026-11-24T21:21:23Z",
-   "source_bytes": 62640778,
-   "filtered_bytes": 26967133,
-   "read_s": 45.8,
-   "total_s": 56.6,
+   "source_bytes": 26312245,
+   "filtered_bytes": 10271505,
+   "read_s": 15.1,
+   "total_s": 18.8,
    "skipped": {
     "bad_geometry": 0
    }
@@ -263,6 +155,116 @@
    "total_s": 31.3,
    "skipped": {
     "bad_geometry": 1
+   }
+  },
+  {
+   "region": "wales",
+   "data_as_of": "2026-11-24T21:21:23Z",
+   "source_bytes": 151742205,
+   "filtered_bytes": 56905861,
+   "read_s": 82.0,
+   "total_s": 103.7,
+   "skipped": {
+    "bad_geometry": 0
+   }
+  },
+  {
+   "region": "west-midlands",
+   "data_as_of": "2026-11-24T21:21:23Z",
+   "source_bytes": 59982924,
+   "filtered_bytes": 36500734,
+   "read_s": 65.3,
+   "total_s": 80.2,
+   "skipped": {
+    "bad_geometry": 0
+   }
+  },
+  {
+   "region": "buckinghamshire",
+   "data_as_of": "2026-11-24T21:21:23Z",
+   "source_bytes": 22840091,
+   "filtered_bytes": 8335782,
+   "read_s": 6.1,
+   "total_s": 8.2,
+   "skipped": {
+    "bad_geometry": 0
+   }
+  },
+  {
+   "region": "devon",
+   "data_as_of": "2026-11-24T21:21:23Z",
+   "source_bytes": 58657420,
+   "filtered_bytes": 22035792,
+   "read_s": 16.7,
+   "total_s": 22.5,
+   "skipped": {
+    "bad_geometry": 2
+   }
+  },
+  {
+   "region": "gloucestershire",
+   "data_as_of": "2026-11-24T21:21:23Z",
+   "source_bytes": 41813073,
+   "filtered_bytes": 19466790,
+   "read_s": 16.4,
+   "total_s": 21.7,
+   "skipped": {
+    "bad_geometry": 0
+   }
+  },
+  {
+   "region": "isle-of-wight",
+   "data_as_of": "2026-11-24T21:21:23Z",
+   "source_bytes": 9105641,
+   "filtered_bytes": 4022546,
+   "read_s": 3.1,
+   "total_s": 4.0,
+   "skipped": {
+    "bad_geometry": 0
+   }
+  },
+  {
+   "region": "norfolk",
+   "data_as_of": "2026-11-24T21:21:23Z",
+   "source_bytes": 47326399,
+   "filtered_bytes": 22197687,
+   "read_s": 16.4,
+   "total_s": 22.1,
+   "skipped": {
+    "bad_geometry": 0
+   }
+  },
+  {
+   "region": "rutland",
+   "data_as_of": "2026-11-24T21:21:23Z",
+   "source_bytes": 1956986,
+   "filtered_bytes": 555248,
+   "read_s": 0.3,
+   "total_s": 0.4,
+   "skipped": {
+    "bad_geometry": 0
+   }
+  },
+  {
+   "region": "surrey",
+   "data_as_of": "2026-11-24T21:21:23Z",
+   "source_bytes": 43496663,
+   "filtered_bytes": 18595464,
+   "read_s": 13.3,
+   "total_s": 18.1,
+   "skipped": {
+    "bad_geometry": 0
+   }
+  },
+  {
+   "region": "wiltshire",
+   "data_as_of": "2026-11-24T21:21:23Z",
+   "source_bytes": 34754755,
+   "filtered_bytes": 14723557,
+   "read_s": 12.8,
+   "total_s": 17.2,
+   "skipped": {
+    "bad_geometry": 0
    }
   }
  ]
