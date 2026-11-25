@@ -1,9 +1,0 @@
-
-== rules only (no AI) ==
-PS      n  pos  agree   prec  recall  kappa  FP  FN
-PS5    28   17   0.43   0.57    0.24  -0.03   3  13
-PS6    28   23   0.68   0.94    0.65   0.29   1   8
-PS7    28    3   0.86    0.0     0.0  -0.06   1   3
-PS8    28   12   0.68   0.71    0.42   0.31   2   7
-Category agreement: 0.39 (reported, not scored hard)
-Projects with any PS disagreement: 22  (PS6+ = agent said yes, IFC no)

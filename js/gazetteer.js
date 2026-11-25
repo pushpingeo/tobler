@@ -3,7 +3,6 @@
 // OpenStreetMap through Nominatim, Natural Earth towns, and OpenStreetMap features near a point (Overpass).
 // No DOM, so it runs in the page and in the evaluation. fetchFn is injectable for tests and for Node.
 import * as turf from "./vendor/turf.js";
-import { fetchOverpass, OVERPASS_ENDPOINTS } from "./tools.js";
 import { atlasFeaturesNear, ATLAS_CONCEPTS, describeChecked } from "./atlasfeatures.js";
 import { osmSnapshot } from "./osmsnapshot.js";
 import { nearestKm } from "./nearness.js";
@@ -16,6 +15,36 @@ const remembered = (key, fn) => {
   if (!memo.has(key)) memo.set(key, fn().catch((e) => { memo.delete(key); throw e; }));
   return memo.get(key);
 };
+
+// The public Overpass servers, and one request to one of them. (Moved from the lab's js/tools.js on 25 Nov.)
+export const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+];
+
+export async function fetchOverpass(query, endpoint = OVERPASS_ENDPOINTS[0], fetchFn = fetch, timeoutMs = 100000, extraHeaders = {}) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  let res;
+  try {
+    res = await fetchFn(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", ...extraHeaders },
+      body: "data=" + encodeURIComponent(query),
+      signal: ctl.signal,
+    });
+  } catch (e) {
+    throw new Error(e.name === "AbortError" ? `timed out after ${timeoutMs / 1000} s` : e.message);
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!res.ok) throw new Error(`Overpass ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const json = await res.json();
+  // Overpass can answer 200 with a partial result and a "remark" when a query times out or runs out of memory.
+  if (json.remark && /error|timeout|timed out|out of memory|capacity/i.test(json.remark)) throw new Error(`Overpass: ${json.remark.slice(0, 200)}`);
+  return json;
+}
 
 // Overpass: ask the server that answered last time; if it hasn't answered in a few seconds, ask the next one too,
 // and so on (a staggered start, so a healthy server isn't asked three times). Two speeds:

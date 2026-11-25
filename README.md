@@ -30,11 +30,10 @@ Coming: saved projects, share links, a PDF report, then area discounting (gross 
 | Page | What |
 |---|---|
 | [`/`](https://asktobler.com) | The workspace |
-| [`lab.html`](https://asktobler.com/lab.html) | The earlier agent: IFC Performance Standard screening, with the skill switchable on and off |
-| [`lab-results.html`](https://asktobler.com/lab-results.html) | Does the skill help? The agent against IFC's own decisions on 45 real projects |
-| [`tools.html`](https://asktobler.com/tools.html) | The spatial tools on their own, no AI |
+| [`report.html`](https://asktobler.com/report.html) | A screen's report, opened from a share link |
 
-The lab is where this started. The write-up is in [`docs/lab-writeup.md`](docs/lab-writeup.md).
+The lab is where this started: an IFC screening agent and its evaluation against 45 real projects. It moved to
+[`pushpingeo/asktobler-lab`](https://github.com/pushpingeo/asktobler-lab/tree/main/ntr-lab) on 25 Nov 2026.
 
 ## How it's built
 

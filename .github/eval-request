@@ -1,2 +1,0 @@
---label=v2-test --arms=rules,off,on,web --repeats=2 --sites=test --concurrency=4
-# skill v2 on the 20 held-back sites, scored once

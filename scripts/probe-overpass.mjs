@@ -1,6 +1,6 @@
-// Which public Overpass servers answer from here, and how fast? Used by the evaluation before it starts,
-// and on its own by .github/workflows/overpass-probe.yml. No API key, no cost.
-import { OVERPASS_ENDPOINTS, fetchOverpass } from "../js/tools.js";
+// Which public Overpass servers answer from here, and how fast? Used on its own
+// by .github/workflows/overpass-probe.yml. No API key, no cost.
+import { OVERPASS_ENDPOINTS, fetchOverpass } from "../js/gazetteer.js";
 
 const UA = { "User-Agent": "tobler-eval/1.0 (+https://github.com/pushpingeo/tobler)" };
 const QUERIES = {

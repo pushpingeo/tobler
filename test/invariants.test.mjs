@@ -25,10 +25,7 @@ const KNOWN = {
   geodesy: {
     "js/fileimport.js": "site files fall back to built-in shifts (OSGB36, TM65, ED50 general) when the EPSG registry can't be reached (23 Nov)",
   },
-  cdn: {
-    "lab.html": "lab page, moving to asktobler-lab (plan item 7)",
-    "tools.html": "lab page, moving to asktobler-lab (plan item 7)",
-  },
+  cdn: {},
 };
 const unexpected = (hits, allowed = {}) => hits.filter((f) => !allowed[f]);
 

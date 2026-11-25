@@ -1624,3 +1624,20 @@ have no topic at all, though landscape, peat and farmland quality decided most o
   (`osm-timing.yml`, read-only against the bucket), and `scripts/osm-extract/` for reference (nothing runs it; the
   atlas has its own copy). The record's title still says "Tobler's copy"; it becomes the atlas's wording once the
   atlas's first release is live.
+
+## 25 Nov 2026 (late): the lab moved to asktobler-lab
+- **What (Rob's go, 25 Nov):** the IFC screening agent and its evaluation now live in `pushpingeo/asktobler-lab`
+  under `ntr-lab/` (commit `9f21ed4`), self-contained and outside the Astro site build: `lab.html`,
+  `lab-results.html`, `tools.html`, `js/agent.js`, `js/tools.js`, `js/rules.js`, `skills/ntr-screening-ifc`,
+  `catalogue/catalogue.json`, `eval/runs`, `eval/index.json`, the rules baseline, `scripts/run-eval.mjs`,
+  `screen-all.mjs`, `fetch-snapshots.mjs`, `score.py`, the `eval.yml` and `osm-snapshots.yml` workflows (kept there
+  for reference, not active) and their request files, `test/agent.test.mjs`, `test/tools.test.mjs`, and
+  `docs/lab-writeup.md`. Its tests pass there on their own.
+- **Beyond the plan's list (judgement call):** the evaluation's data went too (`data/eval-sites.json`,
+  `eval-split.json`, `_fetch-log.txt`, `data/osm`, `data/gbif`, `data/wikidata`), since only the lab read them.
+  `data/eval_set.csv` stays (place finding's evaluation uses it); the lab has a copy. `js/claude.js` and
+  `js/config.js` were copied, not moved.
+- **Product side:** `fetchOverpass` and `OVERPASS_ENDPOINTS` now live in `js/gazetteer.js`; `scripts/probe-overpass.mjs`
+  imports them from there. The invariants test's CDN exceptions are empty: no page in the repo loads from a CDN now.
+- **Not done:** the lab pages aren't served anywhere yet. Serving them at asktobler.ai would mean putting them under
+  the lab site's `public/`, which is Rob's call.
