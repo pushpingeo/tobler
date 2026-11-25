@@ -2,6 +2,45 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 25 Nov 2026 (night): the handover from a run to the conversation, in code (plan item 1; Rob: "please proceed")
+- **The reply after a run is written in code** (`js/runreply.js`): the decision and why, what was screened and how far,
+  the three most serious flags with code's distances, what wasn't checked (musts first), and what changed from the run
+  before. `runTurn` takes a `finish` hook: when `screen_site` or `run_study` returns a run, a hold or a refusal, the turn
+  ends with code's reply and the model isn't asked to write one. The model answers follow-ups with `get_run`. The
+  wording is in `scripts/reply-samples.mjs` (Rob saw it before it went live).
+- **No instructions in the run tools' results.** The headline is data only (no `note`, no "say in a sentence"). The
+  conversation can't load the desk study's or developable area's method (`sealedSkills` in `workspace.js`). The stale
+  "developable area isn't available" line is gone. Other tools' `next` and `note` strings (make_place, the file tools,
+  EPSG, find_data) still steer: the sweep is listed in the plan.
+- **Flags cite evidence by id** (E7 from the tool output's `ref` or the checks' lines; a check id in brackets when the
+  check found something). `traceResult` fills in name, distance, band, dataset, publisher, licence and date. A check
+  that came back none found or not checked can't support a flag. **A flag with nothing traced isn't raised** (Rob's
+  call: a gap line, not silence): it's kept in `not_raised` and shown in the gaps as "Not raised as a flag, because its
+  evidence didn't trace…". Name matching after the fact (and its sea-value word lists) is gone. The skills ask for ids,
+  and for risk words without distances, so the words and the number can't disagree: ntr-screening 3.11-draft,
+  contamination-desk-study 0.3-draft.
+- **Confirm and "which part?" in code.** `screen_site` and `run_study` hold a run when the place was built from words
+  this turn and the person hasn't seen it, or when it isn't a site (`notASite` in `siterole.js`: a lake or water body,
+  a country or administrative area, a town's point or outline, a road, railway or river; or anything over 2,500 km² on
+  land unless its type names a licence, permit, lease, field or similar). Only places built straight on a found feature
+  are asked about: a shape built round it, or drawn, typed or from a file, is already a choice. The request is kept in
+  code (`pending`), listed in the project summary, merged into the next call for that place, and run exactly as asked
+  by the place card's button with no model call ("Use all of it" for a which-part: Rob's call, a rough first look).
+  The skills are offered in code when nothing was chosen. place-finding 4.17. The analyst is told to call the run as
+  soon as the place exists, so the request is captured.
+- **Reruns explain themselves** (`js/rundiff.js`): every new run of a skill on a place links to the last one, edited or
+  not, and says what was asked differently, whether the site changed, which checks were or weren't reached, and the
+  decision and flags by topic. When none of the asking, the site or the checks changed, it says the difference is the
+  analyst's judgement. The card's re-run uses the same reply.
+- **Approximations that can change an answer:** `notASite` reads the anchor's type words (Nominatim, Wikidata, OSM);
+  an unusual type can slip through (asked about nothing) or catch a site (asked which part, and "Use all of it" runs it
+  as before). The 2,500 km² threshold is a first cut. Dropping untraced flags removes flags the analyst would have
+  raised from regional knowledge (the Shetland seabird case): they show as gap lines instead.
+- **Tests:** `test/runreply.test.mjs` (new, 11), place tests for holds and `notASite`, ntrrun tests for ids, not raised
+  and rerun links; browser checks: the study's reply is code's with no conversation call after it, the card's yes
+  runs the held screen with no model call and the request intact, a lake gets "which part" and "Use all of it", the
+  re-run reply says what changed. Scripted models cite ids through `scripts/scripted-refs.mjs`.
+
 ## 25 Nov 2026 (overnight): the developable area, an area budget with no model call (Rob asked)
 - **What:** the developable area skill (0.1-draft) is ready: gross area, each deduction in hectares and share with
   its reason and source, the net developable area, soft constraints inside it, and what wasn't checked. Card, map,

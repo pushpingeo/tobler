@@ -56,7 +56,9 @@ export function notASite(origin = {}, geometry = {}, { area_km2 = null, offshore
   const rule = KIND_RULES.find((r) => r.test.test(type));
   // A settlement or a road only matters as a point or a line: an outline of a town is still a whole town, though.
   if (rule?.kind === "line" && geometry.type === "Polygon") return null;
-  if (rule) return { kind: rule.kind, what: rule.kind === "region" && /\b(country|countries|member state|sovereign state)\b/i.test(type) ? "a whole country" : rule.what, type, ...(area_km2 != null ? { area_km2 } : {}) };
+  const what = rule?.kind === "region" && /\b(country|countries|member state|sovereign state)\b/i.test(type) ? "a whole country"
+    : rule?.kind === "line" ? (/railway/i.test(type) ? "a railway" : /waterway|canal|river/i.test(type) ? "a river or canal" : "a road") : rule?.what;
+  if (rule) return { kind: rule.kind, what, type, ...(area_km2 != null ? { area_km2 } : {}) };
   // Whatever it's called, an area this big on land is a region, not a site.
   if (!offshore && /Polygon/.test(geometry.type) && area_km2 > REGION_KM2) return { kind: "region", what: "a very large area", type, area_km2 };
   return null;

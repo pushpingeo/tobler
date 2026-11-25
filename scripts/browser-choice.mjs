@@ -94,7 +94,7 @@ const lv = await page.evaluate(() => ({ runs: document.querySelectorAll(".run").
 check(/"held":"confirm"/.test(held), `the screen is held until the person has seen ${placeName} (${held.slice(0, 160)})`);
 check(lv.runs === 0 && lv.proposed.length >= 1, `no run card; the place waits as a proposal (${JSON.stringify(lv.proposed)})`);
 check(/Not screened yet/.test(lv.trace), "the working-out says it wasn't screened yet");
-await page.screenshot({ path: "/tmp/choice-livingston.png" });
+await page.locator(".msg.analyst").last().screenshot({ path: "/tmp/choice-livingston.png" });
 // "Use this area" on the card runs exactly what was asked, from the page: no model call to decide it.
 const convBefore = sent.filter((b) => !/sealed/.test(JSON.stringify(b.system || ""))).length;
 await page.locator(".shape.proposed [data-op=\"accept\"]").last().click();
@@ -116,7 +116,7 @@ const lake = await page.evaluate(() => ({ reply: [...document.querySelectorAll("
   button: [...document.querySelectorAll(".shape")].find((c) => /Linlithgow Loch/.test(c.textContent))?.querySelector('[data-op="accept"]')?.textContent }));
 check(/^Linlithgow Loch is a lake or other water body.*so it isn't a site yet\. Which part of it is the site\?/.test(lake.reply) && lake.runs === 1, `a lake: which part, and nothing runs (${lake.reply.slice(0, 140)})`);
 check(lake.button === "Use all of it", `the card's button offers all of it (${lake.button})`);
-await page.screenshot({ path: "/tmp/choice-lake.png" });
+await page.locator(".msg.analyst").last().screenshot({ path: "/tmp/choice-lake.png" });
 
 // Skill chips (Rob, 24 Nov): every skill in the profile is ready since the developable area was built (25 Nov), so no
 // chip is "soon" now; a ready chip fills the input with no model call; a chip that doesn't suit the place's role is hidden.

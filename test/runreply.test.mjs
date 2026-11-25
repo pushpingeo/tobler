@@ -16,12 +16,12 @@ await test("screen: decision, why, distances, at most three flags most serious f
   clean(t);
   assert.match(t, /^\*\*Constraints screen of Oracle campus, Linlithgow \(R1\)\*\*: \*\*progress with targeted investigation\*\*\./);
   assert.match(t, /Heritage assets sit at the site's edge/);
-  assert.match(t, /Screened for a solar farm, looking out to 20 km \(bands at 1, 5 and 20 km, the default for a solar farm onshore\)\./);
+  assert.match(t, /Screened for a solar farm, looking out to 20 km \(bands at 1, 5 and 20 km, the default for a solar farm on land\)\./);
   assert.match(t, /The 3 most serious of 4 flags/);
   assert.match(t, /- F-01 Listed buildings and a scheduled monument at the site's edge: high severity, high confidence; 40 m away/);
   assert.match(t, /- F-02 .*: medium severity, medium confidence; on the site/);
   assert.ok(!/F-04/.test(t), "the fourth is on the card");
-  assert.match(t, /Not checked: flood zones and peat\./, "a must-check comes first");
+  assert.match(t, /Not checked: Flood zones and Peat\./, "a must-check comes first");
   assert.ok(t.split(/\s+/).length < 160, "short");
 });
 
@@ -31,7 +31,7 @@ await test("screen on a search area, with a decision changed in code", () => {
   assert.match(t, /Tobler changed the decision from progress, because none of the must-checks for biodiversity could be checked\./);
   assert.match(t, /Screened a 3\.1 km² search area \(a default 1 km footprint round a point\)/);
   assert.match(t, /- F-01 Homes and schools in the search area: high severity, low confidence; in the search area/);
-  assert.match(t, /One flag/);
+  assert.match(t, /\nOne flag:\n/);
 });
 
 await test("screen outside the profile, distances the person set, no flags", () => {
@@ -116,7 +116,7 @@ await test("the run tools' results are data: no instructions to the model", () =
 await test("held runs: code asks, with what was found and what will run on a yes", () => {
   const c = heldReply({ held: "confirm", place: "Oracle campus, Linlithgow", anchor: "Oracle", source: "OpenStreetMap contributors", confidence: "medium", role: "footprint", geometry: "Polygon", area_km2: 0.121, queued: "a constraints screen for a solar farm" });
   clean(c);
-  assert.equal(c, "I've put **Oracle campus, Linlithgow** on the map: built on Oracle (OpenStreetMap contributors), 12 ha, medium confidence. Is that the right place? If it is, say so (or use it from the card) and I'll run a constraints screen for a solar farm. If not, tell me what to change, or draw the site.");
+  assert.equal(c, "I've put **Oracle campus, Linlithgow** on the map: from Oracle (OpenStreetMap contributors), 12 ha, medium confidence. Is that the right place? If it is, say so (or use it from the card) and I'll run a constraints screen for a solar farm. If not, tell me what to change, or draw the site.");
   const sa = heldReply({ held: "confirm", place: "Linlithgow housing 5 ha", anchor: "Linlithgow", confidence: "low", role: "search_area", role_why: "built from clues round Linlithgow", geometry: "Polygon", area_km2: 0.05, queued: "a constraints screen for a housing site" });
   assert.match(sa, /It's a search area \(built from clues round Linlithgow\), because the site's own outline wasn't found/);
   const w = heldReply({ held: "which_part", place: "Lake Tekapo", kind: "water", what: "a lake or other water body", area_km2: 83, geometry: "Polygon", queued: "a constraints screen for an onshore oil or gas field" });
@@ -127,8 +127,8 @@ await test("held runs: code asks, with what was found and what will run on a yes
   assert.match(nz, /is a whole country \(268,021 km²\)/);
   const town = heldReply({ held: "which_part", place: "Kelso", kind: "settlement", geometry: "Point", queued: "a constraints screen for an onshore wind farm" });
   assert.match(town, /^\*\*Kelso\*\* is a town or village, so it isn't a site yet\. What's on the map is its centre point\. Where in or around it is the site\?/);
-  const road = heldReply({ held: "which_part", place: "Linlithgow Road", kind: "line", geometry: "Point", queued: "a constraints screen" });
-  assert.match(road, /is a road, railway or river, so it isn't a site yet\. Where along it is the site\?/);
+  const road = heldReply({ held: "which_part", place: "Linlithgow Road", kind: "line", what: "a road", geometry: "Point", queued: "a constraints screen" });
+  assert.match(road, /is a road, so it isn't a site yet\. Where along it is the site\?/);
   assert.match(heldReply({ held: "skills", place: "Area 1" }), /Which analysis would you like/);
   assert.equal(finishTurn({ runs: new Map() })("screen_site", {}, { held: "skills", place: "Area 1" }), heldReply({ held: "skills", place: "Area 1" }));
 });
@@ -137,18 +137,18 @@ await test("a rerun says what changed, and when nothing underneath did, that it'
   const same = runDiff(F.oracleSolar, F.oracleSolarAgain);
   assert.equal(same.same_checks, true);
   assert.deepEqual(same.lines, [
-    "Decision progress with targeted investigation then, major issue now.",
-    "2 flags now, 4 then; none now on biodiversity and community and health.",
+    "Decision: was progress with targeted investigation, now major issue.",
+    "Flags: was 4, now 2; none now on biodiversity or community and health.",
     "The checks came back the same, so the difference is in the analyst's own searches and judgement, not in the standard checks.",
   ]);
   const ev = runDiff(F.evoraFirst, F.evoraSecond);
   assert.deepEqual(ev.lines, [
-    "Reached this time but not before: homes.",
-    "Decision insufficient evidence then, progress with targeted investigation now.",
-    "2 flags now, 1 then; new on community and health.",
+    "Reached this time but not before: Homes.",
+    "Decision: was insufficient evidence, now progress with targeted investigation.",
+    "Flags: was 1, now 2; new on community and health.",
   ]);
   const back = runDiff(F.evoraSecond, F.evoraFirst);
-  assert.match(back.lines[0], /^Not reached this time: homes\.$/);
+  assert.match(back.lines[0], /^Not reached this time: Homes\.$/);
   assert.deepEqual(runDiff(F.evoraFirst, F.evoraFirst).lines, ["Nothing changed: same request, same checks, same result."]);
   const edited = runDiff(F.evoraFirst, F.evoraFirst, { siteChanged: "moved 2 km north" });
   assert.deepEqual(edited.lines, ["The site changed: moved 2 km north."]);
@@ -157,7 +157,7 @@ await test("a rerun says what changed, and when nothing underneath did, that it'
   rec.tobler_run.replaces = { run: "R1", why: "run again on the same site", diff: same };
   const t = runReply(rec);
   clean(t);
-  assert.match(t, /\n\nCompared with R1: Decision progress with targeted investigation then, major issue now\. .* not in the standard checks\.\n\n/);
+  assert.match(t, /\n\nCompared with R1: Decision: was progress with targeted investigation, now major issue\. .* not in the standard checks\.\n\n/);
 });
 
 console.log(`${passed} run reply tests passed`);

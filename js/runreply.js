@@ -14,7 +14,8 @@ const list = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", "
 const an = (w) => (/^[aeiou]/i.test(w) ? `an ${w}` : `a ${w}`);
 // "looking out to 20 km (bands at 1, 5 and 20 km, the default for a solar farm onshore)"
 function reachLine(d) {
-  const why = d.set_by === "person" ? "as you set them" : d.set_by === "skill" ? "the study's own distances" : `the default for ${an(`${d.asset_label} ${d.setting}`)}`;
+  const where = /onshore|offshore/i.test(d.asset_label) ? "" : d.setting === "offshore" ? " at sea" : d.setting === "onshore" ? " on land" : "";
+  const why = d.set_by === "person" ? "as you set them" : d.set_by === "skill" ? "the study's own distances" : `the default for ${an(d.asset_label)}${where}`;
   return `looking out to ${d.wider} km (bands at ${d.near}, ${d.close} and ${d.wider} km, ${why})`;
 }
 const sentence = (s) => { const t = String(s || "").trim(); return t ? (/[.!?]$/.test(t) ? t : `${t}.`) : ""; };
@@ -38,7 +39,7 @@ function gapsLine(r) {
   const nc = (r.checks || []).filter((c) => c.state === "not_checked");
   if (!nc.length) return null;
   const ordered = [...nc.filter((c) => c.must), ...nc.filter((c) => !c.must)];
-  const names = [...new Set(ordered.map((c) => c.label.toLowerCase()))];
+  const names = [...new Set(ordered.map((c) => c.label))];
   const shown = names.slice(0, MAX_GAPS);
   const more = names.length - shown.length;
   return `Not checked: ${list(shown)}${more ? ` and ${plural(more, "other check")}` : ""}.`;
@@ -63,7 +64,7 @@ function flagsBlock(r, { noun = "flag", none = "No flags raised." } = {}) {
   const searchArea = r.site.role === "search_area";
   const shown = r.flags.slice(0, MAX_FLAGS);
   const more = r.flags.length - shown.length;
-  return [`${more ? `The ${shown.length} most serious of ${plural(r.flags.length, noun)}` : r.flags.length === 1 ? `One ${noun}` : `${r.flags.length} ${noun}s`}, most serious first:`,
+  return [more ? `The ${shown.length} most serious of ${plural(r.flags.length, noun)}:` : r.flags.length === 1 ? `One ${noun}:` : `${r.flags.length} ${noun}s, most serious first:`,
     ...shown.map((f) => flagLine(f, searchArea))];
 }
 
@@ -84,7 +85,7 @@ export function screenReply(record, { replaced = null } = {}) {
   paras.push(flagsBlock(r).join("\n"));
   const gaps = gapsLine(r);
   if (gaps) paras.push(gaps);
-  paras.push("The card below has the evidence, next steps and the distance slider. Ask me about any flag.");
+  paras.push(r.flags.length ? "The card below has the evidence, next steps and the distance slider. Ask me about any flag." : "The card below has what was checked and the distance slider.");
   return paras.join("\n\n");
 }
 
@@ -139,7 +140,7 @@ const WHICH_PART = {
   water: (o) => ({ is: `is a lake or other water body${o.area_km2 ? ` (${size(o)})` : ""}`, ask: "Which part of it is the site?", ways: `draw it on the map, describe it ("a 2 km² block at the north end"), or use the whole of ${o.place} as a rough first look` }),
   region: (o) => ({ is: `is ${o.what}${o.area_km2 ? ` (${size(o)})` : ""}`, ask: "Which part of it is the site?", ways: `draw it, name a block, permit or parcel, or describe it ("a 10 km² area south-east of the capital"). I can run it on all of ${o.place} as a rough first look, but flags from anywhere in it won't say much about one site` }),
   settlement: (o) => ({ is: "is a town or village", note: o.geometry === "Point" ? "What's on the map is its centre point." : "The outline is the whole place.", ask: "Where in or around it is the site?", ways: `draw it, or describe it ("a 5 ha field on the north edge"), or screen around the ${o.geometry === "Point" ? "centre point" : "whole place"} as a rough first look` }),
-  line: (o) => ({ is: "is a road, railway or river", ask: "Where along it is the site?", ways: "draw it, or describe it (\"a 2 ha plot on the east side, by the roundabout\")" }),
+  line: (o) => ({ is: `is ${o.what || "a road, railway or river"}`, ask: "Where along it is the site?", ways: "draw it, or describe it (\"a 2 ha plot on the east side, by the roundabout\")" }),
 };
 
 export function heldReply(o) {
@@ -150,7 +151,7 @@ export function heldReply(o) {
   }
   // confirm
   const found = [
-    o.anchor ? `built on ${o.anchor}${o.source ? ` (${o.source})` : ""}` : null,
+    o.anchor ? `from ${o.anchor}${o.source ? ` (${o.source})` : ""}` : null,
     size(o),
     o.confidence ? `${o.confidence} confidence` : null,
   ].filter(Boolean).join(", ");

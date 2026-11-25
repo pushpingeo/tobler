@@ -5,8 +5,7 @@
 // be the analyst's judgement, and the reply says so. No DOM.
 import { topicOf } from "./findings.js";
 
-const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-const list = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
+const list = (xs, and = "and") => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} ${and} ${xs.at(-1)}`);
 const STATE = { found: "found something", none: "none found", not_checked: "not checked" };
 
 function askedLines(a, b) {
@@ -26,9 +25,9 @@ function checkMoves(a = [], b = []) {
   for (const c of b) {
     const o = old.get(c.id);
     if (!o || o.state === c.state) continue;
-    if (o.state === "not_checked") reached.push(c.label.toLowerCase());
-    else if (c.state === "not_checked") lost.push(c.label.toLowerCase());
-    else answer.push(`${c.label.toLowerCase()} (${STATE[o.state]} then, ${STATE[c.state]} now)`);
+    if (o.state === "not_checked") reached.push(c.label);
+    else if (c.state === "not_checked") lost.push(c.label);
+    else answer.push(`${c.label} (was ${STATE[o.state]}, now ${STATE[c.state]})`);
   }
   return { reached, lost, answer };
 }
@@ -47,16 +46,16 @@ export function runDiff(oldRec, newRec, { siteChanged = null } = {}) {
   const sameChecks = !moves.lost.length && !moves.reached.length && !moves.answer.length;
   // The result.
   if (a.budget && b.budget) {
-    if (a.budget.net_ha !== b.budget.net_ha) lines.push(`Net area ${a.budget.net_ha} ha then, ${b.budget.net_ha} ha now.`);
+    if (a.budget.net_ha !== b.budget.net_ha) lines.push(`Net area: was ${a.budget.net_ha} ha, now ${b.budget.net_ha} ha.`);
   } else {
     const dv = (r) => r.decision?.value || null;
-    if (dv(a) !== dv(b)) lines.push(`Decision ${dv(a) || "none"} then, ${dv(b) || "none"} now.`);
+    if (dv(a) !== dv(b)) lines.push(`Decision: was ${dv(a) || "none"}, now ${dv(b) || "none"}.`);
     const topics = (r) => new Set((r.flags || []).map((f) => topicOf(f.theme)));
     const label = (t) => (b.topic_labels?.[t] || a.topic_labels?.[t] || t).toLowerCase();
     const ta = topics(a), tb = topics(b);
     const added = [...tb].filter((t) => !ta.has(t)).map(label), dropped = [...ta].filter((t) => !tb.has(t)).map(label);
     if (added.length || dropped.length || a.flags.length !== b.flags.length) {
-      lines.push(`${plural(b.flags.length, "flag")} now, ${a.flags.length} then${added.length ? `; new on ${list(added)}` : ""}${dropped.length ? `; none now on ${list(dropped)}` : ""}.`);
+      lines.push(`Flags: was ${a.flags.length}, now ${b.flags.length}${added.length ? `; new on ${list(added)}` : ""}${dropped.length ? `; none now on ${list(dropped, "or")}` : ""}.`);
     }
     // Nothing moved underneath, but the result did: say plainly where the difference comes from.
     const resultMoved = dv(a) !== dv(b) || added.length || dropped.length || a.flags.length !== b.flags.length;

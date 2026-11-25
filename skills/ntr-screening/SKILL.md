@@ -125,7 +125,7 @@ A short summary for the person, no more than 400 words: the decision and why (on
 }
 ```
 
-A flag's **evidence is ids**, never retyped names or distances: the id of each feature the operations returned (E7) or of a check that found something ([check id]). Whoever runs the method fills in the feature's name, distance, band, dataset, publisher, licence and date from the ids, so they can't be retyped wrong. Evidence you can't cite by id (a count with no names, something you remember, a dataset-wide total) can't support a flag: put it in data_gaps. A flag none of whose ids traces isn't raised.
+Keep distances and counts out of a flag's "risk" words ("Listed buildings at the site's edge", not "Listed buildings 40 m away"): the run adds the distance from the evidence, so the two can't disagree. A flag's **evidence is ids**, never retyped names or distances: the id of each feature the operations returned (E7) or of a check that found something ([check id]). Whoever runs the method fills in the feature's name, distance, band, dataset, publisher, licence and date from the ids, so they can't be retyped wrong. Evidence you can't cite by id (a count with no names, something you remember, a dataset-wide total) can't support a flag: put it in data_gaps. A flag none of whose ids traces isn't raised.
 
 ## Operations
 The operations this method uses (finding datasets, fetching and measuring features, the everyday feature search, reading the site's details) are described in general terms in `operations.md`, beside this file, so the method can run in other settings with their own tools.
