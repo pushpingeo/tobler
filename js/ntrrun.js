@@ -912,6 +912,8 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
   let n = 0;
   return {
     runs,
+    // An asset type's label ("solar farm"), from the distance table.
+    assetLabel(id) { const tb = typeof table === "function" ? table() : table; return tb?.assets?.[id]?.label || null; },
     // A run saved in this browser (js/projectstore.js), put back on reload: the analyst can read it again, and new
     // runs carry on numbering after it (R3 after R1 and R2), so ids never repeat in a project.
     restore(record) {

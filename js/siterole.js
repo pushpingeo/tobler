@@ -30,6 +30,38 @@ export function placeRole(origin = {}, geometry = {}) {
   return { role: "search_area", why: `built from clues round ${anchor}` };
 }
 
+// ---- places that aren't sites (plan item 1, 25 Nov) --------------------------------------
+// A place found from words that is a whole country or region, a lake or sea area, a town's centre point, or a road or
+// river, isn't a site: screening it as one gave whole-country flags (New Zealand), a lake screened for oil and gas
+// (Tekapo) and a town point as a wind farm (Kelso). The run asks which part first. Decided in code from what the
+// place was built on (the anchor's type, the shape, the size), only for places built straight on a found feature:
+// a shape the analyst built round it (a 5 ha square 1 km south-east) is already a choice of part, and a place the
+// person drew, typed or brought in a file is their own definition.
+const KIND_RULES = [
+  { kind: "water", what: "a lake or other water body", test: /\b(lake|loch|lough|reservoir|lagoon|bay|sea|estuary|fjord|firth|river|natural: water|water body)\b/i },
+  { kind: "region", what: "an administrative area", test: /\b(country|countries|member state|sovereign state|federated state|province|region|county|municipality|district|parish|administrative|council area|local authority)\b/i },
+  { kind: "settlement", what: "a town or village", test: /\b(city|town|village|hamlet|suburb|neighbourhood|neighborhood|quarter|locality|populated place|small burgh|township)\b/i },
+  { kind: "line", what: "a road, railway or river", test: /\b(highway|road|street|motorway|railway: (rail|line)|waterway|canal)\b/i },
+];
+// Types that name something that can be a site even when big (a licence block, a lease): never asked about.
+const SITE_TYPES = /\b(licen[cs]e|permit|concession|block|lease|field|tenement|wind farm|solar farm|generating station|mine|quarry|refinery|works|plant|airport|port|dam)\b/i;
+export const REGION_KM2 = 2500;
+
+export function notASite(origin = {}, geometry = {}, { area_km2 = null, offshore = false } = {}) {
+  if (origin.method !== "words" || origin.offset || origin.steps?.some((s) => /^moved /.test(s))) return null;
+  const shape = origin.shape || (geometry.type === "Point" ? "point" : null);
+  if (!["feature", "point"].includes(shape)) return null;
+  const type = String(origin.anchor?.type || "");
+  if (SITE_TYPES.test(type)) return null;
+  const rule = KIND_RULES.find((r) => r.test.test(type));
+  // A settlement or a road only matters as a point or a line: an outline of a town is still a whole town, though.
+  if (rule?.kind === "line" && geometry.type === "Polygon") return null;
+  if (rule) return { kind: rule.kind, what: rule.kind === "region" && /\b(country|countries|member state|sovereign state)\b/i.test(type) ? "a whole country" : rule.what, type, ...(area_km2 != null ? { area_km2 } : {}) };
+  // Whatever it's called, an area this big on land is a region, not a site.
+  if (!offshore && /Polygon/.test(geometry.type) && area_km2 > REGION_KM2) return { kind: "region", what: "a very large area", type, area_km2 };
+  return null;
+}
+
 // ---- equal-area overlay ----------------------------------------------------------------
 // Lambert azimuthal equal-area on a sphere, centred on the site, so shares of area are true anywhere on Earth.
 const RE = 6371.0088;

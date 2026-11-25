@@ -125,6 +125,34 @@ export function runReply(record, opts = {}) {
   return screenReply(record, opts);
 }
 
+// ---- held runs: the place is shown and confirmed, or narrowed, before anything runs ----------------------------
+const size = (o) => (o.geometry === "Point" ? "a point" : o.area_km2 != null ? (o.area_km2 < 1 ? `${Math.round(o.area_km2 * 100)} ha` : `${Math.round(o.area_km2 * 10) / 10 > 100 ? Math.round(o.area_km2).toLocaleString("en-GB") : Math.round(o.area_km2 * 10) / 10} km²`) : o.length_km != null ? `${Math.round(o.length_km * 10) / 10} km long` : null);
+const WHICH_PART = {
+  water: (o) => ({ is: `is a lake or other water body${o.area_km2 ? ` (${size(o)})` : ""}`, ask: "Which part of it is the site?", ways: `draw it on the map, describe it ("a 2 km² block at the north end"), or use the whole of ${o.place} as a rough first look` }),
+  region: (o) => ({ is: `is ${o.what}${o.area_km2 ? ` (${size(o)})` : ""}`, ask: "Which part of it is the site?", ways: `draw it, name a block, permit or parcel, or describe it ("a 10 km² area south-east of the capital"). I can run it on all of ${o.place} as a rough first look, but flags from anywhere in it won't say much about one site` }),
+  settlement: (o) => ({ is: "is a town or village", note: o.geometry === "Point" ? "What's on the map is its centre point." : "The outline is the whole place.", ask: "Where in or around it is the site?", ways: `draw it, or describe it ("a 5 ha field on the north edge"), or screen around the ${o.geometry === "Point" ? "centre point" : "whole place"} as a rough first look` }),
+  line: (o) => ({ is: "is a road, railway or river", ask: "Where along it is the site?", ways: "draw it, or describe it (\"a 2 ha plot on the east side, by the roundabout\")" }),
+};
+
+export function heldReply(o) {
+  if (o.held === "skills") return `**${o.place}** is ready. Which analysis would you like? The options are under this message.`;
+  if (o.held === "which_part") {
+    const w = (WHICH_PART[o.kind] || WHICH_PART.region)(o);
+    return `**${o.place}** ${w.is}, so it isn't a site yet.${w.note ? ` ${w.note}` : ""} ${w.ask} You can ${w.ways}. Then I'll run ${o.queued}.`;
+  }
+  // confirm
+  const found = [
+    o.anchor ? `built on ${o.anchor}${o.source ? ` (${o.source})` : ""}` : null,
+    size(o),
+    o.confidence ? `${o.confidence} confidence` : null,
+  ].filter(Boolean).join(", ");
+  const role = o.role === "search_area"
+    ? o.geometry === "Point" ? " It's a point, so the run will treat a small area round it as a search area: findings in it may or may not be on the site."
+      : ` It's a search area (${o.role_why}), because the site's own outline wasn't found: findings in it may or may not be on the site.`
+    : o.role === "point" ? " It's a point, so the run will treat a small area round it as a search area: findings in it may or may not be on the site." : "";
+  return `I've put **${o.place}** on the map: ${found}.${role} Is that the right place? If it is, say so (or use it from the card) and I'll run ${o.queued}. If not, tell me what to change, or draw the site.`;
+}
+
 // For runTurn's finish hook: the tools that end the conversation's turn, and the reply code writes for each.
 // screening: the page's createScreening service (for the run records). Returns null when the model should carry on.
 export function finishTurn(screening) {
@@ -137,6 +165,8 @@ export function finishTurn(screening) {
       }
       // Couldn't run here (offshore, a point for an area budget, no such study): code already wrote why.
       if (out.not_available) return sentence(out.not_available);
+      // Held until the person has seen the place, said which part of it is the site, or picked an analysis.
+      if (out.held) return heldReply(out);
     }
     return null;
   };

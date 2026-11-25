@@ -570,12 +570,19 @@ await test("a place found from words isn't screened in the same turn: shown and 
   const name = host.list[0].name;
   const held = await t.exec("screen_site", { place: name, asset_type: "platform" });
   assert.equal(held.run, undefined, "not screened before the person has seen it");
-  assert.match(held.not_yet, /haven't seen it/);
-  assert.match(held.next, /ask if it's the right place/);
+  assert.equal(held.held, "confirm");
+  assert.equal(held.place, name);
+  assert.match(held.queued, /^a constraints screen for a platform/);
+  assert.ok(!("next" in held) && !("not_yet" in held), "no instructions to the model: code writes the question");
   assert.equal(screened.length, 0);
-  // Next message ("yes, that's it"): screened.
+  assert.match(t.pendingLines()[0], /constraints screen .* is waiting for the person's yes/);
+  // Next message ("yes, that's it"): screened, with what was asked kept in code even if the analyst forgets it.
   t.newTurn();
-  assert.equal((await t.exec("screen_site", { place: name, asset_type: "platform" })).run, "R1");
+  const asked = [];
+  host.screening.screen = async (i, p) => { asked.push(i); screened.push(p.name); return { run: `R${screened.length}`, site: p.name }; };
+  assert.equal((await t.exec("screen_site", { place: name, asset_type: "other" })).run, "R1");
+  assert.equal(asked[0].asset_type, "other", "what's said now wins");
+  assert.equal(t.pendingLines().length, 0, "nothing waiting once it ran");
   // Accepted with the card's button: screened, whatever the turn.
   await t.exec("make_place", { anchor: c.id, shape: "square", area_km2: 5, words: "5 km² round Jackdaw", match: "named_place", reason: "found" });
   host.list[1].status = "accepted";
@@ -621,15 +628,53 @@ await test("several skills on offer: no screen until the person asks for one; th
   const t = createPlaceTools(host);
   const held = await t.exec("screen_site", { place: "Area 1", asset_type: "substation" });
   assert.equal(held.run, undefined, "saying what's planned isn't asking for a screen");
-  assert.match(held.next, /offer_skills/);
-  assert.equal((await t.exec("offer_skills", { place: "Area 1" })).place, "Area 1");
-  assert.deepEqual(offered, ["Area 1"]);
+  assert.equal(held.held, "skills");
+  assert.deepEqual(offered, ["Area 1"], "the skills are offered in code, not by telling the analyst to");
   // The screen chip, an asset pick or the person's own words ask for a screen.
   for (const ask of ["Screen Area 1 for environmental constraints.", "Screen Area 1 as a substation site.", "what are the risks here?", "any constraints?"]) {
     host.said.push(ask);
     assert.equal((await t.exec("screen_site", { place: "Area 1", asset_type: "substation" })).run, "R1", ask);
     host.said.pop();
   }
+});
+
+await test("a place that isn't a site is asked about first: which part? (plan item 1, 25 Nov)", async () => {
+  const { notASite } = await import("../js/siterole.js");
+  const words = (type, shape, extra = {}) => ({ method: "words", words: "x", shape, anchor: { name: "X", type }, ...extra });
+  const poly = { type: "Polygon" }, pt = { type: "Point" }, line = { type: "LineString" };
+  assert.equal(notASite(words("lake", "feature"), poly, { area_km2: 83 }).kind, "water");
+  assert.equal(notASite(words("natural: water (lake)", "feature"), poly).kind, "water");
+  assert.deepEqual(notASite(words("boundary: administrative (country)", "feature"), poly, { area_km2: 268000 }), { kind: "region", what: "a whole country", type: "boundary: administrative (country)", area_km2: 268000 });
+  assert.equal(notASite(words("place: town", "point"), pt).kind, "settlement");
+  assert.equal(notASite(words("town, small burgh", "point"), pt).kind, "settlement");
+  assert.equal(notASite(words("highway: secondary", "point"), pt).kind, "line");
+  assert.equal(notASite(words("highway: secondary", "feature"), line).kind, "line");
+  assert.equal(notASite(words("landuse: commercial", "feature"), poly, { area_km2: 5000 }).kind, "region", "an area this big on land is a region, whatever it's called");
+  // Sites, or choices already made: never asked about.
+  assert.equal(notASite(words("landuse: industrial", "feature"), poly, { area_km2: 2.4 }), null, "Stanlow Refinery");
+  assert.equal(notASite(words("castle", "point"), pt), null, "a named feature's point is a site (screened as a search area round it)");
+  assert.equal(notASite(words("petroleum exploration permit", "feature"), poly, { area_km2: 4000 }), null, "a big permit is still a site");
+  assert.equal(notASite(words("lake", "feature"), poly, { area_km2: 900, offshore: true }).kind, "water");
+  assert.equal(notASite(words("place: town", "square"), poly), null, "a square the analyst built near a town is a choice of part");
+  assert.equal(notASite(words("place: town", "point", { offset: true }), pt), null, "moved from the town");
+  assert.equal(notASite({ method: "drawn" }, poly, { area_km2: 9000 }), null, "drawn by the person");
+  assert.equal(notASite({ method: "words", shape: "feature", anchor: { type: "lake" } }, poly, {}).what, "a lake or other water body");
+
+  // In the tool: held with code's question; "whole" runs it on all of it; the request is kept for the answer.
+  const host = memoryHost();
+  const screened = [];
+  host.screening = { screen: async (i, p) => { screened.push(i); return { run: "R1", site: p.name }; }, assetLabel: (id) => ({ "oil-gas-onshore": "onshore oil or gas field" })[id] };
+  const t = createPlaceTools(host);
+  host.list.push({ name: "Lake Tekapo", feature: { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [[[170.5, -43.9], [170.6, -43.9], [170.6, -43.8], [170.5, -43.9]]] } },
+    origin: { method: "words", words: "Lake Tekapo", shape: "feature", match: "name_and_type", confidence: "high", anchor: { name: "Lake Tekapo", type: "lake", source: { publisher: "Wikidata" } } }, status: "accepted", edits: [] });
+  const held = await t.exec("screen_site", { place: "Lake Tekapo", asset_type: "oil-gas-onshore" });
+  assert.equal(held.held, "which_part");
+  assert.equal(held.kind, "water");
+  assert.match(held.queued, /constraints screen for an onshore oil or gas field/);
+  assert.equal(screened.length, 0);
+  assert.equal(t.pendingFor(host.list[0]).held, "which_part");
+  assert.equal((await t.exec("screen_site", { place: "Lake Tekapo", whole: true })).run, "R1", "all of it, when the person says so");
+  assert.equal(screened[0].asset_type, "oil-gas-onshore", "what was asked is kept");
 });
 
 console.log(`${passed} place tests passed`);

@@ -1,7 +1,7 @@
 // The reply after a run, written in code (plan item 1, 25 Nov): every name and number from the record, short, and
 // the turn ends without asking the model to write it.
 import assert from "node:assert/strict";
-import { runReply, screenReply, studyReply, budgetReply, finishTurn } from "../js/runreply.js";
+import { runReply, screenReply, studyReply, budgetReply, finishTurn, heldReply } from "../js/runreply.js";
 import { runTurn } from "../js/converse.js";
 import * as F from "./fixtures/runreply-records.mjs";
 import { headline, budgetHeadline } from "../js/ntrrun.js";
@@ -110,6 +110,26 @@ await test("the run tools' results are data: no instructions to the model", () =
   const b = budgetHeadline(F.barnstonBudget);
   assert.equal(b.note, undefined);
   assert.ok(!(JSON.stringify(b).match(/"[^"]*"/g) || []).some((x) => STEER.test(x)));
+});
+
+await test("held runs: code asks, with what was found and what will run on a yes", () => {
+  const c = heldReply({ held: "confirm", place: "Oracle campus, Linlithgow", anchor: "Oracle", source: "OpenStreetMap contributors", confidence: "medium", role: "footprint", geometry: "Polygon", area_km2: 0.121, queued: "a constraints screen for a solar farm" });
+  clean(c);
+  assert.equal(c, "I've put **Oracle campus, Linlithgow** on the map: built on Oracle (OpenStreetMap contributors), 12 ha, medium confidence. Is that the right place? If it is, say so (or use it from the card) and I'll run a constraints screen for a solar farm. If not, tell me what to change, or draw the site.");
+  const sa = heldReply({ held: "confirm", place: "Linlithgow housing 5 ha", anchor: "Linlithgow", confidence: "low", role: "search_area", role_why: "built from clues round Linlithgow", geometry: "Polygon", area_km2: 0.05, queued: "a constraints screen for a housing site" });
+  assert.match(sa, /It's a search area \(built from clues round Linlithgow\), because the site's own outline wasn't found/);
+  const w = heldReply({ held: "which_part", place: "Lake Tekapo", kind: "water", what: "a lake or other water body", area_km2: 83, geometry: "Polygon", queued: "a constraints screen for an onshore oil or gas field" });
+  clean(w);
+  assert.match(w, /^\*\*Lake Tekapo\*\* is a lake or other water body \(83 km²\), so it isn't a site yet\. Which part of it is the site\?/);
+  assert.match(w, /use the whole of Lake Tekapo as a rough first look\. Then I'll run a constraints screen for an onshore oil or gas field\.$/);
+  const nz = heldReply({ held: "which_part", place: "New Zealand", kind: "region", what: "a whole country", area_km2: 268021, geometry: "Polygon", queued: "a constraints screen" });
+  assert.match(nz, /is a whole country \(268,021 km²\)/);
+  const town = heldReply({ held: "which_part", place: "Kelso", kind: "settlement", geometry: "Point", queued: "a constraints screen for an onshore wind farm" });
+  assert.match(town, /^\*\*Kelso\*\* is a town or village, so it isn't a site yet\. What's on the map is its centre point\. Where in or around it is the site\?/);
+  const road = heldReply({ held: "which_part", place: "Linlithgow Road", kind: "line", geometry: "Point", queued: "a constraints screen" });
+  assert.match(road, /is a road, railway or river, so it isn't a site yet\. Where along it is the site\?/);
+  assert.match(heldReply({ held: "skills", place: "Area 1" }), /Which analysis would you like/);
+  assert.equal(finishTurn({ runs: new Map() })("screen_site", {}, { held: "skills", place: "Area 1" }), heldReply({ held: "skills", place: "Area 1" }));
 });
 
 console.log(`${passed} run reply tests passed`);

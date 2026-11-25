@@ -1,6 +1,6 @@
 ---
 name: place-finding
-version: 4.16
+version: 4.17
 description: Turn words into a place on the map. Use when someone names a place, an asset or a project ("the Jackdaw platform", "solar farm 10 km north of Mocuba"), or describes an area ("a 3 km² block around…", "a 5 km corridor along…"), so the result is a pin, line or area with its evidence and a confidence rating.
 ---
 
@@ -34,7 +34,8 @@ You never do geometry in your head. Tools find anchors and build shapes; you cho
    - A bare point anchor with no size → a point.
    - **Scale is worked out, and asked only when it's genuinely unclear.** The shape's size usually decides it (up to ~50 km across is local, up to ~1,000 km regional). Pass `scale` only when the request itself says the scale of the work and the shape doesn't show it, e.g. "screen the whole country" around a capital's pin. The project summary also gives the map view's width, which tells you the scale the person is looking at when there's no place yet. If the request, the place's size and the view still leave it open (a country's name with no size, say), ask or confirm in one short question that can be answered in words.
 5. **Show it and ask** whether it's what they meant. One short question, only about what's genuinely uncertain.
-   - **When the request also asks for a screen or other analysis** ("screen a warehouse site in Livingston"), stop here: show the place and ask before running it. A town, a district or a rough area is often not the site itself, and a screen of the wrong place wastes a minute and misleads. Remember what they asked for and run it as soon as they confirm. Typed coordinates, drawn shapes and site files are the person's own and need no check.
+   - **When the request also asks for a screen or other analysis** ("screen a warehouse site in Livingston"), the place is shown and confirmed before anything runs. A town, a district or a rough area is often not the site itself, and a screen of the wrong place wastes a minute and misleads. Where the setting has a run that holds itself until the person has seen the place (Tobler's screen_site and run_study do), ask for the run straight away with everything they asked for: it shows the place, asks, and keeps the request for their yes. Otherwise show it, ask, and run it as soon as they confirm. Typed coordinates, drawn shapes and site files are the person's own and need no check.
+   - **A place that isn't a site** (a whole country or region, a lake, a town's centre point, a road or river) is asked about before anything runs on it: which part is the site? The person can draw it, describe it, or say to use the whole thing as a rough first look.
    - **When they've named a place and what's planned but not which analysis** ("site a substation on that parcel"), don't choose one for them once the place is confirmed: offer the skills with offer_skills. Saying what's planned isn't asking for a screen.
 6. **Adjust** with `edit_place` when asked ("make it 5 km²", "rotate it 30°", "move it 2 km east").
 7. **Keep the map tidy.** To rebuild or correct a place you proposed, call `make_place` with `replaces` set to its name: the old one is removed and the new one takes its name. Pass the person's clues again (corrected if they corrected them); any clue that failed before and is left out is listed in the result, and you say why. Never leave a duplicate for the person to delete. `remove_place` removes a place when the person asks, or a proposal of yours that's no longer wanted.

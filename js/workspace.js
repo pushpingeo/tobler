@@ -1073,8 +1073,13 @@ function makeCard(p) {
   // The answer buttons count as a reply in the conversation.
   card.querySelector('[data-op="accept"]').addEventListener("click", () => {
     if (busy) return;
+    // A run held for this place: the yes runs exactly what was asked, from the page, with no model call (25 Nov).
+    const held = tools.pendingFor(p);
     p.status = "accepted"; paintStatus(p); scheduleRefresh();
-    send(`Yes, use ${p.name}.`);
+    if (held) {
+      const whole = held.held === "which_part";
+      send(whole ? `Use all of ${p.name}, as a rough first look.` : `Yes, use ${p.name}.`, undefined, { name: held.tool, input: { ...held.input, place: p.name, ...(whole ? { whole: true } : {}) } });
+    } else send(`Yes, use ${p.name}.`);
   });
   card.querySelector('[data-op="revise"]').addEventListener("click", () => {
     if (busy) return;
@@ -1961,6 +1966,11 @@ function paintStatus(p, card = p.card) {
   card.classList.toggle("proposed", p.status === "proposed");
   const asking = p.status === "proposed";
   card.querySelectorAll('.question, [data-op="accept"], [data-op="revise"]').forEach((e) => { e.hidden = !asking; });
+  // Asked which part of a lake, a country, a town or a road: the button uses all of it, said as a rough look.
+  const accept = card.querySelector('[data-op="accept"]');
+  let held = null;
+  try { held = tools.pendingFor(p); } catch { held = null; } // the tools may not be made yet while the page starts
+  if (accept) accept.textContent = held?.held === "which_part" ? "Use all of it" : "Use this area";
   card.querySelector(".badge").textContent = p.status === "proposed" ? "Proposed" : "";
 }
 
@@ -2124,7 +2134,9 @@ function downloadLog() {
 // `forModel` is what the analyst reads when it needs more than the person sees (a picked candidate's id).
 // Everything the person has typed or said in this project: distance checks must quote it (js/placetools.js).
 const said = [];
-async function send(text, forModel = text) {
+// direct: { name, input } runs that one tool and lets code write the reply, with no model call: the card's answer to a
+// held run (plan item 1, 25 Nov), which runs exactly what was asked.
+async function send(text, forModel = text, direct = null) {
   if (!text || busy || !draw) return;
   // Coordinates in what the person typed are read in code, and the analyst is told so it uses them as a place
   // rather than searching for them as a name (Rob, 20 Nov).
@@ -2151,10 +2163,11 @@ async function send(text, forModel = text) {
   const turnLog = { at: new Date().toISOString(), user: text, ...(forModel !== text ? { sent: forModel } : {}), events: [] };
   sessionLog.push(turnLog);
   try {
-    const summary = [await projectSummary(ref, host.places(), focusName, viewBounds(), runSummaryLines(), host.loadedFile()), U.unitsNote(), industryNote(profile, industries)].filter(Boolean).join("\n");
+    const waiting = tools.pendingLines();
+    const summary = [await projectSummary(ref, host.places(), focusName, viewBounds(), runSummaryLines(), host.loadedFile()), waiting.length ? ["Asked for and waiting:", ...waiting].join("\n") : "", U.unitsNote(), industryNote(profile, industries)].filter(Boolean).join("\n");
     const skillList = conversationSkills();
     runLog = turnLog; runSteps = steps;
-    const res = await runTurn({
+    const res = direct ? await runDirect(direct, turnLog, steps) : await runTurn({
       system: systemPrompt({ skills: skillList, loaded: skillList.filter((s) => loadedSkills.has(s.name)), comingSoon: ["constraints-and-access analysis"], industryRule: profile?.other_requests || "" }),
       messages: buildMessages({ recent, summary, userText: forModel }),
       tools: placeToolDefs(skillList),
@@ -2166,11 +2179,7 @@ async function send(text, forModel = text) {
         if (ev.type === "round") turnLog.events.push({ model_round: ev.round, ms: ev.ms, tokens_in: ev.input_tokens, tokens_out: ev.output_tokens, tool_calls: ev.tools });
         if (ev.type === "tool_start") activity(`${activityFor(ev.name, ev.input)}…`, true);
         if (ev.type === "tool" && ev.name === "load_skill" && !ev.error) loadedSkills.add(ev.input?.name);
-        if (ev.type === "tool") {
-          turnLog.events.push({ tool: ev.name, input: ev.input, ms: ev.ms, ...(ev.error ? { error: ev.error } : { output: ev.output }) });
-          steps.append(el("li", traceLine(ev), ev.error ? "err" : ""));
-          activity("Thinking…", true);
-        }
+        if (ev.type === "tool") toolEvent(ev, turnLog, steps);
         if (ev.type === "warning") { steps.append(el("li", ev.message, "err")); turnLog.events.push({ warning: ev.message }); }
       },
     });
@@ -2202,6 +2211,23 @@ async function send(text, forModel = text) {
   }
 }
 
+function toolEvent(ev, turnLog, steps) {
+  turnLog.events.push({ tool: ev.name, input: ev.input, ms: ev.ms, ...(ev.error ? { error: ev.error } : { output: ev.output }) });
+  steps.append(el("li", traceLine(ev), ev.error ? "err" : ""));
+  // A held run changes what the place card's buttons say (all of a lake, or this area).
+  if (ev.output?.held) { const p = host.findPlace(ev.output.place); if (p?.card) paintStatus(p); }
+  activity("Thinking…", true);
+}
+// One tool, run from the page, with the reply written in code: the same shape runTurn returns.
+async function runDirect({ name, input }, turnLog, steps) {
+  activity(`${activityFor(name, input)}…`, true);
+  const t0 = Date.now();
+  const out = await tools.exec(name, input);
+  toolEvent({ name, input, output: out, ms: Date.now() - t0 }, turnLog, steps);
+  const text = finishTurn(host.screening)(name, input, out) || "Done.";
+  return { text, usage: { input_tokens: 0, output_tokens: 0 }, stopReason: "finished_in_code" };
+}
+
 // At the end of a turn, the first thing it produced (a shape card, a run card, the reply) goes to the top of the
 // conversation, so results can be read from the start without scrolling back up. Short turns that fit stay put.
 function showTurnTop(asked) {
@@ -2213,6 +2239,7 @@ function showTurnTop(asked) {
   conv.scrollTo({ top: fits ? conv.scrollHeight : top, behavior: "smooth" });
 }
 
+const HELD_WHY = { confirm: "you hadn't seen the place yet, so I asked first", which_part: "the place isn't a site, so I asked which part", skills: "no analysis was chosen, so the options were offered" };
 function traceLine(ev) {
   const i = ev.input || {};
   if (ev.error) return `${activityFor(ev.name, i)}: ${ev.error}`;
@@ -2226,7 +2253,8 @@ function traceLine(ev) {
     case "get_place": return `Read ${i.place}`;
     case "find_data": return `Searched the catalogue for “${i.text}”: ${o.datasets?.length || 0} datasets${o.not_checked ? " (catalogue not checked)" : ""}`;
     case "get_data": return o.not_checked ? `Fetched ${o.dataset || i.dataset}: not checked (${String(o.not_checked).slice(0, 80)})` : `Fetched ${o.dataset} (${o.publisher}): ${o.within_distance} within ${o.within_km} km`;
-    case "screen_site": return o.run ? `Screened ${o.site} (${o.run}): ${o.flags} flags; ${o.distances}` : (o.not_yet ? `Not screened yet: ${o.not_yet}` : `Screening: ${o.not_available || "no result"}`);
+    case "screen_site": return o.run ? `Screened ${o.site} (${o.run}): ${o.flags} flags; ${o.distances}` : o.held ? `Not screened yet: ${HELD_WHY[o.held] || "held"}` : `Screening: ${o.not_available || "no result"}`;
+    case "run_study": return o.run ? `Ran ${i.study?.replace(/-/g, " ")} on ${o.site} (${o.run})` : o.held ? `Not run yet: ${HELD_WHY[o.held] || "held"}` : `Not run: ${o.not_available || "no result"}`;
     case "offer_skills": return o.not_available || `Offered the skills for ${o.place}`;
     case "get_run": return `Read the screen ${o.run || ""}`;
     case "remove_place": return `Removed ${o.removed}`;

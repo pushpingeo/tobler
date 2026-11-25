@@ -1,7 +1,7 @@
 // Tools the conversation agent uses to find places and build areas from words.
 // The model works with ids (C3 for a found candidate, "Area 1" for a place); geometry stays here.
 // A host object supplies the project's places and reference data, so the same code runs in the page and in the evaluation.
-import { placeRole } from "./siterole.js";
+import { placeRole, notASite } from "./siterole.js";
 import { placesFromFile, fileSummary, fileOriginText, builtinToWgs84 } from "./fileimport.js";
 import * as turf from "./vendor/turf.js";
 import * as G from "./geometry.js";
@@ -185,7 +185,7 @@ export function placeToolDefs(skills) {
     },
     {
       name: "screen_site",
-      description: "Screen a place for environmental constraints and environmental and social (E&S) risk (themes: land and livelihoods, biodiversity, Indigenous Peoples, cultural heritage, community health and safety, operating context). Runs the screening method as its own sealed run with the data tools, then shows a run card (flags first, evidence on the map, the distances used with a slider, gaps) and returns the headline. Use it for any request to screen a site or ask what risks, sensitivities or constraints it raises. The place must already exist (find or build it first). Distances come from the asset type and size unless the person gives their own. A place you built from their words in this turn isn't screened until they've seen it: show it and ask first. Takes 30 to 90 seconds.",
+      description: "Screen a place for environmental constraints and environmental and social (E&S) risk (themes: land and livelihoods, biodiversity, Indigenous Peoples, cultural heritage, community health and safety, operating context). Runs the screening method as its own sealed run with the data tools, then shows a run card (flags first, evidence on the map, the distances used with a slider, gaps) and returns the headline. Use it for any request to screen a site or ask what risks, sensitivities or constraints it raises. The place must already exist (find or build it first). Distances come from the asset type and size unless the person gives their own. Call it as soon as the place is on the map, with everything they asked for, even for a place you built from their words in this turn: Tobler then shows them the place and asks (is it right, or which part of a lake, country, town or road) before anything runs, and keeps what was asked for their yes. Takes 30 to 90 seconds.",
       input_schema: {
         type: "object",
         properties: {
@@ -198,6 +198,7 @@ export function placeToolDefs(skills) {
           tip_height_m: { type: "number", description: "Wind turbine tip height, only if the person gave it" },
           distances: { type: "object", description: "Only if the person gave distances: near, close and/or wider in km (wider up to 50).", properties: { near: { type: "number" }, close: { type: "number" }, wider: { type: "number" } } },
           focus: { type: "string", description: "Optional: what the person is most concerned about, in their words" },
+          whole: { type: "boolean", description: "Only when the person, asked which part of a place to screen, said to use all of it as it is (the whole lake, the whole country)." },
           extent: { type: "string", enum: ["around", "inside"], description: "Areas only. around (default): the area and its surroundings out to the wider band. inside: only what lies inside the area or touches its edge; use it only when the person asks to keep the screen within the area (\"only inside the block\", \"just within the boundary\"). An around screen of an area can also be switched to inside-only on the run card, with no new fetching." },
         },
         required: ["place", "asset_type"],
@@ -210,11 +211,12 @@ export function placeToolDefs(skills) {
     },
     {
       name: "run_study",
-      description: "Run a study other than the constraints screen on a place that's on the map, as its own sealed run with a card. \"contamination-desk-study\": an early contaminated-land look from open records set out as sources, pathways and receptors, for sites on land; use it when the person asks about contamination, past land use, landfill, pollution or ground conditions (20 to 40 seconds). \"developable-area\": an area budget on the site's outline (gross area, each deduction with its reason, the net developable area, soft constraints), for an outline on land, not a point or a search area; use it when the person asks for the developable, net or usable area, area discounting or how many hectares they can use (10 to 30 seconds). Either study also runs when the person picks it from the skills.",
+      description: "Run a study other than the constraints screen on a place that's on the map, as its own sealed run with a card. \"contamination-desk-study\": an early contaminated-land look from open records set out as sources, pathways and receptors, for sites on land; use it when the person asks about contamination, past land use, landfill, pollution or ground conditions (20 to 40 seconds). \"developable-area\": an area budget on the site's outline (gross area, each deduction with its reason, the net developable area, soft constraints), for an outline on land, not a point or a search area; use it when the person asks for the developable, net or usable area, area discounting or how many hectares they can use (10 to 30 seconds). Either study also runs when the person picks it from the skills. As with screen_site, call it as soon as the place is on the map: Tobler asks the person first if they haven't seen the place.",
       input_schema: { type: "object", properties: {
         place: { type: "string", description: "Place name" },
         study: { type: "string", enum: ["contamination-desk-study", "developable-area"] },
         focus: { type: "string", description: "Optional, desk study: what the person asked about especially" },
+        whole: { type: "boolean", description: "Only when the person, asked which part of a place to use, said to use all of it as it is." },
         asset_type: { type: "string", enum: BUDGET_ASSETS, description: "Developable area: what would be built. general if the person hasn't said (the card says it was assumed)." },
         buffers: { type: "array", description: "Developable area: only buffers the person asked for, in metres, by rule id", items: { type: "object", properties: { id: { type: "string", enum: BUDGET_RULE_IDS }, buffer_m: { type: "number" } }, required: ["id", "buffer_m"] } },
         leave_out: { type: "array", items: { type: "string", enum: BUDGET_RULE_IDS }, description: "Developable area: deductions the person asked to ignore (buildings to be cleared)" },
@@ -260,6 +262,44 @@ export function createPlaceTools(host) {
   // person has looked (Rob, 24 Nov: "screen a warehouse location in Livingston" found Livingston and screened it at
   // once). Typed coordinates are exempt: they're exactly what the person gave. The page calls newTurn() per message.
   const unseen = new Set();
+  // A run held back until the person has seen the place, or said which part of it (plan item 1, 25 Nov): what was
+  // asked is kept here, in code, so a yes runs exactly that, whoever remembers it. Keyed by place id (or name).
+  const pending = new Map();
+  const pkey = (p) => p.id ?? p.name;
+  // What the person will get on a yes, in words, from what was asked.
+  const queued = (tool, i) => {
+    if (tool === "run_study") {
+      const entry = (host.profile?.()?.skills_offered || []).find((x) => x.id === i.study);
+      return `${/^[aeiou]/i.test(entry?.label || "") ? "an" : "a"} ${(entry?.label || String(i.study || "study").replace(/-/g, " ")).toLowerCase()}`;
+    }
+    const what = (i.planned && String(i.planned).replace(/^(a|an|the)\s+/i, "")) || (i.asset_type && i.asset_type !== "other" ? host.screening?.assetLabel?.(i.asset_type) || i.asset_type.replace(/-/g, " ") : null);
+    return `a constraints screen${what ? ` for ${/^[aeiou]/i.test(what) ? "an" : "a"} ${what}` : ""}`;
+  };
+  // Before a run: hold it if the place isn't a site, or the person hasn't seen it yet. Returns the held result, or null.
+  async function holdRun(tool, p, i) {
+    const k = pkey(p);
+    if (!i.whole) {
+      const d = await R.describe(host.ref, p.feature);
+      const n = notASite(p.origin || {}, p.feature.geometry, { area_km2: d.area_km2 ?? null, offshore: !!d.offshore });
+      if (n) {
+        pending.set(k, { tool, input: { ...i }, held: "which_part", place: p.name });
+        return { held: "which_part", place: p.name, kind: n.kind, what: n.what, ...(n.area_km2 ? { area_km2: n.area_km2 } : {}), geometry: p.feature.geometry.type, queued: queued(tool, i) };
+      }
+    }
+    if (unseen.has(p) && p.status === "proposed") {
+      pending.set(k, { tool, input: { ...i }, held: "confirm", place: p.name });
+      const d = await R.describe(host.ref, p.feature);
+      const role = placeRole(p.origin || {}, p.feature.geometry);
+      const a = p.origin?.anchor || {};
+      return { held: "confirm", place: p.name, anchor: a.name || a.place || null, source: a.source?.publisher || a.source?.title || null,
+        confidence: p.origin?.confidence || null, role: role.role, role_why: role.why, geometry: p.feature.geometry.type,
+        ...(d.area_km2 != null ? { area_km2: d.area_km2 } : {}), ...(d.length_km != null ? { length_km: d.length_km } : {}), queued: queued(tool, i) };
+    }
+    return null;
+  }
+  // What's asked and waiting, for the project summary: the person's yes runs it.
+  const pendingLines = () => [...pending.values()].filter((x) => host.findPlace(x.place))
+    .map((x) => `- ${x.place}: ${queued(x.tool, x.input)} is waiting for the person's ${x.held === "which_part" ? "answer on which part of it is the site" : "yes that the place is right"} (${x.tool} ${JSON.stringify(x.input)})`);
 
   const resolve = (ref) => {
     if (!ref) throw new Error("No anchor given.");
@@ -690,10 +730,11 @@ export function createPlaceTools(host) {
       if (!host.screening?.study) return { not_available: "Studies can't be run here." };
       const entry = (host.profile?.()?.skills_offered || []).find((s) => s.id === i.study && s.status === "ready" && s.skill);
       if (!entry) return { not_available: `The ${String(i.study || "study").replace(/-/g, " ")} isn't available in this profile.` };
-      if (unseen.has(p) && p.status === "proposed") return {
-        not_yet: `${p.name} was found from the person's words just now and they haven't seen it yet, so the study wasn't run.`,
-        next: "Show it: say in a line or two what it is, then ask if it's the right place. Run the study as soon as they confirm. End your turn.",
-      };
+      const was = pending.get(pkey(p));
+      if (was?.tool === "run_study" && was.input.study === i.study) i = { ...was.input, ...i };
+      const held = await holdRun("run_study", p, i);
+      if (held) return held;
+      pending.delete(pkey(p));
       return host.screening.study(entry, p, i);
     },
 
@@ -790,21 +831,24 @@ export function createPlaceTools(host) {
       dataset: elevation.dataset, publisher: elevation.publisher, licence: elevation.licence, checked_at: elevation.checked_at,
     };
   };
-  run.screen_site = async (i) => {
+  run.screen_site = async (input) => {
     if (!host.screening) return { not_available: "Screening isn't connected here." };
-    const p = host.findPlace(i.place);
-    if (!p) throw new Error(`No place called "${i.place}". Find or build the site first.`);
-    if (unseen.has(p) && p.status === "proposed") return {
-      not_yet: `${p.name} was found from the person's words just now and they haven't seen it yet, so it wasn't screened.`,
-      next: "Show it: say in a line or two what it is (the anchor and its source, the size, the confidence, and whether it's a search area rather than the site itself), then ask if it's the right place. Keep what they asked for (what's planned, any distances) and screen as soon as they confirm. End your turn.",
-    };
+    const p = host.findPlace(input.place);
+    if (!p) throw new Error(`No place called "${input.place}". Find or build the site first.`);
+    // A yes to a held screen runs what was asked then: what's given now adds to it or changes it.
+    const was = pending.get(pkey(p));
+    const i = was?.tool === "screen_site" ? { ...was.input, ...input } : input;
+    const held = await holdRun("screen_site", p, i);
+    if (held) return held;
     // Several skills are on offer (Rob, 24 Nov): the analyst runs a screen only when the person asked for one (in
     // words, with the screen chip or an asset-type pick, which all say "screen"), and otherwise offers the skills.
     // Shell House, Perth: "site a substation on that parcel", then "Use this area", and a screen ran unasked.
-    if (host.offerSkills && host.personSaid && !SCREEN_ASKED.test(host.personSaid())) return {
-      not_yet: "The person hasn't asked for a screen or said which analysis they want, so nothing was run.",
-      next: `Call offer_skills for ${p.name} so they can pick, then end your turn with one short line. Keep what they told you (what's planned) for the run.`,
-    };
+    // The skills are offered in code (25 Nov), not by telling the analyst to.
+    if (host.offerSkills && host.personSaid && !SCREEN_ASKED.test(host.personSaid())) {
+      host.offerSkills(p.name);
+      return { held: "skills", place: p.name };
+    }
+    pending.delete(pkey(p));
     return host.screening.screen(i, p);
   };
   // Coordinate reference (EPSG registry via the Worker): js/epsgtools.js.
@@ -840,6 +884,10 @@ export function createPlaceTools(host) {
     candidates: cands,
     datasets: data.datasets,
     newTurn: () => unseen.clear(),
+    pendingLines,
+    // The held run for a place, for the card's buttons: { tool, input, held } or null.
+    pendingFor: (p) => (p ? pending.get(pkey(p)) || null : null),
+    dropPending: (p) => { if (p) pending.delete(pkey(p)); },
     useDataset: data.keepDataset,
     async exec(name, input) {
       if (!run[name]) throw new Error(`Unknown tool ${name}`);

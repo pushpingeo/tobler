@@ -84,15 +84,39 @@ queue.push(
   msg([use("t4", "find_place", { query: "Livingston" })], "tool_use"),
   (last) => msg([use("t5", "make_place", { anchor: (last.match(/C\d+/) || [])[0], shape: "circle", radius_km: 3, words: "a warehouse location in Livingston", match: "named_place", reason: "the town named" })], "tool_use"),
   (last) => { placeName = (last.match(/\\"place\\":\\"([^\\]+)/) || last.match(/\\"name\\":\\"([^\\]+)/) || [])[1] || "Livingston"; return msg([use("t6", "screen_site", { place: placeName, asset_type: "other", planned: "a warehouse" })], "tool_use"); },
-  msg([{ type: "text", text: "I've put Livingston on the map. Is that the right place?" }]),
 );
 await turn("I would like to screen a warehouse location in Livingston");
-const held = JSON.stringify(sent.at(-1)?.messages?.at(-1)?.content || "");
+// The hold ends the turn and code writes the question (25 Nov): the analyst isn't asked again.
+const held = JSON.stringify(await page.evaluate(() => window.toblerLog.at(-1).events.find((e) => e.tool === "screen_site")?.output || null));
+const heldReplyText = await page.evaluate(() => [...document.querySelectorAll(".msg.analyst")].at(-1)?.textContent || "");
+check(queue.length === 0 && /^I've put .* on the map: .*Is that the right place\? .*I'll run a constraints screen for a warehouse/.test(heldReplyText), `code asks, and keeps what was asked (${heldReplyText.slice(0, 200)})`);
 const lv = await page.evaluate(() => ({ runs: document.querySelectorAll(".run").length, proposed: window.__ws.host.places().filter((p) => p.status === "proposed").map((p) => p.name), trace: [...document.querySelectorAll(".trace li")].map((li) => li.textContent).join(" | ") }));
-check(/not_yet/.test(held) && /haven't seen it/.test(held), `the screen is held until the person has seen ${placeName} (${held.slice(0, 160)})`);
+check(/"held":"confirm"/.test(held), `the screen is held until the person has seen ${placeName} (${held.slice(0, 160)})`);
 check(lv.runs === 0 && lv.proposed.length >= 1, `no run card; the place waits as a proposal (${JSON.stringify(lv.proposed)})`);
 check(/Not screened yet/.test(lv.trace), "the working-out says it wasn't screened yet");
 await page.screenshot({ path: "/tmp/choice-livingston.png" });
+// "Use this area" on the card runs exactly what was asked, from the page: no model call to decide it.
+const convBefore = sent.filter((b) => !/sealed/.test(JSON.stringify(b.system || ""))).length;
+await page.locator(".shape.proposed [data-op=\"accept\"]").last().click();
+await page.waitForFunction(() => document.querySelectorAll(".run").length > 0 && !document.querySelector("#ask")?.classList.contains("busy"), null, { timeout: 30000 }).catch(() => {});
+await page.waitForTimeout(500);
+const ran = await page.evaluate(() => ({ runs: document.querySelectorAll(".run").length, reply: [...document.querySelectorAll(".msg.analyst")].at(-1)?.textContent || "", user: [...document.querySelectorAll(".msg.user")].at(-1)?.textContent || "",
+  input: window.toblerLog.at(-1).events.find((e) => e.tool === "screen_site")?.input || null }));
+const convAfter = sent.filter((b) => !/sealed/.test(JSON.stringify(b.system || ""))).length;
+check(ran.runs === 1 && convAfter === convBefore, `the card's yes runs the held screen with no conversation call (${ran.runs} run, ${convAfter - convBefore} calls)`);
+check(ran.input?.planned === "a warehouse" && /^Yes, use /.test(ran.user), `what was asked is what ran (${JSON.stringify(ran.input)})`);
+check(/^Constraints screen of .*\(R1\)/.test(ran.reply), `the reply after the run is written from the record (${ran.reply.slice(0, 120)})`);
+
+// A lake isn't a site (Tekapo, 18–24 Nov): which part? The card's button uses all of it, as a rough look.
+await page.evaluate(() => window.__ws.host.addPlace({ feature: { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [[[-3.62, 55.98], [-3.58, 55.98], [-3.58, 55.99], [-3.62, 55.98]]] } },
+  origin: { method: "words", words: "Linlithgow Loch", shape: "feature", steps: ["outline of Linlithgow Loch"], checks: [], match: "name_and_type", confidence: "high", anchor: { name: "Linlithgow Loch", type: "natural: water (lake)", source: { publisher: "OpenStreetMap contributors" } } }, name: "Linlithgow Loch" }));
+queue.push(msg([use("t8", "screen_site", { place: "Linlithgow Loch", asset_type: "solar" })], "tool_use"));
+await turn("Screen Linlithgow Loch for floating solar");
+const lake = await page.evaluate(() => ({ reply: [...document.querySelectorAll(".msg.analyst")].at(-1)?.textContent || "", runs: document.querySelectorAll(".run").length,
+  button: [...document.querySelectorAll(".shape")].find((c) => /Linlithgow Loch/.test(c.textContent))?.querySelector('[data-op="accept"]')?.textContent }));
+check(/^Linlithgow Loch is a lake or other water body.*so it isn't a site yet\. Which part of it is the site\?/.test(lake.reply) && lake.runs === 1, `a lake: which part, and nothing runs (${lake.reply.slice(0, 140)})`);
+check(lake.button === "Use all of it", `the card's button offers all of it (${lake.button})`);
+await page.screenshot({ path: "/tmp/choice-lake.png" });
 
 // Skill chips (Rob, 24 Nov): every skill in the profile is ready since the developable area was built (25 Nov), so no
 // chip is "soon" now; a ready chip fills the input with no model call; a chip that doesn't suit the place's role is hidden.
