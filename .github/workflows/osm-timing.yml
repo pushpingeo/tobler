@@ -35,6 +35,7 @@ jobs:
             echo "## Preflight (OPTIONS, Range header)"
             curl -sS -D - -o /dev/null -X OPTIONS -H "Origin: https://asktobler.com" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: range" "${BASE}${F}" | tr -d '\r'
           } | tee data/osm-extracts/http-check-uk.txt
+      - run: npm ci --no-audit --no-fund
       - name: Time lookups, the copy against Overpass
         run: node scripts/osm-timing.mjs "$BASE" > data/osm-extracts/timing-uk.json
       - name: Commit the results

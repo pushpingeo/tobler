@@ -1,2 +1,3 @@
 # Change this file to re-run .github/workflows/osm-timing.yml.
 # 25 Nov: first timing against R2.
+# 25 Nov 12:15: again, with npm ci (js/tools.js imports turf from npm).
