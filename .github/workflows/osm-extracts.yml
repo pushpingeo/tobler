@@ -30,10 +30,23 @@ jobs:
       market: ${{ steps.p.outputs.market }}
       parquet: ${{ steps.p.outputs.parquet }}
       release: ${{ steps.p.outputs.release }}
+    env:
+      BUCKET: ${{ vars.OSM_R2_BUCKET }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        if: env.BUCKET != ''
+        with: { node-version: 22 }
+      - name: Can the token write to the bucket? (fail in a minute, not after the build)
+        if: env.BUCKET != ''
+        run: |
+          echo "probe $(date -u +%FT%TZ)" > probe.txt
+          npx -y wrangler@4 r2 object put "$BUCKET/osm/_probe.txt" --file probe.txt --remote --content-type text/plain \
+            || { echo "::error::The Cloudflare token can't write to R2 bucket $BUCKET: add Account / Workers R2 Storage / Edit to it"; exit 1; }
       - run: pip install -q osmium shapely
       - id: p
         working-directory: scripts/osm-extract
