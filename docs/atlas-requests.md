@@ -208,7 +208,7 @@ new from the atlas, add it here (newest first), tell Rob, and he passes it to th
   a screening tool and named lookups ("block GC 807", "Flower Garden Banks") should be quick. Needs a licence check
   first: it copies names and outlines rather than pointing at the services. Rob's call on the licence question.
 
-## 25 Nov 2026: take over the hosted OpenStreetMap copy (proposed; Rob to confirm)
+## 25 Nov 2026: take over the hosted OpenStreetMap copy (agreed by Rob, 25 Nov)
 - **What:** a weekly copy of the OpenStreetMap kinds Tobler's checks use, per market (uk first; nl, au, us next),
   as FlatGeobuf (with index) and GeoParquet per Geofabrik extract and group, plus a manifest per market. Built today
   by Tobler's `.github/workflows/osm-extracts.yml` and `scripts/osm-extract/`; design, sizes and costs in the project
@@ -219,3 +219,16 @@ new from the atlas, add it here (newest first), tell Rob, and he passes it to th
 - **Tobler keeps:** `catalogue/osm-snapshot.json` (the kinds and tags, tested against `OSM_KINDS`), the reader
   `js/osmsnapshot.js` and the Overpass fallback. New kinds come as requests here.
 - **Until then:** Tobler's workflow uploads the UK copy to `atlas-data` itself, so nothing waits on the move.
+- **Live since 25 Nov midday** at `https://data.asktobler.com/osm/uk.json` (49 of 50 UK extracts; West Yorkshire
+  missing until the next build). Tobler's page reads it (`CONFIG.osmSnapshotBase`). Once the atlas's build has
+  published a release there, Tobler retires its own workflow.
+- **Learned on the first live builds, worth keeping in the moved workflow:**
+  - Upload through R2's S3 API (AWS CLI, multipart): `wrangler r2 object put` stops at 300 MiB and the largest
+    buildings files are bigger. `scripts/osm-extract/r2-s3-env.sh` derives the S3 keys from the Cloudflare token.
+  - Geofabrik refused a third of the downloads (HTTP 000) on the day's second and third full UK builds; one full build
+    a week is fine. Retry with pauses.
+  - `publish.py --previous`: an extract a run couldn't build keeps its entry from the live manifest if under 14 days
+    old (listed as `carried`), so the outline doesn't shrink for one bad download. Each region has its own
+    `data_as_of`; please keep that in the contract.
+  - Keep the manifest small: it's 436 kB for the UK, read on a site's first lookup. A coarser outline, or the outline
+    in its own file, would help phones.
