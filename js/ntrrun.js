@@ -14,6 +14,7 @@ import { DISCLAIMER } from "./disclaimer.js";
 export const OUTSIDE_PROFILE = "A general screen: the method wasn't built for this kind of development, so treat it as a first look.";
 import { aroundSiteKm2 } from "./datatools.js";
 import { siteChange } from "./outofdate.js";
+import { runDiff } from "./rundiff.js";
 import { waterDepth, vesselTraffic, seaLines } from "./seavalues.js";
 import { elevationFrom, elevationSignificance, elevationLine, elevationShort } from "./elevation.js";
 import { readDecision, settleDecision } from "./industry.js";
@@ -883,7 +884,7 @@ export function headline(record) {
     top_flags: r.flags.slice(0, 5).map((f) => ({ id: f.id, risk: f.risk, ...(f.severity ? { severity: f.severity } : {}), confidence: f.confidence, theme: f.theme, nearest_km: f.nearest_km })),
     evidence_features: evidenceOf(record).length, sources_checked: r.checked.length, not_checked: notChecked.map((c) => c.dataset).slice(0, 6), gaps: r.data_gaps.length,
     ...(r.parse_error ? { problem: r.parse_error } : {}),
-    ...(r.replaces ? { replaces: { run: r.replaces.run, why: r.replaces.why, ...(r.replaces.checks_changed ? { checks_changed: r.replaces.checks_changed } : {}) } } : {}),
+    ...(r.replaces ? { replaces: { run: r.replaces.run, why: r.replaces.why, ...(r.replaces.diff ? { changed: r.replaces.diff.lines } : {}), ...(r.replaces.checks_changed ? { checks_changed: r.replaces.checks_changed } : {}) } } : {}),
     ...(r.checks ? { checks: K.checksSummary(r.checks).replace(/^Checks: /, "") } : {}),
     ...(r.site.role === "search_area" ? { site_is: `a search area: ${r.site.role_why}` } : {}),
   };
@@ -910,6 +911,20 @@ export function budgetHeadline(record) {
 export function createScreening({ host, table, skill, skillFor = () => null, callClaude, model = "", onRun = () => {}, onEvent = () => {}, now }) {
   const runs = new Map();
   let n = 0;
+  // Every new run of a skill on a place is linked to the last one, edited or not, and compared with it in code, so
+  // the card and the reply can say what changed and why (plan item 1, 25 Nov: reruns changed with no explanation).
+  const linkPrevious = (record, place, i, kind) => {
+    const old = (i.replaces ? runs.get(String(i.replaces).trim().toUpperCase()) : null)
+      || [...runs.values()].reverse().find((o) => (o.tobler_run.kind || "ntr-screen") === kind && place.id != null && o.tobler_run.place_id === place.id && !o.tobler_run.replaced_by);
+    if (!old || old === record) return;
+    const ch = siteChange(old, place);
+    const r = record.tobler_run;
+    r.replaces = { run: old.tobler_run.id, why: ch ? `the site was edited after it ran (${ch.text})` : "run again on the same site" };
+    // Which checks moved, line by line, for the card.
+    if (r.checks) r.replaces.checks_changed = K.checksChanged(old.tobler_run.checks || [], r.checks);
+    r.replaces.diff = runDiff(old, record, { siteChanged: ch?.text || null });
+    old.tobler_run.replaced_by = r.id;
+  };
   return {
     runs,
     // An asset type's label ("solar farm"), from the distance table.
@@ -953,15 +968,7 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
         ...(i.distances && Object.keys(i.distances).length ? { distances: i.distances } : {}) };
       // A re-run after the site was edited: which run it replaces, and why. From the card's re-run button (replaces),
       // or found here when the analyst screens a place again whose latest run is out of date.
-      const old = (i.replaces ? runs.get(String(i.replaces).trim().toUpperCase()) : null)
-        || [...runs.values()].reverse().find((o) => place.id != null && o.tobler_run.place_id === place.id && !o.tobler_run.replaced_by && siteChange(o, place));
-      if (old) {
-        const ch = siteChange(old, place);
-        record.tobler_run.replaces = { run: old.tobler_run.id, why: ch ? `the site was edited after it ran (${ch.text})` : "re-run" };
-        // Which checks moved, so the card and the reply can say why the flags did.
-        if (record.tobler_run.checks) record.tobler_run.replaces.checks_changed = K.checksChanged(old.tobler_run.checks || [], record.tobler_run.checks);
-        old.tobler_run.replaced_by = id;
-      }
+      linkPrevious(record, place, i, "ntr-screen");
       runs.set(id, record);
       onRun(record, place);
       return headline(record);
@@ -984,13 +991,7 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       record.tobler_run.place_id = place.id ?? null;
       record.tobler_run.place_geometry_at_run = JSON.stringify(place.feature.geometry);
       record.tobler_run.inputs = { study: entry.id, focus: i.focus || "" };
-      const old = (i.replaces ? runs.get(String(i.replaces).trim().toUpperCase()) : null)
-        || [...runs.values()].reverse().find((o) => o.tobler_run.kind === entry.id && place.id != null && o.tobler_run.place_id === place.id && !o.tobler_run.replaced_by && siteChange(o, place));
-      if (old) {
-        const ch = siteChange(old, place);
-        record.tobler_run.replaces = { run: old.tobler_run.id, why: ch ? `the site was edited after it ran (${ch.text})` : "re-run" };
-        old.tobler_run.replaced_by = id;
-      }
+      linkPrevious(record, place, i, entry.id);
       runs.set(id, record);
       onRun(record, place);
       return headline(record);
@@ -1022,13 +1023,7 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       record.tobler_run.place_geometry_at_run = JSON.stringify(place.feature.geometry);
       const keep = (v) => (Array.isArray(v) && v.length ? v : undefined);
       record.tobler_run.inputs = JSON.parse(JSON.stringify({ study: entry.id, asset_type: plan.asset_type, buffers: keep(i.buffers), leave_out: keep(i.leave_out), as_soft: keep(i.as_soft) }));
-      const old = (i.replaces ? runs.get(String(i.replaces).trim().toUpperCase()) : null)
-        || [...runs.values()].reverse().find((o) => o.tobler_run.kind === entry.id && place.id != null && o.tobler_run.place_id === place.id && !o.tobler_run.replaced_by && siteChange(o, place));
-      if (old) {
-        const ch = siteChange(old, place);
-        record.tobler_run.replaces = { run: old.tobler_run.id, why: ch ? `the site was edited after it ran (${ch.text})` : "re-run" };
-        old.tobler_run.replaced_by = id;
-      }
+      linkPrevious(record, place, i, entry.id);
       runs.set(id, record);
       onRun(record, place);
       return budgetHeadline(record);

@@ -5,6 +5,7 @@ import { runReply, screenReply, studyReply, budgetReply, finishTurn, heldReply }
 import { runTurn } from "../js/converse.js";
 import * as F from "./fixtures/runreply-records.mjs";
 import { headline, budgetHeadline } from "../js/ntrrun.js";
+import { runDiff } from "../js/rundiff.js";
 
 let passed = 0;
 const test = async (name, fn) => { await fn(); passed++; console.log("ok", name); };
@@ -130,6 +131,33 @@ await test("held runs: code asks, with what was found and what will run on a yes
   assert.match(road, /is a road, railway or river, so it isn't a site yet\. Where along it is the site\?/);
   assert.match(heldReply({ held: "skills", place: "Area 1" }), /Which analysis would you like/);
   assert.equal(finishTurn({ runs: new Map() })("screen_site", {}, { held: "skills", place: "Area 1" }), heldReply({ held: "skills", place: "Area 1" }));
+});
+
+await test("a rerun says what changed, and when nothing underneath did, that it's the analyst's judgement", () => {
+  const same = runDiff(F.oracleSolar, F.oracleSolarAgain);
+  assert.equal(same.same_checks, true);
+  assert.deepEqual(same.lines, [
+    "Decision progress with targeted investigation then, major issue now.",
+    "2 flags now, 4 then; none now on biodiversity and community and health.",
+    "The checks came back the same, so the difference is in the analyst's own searches and judgement, not in the standard checks.",
+  ]);
+  const ev = runDiff(F.evoraFirst, F.evoraSecond);
+  assert.deepEqual(ev.lines, [
+    "Reached this time but not before: homes.",
+    "Decision insufficient evidence then, progress with targeted investigation now.",
+    "2 flags now, 1 then; new on community and health.",
+  ]);
+  const back = runDiff(F.evoraSecond, F.evoraFirst);
+  assert.match(back.lines[0], /^Not reached this time: homes\.$/);
+  assert.deepEqual(runDiff(F.evoraFirst, F.evoraFirst).lines, ["Nothing changed: same request, same checks, same result."]);
+  const edited = runDiff(F.evoraFirst, F.evoraFirst, { siteChanged: "moved 2 km north" });
+  assert.deepEqual(edited.lines, ["The site changed: moved 2 km north."]);
+  // In the reply, right after the distances.
+  const rec = JSON.parse(JSON.stringify(F.oracleSolarAgain));
+  rec.tobler_run.replaces = { run: "R1", why: "run again on the same site", diff: same };
+  const t = runReply(rec);
+  clean(t);
+  assert.match(t, /\n\nCompared with R1: Decision progress with targeted investigation then, major issue now\. .* not in the standard checks\.\n\n/);
 });
 
 console.log(`${passed} run reply tests passed`);

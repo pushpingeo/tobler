@@ -130,12 +130,13 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   const after = await page.evaluate(() => {
     const cards = [...document.querySelectorAll(".run")];
     const r2 = window.__ws.runs.get("R2")?.record.tobler_run;
-    return { ids: cards.map((c) => c.dataset.run), reply: [...document.querySelectorAll(".msg.analyst:not(.run)")].map((e) => e.textContent).find((t) => /replaces R1/.test(t)) || "",
+    return { ids: cards.map((c) => c.dataset.run), reply: [...document.querySelectorAll(".msg.analyst:not(.run)")].map((e) => e.textContent).find((t) => /Compared with R1/.test(t)) || "",
       r2: r2 && { replaces: r2.replaces, stage: r2.site.stage, asset: r2.site.asset_type, same: r2.place_geometry_at_run === JSON.stringify(window.__ws.places.values().next().value.feature.geometry) } };
   });
   check(after.ids.join() === "R1,R2", `${label}: the re-run is a new card, R2, beside R1 (${after.ids.join()})`);
   check(after.r2?.replaces?.run === "R1" && /moved 0\.6 km east/.test(after.r2.replaces.why) && after.r2.stage === "concept" && after.r2.asset === "solar" && after.r2.same, `${label}: R2 replaces R1, same asset and stage, on the edited outline`);
-  check(/^R2 replaces R1: 1 flag \(was 1\), decision: progress \(was progress with targeted investigation\)\./.test(after.reply), `${label}: a short line in the conversation (${after.reply.slice(0, 90)})`);
+  // The reply is written from the record, as for any run, and says what changed from R1 and why (25 Nov).
+  check(/^Constraints screen of Area 1 \(R2\): progress\./.test(after.reply) && /Compared with R1: The site changed: .*Decision progress with targeted investigation then, progress now\./.test(after.reply), `${label}: the reply says what changed from R1 (${after.reply.slice(0, 300)})`);
   const line = await page.evaluate(() => document.getElementById("activity")?.textContent || "");
   check(!/Screening/.test(line), `${label}: the activity line is cleared after the re-run (${line.slice(0, 50)})`);
   s = await strip(0);

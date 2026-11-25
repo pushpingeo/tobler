@@ -81,3 +81,27 @@ export const brokenResult = run({
   decision: null, flags: [], parse_error: "The analyst's result had no readable JSON block, so there are no structured flags.",
   checks: [],
 });
+
+// Oracle campus screened again, nothing changed underneath, a different result (as six times in the 18–24 Nov logs).
+const clone = (r) => JSON.parse(JSON.stringify(r));
+export const oracleSolarAgain = (() => {
+  const r = clone(oracleSolar);
+  Object.assign(r.tobler_run, { id: "R2", decision: { value: "major issue", why: "Listed buildings at the edge and prime farmland across the site" },
+    flags: oracleSolar.tobler_run.flags.slice(0, 2).map((f) => ({ ...f, theme: f.id === "F-01" ? "heritage" : "land-use" })),
+    topic_labels: { heritage: "Heritage", "land-use": "Land use", biodiversity: "Biodiversity", "community-health": "Community and health" } });
+  return r;
+})();
+// The earlier run's flags carry topics too.
+oracleSolar.tobler_run.flags.forEach((f, i) => { f.theme = ["heritage", "land-use", "biodiversity", "community-health"][i]; });
+// Évora: the second run reached sources the first didn't.
+export const evoraFirst = run({ id: "R1", site: { name: "Solar farm 5 km W of Évora", asset_label: "solar farm", role: "area", area_km2: 1 },
+  decision: { value: "insufficient evidence", why: "Heritage and settlements couldn't be checked" },
+  flags: [{ id: "F-01", risk: "Montado cork oak woodland on site", theme: "biodiversity", severity: "medium", confidence: "medium", nearest_km: 0, traced: 1, untraced: 0 }],
+  checks: [check("Homes", "not_checked", true, { id: "community.homes" }), check("Heritage sites", "not_checked", false, { id: "heritage.sites" }), check("Natura 2000", "none", true, { id: "bio.sac" })],
+  topic_labels: { biodiversity: "Biodiversity", "community-health": "Community and health" } });
+export const evoraSecond = run({ id: "R2", site: { name: "Solar farm 5 km W of Évora", asset_label: "solar farm", role: "area", area_km2: 1 },
+  decision: { value: "progress with targeted investigation", why: "Homes 600 m east; cork oak woodland on site" },
+  flags: [{ id: "F-01", risk: "Montado cork oak woodland on site", theme: "biodiversity", severity: "medium", confidence: "medium", nearest_km: 0, traced: 1, untraced: 0 },
+    { id: "F-02", risk: "Homes 600 m east", theme: "community-health", severity: "low", confidence: "high", nearest_km: 0.6, traced: 1, untraced: 0 }],
+  checks: [check("Homes", "found", true, { id: "community.homes" }), check("Heritage sites", "not_checked", false, { id: "heritage.sites" }), check("Natura 2000", "none", true, { id: "bio.sac" })],
+  topic_labels: { biodiversity: "Biodiversity", "community-health": "Community and health" } });

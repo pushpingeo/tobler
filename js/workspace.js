@@ -1656,11 +1656,10 @@ async function rerun(entry) {
     turnLog.input = input;
     const studyEntry = r.study ? (profile?.skills_offered || []).find((x) => x.id === r.study.id) : null;
     const head = studyEntry ? await host.screening.study(studyEntry, place, { ...(r.inputs || {}), replaces: r.id }) : await host.screening.screen(input, place);
-    const rec = runs.get(head.run)?.record.tobler_run;
-    const was = r.flags.length, now = rec?.flags.length ?? 0;
-    const moved = rec?.replaces?.checks_changed;
-    const text = `${head.run} replaces ${r.id}: ${now} flag${now === 1 ? "" : "s"} (was ${was})${rec?.decision?.value ? `, decision: ${rec.decision.value}` : ""}${r.decision?.value && rec?.decision?.value && r.decision.value !== rec.decision.value ? ` (was ${r.decision.value})` : ""}.${moved ? ` Checks that changed: ${moved.length ? moved.join("; ") : "none"}.` : ""}`;
-    reply.replaceChildren(el("p", text));
+    // The same reply as any run, written from the record, with what changed from the run it replaces (25 Nov).
+    const rec = runs.get(head.run)?.record;
+    const text = rec ? runReply(rec) : `${head.run || "The re-run"} didn't return a run.`;
+    reply.replaceChildren(renderText(text));
     turnLog.reply = text;
     remember("assistant", `(I re-ran ${r.id} on ${place.name}'s edited outline as ${head.run}. ${text})`);
   } catch (err) {

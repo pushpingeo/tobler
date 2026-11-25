@@ -118,8 +118,16 @@ export function budgetReply(record, { replaced = null } = {}) {
   return paras.join("\n\n");
 }
 
+// A rerun says what changed from the run before, and why (js/rundiff.js), right after the decision.
+export function changedLine(r) {
+  const d = r.replaces?.diff;
+  if (!d) return r.replaces ? `This replaces ${r.replaces.run} (${r.replaces.why}).` : null;
+  return `Compared with ${r.replaces.run}: ${d.lines.join(" ")}`;
+}
+
 export function runReply(record, opts = {}) {
   const r = record.tobler_run;
+  if (opts.replaced === undefined) opts = { ...opts, replaced: changedLine(r) };
   if (r.budget) return budgetReply(record, opts);
   if (r.study) return studyReply(record, opts);
   return screenReply(record, opts);

@@ -337,6 +337,28 @@ await test("outside the profile (housing): screened at once as a general screen;
   assert.equal(shown[1].tobler_run.site.asset_label, "site of unknown type");
 });
 
+await test("a rerun on an unchanged site is linked to the run before and says what changed (25 Nov)", async () => {
+  const h = host();
+  const p = { id: "p1", name: "Area 1", feature: square, origin: site.origin, status: "accepted", edits: [] };
+  h.places = () => [p];
+  h.findPlace = (n) => (String(n).toLowerCase() === "area 1" ? p : null);
+  const shown = [];
+  let model = standardScript();
+  h.screening = createScreening({ host: h, table, skill, callClaude: (...a) => model(...a), onRun: (rec) => shown.push(rec) });
+  const t = createPlaceTools(h);
+  await t.exec("screen_site", { place: "Area 1", asset_type: "oil-gas-field" });
+  model = standardScript();
+  const head = await t.exec("screen_site", { place: "Area 1", asset_type: "oil-gas-field" });
+  const r2 = shown[1].tobler_run;
+  assert.equal(r2.replaces.run, "R1");
+  assert.equal(r2.replaces.why, "run again on the same site");
+  assert.deepEqual(r2.replaces.diff.lines, ["Nothing changed: same request, same checks, same result."]);
+  assert.deepEqual(head.replaces.changed, r2.replaces.diff.lines);
+  assert.equal(shown[0].tobler_run.replaced_by, "R2");
+  // A different skill on the same place isn't compared with the screen.
+  assert.equal(shown.length, 2);
+});
+
 await test("out-of-date runs: a re-run records its inputs and replaces the run made before the site was edited", async () => {
   const h = host();
   const p = { id: "p1", name: "Area 1", feature: square, origin: site.origin, status: "accepted", edits: [] };
