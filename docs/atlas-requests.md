@@ -222,6 +222,9 @@ new from the atlas, add it here (newest first), tell Rob, and he passes it to th
 - **Live since 25 Nov midday** at `https://data.asktobler.com/osm/uk.json` (49 of 50 UK extracts; West Yorkshire
   missing until the next build). Tobler's page reads it (`CONFIG.osmSnapshotBase`). Once the atlas's build has
   published a release there, Tobler retires its own workflow.
+- **25 Nov evening: Tobler's workflow is retired** (Rob), so it can't write to the bucket alongside the atlas's builds.
+  The live `uk.json` is still Tobler's (built 25 Nov 12:05 UTC, 49 of 50 extracts, West Yorkshire missing); the next
+  refresh is the atlas's. `scripts/osm-extract/` stays in Tobler's repo for reference only; nothing runs it.
 - **Learned on the first live builds, worth keeping in the moved workflow:**
   - Upload through R2's S3 API (AWS CLI, multipart): `wrangler r2 object put` stops at 300 MiB and the largest
     buildings files are bigger. `scripts/osm-extract/r2-s3-env.sh` derives the S3 keys from the Cloudflare token.

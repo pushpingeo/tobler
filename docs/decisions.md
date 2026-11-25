@@ -1614,3 +1614,13 @@ have no topic at all, though landscape, peat and farmland quality decided most o
   time follows latency; a UK browser should be faster than a US runner. Overpass may treat cloud runners worse than a
   home browser, so its failure rate here is an upper bound, but it matches Barnston's live log.
 - **Switched on:** `CONFIG.osmSnapshotBase = "https://data.asktobler.com/osm/"`.
+
+## 25 Nov 2026 (evening): Tobler's OpenStreetMap build retired
+- **What:** `.github/workflows/osm-extracts.yml` and its request file `.github/osm-extract-request` are removed (Rob),
+  before the weekly run on Monday 03:17 UTC could write to `atlas-data` alongside the atlas's builds.
+- **State at retirement:** the live `osm/uk.json` is still the one Tobler's workflow published (release 2026-11-25,
+  built 12:05 UTC, 49 of 50 extracts, West Yorkshire missing). Refreshes now come only from the atlas.
+- **Kept:** the reader (`js/osmsnapshot.js`), the kinds (`catalogue/osm-snapshot.json`), the timing workflow
+  (`osm-timing.yml`, read-only against the bucket), and `scripts/osm-extract/` for reference (nothing runs it; the
+  atlas has its own copy). The record's title still says "Tobler's copy"; it becomes the atlas's wording once the
+  atlas's first release is live.
