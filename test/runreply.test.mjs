@@ -153,6 +153,8 @@ await test("held runs: code asks, with what was found and what will run on a yes
   const road = heldReply({ held: "which_part", place: "Linlithgow Road", kind: "line", what: "a road", geometry: "Point", queued: "a constraints screen" });
   assert.match(road, /is a road, so it isn't a site yet\. Where along it is the site\?/);
   assert.match(heldReply({ held: "skills", place: "Area 1" }), /Which analysis would you like/);
+  // A building is a few hundred square metres, not "0 ha" (Shell House, Perth, replay 26 Nov).
+  assert.match(heldReply({ held: "confirm", place: "Shell House", anchor: "Shell House", confidence: "medium", role: "footprint", geometry: "Polygon", area_km2: 0.000437, queued: "a constraints screen" }), /: from Shell House, 440 m², medium confidence\./);
   assert.equal(finishTurn({ runs: new Map() })("screen_site", {}, { held: "skills", place: "Area 1" }), heldReply({ held: "skills", place: "Area 1" }));
 });
 

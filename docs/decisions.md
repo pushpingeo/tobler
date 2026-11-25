@@ -33,6 +33,16 @@ Judgement calls made while building, newest first. Bigger product decisions live
 - **Tests:** `npm test`; all 12 browser checks (desktop and phone), served through a route wrapper because a local
   server couldn't be started; `browser-choice` and `browser-ux` now check the buttons end the turn with one model call
   (they had queued a second reply that leaked into the next turn). `reply-samples` prints the new fallback lines.
+- **Live replays** (`try-requests` runs 45723004366 and 45723511252, on the branch `handover-sweep`): typed "12.5, 13.5"
+  → both readings offered with offer_choices; the model wrote no line, so code's line was the reply, and the turn ended
+  there (2 model rounds). Hotspots near Grangemouth: the reply still said "a 5-day window only, not a long record"
+  with the time note now only a fact. Oracle campus: held for a confirm, then a solar screen ran with ntr-screening
+  3.12-draft (8 flags, progress with targeted investigation). Not seen: the model chose `asset_type: other` and
+  screen_site over ask_asset_type or offer_skills in both cases where they might fit (Oracle, Shell House), so the
+  live button path is proven only for offer_choices. The Grangemouth reply offered "the older MODIS record for a
+  longer history", which is wrong (FIRMS MODIS is recent too); not from this change.
+- **Small fix from the replay:** the held reply said "0 ha" for Shell House (a 440 m² building). Under 1 ha it now gives
+  m² (`runreply.js` `size`).
 
 ## 25 Nov 2026 (late night): no distance rings for a conversation search (Rob's Droves log)
 - **Rob:** "Screen a 10 km² area between Swaffham and Castle Acre for the proposed Droves solar farm". While looking
