@@ -13,6 +13,6 @@ export const CONFIG = {
   workspaceRounds: 14,
   // Tobler's own copy of OpenStreetMap (js/osmsnapshot.js, built by .github/workflows/osm-extracts.yml): the folder
   // holding <market>.json manifests, ending in /. Empty: off, and every OpenStreetMap check goes to Overpass.
-  osmSnapshotBase: "",
+  osmSnapshotBase: "https://data.asktobler.com/osm/",
   osmSnapshotMarkets: ["uk"],
 };

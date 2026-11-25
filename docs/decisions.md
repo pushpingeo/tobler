@@ -1558,3 +1558,59 @@ have no topic at all, though landscape, peat and farmland quality decided most o
   manifest was 580 kB with a 200 m outline tolerance; now 1 km (Geofabrik's outlines run out to sea).
 - **US:** Geofabrik lists both regional bundles and states under the US; the bundles are skipped
   (`markets.us.skip`), so 54 extracts, 12.2 GB, the same as its single US file.
+
+## 25 Nov 2026 (midday): the OpenStreetMap copy goes live on R2
+- **Merged:** `osm-copy` fast-forwarded into main (a383c84) after `npm test` and six browser checks passed.
+- **Bucket:** `atlas-data`, public at `https://data.asktobler.com/osm/`. The repo variable first said `tobler-data`;
+  the token probe caught it in a minute (Rob changed it).
+- **Uploads over 300 MiB:** wrangler's `r2 object put` stops at 300 MiB and the biggest buildings files are larger. The
+  build now uploads through R2's S3 API with the AWS CLI (multipart), with credentials derived from the existing token
+  (Cloudflare: Access Key ID = the token's id, secret = SHA-256 of its value; `scripts/osm-extract/r2-s3-env.sh`).
+  No new secret. The plan job's probe tries both routes.
+- **Geofabrik refused downloads** (HTTP 000, connection refused, even after 2 minutes of retries) for a third of the
+  extracts on the second and third full UK runs of the day; probably a per-address limit. Downloads now retry with
+  pauses and report the HTTP code.
+- **A release stays whole (my call):** `publish.py --previous` carries an extract this run couldn't build from the live
+  manifest (its files and data date) if that release is under 14 days old; the manifest lists `carried`. Each region
+  keeps its own `data_as_of`. Without this, one refused download would drop a county from the copy and the outline
+  (honest, but needlessly worse). "publish-only stats-from <run>" rebuilt today's manifest from the first run's stats.
+- **Live now:** 49 of 50 UK extracts, data as of 24 Nov 21:21 UTC. West Yorkshire is missing (never built today);
+  the outline leaves it out, so sites there go to Overpass until next week's build.
+- **Overpass, two speeds (`OVERPASS_SPEEDS` in `js/gazetteer.js`):** quick (conversation lookups) unchanged at 15 s with
+  the 2-minute down latch. Patient (sealed study runs: developable area, desk study) waits up to 55 s, isn't stopped
+  by the latch (a real attempt), and retries once after 5 s if every server failed fast; its query asks the server for
+  50 s. The alternative was one longer limit for everything, which would have made conversation lookups hang when
+  the servers are down. A constraints screen keeps quick for now: it has many other sources running beside it.
+- **Staggered start fixed:** the next server is asked at once when every earlier one has already failed; the stagger
+  only protects a server that's still working. (The study browser check caught the old behaviour: 14 failures.)
+- **The run says when it waits on Overpass:** "Asking OpenStreetMap's public servers (when they're busy this can take
+  up to a minute)".
+- **Place search through the copy:** `find_features_near` asks the copy first for the eight feature types it holds with
+  the same tags (substation, main road, railway, pipeline, power line, airport, residential area, river). Candidates
+  carry their real shape and edge distance, so no outline fetch is needed. Residential areas, airports and substations
+  mapped as relations come whole (a superset of the Overpass selector). Solar farms, mines, ports, schools (the place
+  search includes universities), hospitals (it includes doctors) and the rest still go to Overpass. At most 5,000
+  features per lookup, with a note if cut.
+- **Tests:** osmsnapshot 17 (new: place search from the copy, name filter, a type it doesn't hold, copy unreadable;
+  Overpass latch, patient retry, stagger skip, server limits). New browser check `browser-osmcopy` (13): with the
+  base set, a developable area inside the copy reads only from data.asktobler.com by range requests, never Overpass,
+  and its record says "Tobler's copy, data as of 2026-11-24"; outside it, one Overpass query.
+- **Checked live (`osm-timing` workflow, from a GitHub runner, 12:12 UTC):** `uk.json` 200 with
+  `Access-Control-Allow-Origin: https://asktobler.com`; a range request on a `.fgb` 206 with `Content-Range` and the
+  exposed headers; the preflight for `Range` 204. Results in `data/osm-extracts/http-check-uk.txt`.
+- **Timed (`data/osm-extracts/timing-uk.json`; the checks' own reaches; Overpass the same query):**
+
+  | Site | Lookup | Copy, cold | Copy, warm | Overpass quick (15 s) | Overpass patient (55 s) |
+  |---|---|---|---|---|---|
+  | Barnston (Wirral), 10 ha by the railway | developable area | 5.3 s, 44 requests, 0.5 MB | 2.7 s | 12 s, answered | failed |
+  | Barnston | constraints screen | 3.4 s, 37, 0.9 MB | 2.7 s | failed | failed |
+  | London (Barking Riverside) | developable area | 4.9 s, 36, 0.6 MB | 2.1 s | failed | failed |
+  | London | constraints screen | 3.7 s, 27, 2.2 MB | 2.3 s | failed | 43 s, answered |
+  | Highland (west of Lairg) | developable area | 3.0 s, 23, 0.5 MB | 1.5 s | failed | failed |
+  | Highland | constraints screen | 1.5 s, 14, 0.1 MB | 1.2 s | failed | failed |
+
+  The copy answered all six; Overpass two of twelve, with the same counts as the copy both times. Cold includes reading
+  the 436 kB manifest (not in the byte counts). Requests are round trips in sequence (header, index, features), so
+  time follows latency; a UK browser should be faster than a US runner. Overpass may treat cloud runners worse than a
+  home browser, so its failure rate here is an upper bound, but it matches Barnston's live log.
+- **Switched on:** `CONFIG.osmSnapshotBase = "https://data.asktobler.com/osm/"`.
