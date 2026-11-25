@@ -1,0 +1,606 @@
+{
+ "uk": {
+  "name": "United Kingdom, with Ireland",
+  "extracts": 50,
+  "leaf_bytes": 2621552371,
+  "roots": [
+   {
+    "id": "england",
+    "bytes": 1718598511
+   },
+   {
+    "id": "scotland",
+    "bytes": 330729990
+   },
+   {
+    "id": "wales",
+    "bytes": 151742205
+   },
+   {
+    "id": "ireland-and-northern-ireland",
+    "bytes": 418902904
+   }
+  ],
+  "leaves": [
+   {
+    "id": "bedfordshire",
+    "bytes": 15242442
+   },
+   {
+    "id": "berkshire",
+    "bytes": 22699463
+   },
+   {
+    "id": "bristol",
+    "bytes": 13404138
+   },
+   {
+    "id": "buckinghamshire",
+    "bytes": 22840091
+   },
+   {
+    "id": "cambridgeshire",
+    "bytes": 35111643
+   },
+   {
+    "id": "cheshire",
+    "bytes": 38840433
+   },
+   {
+    "id": "cornwall",
+    "bytes": 35193813
+   },
+   {
+    "id": "cumbria",
+    "bytes": 45936519
+   },
+   {
+    "id": "derbyshire",
+    "bytes": 44264593
+   },
+   {
+    "id": "devon",
+    "bytes": 58657420
+   },
+   {
+    "id": "dorset",
+    "bytes": 30355048
+   },
+   {
+    "id": "durham",
+    "bytes": 23909207
+   },
+   {
+    "id": "east-sussex",
+    "bytes": 22404928
+   },
+   {
+    "id": "east-yorkshire-with-hull",
+    "bytes": 19474023
+   },
+   {
+    "id": "essex",
+    "bytes": 50265220
+   },
+   {
+    "id": "gloucestershire",
+    "bytes": 41813073
+   },
+   {
+    "id": "greater-london",
+    "bytes": 130604349
+   },
+   {
+    "id": "greater-manchester",
+    "bytes": 52087147
+   },
+   {
+    "id": "hampshire",
+    "bytes": 62640778
+   },
+   {
+    "id": "herefordshire",
+    "bytes": 11292993
+   },
+   {
+    "id": "hertfordshire",
+    "bytes": 39598550
+   },
+   {
+    "id": "isle-of-wight",
+    "bytes": 9105641
+   },
+   {
+    "id": "kent",
+    "bytes": 54519558
+   },
+   {
+    "id": "lancashire",
+    "bytes": 42716861
+   },
+   {
+    "id": "leicestershire",
+    "bytes": 20749658
+   },
+   {
+    "id": "lincolnshire",
+    "bytes": 43399137
+   },
+   {
+    "id": "merseyside",
+    "bytes": 25595548
+   },
+   {
+    "id": "norfolk",
+    "bytes": 47326399
+   },
+   {
+    "id": "north-yorkshire",
+    "bytes": 62026547
+   },
+   {
+    "id": "northamptonshire",
+    "bytes": 23260472
+   },
+   {
+    "id": "northumberland",
+    "bytes": 26312245
+   },
+   {
+    "id": "nottinghamshire",
+    "bytes": 38861030
+   },
+   {
+    "id": "oxfordshire",
+    "bytes": 28294119
+   },
+   {
+    "id": "rutland",
+    "bytes": 1956986
+   },
+   {
+    "id": "shropshire",
+    "bytes": 25353755
+   },
+   {
+    "id": "somerset",
+    "bytes": 50338816
+   },
+   {
+    "id": "south-yorkshire",
+    "bytes": 31256823
+   },
+   {
+    "id": "staffordshire",
+    "bytes": 31131776
+   },
+   {
+    "id": "suffolk",
+    "bytes": 33717488
+   },
+   {
+    "id": "surrey",
+    "bytes": 43496663
+   },
+   {
+    "id": "tyne-and-wear",
+    "bytes": 19639371
+   },
+   {
+    "id": "warwickshire",
+    "bytes": 24506330
+   },
+   {
+    "id": "west-midlands",
+    "bytes": 59982924
+   },
+   {
+    "id": "west-sussex",
+    "bytes": 50173441
+   },
+   {
+    "id": "west-yorkshire",
+    "bytes": 54620548
+   },
+   {
+    "id": "wiltshire",
+    "bytes": 34754755
+   },
+   {
+    "id": "worcestershire",
+    "bytes": 20444510
+   },
+   {
+    "id": "scotland",
+    "bytes": 330729990
+   },
+   {
+    "id": "wales",
+    "bytes": 151742205
+   },
+   {
+    "id": "ireland-and-northern-ireland",
+    "bytes": 418902904
+   }
+  ]
+ },
+ "nl": {
+  "name": "Netherlands",
+  "extracts": 12,
+  "leaf_bytes": 1413810662,
+  "roots": [
+   {
+    "id": "netherlands",
+    "bytes": 1413268105
+   }
+  ],
+  "leaves": [
+   {
+    "id": "drenthe",
+    "bytes": 63970138
+   },
+   {
+    "id": "flevoland",
+    "bytes": 36524194
+   },
+   {
+    "id": "friesland",
+    "bytes": 89251446
+   },
+   {
+    "id": "gelderland",
+    "bytes": 195991508
+   },
+   {
+    "id": "groningen",
+    "bytes": 56826005
+   },
+   {
+    "id": "limburg",
+    "bytes": 100982669
+   },
+   {
+    "id": "noord-brabant",
+    "bytes": 207732541
+   },
+   {
+    "id": "noord-holland",
+    "bytes": 190735754
+   },
+   {
+    "id": "overijssel",
+    "bytes": 114631597
+   },
+   {
+    "id": "utrecht",
+    "bytes": 99813166
+   },
+   {
+    "id": "zeeland",
+    "bytes": 44363488
+   },
+   {
+    "id": "zuid-holland",
+    "bytes": 212988156
+   }
+  ]
+ },
+ "au": {
+  "name": "Australia",
+  "extracts": 14,
+  "leaf_bytes": 994980224,
+  "roots": [
+   {
+    "id": "australia",
+    "bytes": 977729327
+   }
+  ],
+  "leaves": [
+   {
+    "id": "act",
+    "bytes": 19459668
+   },
+   {
+    "id": "ashmore-cartier",
+    "bytes": 22624
+   },
+   {
+    "id": "christmas-island",
+    "bytes": 222774
+   },
+   {
+    "id": "cocos-islands",
+    "bytes": 265277
+   },
+   {
+    "id": "coral-sea-islands",
+    "bytes": 182483
+   },
+   {
+    "id": "heard-mcdonald",
+    "bytes": 99003
+   },
+   {
+    "id": "new-south-wales",
+    "bytes": 271891934
+   },
+   {
+    "id": "norfolk-island",
+    "bytes": 336624
+   },
+   {
+    "id": "northern-territory",
+    "bytes": 17862469
+   },
+   {
+    "id": "queensland",
+    "bytes": 200236265
+   },
+   {
+    "id": "south-australia",
+    "bytes": 68685128
+   },
+   {
+    "id": "tasmania",
+    "bytes": 54353598
+   },
+   {
+    "id": "victoria",
+    "bytes": 244825601
+   },
+   {
+    "id": "western-australia",
+    "bytes": 116536776
+   }
+  ]
+ },
+ "us": {
+  "name": "United States",
+  "extracts": 59,
+  "leaf_bytes": 24298363257,
+  "roots": [
+   {
+    "id": "us",
+    "bytes": 12287538911
+   }
+  ],
+  "leaves": [
+   {
+    "id": "us-midwest",
+    "bytes": 2542081216
+   },
+   {
+    "id": "us-northeast",
+    "bytes": 1813546231
+   },
+   {
+    "id": "us-pacific",
+    "bytes": 172585736
+   },
+   {
+    "id": "us-south",
+    "bytes": 4169770192
+   },
+   {
+    "id": "us-west",
+    "bytes": 3440162880
+   },
+   {
+    "id": "us/alabama",
+    "bytes": 152549643
+   },
+   {
+    "id": "us/alaska",
+    "bytes": 144357012
+   },
+   {
+    "id": "us/arizona",
+    "bytes": 306045956
+   },
+   {
+    "id": "us/arkansas",
+    "bytes": 100875835
+   },
+   {
+    "id": "norcal",
+    "bytes": 657141969
+   },
+   {
+    "id": "socal",
+    "bytes": 673682907
+   },
+   {
+    "id": "us/colorado",
+    "bytes": 389331286
+   },
+   {
+    "id": "us/connecticut",
+    "bytes": 217706311
+   },
+   {
+    "id": "us/delaware",
+    "bytes": 22290527
+   },
+   {
+    "id": "us/district-of-columbia",
+    "bytes": 21081996
+   },
+   {
+    "id": "us/florida",
+    "bytes": 662015284
+   },
+   {
+    "id": "us/georgia",
+    "bytes": 359059535
+   },
+   {
+    "id": "us/hawaii",
+    "bytes": 27719105
+   },
+   {
+    "id": "us/idaho",
+    "bytes": 130788479
+   },
+   {
+    "id": "us/illinois",
+    "bytes": 364228780
+   },
+   {
+    "id": "us/indiana",
+    "bytes": 202625312
+   },
+   {
+    "id": "us/iowa",
+    "bytes": 134652854
+   },
+   {
+    "id": "us/kansas",
+    "bytes": 118293306
+   },
+   {
+    "id": "us/kentucky",
+    "bytes": 155936526
+   },
+   {
+    "id": "us/louisiana",
+    "bytes": 148021887
+   },
+   {
+    "id": "us/maine",
+    "bytes": 91346517
+   },
+   {
+    "id": "us/maryland",
+    "bytes": 217515666
+   },
+   {
+    "id": "us/massachusetts",
+    "bytes": 312086026
+   },
+   {
+    "id": "us/michigan",
+    "bytes": 318720237
+   },
+   {
+    "id": "us/minnesota",
+    "bytes": 291144949
+   },
+   {
+    "id": "us/mississippi",
+    "bytes": 95400857
+   },
+   {
+    "id": "us/missouri",
+    "bytes": 201388530
+   },
+   {
+    "id": "us/montana",
+    "bytes": 101806083
+   },
+   {
+    "id": "us/nebraska",
+    "bytes": 101696312
+   },
+   {
+    "id": "us/nevada",
+    "bytes": 124293300
+   },
+   {
+    "id": "us/new-hampshire",
+    "bytes": 72808047
+   },
+   {
+    "id": "us/new-jersey",
+    "bytes": 165710508
+   },
+   {
+    "id": "us/new-mexico",
+    "bytes": 137018773
+   },
+   {
+    "id": "us/new-york",
+    "bytes": 499281004
+   },
+   {
+    "id": "us/north-carolina",
+    "bytes": 431515151
+   },
+   {
+    "id": "us/north-dakota",
+    "bytes": 128502776
+   },
+   {
+    "id": "us/ohio",
+    "bytes": 328333519
+   },
+   {
+    "id": "us/oklahoma",
+    "bytes": 170987987
+   },
+   {
+    "id": "us/oregon",
+    "bytes": 255913416
+   },
+   {
+    "id": "us/pennsylvania",
+    "bytes": 351189523
+   },
+   {
+    "id": "us/puerto-rico",
+    "bytes": 74467306
+   },
+   {
+    "id": "us/rhode-island",
+    "bytes": 52578578
+   },
+   {
+    "id": "us/south-carolina",
+    "bytes": 166745552
+   },
+   {
+    "id": "us/south-dakota",
+    "bytes": 50801784
+   },
+   {
+    "id": "us/tennessee",
+    "bytes": 191732309
+   },
+   {
+    "id": "us/texas",
+    "bytes": 728932855
+   },
+   {
+    "id": "us/us-virgin-islands",
+    "bytes": 3122374
+   },
+   {
+    "id": "us/utah",
+    "bytes": 172296369
+   },
+   {
+    "id": "us/vermont",
+    "bytes": 46289956
+   },
+   {
+    "id": "us/virginia",
+    "bytes": 430031053
+   },
+   {
+    "id": "us/washington",
+    "bytes": 366481121
+   },
+   {
+    "id": "us/west-virginia",
+    "bytes": 99470671
+   },
+   {
+    "id": "us/wisconsin",
+    "bytes": 296123152
+   },
+   {
+    "id": "us/wyoming",
+    "bytes": 96080231
+   }
+  ]
+ }
+}
