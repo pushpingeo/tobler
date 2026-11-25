@@ -487,7 +487,8 @@ function addFindings(list, meta = {}) {
       area_km2: c.area_km2 ?? null, dataset: meta.dataset || "", publisher: meta.publisher || c.source?.publisher || "",
     } });
   }
-  if (meta.place) drawRings(meta.place);
+  // No distance rings for a search: rings are a run's bands, drawn from its card (Rob, 25 Nov: a search for the solar
+  // farm near Castle Acre drew 1/5/20 km rings there before any site was confirmed, and they read as a screen).
   drawFindings();
 }
 let ringsArgs = null; // to redraw the rings when the units change

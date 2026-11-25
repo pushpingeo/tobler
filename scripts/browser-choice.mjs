@@ -118,6 +118,16 @@ check(/^Linlithgow Loch is a lake or other water body.*so it isn't a site yet\. 
 check(lake.button === "Use all of it", `the card's button offers all of it (${lake.button})`);
 await page.locator(".msg.analyst").last().screenshot({ path: "/tmp/choice-lake.png" });
 
+// A search in the conversation shows what it found, but no distance rings: those are a run's (Rob, 25 Nov: rings
+// round Castle Acre appeared while the analyst was only looking for the solar farm).
+await page.evaluate(() => window.__ws.map.getSource("rings").setData({ type: "FeatureCollection", features: [] }));
+const ringsAfterSearch = await page.evaluate(() => {
+  const at = { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [0.6879, 52.7041] } };
+  window.__ws.host.addFindings([{ id: "C99", name: "Burntstalk Solar Park", type: "PV, operating", distance_km: 5.3, geometry: { type: "Point", coordinates: [0.6271, 52.6732] }, source: { publisher: "Global Energy Monitor" } }], { dataset: "solar farm", place: at });
+  return new Promise((ok) => setTimeout(() => ok(window.__ws.map.getSource("rings")._data.features?.length ?? 0), 300));
+});
+check(ringsAfterSearch === 0, `a search adds findings but no rings (${ringsAfterSearch})`);
+
 // Skill chips (Rob, 24 Nov): every skill in the profile is ready since the developable area was built (25 Nov), so no
 // chip is "soon" now; a ready chip fills the input with no model call; a chip that doesn't suit the place's role is hidden.
 const chipsNow = () => page.evaluate(() => [...document.querySelectorAll(".chips .chip")].filter((b) => !b.hidden).map((b) => `${b.firstChild.textContent}${b.classList.contains("soon") ? " (soon)" : ""}`));

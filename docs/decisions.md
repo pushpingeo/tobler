@@ -2,6 +2,17 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 25 Nov 2026 (late night): no distance rings for a conversation search (Rob's Droves log)
+- **Rob:** "Screen a 10 km² area between Swaffham and Castle Acre for the proposed Droves solar farm". While looking
+  for the solar farm by type round Castle Acre (`find_features_near`), the page drew the default 1/5/20 km rings round
+  Castle Acre, before any site was confirmed: they read as a screen on the wrong place. No screen ran.
+- **Fix:** `addFindings` no longer draws rings. Rings are a run's bands and come only from its card. This also stops a
+  search after a run from replacing the run's rings with defaults round the search point.
+- **Test:** `browser-choice` (a search adds findings and no rings; fails on the old code with 3 rings).
+- **Seen in the same log, not fixed:** the analyst searched "Droves solar farm" by name only, without `kind` and `area`,
+  so the atlas wasn't asked; the Planning Inspectorate's outline of The Droves Solar Farm was found that way in an
+  earlier session. It built a 10 km² square 3.1 km north of Swaffham, low confidence, and code asked before screening.
+
 ## 25 Nov 2026 (night): the handover from a run to the conversation, in code (plan item 1; Rob: "please proceed")
 - **The reply after a run is written in code** (`js/runreply.js`): the decision and why, what was screened and how far,
   the three most serious flags with code's distances, what wasn't checked (musts first), and what changed from the run
