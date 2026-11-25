@@ -1,0 +1,46 @@
+name: OpenStreetMap copy timing
+# Times real lookups in the hosted copy against Overpass (scripts/osm-timing.mjs), and checks the bucket answers as the
+# page needs: the manifest loads, and a range request on a .fgb file returns 206 with CORS headers for asktobler.com.
+# Runs by hand or when .github/osm-timing-request changes; commits data/osm-extracts/timing-<market>.json.
+on:
+  workflow_dispatch:
+    inputs:
+      base: { description: "Copy's base URL", default: "https://data.asktobler.com/osm/" }
+  push:
+    branches: [main]
+    paths: [".github/osm-timing-request"]
+permissions:
+  contents: write
+concurrency: osm-timing
+jobs:
+  time:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BASE: ${{ github.event.inputs.base || 'https://data.asktobler.com/osm/' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: The manifest, and a range request as the page makes it
+        run: |
+          mkdir -p data/osm-extracts
+          {
+            echo "## Manifest: ${BASE}uk.json"
+            curl -sS -D - -o uk.json -H "Origin: https://asktobler.com" "${BASE}uk.json" | tr -d '\r'
+            python3 -c "import json;m=json.load(open('uk.json'));print('release',m.get('release'),'data_as_of',m.get('data_as_of'),'regions',len(m['regions']))"
+            F=$(python3 -c "import json;m=json.load(open('uk.json'));r=[x for x in m['regions'] if x['files'].get('transport')][0];print(r['files']['transport']['path'])")
+            echo; echo "## Range request: ${BASE}${F} (bytes 0-1023, Origin https://asktobler.com)"
+            curl -sS -D - -o /dev/null -r 0-1023 -H "Origin: https://asktobler.com" "${BASE}${F}" | tr -d '\r'
+            echo "## Preflight (OPTIONS, Range header)"
+            curl -sS -D - -o /dev/null -X OPTIONS -H "Origin: https://asktobler.com" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: range" "${BASE}${F}" | tr -d '\r'
+          } | tee data/osm-extracts/http-check-uk.txt
+      - name: Time lookups, the copy against Overpass
+        run: node scripts/osm-timing.mjs "$BASE" > data/osm-extracts/timing-uk.json
+      - name: Commit the results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/osm-extracts/timing-uk.json data/osm-extracts/http-check-uk.txt
+          git diff --cached --quiet || git commit -m "OpenStreetMap copy: timing against Overpass"
+          git pull --rebase && git push
