@@ -207,3 +207,15 @@ new from the atlas, add it here (newest first), tell Rob, and he passes it to th
   database, so a named search is one query instead of asking up to 40 live services. Wanted for speed: Tobler is now
   a screening tool and named lookups ("block GC 807", "Flower Garden Banks") should be quick. Needs a licence check
   first: it copies names and outlines rather than pointing at the services. Rob's call on the licence question.
+
+## 25 Nov 2026: take over the hosted OpenStreetMap copy (proposed; Rob to confirm)
+- **What:** a weekly copy of the OpenStreetMap kinds Tobler's checks use, per market (uk first; nl, au, us next),
+  as FlatGeobuf (with index) and GeoParquet per Geofabrik extract and group, plus a manifest per market. Built today
+  by Tobler's `.github/workflows/osm-extracts.yml` and `scripts/osm-extract/`; design, sizes and costs in the project
+  doc `claude/osm-copy-design.md`.
+- **Ask:** host it in a new public bucket `atlas-data` (not `atlas-backup`), move the build into the atlas repo,
+  add an atlas record per market copy (publisher OpenStreetMap contributors, ODbL 1.0, `data_date`, coverage
+  outline, URL), and put the manifest format and file layout in `docs/mcp-tools.md` as part of the contract.
+- **Tobler keeps:** `catalogue/osm-snapshot.json` (the kinds and tags, tested against `OSM_KINDS`), the reader
+  `js/osmsnapshot.js` and the Overpass fallback. New kinds come as requests here.
+- **Until then:** Tobler's workflow uploads the UK copy to `atlas-data` itself, so nothing waits on the move.
