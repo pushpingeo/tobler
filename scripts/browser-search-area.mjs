@@ -5,6 +5,7 @@
 // says the same and draws the outline dashed. Desktop and phone.
 // Run: python3 -m http.server 8000 (in the repo), then node scripts/browser-search-area.mjs [chrome path].
 import { chromium } from "playwright-core";
+import { cite } from "./scripted-refs.mjs";
 import * as turf from "@turf/turf";
 
 const CHROME = process.argv[2] || "/usr/bin/google-chrome";
@@ -49,7 +50,7 @@ function model(body) {
   if (/running one sealed screen/.test(sys)) {
     if (n === 1) { firsts.push(String(body.messages[0].content)); return toolUse(["find_data", { text: "protection", area: "Cnoc Buidhe" }], ["find_data", { text: "monument", area: "Cnoc Buidhe" }], ["find_data", { text: "peat", area: "Cnoc Buidhe" }]); }
     if (n === 3) return toolUse(["get_data", { dataset: "D1", place: "Cnoc Buidhe", theme: "biodiversity" }], ["get_data", { dataset: "D2", place: "Cnoc Buidhe", theme: "heritage" }], ["get_data", { dataset: "D3", place: "Cnoc Buidhe", theme: "biodiversity" }]);
-    return text(RESULT);
+    return text(cite(RESULT, body));
   }
   const last = body.messages.at(-1);
   if (Array.isArray(last.content) && last.content.some((b) => b.type === "tool_result")) return text("Screened the search area for Cnoc Buidhe.");

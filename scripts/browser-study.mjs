@@ -5,6 +5,7 @@
 // Screenshots at desktop and phone sizes.
 // Run: python3 -m http.server 8000 (in the repo), then node scripts/browser-study.mjs [chrome path].
 import { chromium } from "playwright-core";
+import { cite } from "./scripted-refs.mjs";
 import * as turf from "@turf/turf";
 
 const CHROME = process.argv[2] || "/usr/bin/google-chrome";
@@ -33,7 +34,7 @@ const seen = [];
 function model(body) {
   const sys = (Array.isArray(body.system) ? body.system.map((b) => b.text).join("") : body.system) || "";
   seen.push({ sys: sys.slice(0, 120), tools: (body.tools || []).length });
-  if (/writing one sealed contamination desk study/.test(sys)) return text(RESULT);
+  if (/writing one sealed contamination desk study/.test(sys)) return text(cite(RESULT, body));
   const last = body.messages.at(-1);
   if (Array.isArray(last.content) && last.content.some((b) => b.type === "tool_result")) return text("Possible linkage: the old tip 300 m north and the source protection zone. Past land use isn't in the open records here.");
   return toolUse(["run_study", { place: "Area 1", study: "contamination-desk-study" }]);

@@ -5,6 +5,7 @@
 // says so with no re-run. Desktop and phone.
 // Run: python3 -m http.server 8000 (in the repo), then node scripts/browser-outofdate.mjs [chrome path].
 import { chromium } from "playwright-core";
+import { cite } from "./scripted-refs.mjs";
 import * as turf from "@turf/turf";
 
 const CHROME = process.argv[2] || "/usr/bin/google-chrome";
@@ -38,7 +39,7 @@ function model(body) {
   if (/running one sealed screen/.test(sys)) {
     if (n === 1) { screens++; return toolUse(["find_data", { text: "school", area: "Area 1" }]); }
     if (n === 3) return toolUse(["get_data", { dataset: "D1", place: "Area 1", theme: "community" }]);
-    return text(result());
+    return text(cite(result(), body));
   }
   const first = body.messages[0];
   asked.push(JSON.stringify(body.messages));

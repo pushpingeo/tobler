@@ -5,6 +5,7 @@
 // and phone sizes.
 // Run: python3 -m http.server 8000 (in the repo), then node scripts/browser-run-card.mjs [chrome path].
 import { chromium } from "playwright-core";
+import { cite } from "./scripted-refs.mjs";
 import * as turf from "@turf/turf";
 
 const CHROME = process.argv[2] || "/usr/bin/google-chrome";
@@ -49,10 +50,10 @@ function model(body) {
   const n = body.messages.length;
   const first = String(body.messages[0]?.content || "");
   if (/running one sealed screen/.test(sys)) {
-    if (/^Re-assess/.test(first)) return text(REASSESS);
+    if (/^Re-assess/.test(first)) return text(cite(REASSESS, body));
     if (n === 1) return toolUse(["find_data", { text: "pipeline", area: "Area 1" }], ["find_data", { text: "wreck", area: "Area 1" }]);
     if (n === 3) return toolUse(["get_data", { dataset: "D1", place: "Area 1", within_km: 5, theme: "community" }], ["get_data", { dataset: "D2", place: "Area 1", theme: "heritage" }]);
-    return text(RESULT);
+    return { ...text(cite(RESULT, body)), held: true };
   }
   const last = body.messages.at(-1);
   if (Array.isArray(last.content) && last.content.some((b) => b.type === "tool_result")) return text("Screened Area 1: live pipelines on and next to the field are the main flag, then a wreck 2 km east. Key Biodiversity Areas and fishing effort weren't checked.");
@@ -72,7 +73,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   // The sealed run's write-up is held back 3 s, so the progress block can be seen while it runs.
   await page.route(/tobler-api.*\/v1\/messages/, async (r) => {
     const out = model(JSON.parse(r.request().postData()));
-    if (out.content?.[0]?.text === RESULT) await new Promise((ok) => setTimeout(ok, 3000));
+    if (out.held) { delete out.held; await new Promise((ok) => setTimeout(ok, 3000)); }
     r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(out) });
   });
   // Water depth (NOAA) and vessel traffic (EMODnet), read in code for sites at sea.
@@ -170,6 +171,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
     checked: document.querySelector(".run .checked summary").textContent,
     gaps: document.querySelector(".run .gaps summary").textContent,
     gapHeads: [...document.querySelectorAll(".run .gaps .gap-head")].map((e) => e.textContent),
+    gapText: document.querySelector(".run .gaps")?.textContent || "",
     gapLines: [...document.querySelectorAll(".run .gaps .gap-group.couldnt li")].map((e) => e.textContent),
     checks: (() => { const c = document.querySelector(".run .checks"); if (!c || c.hidden) return null;
       return { summary: c.querySelector(":scope > summary").textContent, open: c.open, heads: [...c.querySelectorAll(".check-head")].map((e) => e.textContent),
@@ -188,9 +190,10 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
     next: document.querySelector(".run .flag .next")?.textContent || "",
   }));
   let s = await st();
-  check(s.flags.length === 3 && /pipelines/.test(s.flags[0]), `${label}: three flags, high first (${s.flags[0]})`);
+  // The seabird flag cites regional knowledge, nothing the run found, so it isn't raised (25 Nov): two flags.
+  check(s.flags.length === 2 && /pipelines/.test(s.flags[0]), `${label}: two flags, high first; the untraced one isn't raised (${s.flags[0]})`);
   check(/^Progress with targeted investigation\. Live pipelines/.test(s.decision), `${label}: decision line first on the card (${s.decision.slice(0, 50)})`);
-  check(/^F-01/.test(s.flags[0]) && /F-03/.test(s.flags[2]), `${label}: findings numbered F-01 to F-03`);
+  check(/^F-01/.test(s.flags[0]) && /F-02/.test(s.flags[1]), `${label}: findings numbered F-01 to F-02`);
   check(/^Next step: Agree crossing/.test(s.next), `${label}: a flag shows its next step (${s.next.slice(0, 40)})`);
   // Feedback (Rob, 22 Nov): thumbs and a "Something's wrong?" box on the run card and on the reply, each sent to the
   // session log beside the turn. Thumbs down opens the box; an empty note isn't sent.
@@ -234,7 +237,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
     disclaimer: document.querySelector(".disclaimer")?.textContent || "",
   }));
   check(!rep.error && rep.h1 === "Constraints screenArea 1" && /^Progress with targeted investigation\./.test(rep.decision), `${label}: report opens from the link with the site and decision (${rep.error || rep.h1}; ${rep.url} chars)`);
-  check(rep.rows.join(",") === "F-01,F-02,F-03" && /^Next step: Agree crossing/.test(rep.next), `${label}: report has one row per finding with its next step (${rep.rows.join(",")})`);
+  check(rep.rows.join(",") === "F-01,F-02" && /^Next step: Agree crossing/.test(rep.next), `${label}: report has one row per finding with its next step (${rep.rows.join(",")})`);
   check(rep.imgs.length === 2 && rep.imgs.every((n) => n > 5000), `${label}: both maps drawn and copied as pictures for print (${rep.imgs.join(", ")})`);
   check(rep.sources > 0 && /Indicative desk screening/.test(rep.disclaimer), `${label}: sources and disclaimer in the report (${rep.sources} sources)`);
   check(!repErrors.length, `${label}: no errors on the report page${repErrors.length ? `: ${repErrors.join(" | ").slice(0, 200)}` : ""}`);
@@ -326,7 +329,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
     `${label}: "Show all findings" brings every finding back`);
   await keyName.click();
   await page.evaluate(() => { document.querySelector(".maplibregl-popup")?.remove(); });
-  check(/^What still needs checking: \d+ couldn't check, 1 no data, 1 caveat$/.test(s.gaps) && s.gapHeads.join("|") === "Not checked: check these yourself|No data here: may need a site visit or a local source|Assumptions and caveats", `${label}: what still needs checking, grouped (${s.gaps}; ${s.gapHeads.join(", ")})`);
+  check(/^What still needs checking: \d+ couldn't check, 1 no data, 2 caveats$/.test(s.gaps) && /Not raised as a flag.*Seabird colonies/.test(s.gapText || "") && s.gapHeads.join("|") === "Not checked: check these yourself|No data here: may need a site visit or a local source|Assumptions and caveats", `${label}: what still needs checking, grouped (${s.gaps}; ${s.gapHeads.join(", ")})`);
   check(await page.evaluate(() => { const c = document.querySelector(".run"); const order = [...c.children].map((e) => e.className.split(" ")[0]); return document.querySelector(".run .gaps").open && order.indexOf("gaps") === order.indexOf("flags") + 1 && document.querySelector(".run .flag .th")?.textContent.length > 2; }), `${label}: still-to-check sits open right under the flags; each flag names its topic`);
   check(await page.evaluate(() => /^Indicative desk screening from public data\./.test(document.querySelector(".run .disclaimer").textContent) && document.querySelector(".run .disclaimer").textContent.length < 200 && !document.querySelector('.run [data-op="download"]').checkVisibility()), `${label}: short disclaimer on the card; download is under More`);
   await page.evaluate(() => { document.querySelector(".run .more").open = true; document.querySelector(".run .disclaimer").scrollIntoView({ block: "end" }); });

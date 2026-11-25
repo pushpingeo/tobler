@@ -62,7 +62,7 @@ export function slimRun(record, { tol = 0.0002, now = () => new Date().toISOStri
     extent: r.extent, distances: r.distances, fetched_to_km: r.fetched_to_km, assessed_within_km: r.assessed_within_km, method: r.method,
     flags: r.flags.map((f) => ({ id: f.id, risk: f.risk, theme: f.theme, severity: f.severity ?? null, confidence: f.confidence, why: f.why, next_step: f.next_step || "",
       nearest_km: f.nearest_km, fids: f.fids || [], ...pick(f, ["relation", "coverage", "confidence_capped", "linkage"]),
-      evidence: f.evidence.map((e) => pick(e, ["name", "distance_km", "band", "dataset", "publisher", "licence", "checked", "traced", "fid", "from_values", "in_search_area", "coverage", "side"])) })),
+      evidence: f.evidence.map((e) => pick(e, ["name", "distance_km", "band", "dataset", "publisher", "licence", "checked", "traced", "fid", "ref", "check", "from_values", "in_search_area", "coverage", "side"])) })),
     checked: r.checked.map((c) => ({ ...pick(c, ["evidence", "dataset", "publisher", "licence", "checked_at", "result", "count"]), ...(c.why ? { why: String(c.why).slice(0, 160) } : {}) })),
     ...(r.checks ? { checks: r.checks.map((c) => ({ ...pick(c, ["id", "topic", "label", "must", "answer", "scale", "reach_km", "reach_wanted_km", "state", "reason", "count", "bands", "around", "nearest", "inside", "text", "capped", "partly", "search_area", "classes", "irz_codes"]),
       ...(c.irz ? { irz: c.irz.map((z) => ({ key: z.key, category: z.category, consult: z.consult })) } : {}),

@@ -93,6 +93,13 @@ export function markInArea(name, out, inArea) {
   }) };
 }
 
+// The analyst's view of a tool's output with each item's evidence id (ref: "E7"), the id a flag cites.
+export function withRefs(name, out, candFid) {
+  const key = name === "find_features_near" ? "candidates" : name === "get_data" ? "nearest" : null;
+  if (!key || !out || !Array.isArray(out[key])) return out;
+  return { ...out, [key]: out[key].map((x) => (candFid.has(x.id) ? { ref: candFid.get(x.id), ...x } : x)) };
+}
+
 export function footprintOf(feature, d) {
   if (feature.geometry.type !== "Point") return { feature, note: null };
   const f = turf.circle(feature.geometry.coordinates, d.footprint_km, { units: "kilometers", steps: 48 });
@@ -108,6 +115,7 @@ export function systemFor(skill) {
 - Items marked around_site (or "around the site") are wide areas the site lies within: seas, regions, very large designations. They are not features on the site. Mention one only where being inside it matters for this project (for example a large protected area the site sits in, or a MARPOL special area for an offshore site); a sea area around an onshore site is not a finding.
 - Put independent searches in the same step: they run at the same time. Aim to finish within about ten steps.
 - Name features and datasets as the data names them. Ids (C3, D2) are for tool calls only.
+- A flag's evidence is a list of ids, never retyped names or distances: an evidence id (E7) from a tool result's "ref" or the checks' lines, or a check's id in square brackets ([heritage.listed-buildings]) when the check found something. The run fills in names, distances, sources and licences from the ids. Something you can't cite by id can't support a flag: put it in data_gaps.
 - Your last message is the result: the short summary, then the JSON block, exactly as the method's Output section says. Use the distances given (not the skill's table) in "distances_km".
 - Keep the result compact so it fits in one reply: summary under 300 words; at most 8 flags, each next_step one short line; at most 4 evidence items per flag (the nearest or strongest, and say in "why" how many more there are); "data_gaps" at most 12 short lines; leave "checked" as an empty list, because the run records what the tools checked itself. Keep your thinking before the result short: the reply limit (16,000 tokens) includes it.
 
@@ -154,37 +162,47 @@ export function parseResult(text) {
   return { json: null, summary: t.trim() };
 }
 
-// Match each evidence item the model gave to a feature the tools actually returned in this run.
-// Evidence the analyst takes from the values the run read at sea (water depth, AIS traffic) has no feature to match:
-// it traces to those values instead, when the run has them.
-const DEPTH_WORDS = /water depth|\bdepth\b|bathymetr|DEM Global Mosaic/i;
-const ELEV_WORDS = /elevation|altitude|above sea level|below sea level|low-lying|DEM Global Mosaic|ETOPO/i;
-const TRAFFIC_WORDS = /vessel|\bAIS\b|traffic|Vessel Density/i;
-function traceToSea(e, sea, d) {
-  const text = `${e.name || ""} ${e.dataset || ""}`;
-  const v = sea?.depth && DEPTH_WORDS.test(text) ? { src: sea.depth, km: 0, value: "water depth" }
-    : sea?.elevation && ELEV_WORDS.test(text) ? { src: sea.elevation, km: 0, value: "elevation" }
-    : sea?.traffic && TRAFFIC_WORDS.test(text) ? { src: sea.traffic, km: e.distance_km > 0 ? sea.traffic.busiest.distance_km : 0, value: "vessel traffic" } : null;
-  if (!v) return null;
-  return { ...e, distance_km: v.km, band: v.km === 0 ? "on site" : bandFor(v.km, d), dataset: v.src.dataset, publisher: v.src.publisher, licence: v.src.licence, checked: v.src.checked_at, from_values: v.value, traced: true };
+// Flags cite evidence by id (plan item 1, 25 Nov): an evidence feature the run holds (E7, from the tool output's ref
+// or the checks' lines) or a check that found something (its id, e.g. heritage.listed-buildings). Code fills in the
+// name, distance, source, licence and date; the analyst never retypes them. A citation that doesn't resolve is kept
+// as untraced, and a flag with nothing traced isn't raised: it becomes a gap (Rob, 25 Nov: "nothing disappears
+// without a trace"). Before 25 Nov evidence was matched by name and distance after the fact: 43 of 296 items failed.
+const ID_LIKE = /^E\d+$|^[a-z][\w-]*(\.[\w-]+)+$/i; // E7, or a check id such as heritage.listed-buildings
+// The value checks, by what they read (the card and seaMatters look for these words).
+const FROM_VALUES = { "topo.water-depth": "water depth", "topo.elevation": "elevation", "material.vessel-traffic": "vessel traffic" };
+const refOf = (e) => (typeof e === "string" ? e : e && typeof e === "object" ? (e.ref || e.id || null) : null);
+// Where a check's finding is: on the site for a value or an inside answer, else the nearest it counted.
+function checkKm(c, sea) {
+  if (c.answer === "value_at_site") return c.id === "material.vessel-traffic" && sea?.traffic?.busiest ? sea.traffic.busiest.distance_km : 0;
+  if (c.answer === "inside" || c.irz) return c.inside === false ? null : 0;
+  if (c.answer === "classes") { const ks = (c.classes || []).map((x) => (x.on_site ? 0 : x.nearest_km)).filter((v) => v != null); return ks.length ? Math.min(...ks) : null; }
+  return c.nearest ? (c.nearest.around ? 0 : c.nearest.distance_km) : null;
+}
+function resolveRef(e, byFid, byCheck, d, sea) {
+  const id = String(refOf(e) || "").trim().replace(/^\[|\]$/g, "");
+  if (!ID_LIKE.test(id)) return { ref: (typeof e === "object" && e ? String(e.name || e.ref || e.id || "") : String(e || "")).slice(0, 120), traced: false, why: "not cited by id" };
+  const p = byFid.get(id.toUpperCase());
+  if (p) return { ref: p.fid, name: p.name, distance_km: p.distance_km, band: bandOf(p, d), dataset: p.dataset, publisher: p.publisher, licence: p.licence, checked: p.checked_at, fid: p.fid, traced: true,
+    ...(p.in_search_area ? { in_search_area: true, ...(p.coverage != null ? { coverage: p.coverage } : {}), ...(p.side ? { side: p.side } : {}) } : {}) };
+  const c = byCheck.get(id);
+  if (c && c.state === "found") {
+    const km = checkKm(c, sea);
+    const srcs = (c.sources?.length ? c.sources : c.source ? [c.source] : []).filter((x) => x?.dataset && x.state !== "not_checked");
+    return { ref: c.id, check: c.id, ...(FROM_VALUES[c.id] ? { from_values: FROM_VALUES[c.id] } : {}), name: `${c.label}: ${K.checkLine(c)}`.slice(0, 200), distance_km: km, band: km == null ? null : km === 0 ? (c.search_area ? SEARCH_BAND : "on site") : bandFor(km, d),
+      dataset: srcs.map((x) => x.dataset).join("; "), publisher: [...new Set(srcs.map((x) => x.publisher).filter(Boolean))].join("; "),
+      licence: [...new Set(srcs.map((x) => x.licence).filter(Boolean))].join("; "), checked: srcs[0]?.checked_at || null, traced: true };
+  }
+  return { ref: id, traced: false, why: c ? `the check came back ${c.state === "none" ? "none found" : "not checked"}` : "not in this run" };
 }
 
-export function traceFlags(flags, evidence, d, sea = null) {
-  // A feature can go by more than one name: a maritime boundary by its line name or by the territories either side.
-  const feats = evidence.flatMap((f) => [f.properties.name, f.properties.details?.sides].filter(Boolean).map((nm) => ({ f, n: norm(nm), ds: norm(f.properties.dataset) })));
-  return (flags || []).map((flag) => {
-    const ev = (flag.evidence || []).map((e) => {
-      const n = norm(e.name), ds = norm(e.dataset);
-      const near = (f) => e.distance_km == null || f.properties.distance_km == null || Math.abs(f.properties.distance_km - e.distance_km) <= Math.max(0.5, 0.15 * f.properties.distance_km);
-      const named = feats.filter((x) => n && x.n && (x.n === n || (n.length >= 4 && (x.n.includes(n) || n.includes(x.n)))));
-      const hit = named.find((x) => near(x.f) && ds && x.ds && (x.ds.includes(ds) || ds.includes(x.ds))) || named.find((x) => near(x.f)) || null;
-      if (!hit) return traceToSea(e, sea, d) || { ...e, distance_km: round(e.distance_km), traced: false };
-      const p = hit.f.properties;
-      return { ...e, name: p.name, distance_km: p.distance_km, band: bandOf(p, d), dataset: p.dataset, publisher: p.publisher, licence: p.licence, checked: p.checked_at, fid: p.fid, traced: true,
-        ...(p.in_search_area ? { in_search_area: true, ...(p.coverage != null ? { coverage: p.coverage } : {}), ...(p.side ? { side: p.side } : {}) } : {}) };
-    });
+// Returns { flags, not_raised }. evidence: the run's evidence features; ctx.checks: the run's check results.
+export function traceResult(flags, evidence, d, { checks = [], sea = null } = {}) {
+  const byFid = new Map(evidence.map((f) => [String(f.properties.fid).toUpperCase(), f.properties]));
+  const byCheck = new Map((checks || []).map((c) => [c.id, c]));
+  const all = (flags || []).map((flag) => {
+    const ev = (Array.isArray(flag.evidence) ? flag.evidence : []).map((e) => resolveRef(e, byFid, byCheck, d, sea));
     const traced = ev.filter((e) => e.traced);
-    const dists = (traced.length ? traced : ev).map((e) => e.distance_km).filter((v) => v != null);
+    const dists = traced.map((e) => e.distance_km).filter((v) => v != null);
     return {
       risk: String(flag.risk || "").trim(), theme: topicOf(flag.topic || flag.theme),
       ...(flag.linkage && typeof flag.linkage === "object" ? { linkage: {
@@ -192,13 +210,21 @@ export function traceFlags(flags, evidence, d, sea = null) {
         rating: ["likely", "possible"].includes(flag.linkage.rating) ? flag.linkage.rating : "possible" } } : {}),
       confidence: CONF_ORDER[flag.confidence] != null ? flag.confidence : "low",
       severity: SEV_ORDER[flag.severity] != null ? flag.severity : null, why: flag.why || "",
-      next_step: String(flag.next_step || "").trim(), evidence: ev,
-      fids: traced.map((e) => e.fid), nearest_km: dists.length ? Math.min(...dists) : null, traced: traced.length, untraced: ev.length - traced.length,
+      next_step: String(flag.next_step || "").trim(), evidence: traced,
+      fids: traced.map((e) => e.fid).filter(Boolean), nearest_km: dists.length ? Math.min(...dists) : null, traced: traced.length, untraced: ev.length - traced.length,
+      ...(ev.length > traced.length ? { untraced_refs: ev.filter((e) => !e.traced).map((e) => `${e.ref || "?"} (${e.why})`) } : {}),
     };
-  }).sort((a, b) => sevRank(a) - sevRank(b) || CONF_ORDER[a.confidence] - CONF_ORDER[b.confidence] || (a.nearest_km ?? 1e9) - (b.nearest_km ?? 1e9))
+  });
+  const kept = all.filter((f) => f.traced > 0)
+    .sort((a, b) => sevRank(a) - sevRank(b) || CONF_ORDER[a.confidence] - CONF_ORDER[b.confidence] || (a.nearest_km ?? 1e9) - (b.nearest_km ?? 1e9))
     // Finding IDs follow the order shown, so F-01 is the same on the card, the map, the download and later the PDF.
     .map((f, i) => ({ id: findingId(i), ...f }));
+  const not_raised = all.filter((f) => f.traced === 0).map((f) => ({ risk: f.risk, theme: f.theme, refs: f.untraced_refs || [] }));
+  return { flags: kept, not_raised };
 }
+export const traceFlags = (flags, evidence, d, ctx = {}) => traceResult(flags, evidence, d, ctx).flags;
+// The gap line for a flag that wasn't raised.
+export const notRaisedGap = (n) => `Not raised as a flag, because its evidence didn't trace to anything this run found: ${n.risk.replace(/[.\s]+$/, "")}`;
 
 // What the tools actually checked, from their replies (ground truth for the card, beside the model's own list).
 function checkedFrom(tool, input, out) {
@@ -229,6 +255,7 @@ export function systemForStudy(skill) {
 - ${FENCE_RULE}
 - Never work out a distance or an area yourself: use the distances the checks give.
 - Name features and datasets as the checks name them.
+- A linkage's evidence is a list of ids, never retyped names or distances: an evidence id (E7) or a check's id in square brackets ([ground.landfill]) when that check found something, as the checks below give them. The run fills in names, distances and sources from the ids. Something you can't cite by id can't support a linkage: put it in data_gaps.
 - Your reply is the result: the short summary, then the JSON block, exactly as the method's Output section says. Keep your thinking short: the reply limit includes it.
 
 <method skill="${skill.name}" version="${skill.version}">
@@ -287,6 +314,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
   const screenPlace = { name: site.name, feature: fp.feature, origin: site.origin, status: "accepted", edits: [] };
   const evidence = [];
   const seen = new Map();
+  const candFid = new Map(); // a tool's candidate id (C12) → the evidence id it became (E7)
   const siteKm2 = isArea(fp.feature) ? turf.area(fp.feature) / 1e6 : 0;
   // What the site is: a point is screened on a default footprint, which stands in for an outline nobody has, so it's a
   // search area too; an area is whatever make_place recorded (js/siterole.js).
@@ -305,9 +333,11 @@ export async function runScreening({ host, site, inputs, distances, skill, study
       const around = c.around_site ? c.area_km2 : aroundSiteKm2(siteKm2, c.geometry, c.distance_km);
       const dataset = c.source?.title || meta.dataset || "";
       const key = `${norm(dataset)}|${norm(c.name)}|${round(c.distance_km, 2)}`;
-      if (seen.has(key)) continue;
+      // The analyst cites evidence by this id (E1, E2…), from its tool output and the checks: code fills in the rest.
+      if (seen.has(key)) { if (c.id) candFid.set(c.id, seen.get(key)); continue; }
       const fid = `E${evidence.length + 1}`;
       seen.set(key, fid);
+      if (c.id) candFid.set(c.id, fid);
       // Inside a search area: how much of it the feature covers, and where (equal-area, js/siterole.js).
       let where = null;
       if (searchArea && !around && c.geometry && !(c.distance_km > 0)) {
@@ -354,7 +384,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
       calls.push({ tool: name, input: i, ms: Date.now() - t0 });
       const c = checkedFrom(name, i, out); if (c) checked.push(meta.check ? { ...c, check: meta.check } : c);
       if (name === "get_data") lastOut.set(i.dataset, out);
-      return forAnalyst(name, searchArea ? markInArea(name, out, inArea) : out);
+      return withRefs(name, forAnalyst(name, searchArea ? markInArea(name, out, inArea) : out), candFid);
     } catch (e) {
       calls.push({ tool: name, input: i, ms: Date.now() - t0, error: String(e.message || e).slice(0, 200) });
       // A mistyped id (a candidate's C1 passed as a dataset) is the analyst's slip, not a source that wasn't checked.
@@ -413,7 +443,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
           licence: [...new Set(nb.checked.map((c) => c.licence).filter(Boolean))].join("; "), checked_at: now(), fetched_km: fetchKm(bp) });
         if (failed.length) r.partly = failed.map((c) => `${c.dataset}: not checked (${c.why})`).join("; ");
         results.set(bp.check.id, r);
-        featsOf.set(bp.check.id, nb.evidence.map((e) => ({ name: e.name, distance_km: e.distance_km, details: e.extra, surrounds: e.around_site })));
+        featsOf.set(bp.check.id, evidence.filter((f) => boundaryFids.includes(f.properties.fid)).map((f) => f.properties));
       }
     } catch (e) {
       checked.push({ evidence: "transboundary", dataset: "boundaries", result: "not checked", why: String(e.message || e).slice(0, 160), check: bp.check.id });
@@ -578,17 +608,21 @@ export async function runScreening({ host, site, inputs, distances, skill, study
   // A study's report is by its own groups, not topics, so "topics with no check" is a screen's line only.
   const noCheck = study ? [] : K.uncheckedTopics(catalogue, checkResults, scale);
   // The analyst's lines, by topic: each check's answer, with the nearest few by name, and the values' full lines.
-  const nameOf = (f) => `${f.name}${f.details?.sides ? ` [${f.details.sides}${f.details.line_type ? `, ${f.details.line_type}` : ""}]` : ""} ${f.surrounds ? "(around the site: a wide area it lies within)" : `${f.distance_km} km`}`;
+  const plainName = (f) => `${f.name}${f.details?.sides ? ` [${f.details.sides}${f.details.line_type ? `, ${f.details.line_type}` : ""}]` : ""} ${f.surrounds ? "(around the site: a wide area it lies within)" : `${f.distance_km} km`}`;
+  // With its evidence id first, the id a flag cites (E7).
+  const nameOf = (f) => `${f.fid ? `${f.fid} ` : ""}${plainName(f)}`;
+  // The same feature from two sources (NatureScot's and JNCC's SAC) is listed once, under the first one's id.
+  const onceEach = (fs) => { const seenName = new Set(); return fs.filter((f) => { const k = plainName(f); if (seenName.has(k)) return false; seenName.add(k); return true; }); };
   const baselineLines = [`Scale of this screen: ${scale} (bands ${edges.join(", ")} km; each check looks out to its own reach).`];
   for (const g of K.byTopic(catalogue, checkResults)) {
     baselineLines.push(`${g.label}:`);
     for (const r of g.results) {
-      const near = r.state === "found" && r.answer === "count_by_band" ? [...new Set((featsOf.get(r.id) || []).filter((f) => f.distance_km <= (r.reach_km ?? 0) + 1e-9 || f.surrounds)
-        .sort((a, b) => a.distance_km - b.distance_km).map(nameOf))].slice(0, 3) : [];
+      const near = r.state === "found" && r.answer === "count_by_band" ? onceEach((featsOf.get(r.id) || []).filter((f) => f.distance_km <= (r.reach_km ?? 0) + 1e-9 || f.surrounds)
+        .sort((a, b) => a.distance_km - b.distance_km)).map(nameOf).slice(0, 3) : [];
       // Every source the check used (a UK check may read four nations' layers and JNCC's), titles only.
       const srcs = (r.sources?.length ? r.sources : r.source ? [r.source] : []).filter((x) => x.dataset);
       const src = r.answer === "value_at_site" && r.state === "found" ? "" : srcs.length ? ` [${srcs.map((x) => `${x.dataset}${x.state === "not_checked" ? ": not checked" : ""}`).join("; ")}]` : "";
-      baselineLines.push(`- ${r.label}${r.must ? " (must)" : ""}: ${K.checkLine(r, { nearest: !near.length })}${near.length ? `; nearest ${near.join("; ")}` : ""}${r.partly ? ` (partly: ${r.partly})` : ""}${src}`);
+      baselineLines.push(`- [${r.id}] ${r.label}${r.must ? " (must)" : ""}: ${K.checkLine(r, { nearest: !near.length })}${near.length ? `; nearest ${near.join("; ")}` : ""}${r.partly ? ` (partly: ${r.partly})` : ""}${src}`);
       if (r.irz) for (const z of r.irz.filter((y) => y.consult)) baselineLines.push(`  - Natural England's wording, ${z.category}: ${z.texts.join(" | ")}`);
     }
   }
@@ -631,7 +665,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
       return { ...m, content: keep.length ? keep : [{ type: "text", text: "…" }] };
     });
     if (history.at(-1)?.role === "user") history.pop();
-    const ASK = "Reply now with only the JSON block, compact: the decision and its reason in one line; at most 6 flags, each with severity and a short next_step, and at most 3 evidence items each (name, distance_km, dataset only); data_gaps at most 10 short lines; checked as []. Keep any thinking brief.";
+    const ASK = "Reply now with only the JSON block, compact: the decision and its reason in one line; at most 6 flags, each with severity and a short next_step, and at most 3 evidence ids each (E-numbers or check ids, as the lines above give them); data_gaps at most 10 short lines; checked as []. Keep any thinking brief.";
     // First from a compact summary of what the tools found, not the whole history (Rob's housing screen, 20 Nov: the
     // full history was ~34k tokens and the write-up hit the cap); then, if that fails, from the full history as before.
     const found = checked.filter((c) => c.result === "features" || c.result === "not checked").map(summarise).join("\n");
@@ -656,7 +690,8 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     }
     debug.raw_tail = String(res.text || "").slice(-1500);
   }
-  let flags = traceFlags(parsed.json?.flags, evidence, distances, { ...seaVals, elevation });
+  const traced = traceResult(parsed.json?.flags, evidence, distances, { checks: checkResults, sea: seaVals });
+  let flags = traced.flags;
   if (searchArea) {
     flags = applySearchArea(flags, new Map(evidence.map((f) => [f.properties.fid, f.properties])));
     parsed.summary = reword(parsed.summary);
@@ -691,7 +726,8 @@ export async function runScreening({ host, site, inputs, distances, skill, study
         : searchArea
           ? "The site's outline wasn't found, so it was screened as a search area: features inside it are reported by the share of it they cover (overlay in a Lambert azimuthal equal-area projection centred on it), not as on site; under 10% covered is low confidence, 10% or more isn't capped, and points or lines inside are medium. Distances outside it geodesic on WGS84, measured from its edge; features fetched once out to the wider band. Coordinates WGS84 (EPSG:4326)."
           : "Distances geodesic on WGS84, measured from the footprint edge (0 = on site); features fetched once out to the wider band. Coordinates WGS84 (EPSG:4326).",
-      flags, checked, data_gaps: Array.isArray(parsed.json?.data_gaps) ? parsed.json.data_gaps.map(String) : [],
+      flags, checked, data_gaps: [...(Array.isArray(parsed.json?.data_gaps) ? parsed.json.data_gaps.map(String) : []), ...traced.not_raised.map(notRaisedGap)],
+      ...(traced.not_raised.length ? { not_raised: traced.not_raised } : {}),
       model_checked: Array.isArray(parsed.json?.checked) ? parsed.json.checked : [],
       summary: parsed.summary, ...(parsed.json ? {} : { parse_error: "The analyst's result had no readable JSON block, so there are no structured flags. The summary is kept as written." }),
       checks: checkResults, checks_scale: scale, checks_merge_shapes: mergeShapes, checks_version: catalogue.version || null, ...(noCheck.length ? { no_check_topics: noCheck } : {}),
@@ -796,7 +832,7 @@ export async function reassess({ record, km, skill, callClaude: call, now = () =
     reasons: [`re-assessed from the stored evidence within ${km} km (fetched to ${run.fetched_to_km} km)`, ...run.distances.reasons] };
   const ev = evidenceWithin(record, km).map((f) => {
     const p = f.properties;
-    return { name: p.name, type: p.type, theme: topicOf(p.theme), distance_km: p.distance_km, band: bandOf(p, d), ...(p.in_search_area ? { in_search_area: whereText(p) } : {}), dataset: p.dataset, publisher: p.publisher, licence: p.licence, checked: p.checked_at, ...(p.details ? { details: p.details } : {}) };
+    return { ref: p.fid, name: p.name, type: p.type, theme: topicOf(p.theme), distance_km: p.distance_km, band: bandOf(p, d), ...(p.in_search_area ? { in_search_area: whereText(p) } : {}), dataset: p.dataset, publisher: p.publisher, licence: p.licence, checked: p.checked_at, ...(p.details ? { details: p.details } : {}) };
   });
   const insideOnly = km === 0 && isArea(record.features.find((f) => f.properties.role === "site"));
   const where = insideOnly ? "inside the area (inside it or touching its edge)" : `within ${km} km of the footprint edge`;
@@ -806,6 +842,7 @@ export async function reassess({ record, km, skill, callClaude: call, now = () =
     run.site.role === "search_area" ? "The site's outline wasn't found, so this is a search area: evidence marked \"in the search area\" may or may not be on the site. Say \"in the search area\" with the share it covers (coverage), never \"on site\"." : null,
     `Distances now: ${distancesLine(d)}.`,
     `Evidence ${insideOnly ? "inside the area" : `within ${km} km`} (${ev.length} features):\n${JSON.stringify(ev)}`,
+    run.checks?.length ? `The checks (cite one that found something by its id in square brackets):\n${run.checks.map((c) => `- [${c.id}] ${c.label}: ${K.checkLine(c)}`).join("\n")}` : null,
     `What the original run checked:\n${JSON.stringify(run.checked.map((c) => ({ dataset: c.dataset, publisher: c.publisher, result: c.result, ...(c.why ? { why: c.why } : {}) })))}`,
     `Gaps from the original run:\n${JSON.stringify(run.data_gaps)}`,
     insideOnly
@@ -817,11 +854,13 @@ export async function reassess({ record, km, skill, callClaude: call, now = () =
   const parsed = parseResult(text);
   if (!parsed.json) throw new Error("The re-assessment came back without a readable result. The earlier flags are unchanged.");
   run.assessments.push({ at: now(), within_km: run.assessed_within_km, flags: run.flags, decision: run.decision ?? null, summary: run.summary, distances: run.distances });
-  run.flags = traceFlags(parsed.json.flags, evidenceOf(record), d, { ...(run.sea || {}), elevation: run.elevation });
+  const traced = traceResult(parsed.json.flags, evidenceOf(record), d, { checks: run.checks || [], sea: run.sea || null });
+  run.flags = traced.flags;
   const searchArea = run.site.role === "search_area";
   if (searchArea) run.flags = applySearchArea(run.flags, new Map(evidenceOf(record).map((f) => [f.properties.fid, f.properties])));
   run.decision = settleDecision(readDecision(parsed.json.decision, searchArea ? reword(parsed.json.decision_why) : parsed.json.decision_why), { checked: run.checked, flags: run.flags, ...(run.checks ? { checks: run.checks } : {}) }); // a decision written for the old distance no longer stands
-  run.data_gaps = Array.isArray(parsed.json.data_gaps) ? parsed.json.data_gaps.map(String) : run.data_gaps;
+  run.data_gaps = [...(Array.isArray(parsed.json.data_gaps) ? parsed.json.data_gaps.map(String) : run.data_gaps.filter((g) => !/^Not raised as a flag/.test(g))), ...traced.not_raised.map(notRaisedGap)];
+  if (traced.not_raised.length) run.not_raised = traced.not_raised; else delete run.not_raised;
   run.summary = searchArea ? reword(parsed.summary) : parsed.summary;
   run.distances = d;
   run.assessed_within_km = km;

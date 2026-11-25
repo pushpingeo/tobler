@@ -1,6 +1,6 @@
 ---
 name: ntr-screening
-version: 3.10-draft
+version: 3.11-draft
 description: Screen a site, onshore or offshore, for non-technical risk (NTR) from published spatial data. Flags anything that could become a risk, concern or delay (land and livelihoods, biodiversity, Indigenous Peoples, cultural heritage, community health and safety, and the operating context), with traced evidence and what wasn't checked. Use when someone asks what risks, sensitivities or constraints a site, block, field, route or area might raise.
 ---
 
@@ -85,7 +85,7 @@ Search words are starting points; adapt them to the place and language (e.g. "Na
 **Context (no PS):** country risk only with a dated source; who lives and works around the site, especially sharp contrasts in wealth or land and sea use (*a common cause of conflict over jobs and compensation*).
 
 ## Raising flags
-Each flag says: **the risk** in plain words; **the evidence** (feature name as the data gives it, type, distance and band, dataset, publisher, licence, date checked); **why it matters** (cost, delay, conflict, reputation, legal); **severity**; **confidence**; the **next step**; and the **topic** (one of the topic ids; the report's headings come from the framework chosen for the job, not from you).
+Each flag says: **the risk** in plain words; **the evidence** (by id: the run supplies the feature's name, distance and band, dataset, publisher, licence and date checked); **why it matters** (cost, delay, conflict, reputation, legal); **severity**; **confidence**; the **next step**; and the **topic** (one of the topic ids; the report's headings come from the framework chosen for the job, not from you).
 
 Severity and confidence are separate: severity is how much it would matter if the evidence is right, confidence is how sure the evidence is. A possibly serious issue seen only in coarse global data is high severity, low confidence. **high** = could stop the project, force a redesign or move, or need a permit or consent that is hard to get; **medium** = likely to need specialist study, mitigation or engagement, adding cost or time; **low** = worth noting, unlikely to change the decision.
 
@@ -118,12 +118,14 @@ A short summary for the person, no more than 400 words: the decision and why (on
   "decision": "progress|progress with targeted investigation|major issue|insufficient evidence",
   "decision_why": "",
   "flags": [{"risk": "", "topic": "biodiversity|landscape-visual|water|ground-soil|land-use|hazards|air-climate|heritage|community-health|indigenous|material-assets|topography|context", "severity": "high|medium|low", "confidence": "high|medium|low",
-             "evidence": [{"name": "", "distance_km": 0, "band": "on site|near|close|wider", "dataset": "", "publisher": "", "licence": "", "checked": ""}],
+             "evidence": ["E7", "[heritage.listed-buildings]"],
              "why": "", "next_step": ""}],
   "checked": [{"evidence": "", "dataset": "", "publisher": "", "result": "features|none in dataset|not checked"}],
   "data_gaps": [""]
 }
 ```
+
+A flag's **evidence is ids**, never retyped names or distances: the id of each feature the operations returned (E7) or of a check that found something ([check id]). Whoever runs the method fills in the feature's name, distance, band, dataset, publisher, licence and date from the ids, so they can't be retyped wrong. Evidence you can't cite by id (a count with no names, something you remember, a dataset-wide total) can't support a flag: put it in data_gaps. A flag none of whose ids traces isn't raised.
 
 ## Operations
 The operations this method uses (finding datasets, fetching and measuring features, the everyday feature search, reading the site's details) are described in general terms in `operations.md`, beside this file, so the method can run in other settings with their own tools.

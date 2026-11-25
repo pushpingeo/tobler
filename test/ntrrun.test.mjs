@@ -7,7 +7,7 @@ import * as R from "../js/reference.js";
 import { createPlaceTools } from "../js/placetools.js";
 import { parseSkill } from "../js/converse.js";
 import { chooseDistances, bandFor, distancesLine } from "../js/distances.js";
-import { forAnalyst, runScreening, createScreening, evidenceWithin, nearestByTheme, flagBeyond, reassess, parseResult, traceFlags, footprintOf, headline, RUN_SCHEMA } from "../js/ntrrun.js";
+import { forAnalyst, runScreening, createScreening, evidenceWithin, nearestByTheme, flagBeyond, reassess, parseResult, traceFlags, traceResult, notRaisedGap, footprintOf, headline, RUN_SCHEMA } from "../js/ntrrun.js";
 import * as G from "../js/geometry.js";
 import { siteChange, rerunInput, runLines, outOfDateText } from "../js/outofdate.js";
 import * as K from "../js/checks.js";
@@ -76,17 +76,28 @@ async function atlas(tool, args) {
 }
 const host = (nonCommercial = true) => ({ ref, anchors: [], headers: {}, atlas, firms: null, trusted, checks: checksCat, esriLicence: () => false, nonCommercial: () => nonCommercial, fetchFn: async () => ({ ok: true, json: async () => [] }), places: () => [], findPlace: () => null, skillText: () => "" });
 
-const RESULT = (extra = "") => `Rosebank screened as an offshore oil field (assumed greenfield).
+// Flags cite evidence by id (25 Nov). In a scripted run the ids come from what the run showed the model: refIn finds
+// a feature's id by name in the messages so far (a tool result's "ref", or "E7 Name" in the checks' lines).
+const esc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function refIn(req, name) {
+  const texts = (req?.messages || []).flatMap((m) => (typeof m.content === "string" ? [m.content] : m.content.flatMap((b) => (b.type === "tool_result" ? [String(b.content)] : b.type === "text" ? [b.text] : []))));
+  for (const t of texts) {
+    const m = t.match(new RegExp(`"ref":"(E\\d+)"[^{}]*?"name":"${esc(name)}"`, "i")) || t.match(new RegExp(`\\b(E\\d+) ${esc(name)} `, "i"));
+    if (m) return m[1];
+  }
+  return name;
+}
+const RESULT = (extra = "", ref = (n) => n) => `Rosebank screened as an offshore oil field (assumed greenfield).
 
 \`\`\`json
 {"site":{"place":"Area 1"},"distances_km":{"near":2,"close":10,"wider":50},
  "flags":[
   {"risk":"Wreck close to the field could need a survey and avoidance zone","theme":"PS8","confidence":"medium","why":"heritage and safety",
-   "evidence":[{"name":"TROLDFOS (POSSIBLY)","distance_km":2,"dataset":"Worldwide wreck locations (UK Hydrographic Office)","publisher":"EMODnet Human Activities"}]},
+   "evidence":["${ref("TROLDFOS (POSSIBLY)")}"]},
   {"risk":"Existing pipelines on and near site (simultaneous operations)","theme":"PS4","confidence":"high","why":"SIMOPS",
-   "evidence":[{"name":"Rosebank 9 inch Production flowline 1","distance_km":0,"dataset":"UKCS pipelines (WGS84)"},{"name":"West of Shetland Pipeline","distance_km":1.5,"dataset":"UKCS pipelines (WGS84)"}]},
+   "evidence":["${ref("Rosebank 9 inch Production flowline 1")}","${ref("West of Shetland Pipeline")}"]},
   {"risk":"Seabird colonies on Shetland may be in spill reach","theme":"PS6","confidence":"low","why":"regional knowledge",
-   "evidence":[{"name":"Foula seabird colony","distance_km":40,"dataset":"none (regional knowledge)"}]}${extra}
+   "evidence":["Foula seabird colony (regional knowledge)"]}${extra}
  ],
  "checked":[],"data_gaps":["Key Biodiversity Areas not checked","Heritage Ship Wrecks not checked (service failed)"]}
 \`\`\``;
@@ -109,7 +120,7 @@ const final = (text) => ({ stop_reason: "end_turn", content: [{ type: "text", te
 const standardScript = () => scriptedModel([
   toolTurn(use("a", "find_data", { text: "pipeline", area: "Area 1" }), use("b", "find_data", { text: "wreck", area: "Area 1" })),
   toolTurn(use("c", "get_data", { dataset: "D1", place: "Area 1", within_km: 5, theme: "community" }), use("d", "get_data", { dataset: "D2", place: "Area 1", within_km: 10, theme: "heritage" }), use("e", "get_data", { dataset: "D3", place: "Area 1", theme: "heritage" })),
-  final(RESULT()),
+  (req) => final(RESULT("", (n) => refIn(req, n))),
 ]);
 const site = { name: "Area 1", feature: square, origin: { method: "words", words: "Rosebank", confidence: "high", match: "name_and_type", shape: "feature", anchor: { name: "Rosebank", source: { title: "UKCS offshore hydrocarbon fields (WGS84)", publisher: "North Sea Transition Authority", licence: "not stated" } } } };
 
@@ -209,19 +220,27 @@ await test("sealed run: fetches out to the wider band, records evidence with pro
   assert.equal(ev.find((f) => /TROLDFOS/i.test(f.properties.name)).properties.theme, "heritage");
   assert.equal(ev.find((f) => /flowline/.test(f.properties.name)).properties.band, "on site");
   assert.equal(record.features[0].properties.role, "site");
-  // Flags: sorted by confidence; traced evidence carries fids; the regional-knowledge item is honestly untraced.
-  assert.deepEqual(r.flags.map((f) => f.confidence), ["high", "medium", "low"]);
+  // Flags: sorted by confidence; evidence cited by id, filled in from the run's features; the regional-knowledge
+  // flag cites nothing the run holds, so it isn't raised: it's a gap, with what it cited (25 Nov).
+  assert.deepEqual(r.flags.map((f) => f.confidence), ["high", "medium"]);
   assert.equal(r.flags[0].theme, "community-health");
   assert.equal(r.flags[0].traced, 2);
+  assert.equal(r.flags[0].evidence[0].name, "Rosebank 9 inch Production flowline 1");
+  assert.equal(r.flags[0].evidence[0].distance_km, 0);
   assert.equal(r.flags[0].evidence[1].band, "near");
-  assert.equal(r.flags[2].traced, 0);
-  assert.equal(r.flags[2].evidence[0].traced, false);
+  assert.equal(r.flags[0].evidence[1].publisher, "North Sea Transition Authority");
+  assert.match(r.flags[0].evidence[1].licence, /NSTA/);
+  assert.match(model.calls.at(-1).messages.map((m) => JSON.stringify(m.content)).join(" "), /\\"ref\\":\\"E\d+\\"/, "the analyst saw evidence ids in its tool results");
+  assert.equal(r.not_raised.length, 1);
+  assert.match(r.not_raised[0].risk, /Seabird colonies/);
+  assert.match(r.not_raised[0].refs[0], /Foula seabird colony.*not cited by id/);
   // What was checked comes from the tools: the failing layer is "not checked", never "none".
   const broken = r.checked.find((c) => c.dataset === "Heritage Ship Wrecks");
   assert.equal(broken.result, "not checked");
   assert.match(broken.why, /didn't answer/);
   assert.equal(r.checked.find((c) => c.dataset === "UKCS pipelines (WGS84)").count, 3);
-  assert.deepEqual(r.data_gaps, ["Key Biodiversity Areas not checked", "Heritage Ship Wrecks not checked (service failed)"]);
+  assert.deepEqual(r.data_gaps, ["Key Biodiversity Areas not checked", "Heritage Ship Wrecks not checked (service failed)",
+    "Not raised as a flag, because its evidence didn't trace to anything this run found: Seabird colonies on Shetland may be in spill reach"]);
   // The model saw the run's distances and the fence rule, and no place-making tools.
   const first = model.calls[0];
   assert.match(first.messages[0].content, /near 2 km · close 10 km · wider 50 km/);
@@ -236,14 +255,13 @@ await test("slider helpers: findings within a distance, nearest per theme, flags
   assert.equal(evidenceWithin(record, 40).length, 10);
   assert.equal(evidenceWithin(record, 10).length, 4);
   assert.deepEqual(nearestByTheme(record, 10).map((x) => `${x.theme} ${x.name} ${x.distance_km}`), ["community-health Rosebank 9 inch Production flowline 1 0", "heritage Troldfos (Possibly) 2"], "old theme values read as topics");
-  const [pipes, wreck, birds] = record.tobler_run.flags;
+  const [pipes, wreck] = record.tobler_run.flags;
   assert.equal(flagBeyond(pipes, 1), false);
   assert.equal(flagBeyond(wreck, 1), true);
-  assert.equal(flagBeyond(birds, 1), false, "untraced flags never drop out on their own");
 });
 
 await test("re-assess on tap: one call, no tools, only the stored evidence within the new distance; history kept", async () => {
-  const model = scriptedModel([final(`Within 1 km only the field's own lines matter.\n\n\`\`\`json\n{"flags":[{"risk":"Existing flowlines on site","theme":"PS4","confidence":"high","evidence":[{"name":"Rosebank 9 inch Production flowline 1","distance_km":0,"dataset":"UKCS pipelines (WGS84)"}]}],"data_gaps":["Key Biodiversity Areas not checked"]}\n\`\`\``)]);
+  const model = scriptedModel([(req) => final(`Within 1 km only the field's own lines matter.\n\n\`\`\`json\n{"flags":[{"risk":"Existing flowlines on site","theme":"PS4","confidence":"high","evidence":["${refIn(req, "Rosebank 9 inch Production flowline 1")}"]}],"data_gaps":["Key Biodiversity Areas not checked"]}\n\`\`\``)]);
   const before = atlasCalls.length;
   await reassess({ record, km: 1, skill, callClaude: model, now: () => "2026-11-18T05:05:00Z" });
   assert.equal(atlasCalls.length, before, "no new fetching");
@@ -257,7 +275,7 @@ await test("re-assess on tap: one call, no tools, only the stored evidence withi
   assert.equal(r.flags.length, 1);
   assert.equal(r.flags[0].traced, 1);
   assert.equal(r.assessments.length, 1);
-  assert.equal(r.assessments[0].flags.length, 3);
+  assert.equal(r.assessments[0].flags.length, 2, "the earlier flags (the untraced one was never raised)");
   assert.equal(r.distances.wider, 1);
   assert.equal(r.fetched_to_km, 50, "the slider can still go back out to 50 km");
 });
@@ -281,8 +299,8 @@ await test("screen_site from the conversation: needs a place, runs sealed, retur
   await assert.rejects(t.exec("screen_site", { place: "Area 9", asset_type: "oil-gas-field" }), /No place called "Area 9"/);
   const out = await t.exec("screen_site", { place: "Area 1", asset_type: "oil-gas-field", assumed: true });
   assert.equal(out.run, "R1");
-  assert.equal(out.flags, 3);
-  assert.deepEqual(out.by_confidence, { high: 1, medium: 1, low: 1 });
+  assert.equal(out.flags, 2);
+  assert.deepEqual(out.by_confidence, { high: 1, medium: 1, low: 0 });
   assert.match(out.distances, /wider 50 km/);
   assert.equal(out.asset, "offshore oil or gas field (assumed)");
   assert.ok(out.not_checked.includes("Heritage Ship Wrecks"));
@@ -400,33 +418,60 @@ await test("a sealed run can't build places, and a missing JSON block is reporte
   assert.match(headline(rec).problem, /no readable JSON/);
 });
 
+// One evidence feature, E1, 3 km away, and one check of each state, for the unit tests of tracing.
+const EV1 = [{ type: "Feature", properties: { role: "evidence", fid: "E1", name: "Loch Fleet SAC", distance_km: 3, dataset: "Special Areas of Conservation", publisher: "NatureScot", licence: "OGL", checked_at: "t" } }];
+const CHK = [
+  { id: "land.alc", label: "Agricultural land class", answer: "classes", state: "found", classes: [{ label: "Grade 2", on_site: true, coverage: 0.6 }], source: { dataset: "ALC", publisher: "Natural England", licence: "OGL", checked_at: "t" } },
+  { id: "bio.sac", label: "Special Areas of Conservation", answer: "count_by_band", state: "none", reach_km: 5 },
+  { id: "water.flood-zones", label: "Flood zones", answer: "classes", state: "not_checked", why: "didn't answer" },
+];
+const D20 = { near: 1, close: 5, wider: 20 };
+
 await test("traceFlags reads a flag's topic (the skill since 24 Nov), and keeps PS codes and old themes readable", () => {
-  const f = traceFlags([{ risk: "a", topic: "water", confidence: "high", evidence: [] }, { risk: "b", theme: "PS8", confidence: "high", evidence: [] },
-    { risk: "c", theme: "land", confidence: "high", evidence: [] }, { risk: "d", topic: "made-up", confidence: "high", evidence: [] }], [], { near: 1, close: 5, wider: 20 });
+  const f = traceFlags([{ risk: "a", topic: "water", confidence: "high", evidence: ["E1"] }, { risk: "b", theme: "PS8", confidence: "high", evidence: ["E1"] },
+    { risk: "c", theme: "land", confidence: "high", evidence: ["E1"] }, { risk: "d", topic: "made-up", confidence: "high", evidence: ["E1"] }], EV1, D20);
   assert.deepEqual(f.map((x) => `${x.risk} ${x.theme}`).sort(), ["a water", "b heritage", "c land-use", "d context"]);
 });
 
-await test("traceFlags maps PS codes to themes and leaves unknown evidence untraced", () => {
-  const f = traceFlags([{ risk: "x", theme: "PS6", confidence: "medium", evidence: [{ name: "Nowhere", distance_km: 3 }] }], [], { near: 1, close: 5, wider: 20 });
-  assert.equal(f[0].theme, "biodiversity");
-  assert.equal(f[0].untraced, 1);
-  assert.equal(f[0].nearest_km, 3);
+await test("evidence by id: code fills in names, distances and sources; a flag with nothing traced isn't raised (25 Nov)", () => {
+  const { flags, not_raised } = traceResult([
+    { risk: "SAC nearby", theme: "PS6", confidence: "medium", evidence: ["E1", "E99", { name: "Nowhere", distance_km: 0.2 }] },
+    { risk: "Prime farmland", topic: "land-use", confidence: "high", evidence: ["[land.alc]"] },
+    { risk: "Floods", topic: "water", confidence: "high", evidence: ["water.flood-zones", "bio.sac"] },
+    { risk: "Wind farms nearby", topic: "landscape-visual", confidence: "medium", evidence: [{ name: "wind farm records (24 within 20 km)", distance_km: null }] },
+  ], EV1, D20, { checks: CHK });
+  assert.equal(flags.length, 2);
+  const sac = flags.find((x) => x.risk === "SAC nearby");
+  assert.equal(sac.theme, "biodiversity");
+  assert.deepEqual(sac.evidence.map((e) => [e.name, e.distance_km, e.band, e.publisher]), [["Loch Fleet SAC", 3, "close", "NatureScot"]]);
+  assert.equal(sac.nearest_km, 3, "from traced evidence only: the retyped 0.2 km is gone");
+  assert.equal(sac.untraced, 2);
+  assert.deepEqual(sac.untraced_refs, ["E99 (not in this run)", "Nowhere (not cited by id)"]);
+  const alc = flags.find((x) => x.risk === "Prime farmland");
+  assert.equal(alc.evidence[0].check, "land.alc");
+  assert.match(alc.evidence[0].name, /^Agricultural land class: on the site: Grade 2 \(60%\)/);
+  assert.equal(alc.evidence[0].distance_km, 0);
+  assert.equal(alc.evidence[0].band, "on site");
+  assert.equal(alc.evidence[0].publisher, "Natural England");
+  assert.deepEqual(not_raised.map((n) => n.risk), ["Floods", "Wind farms nearby"]);
+  assert.deepEqual(not_raised[0].refs, ["water.flood-zones (the check came back not checked)", "bio.sac (the check came back none found)"], "a check that found nothing can't support a flag");
+  assert.equal(notRaisedGap(not_raised[1]), "Not raised as a flag, because its evidence didn't trace to anything this run found: Wind farms nearby");
 });
-
 
 await test("findings get IDs in the order shown; severity sorts before confidence; next steps and the decision are kept", async () => {
   const f = traceFlags([
-    { risk: "a", theme: "PS4", confidence: "high", severity: "low", evidence: [] },
-    { risk: "b", theme: "PS6", confidence: "low", severity: "high", next_step: " walkover survey ", evidence: [] },
-    { risk: "c", theme: "PS8", confidence: "medium", evidence: [] },
-  ], [], { near: 1, close: 5, wider: 20 });
+    { risk: "a", theme: "PS4", confidence: "high", severity: "low", evidence: ["E1"] },
+    { risk: "b", theme: "PS6", confidence: "low", severity: "high", next_step: " walkover survey ", evidence: ["E1"] },
+    { risk: "c", theme: "PS8", confidence: "medium", evidence: ["E1"] },
+  ], EV1, D20);
   assert.deepEqual(f.map((x) => [x.id, x.risk]), [["F-01", "b"], ["F-02", "a"], ["F-03", "c"]]);
   assert.equal(f[0].next_step, "walkover survey");
   assert.equal(f[2].severity, null, "an unrated flag isn't given a severity");
   const { readDecision } = await import("../js/industry.js");
   assert.deepEqual(readDecision("Progress with targeted investigation", " wreck nearby "), { value: "progress with targeted investigation", why: "wreck nearby" });
   assert.equal(readDecision("go for it", "x"), null, "a decision outside the list is dropped, not guessed");
-  const model = scriptedModel([final(RESULT().replace('"flags":[', '"decision":"major issue","decision_why":"wreck on the route","flags":['))]);
+  // No tool rounds, so the only evidence is the checks': the flag cites a SAC the checks found.
+  const model = scriptedModel([(req) => final(RESULT(`,{"risk":"SAC to the north-west","theme":"PS6","confidence":"medium","evidence":["${refIn(req, "Wyville Thomson Ridge")}"]}`).replace('"flags":[', '"decision":"major issue","decision_why":"wreck on the route","flags":['))]);
   const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
   const rec = await runScreening({ host: { ...host(), profile: () => ({ id: "energy", decisions: ["progress", "major issue"] }) }, site, distances: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
   assert.deepEqual(rec.tobler_run.decision, { value: "major issue", why: "wreck on the route" });
@@ -441,7 +486,7 @@ await test("a result cut off at the length cap is asked for again, as JSON only,
     toolTurn(use("a", "find_data", { text: "wreck", area: "Area 1" })),
     toolTurn(use("b", "get_data", { dataset: "D1", place: "Area 1", theme: "heritage" })),
     cut,
-    final(RESULT()),
+    (req) => final(RESULT("", (n) => refIn(req, n))),
   ]);
   const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
   const rec = await runScreening({ host: host(), site, distances: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
@@ -453,7 +498,9 @@ await test("a result cut off at the length cap is asked for again, as JSON only,
   assert.match(last[0].content, /only the JSON block/);
   assert.equal(model.calls[3].tools, undefined, "no tools for the summary repair");
   assert.ok(!JSON.stringify(last).includes('"thinking"'));
-  assert.equal(rec.tobler_run.flags.length, 3);
+  // Only the wrecks were fetched, so only the wreck flag traces: the repair sees the evidence ids too.
+  assert.equal(rec.tobler_run.flags.length, 1);
+  assert.match(last[0].content, /E\d+ Troldfos/i, "the repair's summary lines carry evidence ids");
   // The summary comes from the repaired result, not the cut-off draft, so it can't disagree with the flags (Kelso, 20 Nov).
   assert.doesNotMatch(rec.tobler_run.summary, /Long summary/);
   for (const f of rec.tobler_run.flags) assert.ok(rec.tobler_run.summary.includes(f.risk), `summary names "${f.risk}"`);
@@ -472,14 +519,15 @@ await test("if the summary repair fails too, the full history is tried, and both
     toolTurn(use("a", "find_data", { text: "wreck", area: "Area 1" })),
     cut,
     { stop_reason: "max_tokens", content: [{ type: "text", text: "{ half" }], usage: { input_tokens: 5, output_tokens: 8000 } },
-    final(RESULT()),
+    (req) => final(RESULT("", (n) => refIn(req, n))),
   ]);
   const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
   const rec = await runScreening({ host: host(), site, distances: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
   const last = model.calls[3].messages;
   assert.equal(last.at(-2).role, "assistant");
   assert.deepEqual(rec.tobler_run.debug.repairs.map((r) => [r.how, r.json]), [["summary", false], ["history", true]]);
-  assert.equal(rec.tobler_run.flags.length, 3);
+  assert.equal(rec.tobler_run.flags.length, 0, "nothing was fetched, so nothing can be cited: no flags, and each one is a gap instead");
+  assert.equal(rec.tobler_run.not_raised.length, 3);
 });
 
 await test("volume guard: a busy area shows the analyst the count and the nearest 6; details that repeat the name go", () => {
@@ -528,13 +576,17 @@ await test("baseline before the analyst: boundaries and the must-check layers, a
   assert.match(first, /MARPOL special areas: the site is inside North West European waters \(a wide area it lies within\)/);
   // UK waters: the UK's own layers (NatureScot and JNCC offshore) beside the EU one; the same SAC in two counts once;
   // JNCC's NCMPA isn't a SAC; the same MPA in JNCC and WDPA (no code) counts once.
-  assert.match(first, /Special Areas of Conservation \(must\): 1 within 50 km \(1 at 20–50 km\); nearest Wyville Thomson Ridge \d+(\.\d+)? km \[Special Areas of Conservation \(SAC\), Scotland \(NatureScot\); UK offshore Marine Protected Areas \(JNCC\); Natura 2000: Habitats/);
+  assert.match(first, /Special Areas of Conservation \(must\): 1 within 50 km \(1 at 20–50 km\); nearest E\d+ Wyville Thomson Ridge \d+(\.\d+)? km \[Special Areas of Conservation \(SAC\), Scotland \(NatureScot\); UK offshore Marine Protected Areas \(JNCC\); Natura 2000: Habitats/);
   assert.match(first, /Special Protection Areas \(birds\) \(must\): none found within 50 km/);
-  assert.match(first, /Marine and coastal protected areas \(must\): 1 within 50 km \(1 at 10–20 km\); nearest Faroe-Shetland Sponge Belt/);
+  assert.match(first, /Marine and coastal protected areas \(must\): 1 within 50 km \(1 at 10–20 km\); nearest E\d+ Faroe-Shetland Sponge Belt/);
+  assert.match(first, /- \[bio\.sac\] Special Areas of Conservation/, "each check's line carries its id, for flags to cite");
   assert.match(r.disclaimer, /not evidence of absence/);
-  // The analyst may name the boundary by the territories either side; it still traces.
-  const t = traceFlags([{ risk: "Maritime boundary close", theme: "context", confidence: "medium", evidence: [{ name: "Faeroe / United Kingdom (Treaty)", distance_km: 12, dataset: "Maritime Boundaries (v12, world, 2023)" }] }], ev, d);
+  // The boundary is cited by its evidence id, from the checks' line; the run fills in the line's own name.
+  const fb = ev.find((f) => /Faeroe \(Denmark\)/.test(f.properties.name)).properties;
+  assert.match(first, new RegExp(`${fb.fid} Faeroe \\(Denmark\\)`), "the boundary's id is in the checks' line");
+  const t = traceFlags([{ risk: "Maritime boundary close", theme: "context", confidence: "medium", evidence: [fb.fid] }], ev, d);
   assert.equal(t[0].traced, 1);
+  assert.equal(t[0].evidence[0].name, fb.name);
   // The analyst's own find_data ids still start at D1.
   assert.ok(model.calls[1].messages.at(-1).content.some((b) => /"id":"D1"/.test(b.content)));
 });
@@ -564,13 +616,14 @@ await test("offshore baseline also reads water depth and AIS vessel traffic, in 
   assert.equal(vt.properties.theme, "material-assets", "the vessel traffic check's topic");
   assert.match(vt.properties.licence, /CC-BY 4\.0/);
   // A flag on depth or traffic traces to the values the run read (there's no feature for depth).
-  const t = traceFlags([{ risk: "Deepwater", theme: "context", confidence: "medium", evidence: [{ name: "Water depth about 150 m (140–160 m)", distance_km: 0, dataset: "" }, { name: "AIS vessel density, busiest sampled point", distance_km: 9, dataset: "EMODnet" }, { name: "Something made up", distance_km: 3, dataset: "" }] }], rec.features.filter((f) => f.properties.role === "evidence"), d, r.sea);
+  // A flag on depth or traffic cites the value checks by id (there's no feature for depth).
+  const t = traceFlags([{ risk: "Deepwater", theme: "context", confidence: "medium", evidence: ["[topo.water-depth]", "material.vessel-traffic", "E999"] }], rec.features.filter((f) => f.properties.role === "evidence"), d, { checks: r.checks, sea: r.sea });
   assert.equal(t[0].traced, 2);
   assert.equal(t[0].evidence[0].from_values, "water depth");
-  assert.equal(t[0].evidence[0].publisher, r.sea.depth.publisher);
+  assert.equal(t[0].evidence[0].distance_km, 0);
   assert.equal(t[0].evidence[1].from_values, "vessel traffic");
   assert.equal(t[0].evidence[1].distance_km, r.sea.traffic.busiest.distance_km);
-  assert.equal(t[0].evidence[2].traced, false);
+  assert.equal(t[0].untraced, 1);
   assert.ok(r.sea.traffic.busiest.distance_km <= d.close + 0.2, `ring within the close band of the edge (${r.sea.traffic.busiest.distance_km} km)`);
 });
 
@@ -601,16 +654,17 @@ await test("on land, elevation is recorded every time but reported only when it 
   assert.equal(plain.r.elevation.significance, undefined);
   assert.equal(plain.r.sea, undefined);
   // A check measures every time: the value is reported, and the analyst judges whether it matters.
-  assert.match(plain.first, /Topography and bathymetry:\n- Elevation: about 25 m, 20–30 m across the site\n/);
+  assert.match(plain.first, /Topography and bathymetry:\n- \[topo\.elevation\] Elevation: about 25 m, 20–30 m across the site\n/);
   assert.doesNotMatch(plain.first, /Elevation about 25 m above sea level/, "the long line only when it matters");
   assert.equal(plain.r.checks.find((c) => c.id === "topo.elevation").state, "found");
   assert.equal(plain.r.checked.find((c) => c.evidence === "elevation").result, "features");
   const low = await run([1, 3, 4, 6]);
   assert.equal(low.r.elevation.significance.kind, "low-lying");
   assert.match(low.first, /Elevation about 4 m above sea level, 1–6 m across the site \(low-lying: flooding, storm surge and sea-level rise\)/);
-  const t = traceFlags([{ risk: "Low-lying site", theme: "context", confidence: "medium", evidence: [{ name: "Elevation about 4 m (low-lying)", distance_km: 0 }] }], [], d, { elevation: low.r.elevation });
+  const t = traceFlags([{ risk: "Low-lying site", theme: "context", confidence: "medium", evidence: ["topo.elevation"] }], [], d, { checks: low.r.checks });
   assert.equal(t[0].traced, 1);
   assert.equal(t[0].evidence[0].from_values, "elevation");
+  assert.match(t[0].evidence[0].name, /^Elevation.*: .*4 m/);
   const high = await run([3700, 3800, 3900]);
   assert.equal(high.r.elevation.significance.kind, "very high altitude");
   assert.match(high.first, /very high altitude: much less oxygen/);
@@ -734,7 +788,7 @@ await test("re-assess inside the area (the card's switch): only inside evidence,
   const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
   const rec = await runScreening({ host: host(), site, distances: d, skill, callClaude: standardScript(), runId: "R3",
     inputs: { asset_type: "oil-gas-field", asset_label: "offshore oil or gas field" } });
-  const model = scriptedModel([final(`Inside the field, the flowline.\n\n\`\`\`json\n{"flags":[{"risk":"Flowline on site","theme":"PS4","confidence":"high","evidence":[{"name":"Rosebank 9 inch Production flowline 1","distance_km":0,"dataset":"UKCS pipelines (WGS84)"}]}],"data_gaps":[]}\n\`\`\``)]);
+  const model = scriptedModel([(req) => final(`Inside the field, the flowline.\n\n\`\`\`json\n{"flags":[{"risk":"Flowline on site","theme":"PS4","confidence":"high","evidence":["${refIn(req, "Rosebank 9 inch Production flowline 1")}"]}],"data_gaps":[]}\n\`\`\``)]);
   await reassess({ record: rec, km: 0, skill, callClaude: model });
   const sent = model.calls[0].messages[0].content;
   assert.match(sent, /inside the area/);
@@ -854,13 +908,13 @@ await test("the contamination desk study: only its checks, at its own distances,
   const profile = JSON.parse(read("../catalogue/industries/energy.json"));
   const entry = profile.skills_offered.find((x) => x.id === "contamination-desk-study");
   const desk = parseSkill(read("../skills/contamination-desk-study/SKILL.md"));
-  const model = scriptedModel([final(`A possible linkage from the old tip.
+  const model = scriptedModel([(req) => final(`A possible linkage from the old tip.
 
 \`\`\`json
 {"decision":"possible linkages: investigate","decision_why":"A historic landfill 300 m north, and the site is in a source protection zone.",
  "flags":[{"risk":"Historic landfill 300 m north could affect groundwater in the source protection zone","topic":"ground-soil",
    "linkage":{"source":"Station Road tip (historic landfill)","pathway":"groundwater (source protection zone)","receptor":"public water supply","rating":"possible"},
-   "severity":"medium","confidence":"medium","evidence":[{"name":"Station Road tip","distance_km":0.3,"dataset":"Historic Landfill Sites"}],
+   "severity":"medium","confidence":"medium","evidence":["${refIn(req, "Station Road tip")}"],
    "why":"landfill leachate","next_step":"historical maps and a commercial environmental search"}],
  "checked":[],"data_gaps":[]}
 \`\`\``)]);
@@ -937,7 +991,7 @@ await test("the UK pack on land: flood zones and farmland by share of the site, 
   assert.ok(!r.checks.some((c) => /^not checked: .*Northern Ireland/.test(K.checkLine(c))));
   // The analyst gets the check lines and Natural England's own wording for solar.
   const first = model.calls[0].messages[0].content;
-  assert.match(first, /Water:\n- Flood zones \(rivers and sea\) \(must\): on the site: Flood Zone 3 \(50%\)/);
+  assert.match(first, /Water:\n- \[water\.flood-zones\] Flood zones \(rivers and sea\) \(must\): on the site: Flood Zone 3 \(50%\)/);
   assert.match(first, /Natural England's wording, Wind and Solar: /);
   // Class layers and listed buildings were fetched only to their own reach, not the 20 km wider band.
   const widthKm = (b) => turf.distance([b[0], C[1]], [b[2], C[1]]);

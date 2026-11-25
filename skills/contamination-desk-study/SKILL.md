@@ -1,6 +1,6 @@
 ---
 name: contamination-desk-study
-version: 0.2-draft
+version: 0.3-draft
 description: An early contaminated-land look at a site on land, from open records: the potential sources on and around it, the pathways and the receptors, set out as a preliminary conceptual site model with the possible contaminant linkages, and what a full desk study would add. Use when someone asks about contamination, past land use, landfill, pollution or ground conditions at a site, or picks the contamination desk study.
 ---
 
@@ -41,11 +41,11 @@ A short summary for the person, no more than 250 words: the decision and why (on
   "flags": [{"risk": "", "topic": "ground-soil|water|air-climate|community-health|biodiversity|hazards",
              "linkage": {"source": "", "pathway": "", "receptor": "", "rating": "likely|possible"},
              "severity": "high|medium|low", "confidence": "high|medium|low",
-             "evidence": [{"name": "", "distance_km": 0, "dataset": ""}],
+             "evidence": ["E3", "[ground.landfill]"],
              "why": "", "next_step": ""}],
   "checked": [],
   "data_gaps": [""]
 }
 ```
 
-Each flag's "risk" is the linkage in plain words ("Landfill 120 m north could affect groundwater in the source protection zone"). Its "topic" is the source's topic. Evidence names features exactly as the checks gave them. At most 6 flags; "data_gaps" at most 8 short lines, and don't repeat checks already listed as not checked unless you add something.
+Each flag's "risk" is the linkage in plain words ("Landfill 120 m north could affect groundwater in the source protection zone"). Its "topic" is the source's topic. Evidence is ids, never retyped names or distances: a feature's id (E3) or a check's id in square brackets when it found something, as the checks give them. The run fills in names, distances and sources. A linkage you can't cite by id isn't raised: put it in data_gaps. At most 6 flags; "data_gaps" at most 8 short lines, and don't repeat checks already listed as not checked unless you add something.
