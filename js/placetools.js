@@ -44,6 +44,18 @@ const SEAS = {
   "santos basin": box("the Santos Basin", [-49, -28, -40, -22]), "campos basin": box("the Campos Basin", [-42.5, -24, -39, -20.5]),
 };
 
+// A named project ("The Droves solar farm", "Newlands Hill wind farm"): the atlas is asked too, by the kind its name
+// says, even when the analyst didn't give one (25 Nov: "Droves solar farm" by name only never reached the Planning
+// Inspectorate's outline). Only names that say plainly what they are.
+export const PROJECT_KINDS = [
+  [/\b(wind ?farms?|wind ?parks?|wind energy|wind turbines?)\b/i, "wind farm or lease"],
+  [/\b(solar ?(farms?|parks?|pv|scheme|project)|photovoltaic|battery (energy )?storage|bess|power (station|plant)|energy (park|centre|center)|hydro(electric|power)? (scheme|station|plant)|gas[- ]fired|biomass plant|energy from waste)\b/i, "power plant"],
+  [/\b(mines?|quarry|quarries|colliery|opencast)\b/i, "mine or quarry"],
+];
+export function projectKind(names = []) {
+  for (const n of names) for (const [re, k] of PROJECT_KINDS) if (re.test(n)) return k;
+  return null;
+}
 const GENERIC_WORDS = /^(the|of|a|an|platform|platforms|field|fields|block|blocks|licen[cs]e|lease|mine|mines|farm|wind|solar|offshore|onshore|oil|gas|plant|power|station|project|site|terminal|port|harbour|harbor|tlp|spar|fpso|installation|facility|development|area|park|reserve)$/i;
 
 const walkCoords = (g) => { const out = []; const w = (c) => (typeof c[0] === "number" ? out.push(c) : c.forEach(w)); w(g.coordinates); return out; };
@@ -440,10 +452,13 @@ export function createPlaceTools(host) {
     return null;
   }
 
-  async function searchCatalogue(names, kind, area, nearAt) {
+  async function searchCatalogue(names, kind, area, nearAt, { maxSpanDeg = null } = {}) {
     if (!host.atlas) return { report: { not_checked: "The atlas isn't connected here." } };
     const where = await catalogueArea(area, nearAt);
     if (!where) return { report: { not_checked: `"${area}" isn't a country, candidate or place, and there's no map view: find the area first.` } };
+    if (maxSpanDeg && Math.max(where.bbox[2] - where.bbox[0], where.bbox[3] - where.bbox[1]) > maxSpanDeg && !area) {
+      return { report: { not_checked: `${kind} layers weren't searched: no area or country was given and the map view is too wide.` } };
+    }
     try {
       const r = await atlasFindNamed(names, kind, where.bbox, { call: host.atlas, allow: allowed() });
       return { candidates: r.candidates, report: {
@@ -512,7 +527,12 @@ export function createPlaceTools(host) {
       // didn't happen to try "Mars TLP").
       const core = (n) => n.split(/\s+/).filter((w) => !GENERIC_WORDS.test(w)).join(" ").trim();
       const catalogueNames = [...new Set([...names, ...names.map(core).filter((c) => c && c.length >= 3)])].slice(0, 6);
-      const [atlas, ...byName] = await Promise.all([kind ? searchCatalogue(catalogueNames, kind, area, nearAt) : null, ...names.map(perName)]);
+      // A kind read from the name is searched where the call says (its area, or its country), or in a map view no
+      // wider than a region: the whole world's power-plant layers would be slow and noisy.
+      const named = !kind ? projectKind(names) : null;
+      const namedSearch = named ? searchCatalogue(catalogueNames, named, area || country, nearAt, { maxSpanDeg: 15 }) : null;
+      const [atlas, ...byName] = await Promise.all([kind ? searchCatalogue(catalogueNames, kind, area, nearAt) : namedSearch, ...names.map(perName)]);
+      if (atlas?.report && named) atlas.report.kind_from_name = named;
       const anchors = [], others = [];
       byName.forEach(([an, nom, wd], i) => {
         const q = names[i];

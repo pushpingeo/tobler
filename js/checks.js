@@ -43,12 +43,16 @@ export function bandLabel(from, to) {
 
 // The site as the checks see it. bbox: the footprint's box; countries: from js/reference.js describe (empty
 // offshore); offshore; sea: offshore or the coast within reach (today's rule in js/ntrrun.js).
+const COAST_SLACK_KM = 1;
 function settingFits(setting, site, reach = 0) {
   if (setting === "land") return !site.offshore;
   // On land, or at sea with the coast within the check's reach (designated landscapes and heritage seen from offshore).
   if (setting === "land_or_coast") return !site.offshore || (site.coast_km != null && site.coast_km <= (reach || 0));
   if (setting === "offshore") return !!site.offshore;
-  if (setting === "sea") return !!site.sea;
+  // At sea, or on land with the sea within the check's own reach: a subsea pipeline 2 km out can't be within 2 km of a
+  // site 5 km inland (26 Nov: coastal land sites listed sea checks as not checked). The coastline is Natural Earth's,
+  // good to about a kilometre, so 1 km of slack (more checks, never fewer). A value check has no reach: the run's rule.
+  if (setting === "sea") return !!site.offshore || (reach == null ? !!site.sea : site.coast_km != null && site.coast_km <= reach + COAST_SLACK_KM);
   return true;
 }
 // A box grown by km on every side (degrees, widened in longitude by latitude): what a check's reach can touch.
@@ -77,9 +81,9 @@ function areasFit(src, site, reach, box) {
   return !!site.offshore && !!src.extent && overlaps(src.extent, box);
 }
 function sourceFits(src, site, box, reach = 0) {
-  if (src.setting && !settingFits(src.setting, site)) return false;
+  if (src.setting && !settingFits(src.setting, site, reach)) return false;
   if (!inAny(src.where_any, box)) return false;
-  if (src.in && !areasFit(src, site, reach, box)) return false;
+  if (src.in && !areasFit(src, site, reach || 0, box)) return false;
   const countries = site.countries || [];
   if (src.not_countries?.some((c) => countries.includes(c))) return false;
   if (!site.offshore && src.countries?.length && countries.length) return src.countries.some((c) => countries.includes(c));
@@ -115,7 +119,7 @@ export function planChecks(catalogue, site, scale, { inside = false, skill = "sc
     }
     if (!appliesHere(c.applies, site, reach)) continue;
     const box = growBox(site.bbox, reach || 0);
-    const sources = (c.sources || []).filter((s) => sourceFits(s, site, box, reach || 0));
+    const sources = (c.sources || []).filter((s) => sourceFits(s, site, box, reach));
     // A tool check (boundaries, values) has one source; the first that covers the site, as before.
     const tool = sources.find((s) => s.tool);
     out.push({ check: c, sources: tool ? [tool] : sources, source: tool || sources.find((s) => !s.pending) || sources[0] || null, reach_km: reach, scale });

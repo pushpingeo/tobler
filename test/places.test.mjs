@@ -679,4 +679,24 @@ await test("a place that isn't a site is asked about first: which part? (plan it
   assert.equal(screened[0].asset_type, "oil-gas-onshore", "what was asked is kept");
 });
 
+await test("a named project asks the atlas by the kind its name says (25 Nov: 'Droves solar farm' by name only)", async () => {
+  const { projectKind } = await import("../js/placetools.js");
+  assert.equal(projectKind(["The Droves solar farm"]), "power plant");
+  assert.equal(projectKind(["Newlands Hill wind farm"]), "wind farm or lease");
+  assert.equal(projectKind(["Glensanda quarry"]), "mine or quarry");
+  assert.equal(projectKind(["Brownfield site, Linlithgow"]), null);
+  assert.equal(projectKind(["Riccarton Road"]), null);
+  const asked = [];
+  const host = memoryHost();
+  host.atlas = async (tool, args) => { asked.push([tool, args]); return { results: [], matches: 0 }; };
+  const t = createPlaceTools(host);
+  const out = await t.exec("find_place", { query: "Droves solar farm", country: "United Kingdom" });
+  assert.equal(out.atlas?.kind_from_name, "power plant", JSON.stringify(out.atlas));
+  assert.ok(asked.some(([tool]) => tool === "find_datasets"), "the atlas was asked");
+  // No area, no country and a world-wide view: not searched, and said so.
+  asked.length = 0;
+  const wide = await t.exec("find_place", { query: "Droves solar farm" });
+  if (wide.atlas) assert.match(wide.atlas.not_checked || "", /weren't searched|no map view/);
+});
+
 console.log(`${passed} place tests passed`);

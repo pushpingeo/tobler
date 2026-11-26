@@ -80,7 +80,7 @@ await test("selection by setting, region and scale; sources by country and box",
   assert.deepEqual(regions(sc, "bio.ancient-woodland"), ["Scotland"]);
   assert.ok(ids(sc).includes("bio.ramsar"));
   // Berwick, regional (10 km): both nations, because the reach crosses the border.
-  const bw = P({ bbox: box(-2.0, 55.77, 0.01), countries: ["United Kingdom"], offshore: false, sea: true }, "regional");
+  const bw = P({ bbox: box(-2.0, 55.77, 0.01), countries: ["United Kingdom"], offshore: false, sea: true, coast_km: 0.5 }, "regional");
   assert.deepEqual(regions(bw, "bio.sac"), ["England", "Scotland", "UK offshore, beyond 12 nm"]);
   // Belfast: Northern Ireland; ancient woodland there has no layer (pending), so the check says so.
   const bf = P({ bbox: box(-5.93, 54.6), countries: ["United Kingdom"], offshore: false, sea: false }, "local");
@@ -88,7 +88,7 @@ await test("selection by setting, region and scale; sources by country and box",
   const awNI = bf.find((p) => p.check.id === "bio.ancient-woodland");
   assert.equal(K.unsourced({ ...awNI, sources: awNI.sources.filter((x) => x.region === "Northern Ireland") }).reason, "pending");
   // Northern France, inside the UK's boxes: the country decides on land (EU layer, no UK-only checks).
-  const fr = P({ bbox: box(1.85, 50.9), countries: ["France"], offshore: false, sea: true }, "regional");
+  const fr = P({ bbox: box(1.85, 50.9), countries: ["France"], offshore: false, sea: true, coast_km: 3 }, "regional");
   assert.ok(fr.find((p) => p.check.id === "bio.sac").sources.some((x) => x.atlas_id === "2764f9d94e700980"));
   assert.ok(!ids(fr).includes("bio.ramsar") && !ids(fr).includes("bio.ancient-woodland"));
   // Dogger Bank, global: JNCC's offshore layer and the EU's (the Dutch Doggersbank), and England's in its box.
@@ -448,6 +448,21 @@ await test("real nation and council outlines (26 Nov): Stanlow and Barnston get 
   // No box is left for a UK nation or council in the catalogue.
   for (const c of cat.checks) for (const s of c.sources) if (s.in) assert.ok(!s.where_any && !s.where, `${c.id}: ${s.region} is matched on outlines`);
   assert.ok(!cat.regions);
+});
+
+await test("sea checks on a land site apply only with the sea within their own reach (26 Nov: subsea pipelines at Stanlow and Linlithgow)", () => {
+  const site = (coast) => ({ bbox: box(-3.6, 55.97, 0.004), countries: ["United Kingdom"], offshore: false, sea: true, coast_km: coast });
+  const has = (plan, id) => plan.some((x) => x.check.id === id);
+  // 5 km inland, regional: subsea pipelines and cables (2 km) can't reach; marine protected areas (10 km) and wind farms can.
+  const inland = P(site(5), "regional");
+  assert.ok(!has(inland, "material.subsea-pipelines") && !has(inland, "material.cables"));
+  assert.ok(has(inland, "bio.marine-protected") && has(inland, "material.offshore-wind-farms"));
+  // On the shore, all of them; 1 km of slack for the coastline's accuracy.
+  const shore = P(site(2.8), "regional");
+  assert.ok(has(shore, "material.subsea-pipelines") && has(shore, "material.cables"));
+  assert.ok(!has(P(site(3.2), "regional"), "material.subsea-pipelines"));
+  // At sea, always.
+  assert.ok(has(P({ ...site(30), offshore: true, countries: [] }, "regional"), "material.subsea-pipelines"));
 });
 
 console.log(`${passed} checks tests passed`);

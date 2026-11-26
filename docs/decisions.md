@@ -2,6 +2,25 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 26 Nov 2026 (afternoon, later): sea checks on land need the sea within reach; named projects ask the atlas (plan item 1)
+- **Sea checks on a coastal land site:** a check for the sea (`setting: "sea"`) now applies on land only when the
+  coast is within the check's own reach, plus 1 km for the coastline's accuracy (Natural Earth, about a kilometre).
+  Before, any land site with the coast inside the run's wider band (20 km) got them, so the Oracle campus, Stanlow
+  and Riccarton Road listed "subsea pipelines" (reach 2 km) as not checked from several kilometres inland. Marine
+  protected areas and offshore wind farms (10 km at regional scale) still apply to those sites. Value checks with no
+  reach (vessel traffic) keep the run's rule. Offshore sites are unchanged. `js/checks.js` `settingFits`.
+- **Named projects:** when `find_place` gets a name that says plainly what it is ("… solar farm", "… wind farm",
+  "battery storage", "power station", "… quarry") and no `kind`, code asks the atlas for that kind too (`projectKind`
+  in `js/placetools.js`), in the call's area or country, or a map view no wider than 15°; otherwise it says it
+  wasn't searched. The report says `kind_from_name`. Rob's Droves log (25 Nov): the analyst searched by name only, so
+  the Planning Inspectorate's outline was never asked for.
+- **Live replay on main** (run 45824550185, real outlines, before these two): the Stanlow desk study and a Barnston
+  housing screen asked England's layers only; their not-checked lines are England's own pending sources (permits,
+  pollution incidents, surface water flooding), with no Welsh source among them.
+- **Tested:** `npm test` (a checks test for sea checks inland, on the shore, just past the slack and at sea; a place
+  test for the kinds read from names and the wide-view refusal); browser checks choice, ux, run-card, search-area,
+  study, desktop and phone. **Not tested:** a live replay of a named project after the change.
+
 ## 26 Nov 2026 (afternoon): real nation and council outlines in place of boxes (plan item 1, first part)
 - **What:** which UK nation's or council's layers a site gets is now decided on real outlines, not boxes
   (invariant 2's known breach, now closed). `data/ref/uk-areas.json`: the ONS's Countries (December 2025) and Local
