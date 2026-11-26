@@ -178,6 +178,13 @@ await test("Heswall (26 Nov): the same data under another title isn't offered ag
   const lines = offerLines(r).join("\n");
   assert.match(lines, /500\+ within 20 km, nearest 4\d0 m away/, "a nameless feature isn't named after its layer");
   assert.doesNotMatch(lines, /for surface water[^\n]*found no layer/, "a gap with an offer isn't also said to have none");
+  // Brought in: the fetch is capped too, so its "nearest" is the service's order; the look's nearest is used.
+  const title = o.items[0].dataset.title;
+  const yes = await bringIn({ tobler_run: r, features: [site] }, ["L1"], { keep: () => "D1", placeName: "Heswall",
+    get: async () => ({ checked_at: "2026-11-26T22:00:00Z", within_distance: 366, returned_by_service: 500, nearest: [{ name: title, distance_km: 11.9 }, { name: title, distance_km: 11.9 }] }) });
+  const said = bringInReply(yes);
+  assert.match(said, /366 features within 20 km; nearest 4\d0 m away\. The service hit its limit/);
+  assert.doesNotMatch(said, /11\.9 km/);
 });
 
 console.log(`${passed} bring-in tests passed`);

@@ -42,6 +42,13 @@ Rob's log (asktobler.com, 21:34–21:40) turned up seven faults, three of them f
   workspace can't reach data.asktobler.com); the live replay is the check.
 - **A flag joining two kinds of evidence** says which is that near ("SSSI Impact Risk Zones: on site"), so "SSSI
   close to the site … ; on the site" no longer reads as an SSSI on the site.
+- **Live replay (run 45903282663, on main):** "brimstage road near the train station" found Heswall station on
+  Brimstage Road in one turn (the new "X near Y" step) and screened a 1-mile circle there as a mine. The
+  OpenStreetMap checks came from Tobler's copy (homes, schools, health care, power lines, roads, railways); only
+  aerodromes and wind turbines, whose boxes leave the copy, went to Overpass (down again: not checked). The offer
+  had no contradiction and didn't offer the landfill layer again. It showed one more fault, fixed in the next commit:
+  a brought-in layer's fetch is capped too, so its "nearest" ("11.9 km" for surface water) now comes from the look
+  before the offer, and a feature named after its layer is given as a distance alone.
 - **Map colours:** nothing to fix. This run found nothing under hazards or air and climate, the two topics whose
   colours changed on 26 Nov.
 - **Left:** the headline sentence is still the model's (it named the Dee Estuary, not in the top three): package E.

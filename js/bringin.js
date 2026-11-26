@@ -285,6 +285,7 @@ export function offerSummary(r) {
 // Bringing layers in: get(dataset, opts) is the data tools' get_data on the run's place (js/datatools.js), which
 // puts the features on the map as findings with their source, licence and date. Returns what came in, for the record
 // (run.added) and for the reply. ids: offer item ids (L1), or ["all"]; an empty list declines the offer.
+const capped = (out) => !!out.capped || (out.returned_by_service ?? 0) >= 500;
 export async function bringIn(record, ids, { get, keep, placeName, placeIsPoint = false, now = () => new Date().toISOString() }) {
   const r = record.tobler_run;
   const o = r.offer;
@@ -324,8 +325,10 @@ export async function bringIn(record, ids, { get, keep, placeName, placeIsPoint 
       measured_from: placeIsPoint ? "the point" : r.extent === "inside" ? "inside the area" : "the site's edge",
       ...(out.not_checked ? { not_checked: String(out.not_checked).split(/(?<=\.)\s/)[0].slice(0, 160) } : {
         count: out.within_distance ?? 0, inside: out.on_site ?? out.inside_or_touching ?? 0,
-        nearest: (out.nearest || []).filter((n) => !n.around_site).slice(0, 3).map((n) => ({ name: n.name, distance_km: n.distance_km })),
-        ...(out.capped ? { capped: true } : {}), ...(out.time_note ? { time_note: out.time_note } : {}),
+        // A capped fetch is the service's first 500, not the nearest 500 (Heswall replay, 26 Nov: surface water flood
+        // risk "nearest 11.9 km away"): the nearest then comes from the look before the offer, which looked close.
+        nearest: (capped(out) ? (x.preview?.nearest || []) : (out.nearest || []).filter((n) => !n.around_site)).slice(0, 3).map((n) => ({ name: n.name, distance_km: n.distance_km })),
+        ...(capped(out) ? { capped: true } : {}), ...(out.time_note ? { time_note: out.time_note } : {}),
       }),
     };
   }));
@@ -346,7 +349,9 @@ export function bringInReply(out) {
     if (a.not_checked) return `- ${head}: not checked. ${a.not_checked}`;
     const scope = a.scope || (a.within_km === 0 ? "inside the area" : `within ${a.within_km} km`);
     if (!a.count) return `- ${head}: nothing ${scope} in this layer.`;
-    const near = a.nearest.length ? `; nearest ${a.nearest.map((n) => `${n.name}, ${where(n.distance_km)}`).join("; ")}` : "";
+    // Features with no name of their own carry the layer's title: say the distance alone, once per distance.
+    const named = a.nearest.map((n) => (n.name && n.name !== a.dataset ? `${n.name}, ${where(n.distance_km)}` : where(n.distance_km)));
+    const near = named.length ? `; nearest ${[...new Set(named)].join("; ")}` : "";
     return `- ${head}: ${plural(a.count, "feature")} ${scope}${a.inside && a.within_km > 0 ? ` (${a.inside} on the site)` : ""}${near}${a.capped ? ". The service hit its limit, so there may be more" : ""}.`;
   });
   const ok = out.added.filter((a) => !a.not_checked);
