@@ -1,0 +1,131 @@
+{
+  "about": "The asset table (package A, 26 Nov 2026; replaces catalogue/distances.json): what a kind of development is like, apart from who's asking (the profile). For each asset type: its names as people say them; the screening scale its size picks (local, regional or global: which of each check's reaches in catalogue/checks.json applies); the footprint radius used when the site is only a point; where it extends a check's reach, with the reason and the source; and the effects it sends out. A check owns its default reach; an asset row only extends it, never cuts it; the person's own distances override both. Protection distances (the developable area's buffers) stay in skills/developable-area/SKILL.md until package D's researched rows are reviewed by Rob. Nothing is fetched beyond 50 km. Read by js/reach.js; tested in test/reach.test.mjs.",
+  "version": "1",
+  "fields": {
+    "names": "how people say it, lower case; for matching the person's words later (package E)",
+    "scale": "the screening scale for this asset in this setting, with why. by_size rules apply in order, each overriding what it names: below_mw, mw (at least), area_km2 (at least), below_km2",
+    "footprint_km": "the radius of the circle used when the site is only a point: the footprint's own width, which belongs to the place, not a search distance",
+    "extends": "checks (by id) or topics whose reach this asset extends, to to_km, or by_tip_height ([[up_to_m, km], …, [null, km]]) when the tip height is given. Each has why and source. Never shortens a check",
+    "effects": "how its effects travel (sight, flight, water, ground, road, sound), each with a source; nothing reads it yet (package E)",
+    "scale_source": "where the scale and footprint come from. Today these are Tobler's first-cut defaults carried over from distances.json (draft-1, 18 Nov), awaiting package D's research and Rob's review"
+  },
+  "scale_source": "Tobler's first-cut defaults (catalogue/distances.json draft-1, 18 Nov 2026, carried over unchanged as scales on 26 Nov); package D researches them for Rob's review",
+  "general": {
+    "about": "An asset with no row (housing, a warehouse, offices, or nothing said): the general defaults for the site's size, and the card says so. A site of 100 km² or more is global whatever it is.",
+    "onshore": { "scale": "regional", "footprint_km": 1, "why": "general onshore default",
+      "by_size": [
+        { "below_km2": 1, "scale": "local", "why": "a site under 1 km² (100 ha): most effects stay within a few kilometres" }
+      ] },
+    "offshore": { "scale": "global", "footprint_km": 1, "why": "general offshore default",
+      "by_size": [
+        { "below_km2": 1, "scale": "regional", "why": "a small offshore site (under 1 km²)" }
+      ] },
+    "global_from_km2": 100
+  },
+  "assets": {
+    "solar": {
+      "label": "solar farm", "names": ["solar farm", "solar park", "solar pv", "photovoltaic", "solar array"],
+      "onshore": { "scale": "regional", "footprint_km": 1, "why": "construction and glint near, traffic and views close, protected sites wider" },
+      "by_size": [
+        { "below_mw": 5, "scale": "local", "footprint_km": 0.3, "why": "a small array (under 5 MW): construction effects stay local" },
+        { "mw": 100, "footprint_km": 2, "why": "a large array (100 MW or more): a bigger land take" }
+      ],
+      "extends": [],
+      "effects": []
+    },
+    "wind-onshore": {
+      "label": "onshore wind", "names": ["wind farm", "onshore wind", "wind turbines", "wind turbine"],
+      "onshore": { "scale": "regional", "footprint_km": 3, "why": "noise and shadow flicker near, visual and birds close, protected sites wider" },
+      "by_size": [
+        { "mw": 100, "scale": "global", "why": "a large wind farm (100 MW or more): wider visual and bird context" }
+      ],
+      "extends": [
+        { "checks": ["landscape.national-parks", "landscape.national-landscapes", "landscape.wild-land", "material.wind-turbines"], "to_km": 45,
+          "by_tip_height": [[50, 15], [70, 20], [85, 25], [100, 30], [130, 35], [150, 40], [null, 45]],
+          "why": "landscape, visual and cumulative effects of wind turbines: the initial study area by tip height, 45 km for turbines over 150 m (and when the height isn't given, as every recent Scottish scoping report for 175–250 m turbines uses 45 km)",
+          "source": "NatureScot (SNH), Visual Representation of Wind Farms v2.2 (2017), para 48; scoping reports for Whitelee, Grimshader, Hare Hill and Beinn Tharsuinn (claude/research-reach-evidence.md); Rob's EIA review, 26 Nov 2026" },
+        { "checks": ["heritage.scheduled-monuments", "heritage.parks-gardens", "heritage.battlefields", "heritage.world-heritage"], "to_km": 10,
+          "why": "the settings of designated heritage assets: wind scoping uses a 10 km outer study area",
+          "source": "scoping reports for Whitelee (pp.93, 95), Grimshader (pp.42, 44) and Hare Hill (p.82) (claude/research-reach-evidence.md)",
+          "not_extended": "Listed buildings stay at the check's own reach: towns have hundreds, and the layer's fetch limit would undercount them." },
+        { "checks": ["bio.spa"], "to_km": 20,
+          "why": "Special Protection Areas for wintering geese and other wide-ranging birds: functional linkage to wind farms",
+          "source": "scoping reports for Whitelee (p.69) and Hare Hill (pp.60–63) (claude/research-reach-evidence.md)" }
+      ],
+      "effects": [
+        { "by": "sight", "source": "NatureScot (SNH), Visual Representation of Wind Farms v2.2 (2017)" },
+        { "by": "flight", "source": "NatureScot, Recommended bird survey methods for onshore windfarms (2025)" }
+      ]
+    },
+    "wind-offshore": {
+      "label": "offshore wind", "names": ["offshore wind", "offshore wind farm"],
+      "offshore": { "scale": "global", "footprint_km": 5, "why": "construction noise and safety zones near, fishing and shipping close, seabirds and protected sites wider" },
+      "extends": [], "effects": []
+    },
+    "hydro": {
+      "label": "hydropower", "names": ["hydro", "hydropower", "hydroelectric", "dam"],
+      "onshore": { "scale": "global", "footprint_km": 5, "why": "reservoir and dam near; the river reach downstream and upstream close and wider (circles stand in until river reaches are built)" },
+      "extends": [], "effects": []
+    },
+    "thermal": {
+      "label": "thermal power plant", "names": ["power station", "thermal power plant", "gas power plant", "coal power plant"],
+      "onshore": { "scale": "regional", "footprint_km": 0.5, "why": "noise and safety near, air quality and traffic close, protected sites wider" },
+      "by_size": [{ "mw": 500, "scale": "global", "why": "a large plant (500 MW or more): air emissions reach further" }],
+      "extends": [], "effects": []
+    },
+    "substation": {
+      "label": "substation or converter station", "names": ["substation", "converter station"],
+      "onshore": { "scale": "local", "footprint_km": 0.3, "why": "a small footprint: noise and construction effects stay local" },
+      "extends": [], "effects": []
+    },
+    "mine": {
+      "label": "mine", "names": ["mine", "quarry", "open pit"],
+      "onshore": { "scale": "regional", "footprint_km": 3, "why": "blasting and dust near, water and influx close, catchment and protected sites wider" },
+      "by_size": [{ "area_km2": 20, "scale": "global", "why": "a large mine (20 km² or more): water and influx effects reach further" }],
+      "extends": [], "effects": []
+    },
+    "oil-gas-onshore": {
+      "label": "onshore oil and gas plant or wells", "names": ["oil well", "gas well", "wellsite", "gas plant", "refinery"],
+      "onshore": { "scale": "regional", "footprint_km": 1, "why": "flaring, noise and safety near, traffic and influx close, protected sites wider" },
+      "extends": [], "effects": []
+    },
+    "platform": {
+      "label": "offshore platform or installation", "names": ["platform", "offshore installation"],
+      "offshore": { "scale": "regional", "footprint_km": 0.5, "why": "the 500 m safety zone near, discharges and vessel traffic close, protected sites wider" },
+      "extends": [], "effects": []
+    },
+    "oil-gas-field": {
+      "label": "offshore oil or gas field", "names": ["oil field", "gas field", "offshore field"],
+      "offshore": { "scale": "global", "footprint_km": 5, "why": "subsea works and anchors near, discharges and shipping close, spill reach and protected sites wider" },
+      "extends": [], "effects": []
+    },
+    "exploration-block": {
+      "label": "licence or exploration block", "names": ["licence block", "exploration block", "licence area"],
+      "offshore": { "scale": "global", "footprint_km": 5, "why": "where wells may go is unknown: the whole block is the footprint" },
+      "onshore": { "scale": "regional", "footprint_km": 5, "why": "where wells may go is unknown: the whole block is the footprint" },
+      "extends": [], "effects": []
+    },
+    "seismic-survey": {
+      "label": "seismic survey", "names": ["seismic survey"],
+      "offshore": { "scale": "global", "footprint_km": 5, "why": "sound travels far underwater: marine mammal and fishing effects reach far" },
+      "extends": [], "effects": []
+    },
+    "pipeline-cable": {
+      "label": "pipeline or cable", "names": ["pipeline", "cable", "cable route", "overhead line"],
+      "onshore": { "scale": "local", "footprint_km": 0.1, "why": "a linear asset: construction corridor near, access and crossings close" },
+      "offshore": { "scale": "regional", "footprint_km": 0.1, "why": "a linear asset: trenching and rock dump near, fishing gear and anchors close" },
+      "extends": [], "effects": []
+    },
+    "road-rail": {
+      "label": "road or railway", "names": ["road", "railway", "rail line"],
+      "onshore": { "scale": "local", "footprint_km": 0.1, "why": "a linear asset: land take and severance near, noise and access close" },
+      "extends": [], "effects": []
+    },
+    "port-terminal": {
+      "label": "port or terminal", "names": ["port", "terminal", "harbour", "jetty"],
+      "onshore": { "scale": "regional", "footprint_km": 0.5, "why": "land take and safety near, traffic and fishing close, protected coast wider" },
+      "offshore": { "scale": "global", "footprint_km": 0.5, "why": "dredging and shipping near and close, coast and fisheries wider" },
+      "extends": [], "effects": []
+    }
+  }
+}

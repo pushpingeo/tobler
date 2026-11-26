@@ -1,6 +1,6 @@
 {
   "about": "Checks as data (plan item 1; design note claude/checks-design.md, agreed by Rob 23 Nov 2026). A check is one line on the report: a neutral topic, the layers that answer it in each region, the kind of answer, and how far it looks at each scale. The run carries out every check that applies, in code, before the analyst starts, and each comes back as found, none found, or not checked with the reason. Replaces 'baseline' in trusted.json. Version 2 (24 Nov): the UK statutory sites from the atlas's fixed records (22 Nov). Version 3 (24 Nov): the UK pack (23 Nov): heritage, landscape, flood, farmland, peat and the SSSI Impact Risk Zones. Edit by hand; js/checks.js reads it and test/checks.test.mjs and the invariants test check it. Version 4 (24 Nov): checks fetch only to their own reach; World Heritage Site buffer zones apart from the sites. Version 5 (24 Nov): the coverage drive (claude/coverage-audit-2026-11-24.md): OpenStreetMap checks for infrastructure and community receptors everywhere; coal mining risk, active faults, source protection zones; offshore installations, wind farms, wind leases and cables; Indigenous territories (indicative). Version 6 (24 Nov, Rob's licence calls): contamination (landfill, closed mining waste, council records, NI past land use, permitted sites, pollution incidents, the US EPA layers), radon, more Crown Estate leases and agreements, subsea pipelines.",
-  "version": "7",
+  "version": "8",
   "fields": {
     "search": "words that would be in the title of a layer for this check (a topic can have them too): after a run, Tobler searches the atlas with them for the checks that came back not checked and offers what it finds (js/bringin.js, 26 Nov). Without them, the label is used.",
     "answer": "count_by_band (features per distance band, plus the nearest), value_at_site (a reading over the site: elevation, depth, traffic) or inside (whether the site is inside or touching one), or classes (which classes are on the site, with the share they cover, and the nearest of each within reach: flood zones, farmland grade, peat)",
@@ -11,7 +11,10 @@
     "decode": "irz: an inside check whose zones are read for the development (catalogue/sssi_irz_codes.json; the profile's irz_categories by asset type)",
     "class_order": "classes, most significant first (a label starting with one of these)",
     "caveat": "A line shown once on the card and in the report whenever this check runs (the contamination checks: an early screen of open records, not a contaminated land report).",
-    "used_by": "Optional: the skills a check is for (the developable area's buildings and water). Screens leave such a check out; the skills named run it."
+    "used_by": "Optional: the skills a check is for (the developable area's buildings and water). Screens leave such a check out; the skills named run it.",
+    "reached_by": "How the check's receptor can be reached from a development, where it's clear: water, sight, flight, ground, road (package A, 26 Nov; plain data for now, package E uses it). Left out where it isn't clear.",
+    "read_km": "For a value check that reads round the site (vessel traffic): how far it reads, by scale. Not a search distance, and 'look out to X km' doesn't change it.",
+    "bands": "Every count check reports on one ladder (js/reach.js LADDER: within the site, 0–100 m, 100–250 m, 250–500 m, 500 m–1 km, 1–2, 2–5, 5–10, 10–20, 20–30, 30–50 km), up to its own reach, plus the actual nearest distance. Bands are for reporting, never risk. Version 8 (26 Nov, package A): reached_by and read_km added; the per-scale band sets go when the run moves onto the ladder."
   },
   "scales": {
     "about": "Distance bands per scale (agreed 23 Nov; docs/conceptual-model.md). Until plan item 3 puts them in the profile, the run picks the scale from the screening distances already chosen (js/checks.js screenScale).",
@@ -225,6 +228,7 @@
       "label": "Special Protection Areas (birds)",
       "search": ["special protection area", "natura 2000"],
       "answer": "count_by_band",
+      "reached_by": ["flight", "water"],
       "reach_km": {
         "local": 2,
         "regional": 10,
@@ -528,6 +532,7 @@
       "label": "Marine and coastal protected areas",
       "search": ["marine protected"],
       "answer": "count_by_band",
+      "reached_by": ["water"],
       "reach_km": {
         "local": 2,
         "regional": 10,
@@ -763,6 +768,7 @@
       "label": "Important Marine Mammal Areas",
       "search": ["marine mammal"],
       "answer": "count_by_band",
+      "reached_by": ["water"],
       "reach_km": {
         "local": null,
         "regional": 20,
@@ -798,6 +804,7 @@
       "label": "Warm-water coral reefs",
       "search": ["coral"],
       "answer": "count_by_band",
+      "reached_by": ["water"],
       "reach_km": {
         "local": null,
         "regional": 10,
@@ -878,6 +885,7 @@
       "topic": "community-health",
       "label": "Nearest homes",
       "answer": "count_by_band",
+      "reached_by": ["sight", "road"],
       "reach_km": {
         "local": 0.5,
         "regional": 2,
@@ -906,6 +914,7 @@
       "topic": "community-health",
       "label": "Schools and nurseries",
       "answer": "count_by_band",
+      "reached_by": ["sight", "road"],
       "reach_km": {
         "local": 1,
         "regional": 2,
@@ -934,6 +943,7 @@
       "topic": "community-health",
       "label": "Hospitals, clinics and care homes",
       "answer": "count_by_band",
+      "reached_by": ["road"],
       "reach_km": {
         "local": 1,
         "regional": 2,
@@ -963,6 +973,7 @@
       "label": "Radon potential",
       "search": ["radon"],
       "answer": "classes",
+      "reached_by": ["ground"],
       "reach_km": {
         "local": 0,
         "regional": 0,
@@ -1149,6 +1160,7 @@
       "label": "Coal mining: development high risk area",
       "search": ["coal mining", "mine entries"],
       "answer": "inside",
+      "reached_by": ["ground"],
       "reach_km": {
         "local": 0,
         "regional": 0,
@@ -1193,6 +1205,7 @@
       "label": "Active faults",
       "search": ["fault"],
       "answer": "count_by_band",
+      "reached_by": ["ground"],
       "reach_km": {
         "local": 2,
         "regional": 10,
@@ -1266,7 +1279,12 @@
       "label": "Vessel traffic (AIS)",
       "answer": "value_at_site",
       "reach_km": null,
-      "reach_why": "Read on the site and out to the close band",
+      "read_km": {
+        "local": 2,
+        "regional": 5,
+        "global": 10
+      },
+      "reach_why": "Read on the site and out to read_km, by scale (the former close band); not a search distance",
       "applies": {
         "setting": "sea"
       },
@@ -1373,6 +1391,7 @@
       "topic": "material-assets",
       "label": "Main roads",
       "answer": "count_by_band",
+      "reached_by": ["road"],
       "reach_km": {
         "local": 0.5,
         "regional": 2,
@@ -1460,6 +1479,7 @@
       "topic": "material-assets",
       "label": "Aerodromes",
       "answer": "count_by_band",
+      "reached_by": ["flight", "sight"],
       "reach_km": {
         "local": 5,
         "regional": 15,
@@ -1488,6 +1508,7 @@
       "topic": "material-assets",
       "label": "Existing wind turbines",
       "answer": "count_by_band",
+      "reached_by": ["sight"],
       "reach_km": {
         "local": 2,
         "regional": 10,
@@ -1946,6 +1967,7 @@
       "label": "Scheduled monuments",
       "search": ["scheduled monument"],
       "answer": "count_by_band",
+      "reached_by": ["sight"],
       "reach_km": {
         "local": 0.5,
         "regional": 5,
@@ -2030,6 +2052,7 @@
       "label": "Listed buildings",
       "search": ["listed building"],
       "answer": "count_by_band",
+      "reached_by": ["sight"],
       "reach_km": {
         "local": 0.25,
         "regional": 2,
@@ -2144,6 +2167,7 @@
       "label": "World Heritage Sites",
       "search": ["world heritage"],
       "answer": "count_by_band",
+      "reached_by": ["sight"],
       "reach_km": {
         "local": 2,
         "regional": 10,
@@ -2239,6 +2263,7 @@
       "topic": "heritage",
       "label": "World Heritage Site buffer zones",
       "answer": "inside",
+      "reached_by": ["sight"],
       "reach_km": {
         "local": 0,
         "regional": 0,
@@ -2335,6 +2360,7 @@
       "label": "Registered parks and gardens",
       "search": ["parks and gardens", "designed landscape"],
       "answer": "count_by_band",
+      "reached_by": ["sight"],
       "reach_km": {
         "local": 0.5,
         "regional": 5,
@@ -2431,6 +2457,7 @@
       "label": "Battlefields",
       "search": ["battlefield"],
       "answer": "count_by_band",
+      "reached_by": ["sight"],
       "reach_km": {
         "local": 0.5,
         "regional": 5,
@@ -2506,6 +2533,7 @@
       "label": "National Parks",
       "search": ["national park"],
       "answer": "count_by_band",
+      "reached_by": ["sight"],
       "reach_km": {
         "local": 2,
         "regional": 10,
@@ -2586,6 +2614,7 @@
       "label": "National Landscapes, NSAs and AONBs",
       "search": ["national landscape", "outstanding natural beauty"],
       "answer": "count_by_band",
+      "reached_by": ["sight"],
       "reach_km": {
         "local": 2,
         "regional": 10,
@@ -2670,6 +2699,7 @@
       "label": "Wild Land Areas",
       "search": ["wild land"],
       "answer": "count_by_band",
+      "reached_by": ["sight"],
       "reach_km": {
         "local": 2,
         "regional": 10,
@@ -2712,6 +2742,7 @@
       "label": "Local and regional landscape designations",
       "search": ["landscape area", "special landscape"],
       "answer": "count_by_band",
+      "reached_by": ["sight"],
       "reach_km": {
         "local": 1,
         "regional": 5,
@@ -2782,6 +2813,7 @@
       "label": "Flood zones (rivers and sea)",
       "search": ["flood zone", "flood map"],
       "answer": "classes",
+      "reached_by": ["water"],
       "reach_km": {
         "local": 0.25,
         "regional": 0.5,
@@ -2932,6 +2964,7 @@
       "label": "Surface water flooding",
       "search": ["flooding from surface water", "surface water flood"],
       "answer": "classes",
+      "reached_by": ["water"],
       "reach_km": {
         "local": 0.25,
         "regional": 0.5,
@@ -3006,6 +3039,7 @@
       "topic": "water",
       "label": "Lakes, ponds and reservoirs",
       "answer": "count_by_band",
+      "reached_by": ["water"],
       "reach_km": {
         "local": 0,
         "regional": 0,
@@ -3037,6 +3071,7 @@
       "topic": "water",
       "label": "Rivers, streams and ditches",
       "answer": "count_by_band",
+      "reached_by": ["water"],
       "reach_km": {
         "local": 0.05,
         "regional": 0.05,
@@ -3069,6 +3104,7 @@
       "label": "Groundwater source protection zones",
       "search": ["source protection"],
       "answer": "classes",
+      "reached_by": ["water", "ground"],
       "reach_km": {
         "local": 0,
         "regional": 0,
@@ -3145,6 +3181,7 @@
       "label": "Water pollution incidents",
       "search": ["pollution incident"],
       "answer": "count_by_band",
+      "reached_by": ["water"],
       "reach_km": {
         "local": 0.5,
         "regional": 1,
@@ -3203,6 +3240,7 @@
       "topic": "water",
       "label": "Major water discharge permits (EPA)",
       "answer": "count_by_band",
+      "reached_by": ["water"],
       "reach_km": {
         "local": 0.5,
         "regional": 1,
@@ -3251,6 +3289,7 @@
       "label": "Farmland grade",
       "search": ["agricultural land", "land capability"],
       "answer": "classes",
+      "reached_by": ["ground"],
       "reach_km": {
         "local": 0,
         "regional": 0,
@@ -3393,6 +3432,7 @@
       "label": "Peat and carbon-rich soils",
       "search": ["peat"],
       "answer": "classes",
+      "reached_by": ["ground"],
       "reach_km": {
         "local": 0,
         "regional": 0,
@@ -3456,6 +3496,7 @@
       "label": "Landfill (historic and authorised)",
       "search": ["landfill"],
       "answer": "count_by_band",
+      "reached_by": ["ground", "water"],
       "reach_km": {
         "local": 0.25,
         "regional": 1,
@@ -3529,6 +3570,7 @@
       "label": "Closed mining waste facilities",
       "search": ["mining waste", "mine waste"],
       "answer": "count_by_band",
+      "reached_by": ["ground", "water"],
       "reach_km": {
         "local": 0.25,
         "regional": 1,
@@ -3600,6 +3642,7 @@
       "label": "Council contaminated land records",
       "search": ["contaminated land"],
       "answer": "count_by_band",
+      "reached_by": ["ground", "water"],
       "reach_km": {
         "local": 0.25,
         "regional": 0.5,
@@ -3691,6 +3734,7 @@
       "topic": "ground-soil",
       "label": "Past land use (Northern Ireland)",
       "answer": "count_by_band",
+      "reached_by": ["ground", "water"],
       "reach_km": {
         "local": 0.25,
         "regional": 1,
@@ -3732,6 +3776,7 @@
       "topic": "ground-soil",
       "label": "Superfund sites (EPA)",
       "answer": "count_by_band",
+      "reached_by": ["ground", "water"],
       "reach_km": {
         "local": 0.25,
         "regional": 1,
@@ -3783,6 +3828,7 @@
       "topic": "ground-soil",
       "label": "Other cleanup and hazardous waste sites (EPA)",
       "answer": "count_by_band",
+      "reached_by": ["ground", "water"],
       "reach_km": {
         "local": 0.25,
         "regional": 1,

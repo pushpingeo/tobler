@@ -9,6 +9,16 @@ export const UNIT_SETS = {
   nautical: { label: "Nautical (nautical miles)", dist: "nm", area: "sq nm", scale: "nautical" },
 };
 
+// A distance as the person said it ("150", "m"; "5", "kilometres") in km, for the run's inputs (package A). Metres and
+// kilometres only for now; package C adds feet, miles and nautical miles, with exact factors. null if it can't be read.
+const TO_KM = { m: 0.001, metre: 0.001, metres: 0.001, meter: 0.001, meters: 0.001, km: 1, kms: 1, kilometre: 1, kilometres: 1, kilometer: 1, kilometers: 1 };
+export function toKm(value, unit = "km") {
+  const v = typeof value === "string" ? +value.replace(/,/g, "").trim() : +value;
+  if (value == null || value === "" || !Number.isFinite(v)) return null;
+  const f = TO_KM[String(unit ?? "km").toLowerCase().replace(/\./g, "").trim() || "km"];
+  return f == null ? null : Math.round(v * f * 1e9) / 1e9;
+}
+
 let current = "metric";
 export const setUnits = (u) => { current = UNIT_SETS[u] ? u : "metric"; return current; };
 export const getUnits = () => current;
