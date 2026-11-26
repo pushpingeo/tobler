@@ -9,7 +9,7 @@
 <link rel="icon" href="img/tobler.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/public-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="js/vendor/maplibre-gl.css">
-<link rel="stylesheet" href="css/workspace.css?v=0a59402d">
+<link rel="stylesheet" href="css/workspace.css?v=14c1406b">
 <script src="js/vendor/maplibre-gl.js"></script>
 <script type="importmap">
 {
@@ -45,16 +45,17 @@
   "./js/industry.js": "./js/industry.js?v=0d32f3b5",
   "./js/licence.js": "./js/licence.js?v=3385dd2d",
   "./js/nearness.js": "./js/nearness.js?v=6807b2f9",
-  "./js/ntrrun.js": "./js/ntrrun.js?v=ab5e1161",
+  "./js/ntrrun.js": "./js/ntrrun.js?v=901610aa",
   "./js/osmchecks.js": "./js/osmchecks.js?v=4581e335",
   "./js/osmsnapshot.js": "./js/osmsnapshot.js?v=91ca4b49",
   "./js/outofdate.js": "./js/outofdate.js?v=09c95316",
-  "./js/placetools.js": "./js/placetools.js?v=bccf5180",
+  "./js/placetools.js": "./js/placetools.js?v=2272537c",
   "./js/projectstore.js": "./js/projectstore.js?v=c0e11ae3",
   "./js/reference.js": "./js/reference.js?v=c5ac2d6a",
   "./js/rundiff.js": "./js/rundiff.js?v=129d28e5",
   "./js/runreply.js": "./js/runreply.js?v=7aa1ee5b",
   "./js/seavalues.js": "./js/seavalues.js?v=a6bb8879",
+  "./js/servicesite.js": "./js/servicesite.js?v=2337a013",
   "./js/share.js": "./js/share.js?v=cd01f743",
   "./js/sharelog.js": "./js/sharelog.js?v=c41ca9c5",
   "./js/siterole.js": "./js/siterole.js?v=f9df2b66",
@@ -65,7 +66,7 @@
   "./js/vendor/fileread.js": "./js/vendor/fileread.js?v=c6e0d988",
   "./js/vendor/flatgeobuf.js": "./js/vendor/flatgeobuf.js?v=5d6365ac",
   "./js/vendor/turf.js": "./js/vendor/turf.js?v=555787c6",
-  "./js/workspace.js": "./js/workspace.js?v=43343093",
+  "./js/workspace.js": "./js/workspace.js?v=c3f39b79",
   "@turf/turf": "./js/vendor/turf.js?v=555787c6",
   "osmtogeojson": "./js/vendor/osmtogeojson.js?v=75ffea00"
  }
@@ -263,6 +264,28 @@
 
 <div class="drop-overlay" id="drop-overlay" aria-hidden="true"><p><strong>Drop the site's file</strong>A shapefile folder or zip, or GeoJSON. It's read here in your browser, not uploaded.</p></div>
 
+<!-- A site from a map or feature service (26 Nov; claude/site-from-service-spec.md): a floating panel over the map. -->
+<section class="svc-panel" id="svc-panel" hidden aria-label="Pick your site from a service">
+  <header><h2>Pick your site from the service</h2><button type="button" class="close" data-op="svc-close" aria-label="Close">×</button></header>
+  <p class="svc-title quiet"></p>
+  <p class="svc-banner">Pan and zoom to your site, then click the feature(s) you want to bring in.</p>
+  <div class="svc-layers" hidden></div>
+  <div class="svc-map" id="svc-map"></div>
+  <p class="svc-status quiet" aria-live="polite"></p>
+  <div class="svc-signin" hidden>
+    <p class="svc-why"></p>
+    <label>Token <input type="password" autocomplete="off" spellcheck="false" placeholder="Paste a token for this service"></label>
+    <button type="button" data-op="svc-token">Try again</button>
+    <p class="quiet">The token stays in this browser tab: it isn't saved, logged or sent to the AI. Or export the feature from ArcGIS as GeoJSON or a shapefile and <button type="button" class="link" data-op="svc-file">drop the file here</button> instead.</p>
+  </div>
+  <div class="svc-picked" hidden><p class="svc-list"></p>
+    <div class="svc-buffer" hidden><p>Points and lines need a buffer to become a site:</p>
+      <div class="widths"><button type="button" data-b="10">10 m</button><button type="button" data-b="30">30 m</button><button type="button" data-b="50">50 m</button><button type="button" data-b="100">100 m</button></div></div>
+  </div>
+  <p class="svc-notice quiet">Tobler copies the outline into this project, in your browser. The service's address and any token stay here and aren't saved. The AI sees the feature's name, the layer's name and the site's size and whereabouts, not the outline itself.</p>
+  <footer><button type="button" class="primary" data-op="svc-use" disabled>Bring in as the site</button><button type="button" data-op="svc-close">Cancel</button></footer>
+</section>
+
 <template id="file-card">
   <article class="msg analyst choices filecard">
     <p class="question"></p>
@@ -352,6 +375,6 @@
   </article>
 </template>
 
-<script type="module" src="js/workspace.js?v=43343093"></script>
+<script type="module" src="js/workspace.js?v=c3f39b79"></script>
 </body>
 </html>

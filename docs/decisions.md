@@ -2,6 +2,46 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 26 Nov 2026 (night): a site from a map or feature service (plan item 1, second half; Rob's spec of 26 Nov, `claude/site-from-service-spec.md`)
+- **Pasting an ArcGIS REST address opens a panel; it doesn't go to the analyst.** `js/servicesite.js` finds a
+  MapServer or FeatureServer address (service or layer) in what the person types; the page shows their message, opens
+  the panel, and makes no model call. The session log keeps "[a service address]", not the address (it may be
+  private). A token in the address is taken out of it and used only in the panel.
+- **The panel:** the service drawn over the same basemap (a map service through `export` in Web Mercator, the server
+  reprojecting; a feature service's features in view, fetched as WGS84 for drawing only), a layer chip per layer when
+  the address is a whole service, and a click picks the feature under it (6 px of tolerance), again to drop it. Picks
+  come from one layer at a time (switching layer drops them, and says so). Points and lines need a buffer of 10, 30, 50
+  or 100 m before the button works. The notice says what's kept and what the AI sees.
+- **The datum isn't trusted to the server.** The picked features are asked for in the service's own coordinates (Esri
+  JSON, no `outSR`), written as a GeoJSON naming its EPSG code, and read by the file pipeline (`readFiles`), which
+  picks the transformation from the EPSG registry for where the data is, as for a dropped file. A datum that needs a
+  judgement goes to the usual file card, where the analyst asks. If Tobler can't convert the service's coordinate
+  system (only the built-in list: WGS 84, ETRS89, OSGB36, BNG, Irish grids, Web Mercator, UTM on WGS 84, ETRS89 and
+  ED50), the server's WGS 84 copy is used and the place says so, with a warning. Rob's steer was to query with
+  `outSR=4326`; this asks for the native coordinates instead, because that's how the datum gets checked.
+- **Several features** come in as one site, joined, with each part's label and the service's feature ids in the
+  record (ready for multi-site). **The record** (`origin.method: "service"`, a new value beside words, drawn and file):
+  address, host, layer, layer id, feature ids, when, the native EPSG code, whether it was secured, the buffer, the
+  conversion, and the licence: "unknown" for a public service until the atlas can look addresses up, "your own or your
+  organisation's data" for a secured one. **Invariant 5 names the three old values; this adds a fourth, which keeps
+  provenance travelling rather than bending it, but Rob may want the invariant's wording changed.**
+- **Signing in, without the Worker:** a plain request first; if the service wants a sign-in, the same request with the
+  browser's own login (`credentials: "include"`: a company portal's single sign-on, if it lists asktobler.com as an
+  allowed origin; the error message names that setting); then a token field in the panel (a password box), kept in
+  the panel's memory only and dropped when it closes, never saved, logged or sent to the model or the atlas. The
+  panel also offers the file fallback (export as GeoJSON or a shapefile and drop it).
+- **What the model sees:** the place's name (the feature's), its size and whereabouts, and one origin line: "the
+  layer Parcels on gis.example-council.gov.uk" for a public service, "your organisation's secured service, layer
+  Parcels" for a secured one. Never an address, a token or coordinates (checked in the browser).
+- **Not built yet:** "Use as basemap" and the basemap switcher (the spec's secondary use); WMS/WFS; looking a public
+  address up in the atlas for its licence and trust signals (an atlas request); OAuth for ArcGIS Online. A public
+  service that blocks browser requests can't be read: going through tobler-api would be a `worker/` change, so it waits
+  for Rob.
+- **Tested:** `npm test` (new `test/servicesite.test.mjs`, 5: addresses, sign-in order, Esri rings, BNG through the
+  file pipeline, buffers); new browser check `browser-service` (40, desktop and phone) against a fake council parcels
+  service in BNG and a fake secured company service. **Not tested:** a real ArcGIS server, a real company portal's
+  login, a real token, a MapServer export drawing a real map.
+
 ## 26 Nov 2026 (night): bring in a layer, after a run (plan item 1, first half; Rob: "it would be great if you could do 1")
 - **The screen judges its checks with no tools.** The constraints screen is now one sealed judgement, like the desk
   study (`systemForScreen`, one call, no tools). Before, the analyst searched and fetched catalogue layers itself, out

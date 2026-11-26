@@ -4,6 +4,7 @@
 import { bringIn } from "./bringin.js";
 import { placeRole, notASite } from "./siterole.js";
 import { placesFromFile, fileSummary, fileOriginText, builtinToWgs84 } from "./fileimport.js";
+import { serviceOriginText } from "./servicesite.js";
 import * as turf from "./vendor/turf.js";
 import * as G from "./geometry.js";
 import * as R from "./reference.js";
@@ -785,7 +786,8 @@ export function createPlaceTools(host) {
       const d = await R.describe(host.ref, p.feature);
       return {
         place: p.name, status: p.status, summary: R.summaryLine(d), ...pickD(d),
-        how_made: p.origin?.method === "words" ? { words: p.origin.words, anchor: p.origin.anchor?.name || p.origin.anchor?.place, source: p.origin.anchor?.source?.title, steps: p.origin.steps, confidence: p.origin.confidence } : p.origin?.method === "file" ? { file: p.origin.file, features: p.origin.features, coordinates: p.origin.crs?.how, ...(p.origin.buffer_m ? { width_m: p.origin.buffer_m } : {}), steps: p.origin.steps } : { method: "drawn on the map" },
+        how_made: p.origin?.method === "words" ? { words: p.origin.words, anchor: p.origin.anchor?.name || p.origin.anchor?.place, source: p.origin.anchor?.source?.title, steps: p.origin.steps, confidence: p.origin.confidence } : p.origin?.method === "file" ? { file: p.origin.file, features: p.origin.features, coordinates: p.origin.crs?.how, ...(p.origin.buffer_m ? { width_m: p.origin.buffer_m } : {}), steps: p.origin.steps }
+          : p.origin?.method === "service" ? { from: serviceOriginText(p.origin), features: p.origin.features, ...(p.origin.buffer_m ? { buffer_m: p.origin.buffer_m } : {}), steps: p.origin.steps } : { method: "drawn on the map" },
         what_it_is: (({ role, why }) => `${role === "search_area" ? "search area" : role}: ${why}`)(placeRole(p.origin, p.feature.geometry)),
         edits: (p.edits || []).map((e) => e.change),
       };
@@ -961,7 +963,7 @@ export async function projectSummary(ref, places, focus, view = null, runs = [],
   const lines = [];
   for (const p of places) {
     const d = await R.describe(ref, p.feature);
-    const how = p.origin?.method === "words" ? `from words "${p.origin.words}" (anchor: ${p.origin.anchor?.name || p.origin.anchor?.place}, ${p.origin.confidence} confidence)` : p.origin?.method === "file" ? fileOriginText(p.origin) : "drawn on the map";
+    const how = p.origin?.method === "words" ? `from words "${p.origin.words}" (anchor: ${p.origin.anchor?.name || p.origin.anchor?.place}, ${p.origin.confidence} confidence)` : p.origin?.method === "file" ? fileOriginText(p.origin) : p.origin?.method === "service" ? serviceOriginText(p.origin) : "drawn on the map";
     const role = placeRole(p.origin, p.feature.geometry).role === "search_area" ? "; a search area (the site's outline wasn't found)" : "";
     const edits = p.edits?.length ? `; edited: ${p.edits.slice(-3).map((e) => e.change).join("; ")}` : "";
     lines.push(`- ${p.name}${p.name === focus ? " [in focus]" : ""} (${p.status}): ${R.summaryLine(d)}; scale ${p.scale || d.scale}${p.scaleFrom && p.scaleFrom !== "size" ? ` (from ${p.scaleFrom === "you" ? "the person" : p.scaleFrom})` : ""}; ${how}${role}${edits}`);

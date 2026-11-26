@@ -9,6 +9,7 @@ import { placeToolDefs, createPlaceTools, projectSummary } from "./placetools.js
 import { parseSkill, systemPrompt, buildMessages, runTurn, activityFor } from "./converse.js";
 import { finishTurn, runReply } from "./runreply.js";
 import { offerSummary, lower as lowerLabel } from "./bringin.js";
+import * as SV from "./servicesite.js";
 import { callClaude, LimitReached } from "./claude.js";
 import { atlasViaWorker, firmsViaWorker, epsgViaWorker } from "./atlasclient.js";
 import { CONFIG } from "./config.js";
@@ -1219,6 +1220,8 @@ function usePicked(combine, { force = false } = {}) {
   let built;
   try { built = placesFromFile(file, { fids: [...picked], combine, buffer_m: width }); }
   catch (e) { card.querySelector(".notes").textContent = e.message; return; }
+  // From a service, after a datum decision (js/servicesite.js): the place says it came from the service, not a file.
+  if (file.service) for (const b of built) b.origin = SV.serviceOrigin(b.origin, file.service);
   const made = built.map((b) => host.addPlace({ ...b, status: "accepted" }));
   const sizes = made.map((p) => `${p.name} (${/Polygon/.test(p.feature.geometry.type) ? U.area(turf.area(p.feature) / 1e6) : "a point"})`);
   const result = card.querySelector(".result");
@@ -1240,6 +1243,186 @@ function closeSiteFile(why) {
     result.textContent = why === "cancelled" ? "Cancelled; nothing was kept." : why === "replaced" ? "Replaced by the next file you dropped." : "Used: see the reply below.";
   }
 }
+
+// ---- a site from a map or feature service (26 Nov; claude/site-from-service-spec.md) -----------------------------
+// The person pastes an ArcGIS REST address. It doesn't go to the analyst: a panel opens with the service drawn in it,
+// they click the feature(s) that are their site, and the outline comes in through the file pipeline (the datum chosen
+// from the registry, not trusted to the server). The service isn't kept. Requests go straight from this page to the
+// service, with the browser's own login if it needs one, or a token kept only in this closure.
+let svcOpen = null;
+const svcEl = (sel) => $("svc-panel").querySelector(sel);
+const SVC_NAME_KEYS = [/^name$/i, /^site_?name$/i, /^title$/i, /^label$/i, /name/i, /^ref(erence)?$/i];
+const svcLabel = (a, layer, id) => { const k = Object.keys(a || {}).find((x) => SVC_NAME_KEYS.some((re) => re.test(x)) && a[x] != null && String(a[x]).trim() && String(a[x]).length <= 80); return k ? String(a[k]).trim() : `${layer.name} ${id ?? ""}`.trim(); };
+async function openServicePanel(svc) {
+  closeServicePanel();
+  const panel = $("svc-panel");
+  const state = { token: svc.token || null, credentialed: false, secured: false };
+  const S = { svc, state, info: null, layer: null, picked: new Map(), buffer: null, map: null, shown: null };
+  svcOpen = S;
+  panel.hidden = false;
+  svcEl(".svc-title").textContent = `${svc.host} · ${svc.url.split("/rest/services/")[1] || svc.url}${svc.token ? " (the token in the address is used here, not kept)" : ""}`;
+  svcEl(".svc-signin").hidden = true; svcEl(".svc-layers").hidden = true; svcEl(".svc-picked").hidden = true;
+  svcEl('[data-op="svc-use"]').disabled = true;
+  const status = (t) => { svcEl(".svc-status").textContent = t; };
+  status("Reading the service…");
+  const c = map.getCenter();
+  // The same background as the main map; a plain one if that can't be reached (as the main map falls back).
+  const plain = { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#eef2f1" } }] };
+  S.map = new maplibregl.Map({ container: "svc-map", style: fellBack ? plain : BASEMAP, center: [c.lng, c.lat], zoom: Math.max(map.getZoom(), 2), attributionControl: false,
+    // The browser's own login, or the token, on the service's tiles; nothing for anyone else's.
+    transformRequest: (url) => (url.startsWith(svc.base) ? { url: state.token && !/[?&]token=/.test(url) ? `${url}&token=${encodeURIComponent(state.token)}` : url, credentials: state.credentialed ? "include" : "omit" } : undefined) });
+  S.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+  let styled = false;
+  const ready = new Promise((ok) => S.map.once("style.load", () => { styled = true; ok(); }));
+  S.map.on("error", (e) => { if (!styled && /style|fetch|Failed|NetworkError/i.test(String(e?.error?.message || ""))) { styled = true; S.map.setStyle(plain); S.map.once("style.load", () => ready.then(() => {})); } });
+  const loaded = Promise.race([ready, new Promise((ok) => S.map.once("styledata", () => setTimeout(ok, 50)))]).then(() => new Promise((ok) => (S.map.isStyleLoaded() ? ok() : S.map.once("style.load", ok))));
+  try {
+    S.info = await SV.describeService(svc, state);
+  } catch (e) { if (svcOpen === S) showSignIn(S, e); return; }
+  await loaded;
+  if (svcOpen !== S) return;
+  status(`${S.info.name}: ${S.info.layers.length === 1 ? "one layer" : `${S.info.layers.length} layers`}. Click a feature to pick it; click again to drop it.`);
+  for (const id of ["svc-pick-fill", "svc-pick-line"]) if (S.map.getLayer(id)) S.map.removeLayer(id);
+  S.map.addSource("svc-pick", { type: "geojson", data: turf.featureCollection([]) });
+  S.map.addSource("svc-feat", { type: "geojson", data: turf.featureCollection([]) });
+  S.map.addLayer({ id: "svc-feat-fill", type: "fill", source: "svc-feat", filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": "#0b6e8a", "fill-opacity": 0.12 } });
+  S.map.addLayer({ id: "svc-feat-line", type: "line", source: "svc-feat", paint: { "line-color": "#0b6e8a", "line-width": 1.2 } });
+  S.map.addLayer({ id: "svc-feat-pt", type: "circle", source: "svc-feat", filter: ["==", ["geometry-type"], "Point"], paint: { "circle-radius": 4, "circle-color": "#0b6e8a" } });
+  S.map.addLayer({ id: "svc-pick-fill", type: "fill", source: "svc-pick", filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": "#e4572e", "fill-opacity": 0.3 } });
+  S.map.addLayer({ id: "svc-pick-line", type: "line", source: "svc-pick", paint: { "line-color": "#e4572e", "line-width": 2.5 } });
+  S.map.addLayer({ id: "svc-pick-pt", type: "circle", source: "svc-pick", filter: ["==", ["geometry-type"], "Point"], paint: { "circle-radius": 6, "circle-color": "#e4572e", "circle-stroke-color": "#fff", "circle-stroke-width": 2 } });
+  const layers = svcEl(".svc-layers");
+  layers.replaceChildren();
+  if (S.info.layers.length > 1) {
+    layers.hidden = false;
+    for (const l of S.info.layers) { const b = el("button", `${l.name} (${l.geometry}s)`); b.type = "button"; b.dataset.layer = l.id; b.addEventListener("click", () => setServiceLayer(S, l)); layers.append(b); }
+  }
+  setServiceLayer(S, S.info.layers.find((l) => l.geometry === "polygon") || S.info.layers[0]);
+  S.map.on("moveend", () => drawServiceLayer(S));
+  S.map.on("click", (e) => pickServiceFeature(S, e));
+}
+function setServiceLayer(S, layer) {
+  if (S.layer && S.layer !== layer && S.picked.size) { S.picked.clear(); paintServicePicks(S); svcEl(".svc-status").textContent = `Switched to ${layer.name}: picks from the other layer were dropped (pick from one layer at a time).`; }
+  S.layer = layer;
+  svcEl(".svc-layers").querySelectorAll("button").forEach((b) => b.classList.toggle("on", +b.dataset.layer === layer.id));
+  if (S.map.getLayer("svc-img")) S.map.removeLayer("svc-img");
+  if (S.map.getSource("svc-img")) S.map.removeSource("svc-img");
+  // A map service draws itself, reprojected to Web Mercator by the server; a feature service's features in view are drawn here.
+  if (S.svc.kind === "MapServer") {
+    S.map.addSource("svc-img", { type: "raster", tileSize: 512, tiles: [`${S.svc.base}/export?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=512,512&dpi=96&format=png32&transparent=true&f=image&layers=show:${layer.id}`] });
+    S.map.addLayer({ id: "svc-img", type: "raster", source: "svc-img" }, "svc-feat-fill");
+    S.map.getSource("svc-feat").setData(turf.featureCollection([]));
+  } else drawServiceLayer(S);
+}
+let svcDrawSeq = 0;
+async function drawServiceLayer(S) {
+  if (svcOpen !== S || S.svc.kind !== "FeatureServer" || !S.layer) return;
+  const b = S.map.getBounds();
+  const seq = ++svcDrawSeq;
+  try {
+    const got = await SV.featuresInBox(S.svc, S.layer, [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((v) => Math.round(v * 1e5) / 1e5), S.state);
+    if (seq !== svcDrawSeq || svcOpen !== S) return;
+    S.map.getSource("svc-feat").setData(turf.featureCollection(got.features));
+    if (got.capped) svcEl(".svc-status").textContent = "Only some features are drawn at this zoom; zoom in to see them all. Clicking still finds any feature.";
+  } catch (e) { if (svcOpen === S) svcEl(".svc-status").textContent = `The features couldn't be drawn: ${e.message}`; }
+}
+async function pickServiceFeature(S, e) {
+  if (!S.layer) return;
+  const mpp = 40075016.686 * Math.cos(e.lngLat.lat * Math.PI / 180) / (512 * 2 ** S.map.getZoom());
+  svcEl(".svc-status").textContent = "Looking at what's there…";
+  let got;
+  try { got = await SV.featuresAt(S.svc, S.layer, [e.lngLat.lng, e.lngLat.lat], 6 * mpp, S.state); }
+  catch (err) { svcEl(".svc-status").textContent = `That didn't work: ${err.message}`; return; }
+  if (!got.features.length) { svcEl(".svc-status").textContent = `Nothing on ${S.layer.name} there. Zoom in and click on a feature.`; return; }
+  // The smallest feature under the click (a parcel inside a bigger zone).
+  const f = got.features[0];
+  const key = `${S.layer.id}:${f.id}`;
+  if (S.picked.has(key)) S.picked.delete(key);
+  else S.picked.set(key, { layer: S.layer, id: f.id, attributes: f.attributes, esri: f.geometry, wkid: got.wkid, label: svcLabel(f.attributes, S.layer, f.id), kind: f.geometry.rings ? "polygon" : f.geometry.paths ? "line" : "point" });
+  await paintServicePicks(S);
+}
+async function paintServicePicks(S) {
+  const picks = [...S.picked.values()];
+  const box = svcEl(".svc-picked");
+  box.hidden = !picks.length;
+  svcEl(".svc-list").textContent = picks.length ? `Picked: ${picks.map((p) => p.label).join("; ")}.` : "";
+  const thin = picks.some((p) => p.kind !== "polygon");
+  svcEl(".svc-buffer").hidden = !thin;
+  svcEl(".svc-buffer").querySelectorAll("[data-b]").forEach((b) => b.classList.toggle("on", +b.dataset.b === S.buffer));
+  svcEl('[data-op="svc-use"]').disabled = !picks.length || (thin && !S.buffer);
+  svcEl('[data-op="svc-use"]').textContent = picks.length > 1 ? `Bring in ${picks.length} features as the site` : "Bring in as the site";
+  svcEl(".svc-status").textContent = picks.length ? "Click more to add them, or bring them in." : "Click a feature to pick it.";
+  // Drawn from the server's WGS84 copy: for the highlight only.
+  try {
+    const shown = picks.length ? await SV.featuresWgs84(S.svc, S.layer, picks.map((p) => p.id), S.state) : [];
+    if (svcOpen === S) S.map.getSource("svc-pick").setData(turf.featureCollection(shown.map((f) => ({ type: "Feature", properties: {}, geometry: f.geometry }))));
+  } catch { /* the highlight is a nicety */ }
+}
+function showSignIn(S, err) {
+  svcEl(".svc-status").textContent = "";
+  const box = svcEl(".svc-signin");
+  box.hidden = false;
+  svcEl(".svc-why").textContent = err.needsSignIn
+    ? `${err.message} If it's on your organisation's network, it should use your login when you're signed in to its portal; otherwise paste a token for it below.`
+    : err.message;
+}
+function closeServicePanel() {
+  const S = svcOpen;
+  svcOpen = null;
+  if (S) { S.state.token = null; try { S.map?.remove(); } catch { /* already gone */ } }
+  $("svc-panel").hidden = true;
+  svcEl(".svc-signin input").value = "";
+}
+async function useServicePicks() {
+  const S = svcOpen;
+  if (!S || busy) return;
+  const picks = [...S.picked.values()];
+  if (!picks.length) return;
+  const btn = svcEl('[data-op="svc-use"]');
+  btn.disabled = true;
+  svcEl(".svc-status").textContent = "Bringing it in…";
+  const meta = { url: S.svc.url, host: S.svc.host, kind: S.svc.kind, layer: S.layer.name, layerId: S.layer.id, ids: picks.map((p) => p.id), at: new Date().toISOString(),
+    wkid: picks[0].wkid || S.layer.wkid || null, secured: !!S.state.secured, licence: "unknown" };
+  // The service's own coordinates through the file pipeline; if Tobler can't convert them, the server's WGS84 copy.
+  const asGeo = picks.map((p) => ({ attributes: { ...p.attributes, _label: p.label }, geojson: SV.esriToGeoJSON(p.esri) })).filter((p) => p.geojson);
+  let file = null;
+  try { file = await readFiles([SV.asFile(S.layer, asGeo, meta.wkid, S.layer.name)], { geodesy: fileGeodesy }); } catch { file = null; }
+  if (!file?.features?.length) {
+    try {
+      const w = await SV.featuresWgs84(S.svc, S.layer, meta.ids, S.state);
+      file = await readFiles([SV.asFile(S.layer, w.map((f) => ({ attributes: f.attributes, geojson: f.geometry })), 4326, S.layer.name)], {});
+      meta.serverConverted = true;
+    } catch (e) { svcEl(".svc-status").textContent = `It couldn't be brought in: ${e.message}`; btn.disabled = false; return; }
+  }
+  file.name = `${S.layer.name} (from the service)`;
+  for (const f of file.features) f.label = f.props?._label || f.label;
+  file.service = meta;
+  closeServicePanel();
+  // A datum that needs a judgement goes to the usual file card, where the analyst asks.
+  if (file.layers.some((l) => l.crs.pending)) { showFileCard(file, [...file.skipped, ...file.notes]); return; }
+  let built;
+  try { built = placesFromFile(file, { fids: "all", combine: "parts", buffer_m: picks.some((p) => p.kind !== "polygon") ? S.buffer : null }); }
+  catch (e) { note(`That couldn't become a site: ${e.message}`); return; }
+  const made = built.map((b) => host.addPlace({ ...b, origin: SV.serviceOrigin(b.origin, meta), status: "accepted" }));
+  const p = made[0];
+  const reply = el("div", null, "msg analyst");
+  reply.append(el("p", `Site set from ${meta.secured ? "your organisation's service" : S.svc.host}, layer ${meta.layer}: ${p.name} (${/Polygon/.test(p.feature.geometry.type) ? U.area(turf.area(p.feature) / 1e6) : "a point"}${picks.length > 1 ? `, ${picks.length} features joined` : ""}${p.origin.buffer_m ? `, ${p.origin.buffer_m} m round ${picks.length > 1 ? "them" : "it"}` : ""}). Coordinates: ${p.origin.crs?.how || "as given"}${meta.serverConverted ? "; converted to WGS 84 by the service itself, because Tobler couldn't convert its own coordinates: check the outline against the map" : ""}. The service isn't kept. Ask me to screen it when you're ready.`));
+  $("conversation").append(reply);
+  expandSheet();
+  reply.scrollIntoView({ block: "end", behavior: "smooth" });
+  sessionLog.push({ at: new Date().toISOString(), user: "[picked a site from a service]", events: [{ service_site: { layer: meta.secured ? "[secured]" : meta.layer, features: picks.length, wkid: meta.wkid, secured: meta.secured, server_converted: !!meta.serverConverted } }], reply: "[site set from a service]" });
+}
+document.querySelectorAll('#svc-panel [data-op="svc-close"]').forEach((b) => b.addEventListener("click", () => closeServicePanel()));
+svcEl('[data-op="svc-use"]').addEventListener("click", () => useServicePicks());
+svcEl(".svc-buffer").querySelectorAll("[data-b]").forEach((b) => b.addEventListener("click", () => { if (svcOpen) { svcOpen.buffer = +b.dataset.b; paintServicePicks(svcOpen); } }));
+svcEl('[data-op="svc-token"]').addEventListener("click", () => {
+  const S = svcOpen; const t = svcEl(".svc-signin input").value.trim();
+  if (!S || !t) return;
+  svcEl(".svc-signin input").value = "";
+  const svc = { ...S.svc, token: t };
+  openServicePanel(svc);
+});
+svcEl('[data-op="svc-file"]').addEventListener("click", () => { closeServicePanel(); $("site-file").click(); });
 
 setupFileDrop({ overlay: $("drop-overlay"), input: $("site-file"), onFiles: openSiteFile, onError: (e) => note(`The files couldn't be read: ${e.message || e}`) });
 document.querySelector('.tools [data-action="file"]').addEventListener("click", () => $("site-file").click());
@@ -1998,6 +2181,17 @@ function paintOrigin(p, card = p.card) {
     body.append(el("p", "Read in your browser; the file wasn't uploaded or kept.", "quiet"));
     return;
   }
+  if (o?.method === "service") {
+    const sv = o.service || {};
+    box.querySelector("summary").textContent = `From ${sv.secured ? "your organisation's service" : "a published service"}: ${sv.layer}`;
+    const body = box.querySelector("div");
+    body.append(el("p", `Features: ${o.features.map((f) => f.label).join(", ")}${o.buffer_m ? `, with ${o.buffer_m} m round ${o.features.length > 1 ? "them" : "it"}` : ""}.`));
+    body.append(el("p", `Coordinates: ${o.crs?.how || "as given"}${sv.native_wkid ? ` (the service's own: EPSG:${sv.native_wkid})` : ""}.${sv.converted_by ? ` Converted by ${sv.converted_by}.` : ""}`, o.crs?.warning || sv.converted_by ? "warn" : "quiet"));
+    body.append(el("p", `Source: ${sv.host}, layer ${sv.layer}${sv.feature_ids?.length ? `, feature ${sv.feature_ids.length > 1 ? "ids" : "id"} ${sv.feature_ids.join(", ")}` : ""}; fetched ${String(sv.retrieved_at || "").slice(0, 16).replace("T", " ")}. Licence: ${sv.licence}.`, "quiet"));
+    if (o.steps?.length) body.append(el("p", `Built: ${o.steps.join(", then ")}.`, "quiet"));
+    body.append(el("p", "The outline was copied into this project; the service isn't kept or asked again.", "quiet"));
+    return;
+  }
   if (o?.method !== "words") { box.remove(); return; }
   const a = o.anchor || {};
   const src = a.source ? Object.assign(el("a", `${a.source.publisher}, ${a.source.title}`), { href: a.source.url, target: "_blank", rel: "noopener" }) : null;
@@ -2151,6 +2345,16 @@ const said = [];
 // held run (plan item 1, 25 Nov), which runs exactly what was asked.
 async function send(text, forModel = text, direct = null) {
   if (!text || busy || !draw) return;
+  // A service address opens the service panel and isn't sent to the analyst (it may be a private address).
+  const svc = !direct && forModel === text ? SV.findServiceUrl(text) : null;
+  if (svc) {
+    const shown = svc.token ? text.replace(/([?&])token=[^&\s]*/i, "$1token=…") : text;
+    $("conversation").append(el("div", shown, "msg user"));
+    say.value = ""; grow();
+    sessionLog.push({ at: new Date().toISOString(), user: SV.redactService(text), events: [{ service_panel: { kind: svc.kind, layer: svc.layerId != null } }], reply: "[opened the service panel]" });
+    openServicePanel(svc);
+    return;
+  }
   // Coordinates in what the person typed are read in code, and the analyst is told so it uses them as a place
   // rather than searching for them as a name (Rob, 20 Nov).
   if (forModel === text) { const note = coordinateNote(text); if (note) forModel = `${text}\n\n${note}`; }
