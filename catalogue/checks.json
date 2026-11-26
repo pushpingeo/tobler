@@ -975,7 +975,7 @@
       "sources": [
         {
           "region": "UK",
-          "atlas_id": "3f1f871836efd2da",
+          "atlas_id": "3f1f871836efd2da", "coarse": true,
           "record": {
             "title": "Maximum radon potential, 1 km grid, UK and Isle of Man (UK Health Security Agency)",
             "publisher": "UK Health Security Agency",
@@ -3320,7 +3320,7 @@
         },
         {
           "region": "England",
-          "atlas_id": "13092572fa28c747",
+          "atlas_id": "13092572fa28c747", "coarse": true,
           "record": {
             "title": "Provisional Agricultural Land Classification, England (Natural England)",
             "publisher": "Natural England",
@@ -3348,7 +3348,7 @@
         },
         {
           "region": "Wales",
-          "atlas_id": "ad19381cfa5083b1",
+          "atlas_id": "ad19381cfa5083b1", "coarse": true,
           "record": {
             "title": "Predictive Agricultural Land Classification Map 2, Wales (Welsh Government)",
             "publisher": "Welsh Government",
@@ -3375,7 +3375,7 @@
         },
         {
           "region": "Scotland",
-          "atlas_id": "339b7b656d0df917",
+          "atlas_id": "339b7b656d0df917", "coarse": true,
           "record": {
             "title": "Land Capability for Agriculture, national scale (1:250,000), Scotland (James Hutton Institute)",
             "publisher": "James Hutton Institute",
@@ -3434,7 +3434,7 @@
       "sources": [
         {
           "region": "Scotland",
-          "atlas_id": "c083949b58058a10",
+          "atlas_id": "c083949b58058a10", "coarse": true,
           "record": {
             "title": "Carbon and Peatland 2016 map, Scotland (NatureScot)",
             "publisher": "NatureScot",

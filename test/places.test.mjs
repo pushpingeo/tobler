@@ -168,6 +168,44 @@ await test("offer_choices passes the candidates and the recommendation to the pa
   await assert.rejects(() => t.exec("offer_choices", { candidates: [ids[0], ids[1]], recommended: "C99", reason: "x" }), /must be one of the candidates/);
 });
 
+await test("Heswall (26 Nov): a road keeps its line; one of a name within 300 m is one choice; no ids reach the person; a pick needs no second yes", async () => {
+  const line = (lon, lat) => ({ type: "LineString", coordinates: [[lon - 0.002, lat], [lon + 0.002, lat + 0.0005]] });
+  const row = (id, type, lon, lat, place) => ({ osm_type: "way", osm_id: id, category: "highway", type, lat: String(lat), lon: String(lon), name: "Brimstage Road", display_name: place, importance: 0.05, geojson: line(lon, lat), address: { country: "United Kingdom" } });
+  const nom = [row(1, "primary", -3.0743, 53.3296, "Brimstage Road, Heswall, Wirral, Liverpool City Region, England, CH60 1XF, United Kingdom"),
+    row(2, "residential", -3.0747, 53.3295, "Brimstage Road, Heswall, Wirral, Liverpool City Region, England, CH60 1XF, United Kingdom"),
+    row(3, "primary", -3.0351, 53.337, "Brimstage Road, Higher Bebington, Brimstage, Wirral, Liverpool City Region, England, CH63 6HY, United Kingdom")];
+  const host = memoryHost();
+  host.fetchFn = async (url) => { const u = String(url); const j = (x) => ({ ok: true, status: 200, json: async () => x, text: async () => JSON.stringify(x) });
+    return /nominatim/.test(u) && /Brimstage/.test(decodeURIComponent(u)) ? j(nom) : j(/nominatim/.test(u) ? [] : { type: "FeatureCollection", features: [] }); };
+  let shown = null, picked = null;
+  host.offerChoices = (o) => { shown = o; };
+  host.pickedCandidate = () => picked;
+  host.addPlace = function ({ feature, origin, scale, status = "proposed" }) { const p = { name: `Area ${this.list.length + 1}`, feature, origin, status, edits: [] }; this.list.push(p); return p; };
+  const t = createPlaceTools(host);
+  const out = await t.exec("find_place", { query: "Brimstage Road" });
+  const roads = out.candidates.filter((c) => c.name === "Brimstage Road");
+  assert.equal(roads.length, 3);
+  const [a, b, c] = roads.map((x) => t.candidates.get(x.id));
+  assert.equal(a.geometry.type, "LineString", "the road keeps its line");
+  assert.deepEqual(a.lonlat, [-3.0743, 53.3296], "anchored on Nominatim's own point");
+  const o = await t.exec("offer_choices", { candidates: [a.id, b.id, c.id], recommended: a.id, reason: `${a.id} is the primary road by the station; ${b.id} the residential stretch; ${c.id} is further east` });
+  assert.equal(o.offered, 2, "the two Heswall stretches, 30 m apart, are one choice");
+  assert.equal(o.recommended_name, "Brimstage Road, Heswall");
+  assert.doesNotMatch(o.reason, /\bC\d+\b/);
+  assert.match(o.reason, /Brimstage Road, Heswall is the primary road/);
+  assert.deepEqual(shown.choices.map((x) => shown.labels.get(x)), ["Brimstage Road, Heswall", "Brimstage Road, Higher Bebington"]);
+  await assert.rejects(() => t.exec("offer_choices", { candidates: [a.id, b.id], recommended: a.id, reason: "x" }), /same Brimstage Road within 300 m/);
+  // Picked on the map, built as seen: accepted, and the step says it's a line, not an outline.
+  picked = a.id;
+  const p = await t.exec("make_place", { anchor: a.id, shape: "feature", words: "brimstage road near the train station", match: "named_place", reason: "picked" });
+  assert.equal(host.list.at(-1).status, "accepted");
+  assert.match(p.shown_as, /^accepted/);
+  assert.equal(p.how, "the line of Brimstage Road");
+  // Built as something else (a buffer round it): a proposal, as before.
+  const q = await t.exec("make_place", { anchor: a.id, shape: "buffer", buffer_km: 1.609344, words: "buffer it by a mile", match: "named_place", reason: "asked" });
+  assert.equal(q.shown_as, "proposal");
+});
+
 await test("when Overpass is down, schools come from Nominatim, nearest first, and the next call fails fast", async () => {
   const seen = [];
   const f = async (url) => {

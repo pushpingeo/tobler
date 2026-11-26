@@ -2,6 +2,55 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 26 Nov 2026 (night, last): fixes from Rob's Heswall log (Brimstage Road, screened as a mine)
+
+Rob's log (asktobler.com, 21:34–21:40) turned up seven faults, three of them from this week's changes. Fixed:
+
+- **The offer said a gap had a layer and had none** (`js/bringin.js`). The analyst's look-for "surface water flood
+  risk" and the check "Surface water flooding" were one gap in two wordings, searched twice; the looser search found
+  a layer and the stricter said "found no layer". Now a look-for that names a not-checked check (most of its words,
+  either way round, `namesEnough`) is dropped and the check's curated words search it.
+- **A capped look gave a wrong nearest.** The look before offering reads 500 features from the run's reach, in the
+  server's order, so "nearest 12 km" for surface water on the Wirral. When it's capped, Tobler looks again within
+  2 km (`NEAR_LOOK_KM`) and gives the nearest only if that look isn't capped too; a feature with no name of its own
+  isn't named after its layer ("nearest 400 m away").
+- **The same data offered again under another title.** "Permitted Waste Sites - Authorised Landfill Site
+  Boundaries" was offered after the run had read "Authorised Landfill Site Boundaries, England". A layer whose title
+  holds a used title's core (no brackets, no nation), from the same publisher, counts as read.
+- **Class checks used a share cut-off, not package B's relation** (`js/checks.js`). Flood zones crossing about 2 ha
+  of the 8 km² buffer (0.13% and 0.25%) read "none on the site; nearby: … at the edge" beside evidence saying they
+  crossed it: the 0.5% cut-off. Judgement call: a class feature is now on the site by its relation (any overlap over
+  1 m², B's rule), except from a source marked `coarse` in `catalogue/checks.json` (the 1 km radon grid, the
+  provisional and predictive farmland maps, Hutton's 1:250,000 land capability, the Carbon and Peatland map), which
+  keep the 0.5% cut-off because a sliver may be the map's resolution. Under 1% now reads "(under 1%)", not "(1%)".
+  **Can change an answer:** small overlaps of flood zones and source protection zones now count as on the site.
+- **A road became a point, called an outline** (`js/gazetteer.js`, `js/placetools.js`). Nominatim's line was thrown
+  away (only polygons were kept). A road, railway or river now keeps its line, anchored on Nominatim's own point, and
+  `make_place`'s steps say what the shape is ("the line of …", "the point for … (the source gives no outline)").
+- **Ids and near-duplicates in the choices** (`offer_choices`). Ids in the analyst's reason are replaced by names in
+  code; names that repeat get their locality ("Brimstage Road, Heswall"); candidates of one name and kind within
+  300 m (`SAME_PLACE_KM`) are one choice. A platform and its field share a name but are different kinds, so stay two.
+- **A pick is the yes** (Rob: the route to the site was protracted). A place built on a candidate the person picked
+  from the choice card, as they saw it (its own shape or point, not moved, grown, joined or clipped), is accepted
+  straight away: the pick was the confirmation. Decided from the page's record of the pick (`pickedCandidate`), not
+  the analyst's word. A buffer or square round a pick is still a proposal.
+- **"X near Y"** (place-finding 4.19): find both; the X by Y is the one, and the place meant is the part of X by Y.
+- **The OpenStreetMap copy wasn't used** (`js/osmsnapshot.js`, `js/osmchecks.js`). The copy answered only if the box
+  round all kinds together lay inside its outline; a mine's aerodrome check (15 km) reached into Liverpool Bay, so
+  every kind went to Overpass, which was down: ten checks not checked. Now each kind's own box is tested; the copy
+  answers the kinds it can and Overpass is asked only for the rest. Not confirmed against the live manifest (this
+  workspace can't reach data.asktobler.com); the live replay is the check.
+- **A flag joining two kinds of evidence** says which is that near ("SSSI Impact Risk Zones: on site"), so "SSSI
+  close to the site … ; on the site" no longer reads as an SSSI on the site.
+- **Map colours:** nothing to fix. This run found nothing under hazards or air and climate, the two topics whose
+  colours changed on 26 Nov.
+- **Left:** the headline sentence is still the model's (it named the Dee Estuary, not in the top three): package E.
+  "none in dataset" in the checked list means none within the check's reach; renaming the state touches four modules
+  and their tests, so it waits. "Nearest town Liverpool" for Heswall: the known fault.
+- **Tested:** `npm test` (new tests in bringin, checks, places, osmsnapshot, runreply); all 14 browser checks with
+  `route-local` (no server could be started in this session), desktop and phone, `browser-choice` now replaying the
+  Heswall pick. **Not tested:** a real browser on a real phone; the copy against the live manifest (see the replay).
+
 ## 26 Nov 2026 (late night): imperial wired into rings, slider, bands and check lines (package C's last part)
 
 - **Rings and slider** sit on the reader's ladder: in feet and miles, 300 ft, 1,000 ft, ¼, ½, 1, 2, 5, 10, 20, 30 mi, cut at the run's furthest reach (`runRings`, `sliderSteps`, `ladderTo` in `js/reach.js` take the units). Ring labels use the ladder's own words (`U.ringText`: "¼ mi", not "0.25 mi"). Changing units redraws a run's rings; nothing is re-measured. Old runs keep their near/close/wider rings in any units.

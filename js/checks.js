@@ -332,7 +332,13 @@ function classesFrom(plan, ok, missing, sources, edges) {
     const label = classOf(a.source, x);
     if (!label || x.distance_km == null || x.distance_km > reach + 1e-9) continue;
     members.push({ ...x, dataset: a.meta?.dataset || "", publisher: whoOf(a), detail: label });
-    const onSite = !(x.distance_km > 0) && (x.coverage == null || x.coverage >= ON_SITE_MIN);
+    // On the site by how the feature sits against it (js/relation.js: any overlap over 1 m²), the same as every other
+    // check (Heswall, 26 Nov: flood zones crossing 2 ha of an 8 km² site read "none on the site" beside evidence that
+    // said they crossed it). Only a coarse source ("coarse": a 1 km grid, a 1:250,000 map) keeps the share cut-off,
+    // where a sliver at the edge may just be the map's resolution.
+    const onSite = a.source.coarse
+      ? !(x.distance_km > 0) && (x.coverage == null || x.coverage >= ON_SITE_MIN)
+      : x.relation ? isOnSite(x) : !(x.distance_km > 0) && (x.coverage == null || x.coverage > 0);
     const c = by.get(label) || { label, on_site: false, coverage: 0, nearest_km: null };
     if (onSite) { c.on_site = true; if (x.coverage != null) c.coverage = Math.min(1, c.coverage + x.coverage); }
     else { const d = x.distance_km > 0 ? x.distance_km : 0; if (c.nearest_km == null || d < c.nearest_km) c.nearest_km = d; }
@@ -388,7 +394,7 @@ export function checkLine(r, { nearest: withNearest = true, units = "metric", bo
   if (r.answer === "classes") {
     const where = r.search_area ? "in the search area" : "on the site";
     if (r.state === "none") return `none ${r.reach_km > 0 ? `within ${km(r.reach_km)}` : where}`;
-    const on = (r.classes || []).filter((c) => c.on_site).map((c) => `${c.label}${c.coverage ? ` (${Math.max(1, Math.round(c.coverage * 100))}%)` : ""}`);
+    const on = (r.classes || []).filter((c) => c.on_site).map((c) => `${c.label}${c.coverage ? ` (${c.coverage < 0.005 ? "under 1" : Math.round(c.coverage * 100)}%)` : ""}`);
     const near = (r.classes || []).filter((c) => !c.on_site).map((c) => `${c.label} ${c.nearest_km > 0 ? `at ${km(c.nearest_km)}` : "at the edge"}`);
     return [on.length ? `${where}: ${on.join(", ")}` : `none ${where}`, near.length ? `nearby: ${near.join(", ")}` : null].filter(Boolean).join("; ");
   }

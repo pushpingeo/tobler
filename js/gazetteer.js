@@ -185,14 +185,18 @@ export async function searchNominatim(term, { near = null, country = null, fetch
     // but keep their outline for when the person asks for the area itself ("Fife").
     const isArea = x.category === "boundary" || x.category === "place";
     const poly = x.geojson && /Polygon/.test(x.geojson.type);
+    // A road, railway or river keeps its line (Heswall, 26 Nov: Brimstage Road became a point, so neither a corridor
+    // nor "which part" could be built from it). Towns and areas still anchor on their centre.
+    const line = x.geojson && /LineString/.test(x.geojson.type) && !isArea;
     const c = candidate({
       name: x.name || x.display_name.split(",")[0],
       type: `${x.category}: ${x.type}${x.addresstype && x.addresstype !== x.type ? ` (${x.addresstype})` : ""}`.replace(/_/g, " "),
-      geometry: poly && !isArea ? x.geojson : { type: "Point", coordinates: [+x.lon, +x.lat] },
+      geometry: (poly || line) && !isArea ? x.geojson : { type: "Point", coordinates: [+x.lon, +x.lat] },
       source: { id: "osm-nominatim", title: "OpenStreetMap (Nominatim search)", publisher: "OpenStreetMap contributors", licence: "ODbL 1.0", url: `https://www.openstreetmap.org/${x.osm_type}/${x.osm_id}` },
       extra: { place: x.display_name, country: x.address?.country, importance: round(x.importance || 0, 3) },
     });
     if (poly && isArea) { c.outline = x.geojson; c.extra.outline_km2 = round(turf.area({ type: "Feature", properties: {}, geometry: x.geojson }) / 1e6, 1); }
+    if (line) c.lonlat = [round(+x.lon, 5), round(+x.lat, 5)]; // Nominatim's own point on the line, not its first vertex
     return c;
   });
 }

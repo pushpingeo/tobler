@@ -52,20 +52,25 @@ function element(f) {
   return { type: p.osm_type, id: p.osm_id, tags, geojson: g };
 }
 
-// The source osmAnswers takes: (kinds, boxOf) → { elements, via, data_as_of, release, capped } | null.
+// The source osmAnswers takes: (kinds, boxOf) → { elements, via, data_as_of, release, capped, kinds } | null, where
+// kinds are the ones it answered (each kind's own box inside the copy's outline); the rest are Overpass's.
 // options: base (URL ending in /, default CONFIG.osmSnapshotBase), markets (default CONFIG.osmSnapshotMarkets),
 // fetchFn (for the manifest; the file reads use the page's fetch), timeoutMs, maxPerGroup (features read per group
 // before the answer is marked capped; the place search asks for fewer than the checks).
 export function osmSnapshot({ base = CONFIG.osmSnapshotBase, markets = CONFIG.osmSnapshotMarkets || [], fetchFn = globalThis.fetch, timeoutMs = 20000, maxPerGroup = MAX_PER_GROUP } = {}) {
   return async (kinds, boxOf) => {
     if (!base || !markets.length || !kinds.length) return null;
-    const all = unionBox(kinds.map(boxOf));
-    let lastErr = null, m = null, mUrl = null;
+    // Which kinds the copy can answer: each kind's own box inside the copy's outline (Heswall, 26 Nov: a mine's 15 km
+    // aerodrome box reached out into Liverpool Bay, past the outline, so the whole run went to Overpass, which was
+    // down, and ten checks came back not checked). The kinds the copy can't answer go to Overpass on their own.
+    let lastErr = null, m = null, mUrl = null, served = [];
     for (const market of markets) {
       const url = new URL(`${market}.json`, base).href;
       try {
         const j = await manifest(url, fetchFn);
-        if (covers(j.outline, all)) { m = j; mUrl = url; break; }
+        const ok = kinds.filter((k) => j.kind_groups?.[k] && covers(j.outline, boxOf(k)));
+        if (ok.length > served.length) { m = j; mUrl = url; served = ok; }
+        if (served.length === kinds.length) break;
       } catch (e) { lastErr = e; }
     }
     if (!m) {
@@ -73,9 +78,8 @@ export function osmSnapshot({ base = CONFIG.osmSnapshotBase, markets = CONFIG.os
       return null; // outside the copy: Overpass
     }
     const groups = new Map(); // group → box
-    for (const k of kinds) {
-      const g = m.kind_groups?.[k];
-      if (!g) return null; // a kind the copy doesn't hold (a newer check): ask Overpass for all of them
+    for (const k of served) {
+      const g = m.kind_groups[k];
       groups.set(g, groups.has(g) ? unionBox([groups.get(g), boxOf(k)]) : boxOf(k));
     }
     const fileBase = m.base ? new URL(m.base, mUrl).href : mUrl;
@@ -107,6 +111,6 @@ export function osmSnapshot({ base = CONFIG.osmSnapshotBase, markets = CONFIG.os
       throw new Error(`Tobler's copy of OpenStreetMap couldn't be read (${e.message || e})`);
     } finally { clearTimeout(timer); }
     const dates = [...used].map((r) => r.data_as_of).filter(Boolean).sort();
-    return { elements, via: "copy", release: m.release, data_as_of: dates[0] || null, capped };
+    return { elements, via: "copy", release: m.release, data_as_of: dates[0] || null, capped, kinds: served };
   };
 }

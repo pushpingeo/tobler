@@ -185,4 +185,14 @@ await test("a rerun says what changed, and when nothing underneath did, that it'
   assert.match(t, /\n\nCompared with R1: Decision: was progress with targeted investigation, now major issue\. .* not in the data\.\n\n/);
 });
 
+await test("Heswall (26 Nov): a flag joining two kinds of evidence says which one is on the site", () => {
+  const rec = structuredClone(F.oracleSolar);
+  const r = rec.tobler_run || rec;
+  r.flags = [{ id: "F-01", risk: "SSSI close to the site, inside an SSSI Impact Risk Zone for minerals", severity: "high", confidence: "high", nearest_km: 0, traced: 2, untraced: 0,
+    evidence: [{ name: "Heswall Dales SSSI", distance_km: 0.52, relation: "outside", dataset: "Sites of Special Scientific Interest (SSSI), England (Natural England)", traced: true },
+      { name: "SSSI Impact Risk Zones: inside a risk zone; consult Natural England for: minerals", distance_km: 0, relation: "within", dataset: "SSSI Impact Risk Zones, England (Natural England)", traced: true }] }];
+  const t = screenReply(rec);
+  assert.match(t, /F-01 SSSI close to the site, inside an SSSI Impact Risk Zone for minerals: high severity, high confidence; SSSI Impact Risk Zones: on site/);
+});
+
 console.log(`${passed} run reply tests passed`);

@@ -107,6 +107,39 @@ check(ran.runs === 1 && convAfter === convBefore, `the card's yes runs the held 
 check(ran.input?.planned === "a warehouse" && /^Yes, use /.test(ran.user), `what was asked is what ran (${JSON.stringify(ran.input)})`);
 check(/^Constraints screen of .*\(R1\)/.test(ran.reply), `the reply after the run is written from the record (${ran.reply.slice(0, 120)})`);
 
+// Heswall (Rob's log, 26 Nov): three Brimstage Roads, two of them stretches 30 m apart. One choice for those two, named
+// by locality; no ids in the words the person reads; the pick is the yes, so the place it builds isn't a proposal.
+await page.route(/nominatim/, (r) => {
+  if (!/Brimstage/i.test(decodeURIComponent(r.request().url()))) return r.fallback();
+  const line = (lon, lat) => ({ type: "LineString", coordinates: [[lon - 0.002, lat], [lon + 0.002, lat + 0.0005]] });
+  const row = (id, type, lon, lat, place) => ({ osm_type: "way", osm_id: id, category: "highway", type, lat: String(lat), lon: String(lon), name: "Brimstage Road", display_name: place, importance: 0.05, geojson: line(lon, lat), address: { country: "United Kingdom" } });
+  r.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify([
+    row(11, "primary", -3.0743, 53.3296, "Brimstage Road, Heswall, Wirral, Liverpool City Region, England, CH60 1XF, United Kingdom"),
+    row(12, "residential", -3.0747, 53.3295, "Brimstage Road, Heswall, Wirral, Liverpool City Region, England, CH60 1XF, United Kingdom"),
+    row(13, "primary", -3.0351, 53.337, "Brimstage Road, Higher Bebington, Brimstage, Wirral, Liverpool City Region, England, CH63 6HY, United Kingdom")]) });
+});
+const ids = (last) => [...new Set(last.match(/C\d+/g) || [])];
+let roadIds = [];
+queue.push(
+  msg([use("h1", "find_place", { query: "Brimstage Road" })], "tool_use"),
+  (last) => { roadIds = ids(last).slice(0, 3); return msg([use("h2", "offer_choices", { candidates: roadIds, recommended: roadIds[0], reason: `${roadIds[0]} runs past the station; ${roadIds[1]} is the residential stretch; ${roadIds[2]} is further east` })], "tool_use"); },
+);
+await turn("brimstage road near the train station");
+await page.waitForSelector('.choices:not(.done) [data-op="use"]', { state: "visible" });
+const card = await page.evaluate(() => { const c = [...document.querySelectorAll(".choices")].at(-1); return { h: c.querySelector("h2").textContent, count: c.querySelector(".count").textContent, why: c.querySelector(".why").textContent }; });
+const reply = await page.evaluate(() => [...document.querySelectorAll(".msg.analyst")].at(-1)?.textContent || "");
+check(card.h === "Brimstage Road, Heswall" && card.count === "1 of 2", `one choice for the two stretches, named by locality (${JSON.stringify(card)})`);
+check(!/\bC\d+\b/.test(card.why + reply) && /Brimstage Road, Heswall runs past the station/.test(card.why), `no ids in what the person reads (${card.why} | ${reply.slice(0, 160)})`);
+queue.push((last) => msg([use("h3", "make_place", { anchor: (last.match(/candidate (C\d+)/) || [])[1], shape: "feature", words: "brimstage road near the train station", match: "named_place", reason: "the person picked it" })], "tool_use"), msg([{ type: "text", text: "It's on the map." }]));
+const beforePick = await page.evaluate(() => document.querySelectorAll(".msg.analyst").length);
+await page.locator(".choices").last().locator('[data-op="use"]').click();
+await page.waitForFunction((n) => document.querySelectorAll(".msg.analyst").length > n && !document.querySelector("#ask")?.classList.contains("busy"), beforePick, { timeout: 15000 }).catch(() => {});
+await page.waitForTimeout(500);
+const road = await page.evaluate(() => { const p = window.__ws.host.places().at(-1); return { name: p?.name, status: p?.status, type: p?.feature?.geometry?.type, user: [...document.querySelectorAll(".msg.user")].at(-1)?.textContent }; });
+check(road.status === "accepted" && road.type === "LineString", `the pick builds the road's line, accepted, with no second yes (${JSON.stringify(road)})`);
+check(road.user === "Use Brimstage Road, Heswall (OpenStreetMap contributors).", `the person's message names it by locality (${road.user})`);
+await page.locator(".choices").last().screenshot({ path: "/tmp/choice-heswall.png" });
+
 // A lake isn't a site (Tekapo, 18–24 Nov): which part? The card's button uses all of it, as a rough look.
 await page.evaluate(() => window.__ws.host.addPlace({ feature: { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [[[-3.62, 55.98], [-3.58, 55.98], [-3.58, 55.99], [-3.62, 55.98]]] } },
   origin: { method: "words", words: "Linlithgow Loch", shape: "feature", steps: ["outline of Linlithgow Loch"], checks: [], match: "name_and_type", confidence: "high", anchor: { name: "Linlithgow Loch", type: "natural: water (lake)", source: { publisher: "OpenStreetMap contributors" } } }, name: "Linlithgow Loch" }));

@@ -14,6 +14,7 @@ export const MAX_WORDS = 2; // wordings per gap
 export const MAX_OFFER = 4; // layers offered per run
 export const SEARCH_TIMEOUT_MS = 12000;
 export const PREVIEW_LIMIT = 500; // features asked for when a candidate is looked at before it's offered
+export const NEAR_LOOK_KM = 2; // when a look is capped, how close to look again for the nearest
 export const MAX_KEPT = 200; // features kept on the record per layer brought in, nearest first
 
 // Short text, cut at a word.
@@ -59,9 +60,13 @@ export function gapsToSearch(run, catalogue = {}) {
   const fromCheck = (c) => { const def = defs.get(c.id); if (fillable(c, def)) add({ key: c.id, label: c.label, topic: c.topic, words: wordsForCheck(def || c), why: c.why || "not checked" }); };
   // Must-checks first; then what the analyst named for this site (it knows what matters here); then the rest.
   nc.filter((x) => x.must).forEach(fromCheck);
+  // A look-for that names a check already not checked is the same gap in other words (Heswall, 26 Nov: "surface water
+  // flood risk" beside the check "Surface water flooding" was searched twice, one search offered a layer and the
+  // other said it found none). The check's curated words search it; the look-for is dropped.
+  const sameGap = (what) => nc.some((c) => fillable(c, defs.get(c.id)) && (namesEnough(c.label, what) || namesEnough(what, c.label)));
   for (const l of Array.isArray(run.look_for) ? run.look_for : []) {
     const words = (Array.isArray(l.words) ? l.words : [l.words]).map((w) => String(w || "").trim()).filter((w) => w.length >= 3).slice(0, MAX_WORDS);
-    if (l.what && words.length) add({ key: `look:${String(l.what).slice(0, 40)}`, label: clip(l.what, 60), topic: l.topic || "context", words, why: "the analyst named it as missing here" });
+    if (l.what && words.length && !sameGap(l.what)) add({ key: `look:${String(l.what).slice(0, 40)}`, label: clip(l.what, 60), topic: l.topic || "context", words, why: "the analyst named it as missing here" });
   }
   nc.filter((x) => !x.must).forEach(fromCheck);
   for (const t of run.no_check_topics || []) {
@@ -107,9 +112,22 @@ export function namesEnough(title, what) {
   return want.filter(hit).length >= Math.ceil(want.length * 0.6);
 }
 
+// A title's core: lower case, without brackets and the nation it's for (", England").
+const coreTitle = (t) => String(t || "").toLowerCase().replace(/\(.*?\)/g, " ").replace(/,?\s*\b(england|scotland|wales|northern ireland|great britain|uk|united kingdom)\b/g, " ").replace(/[^a-z0-9]+/g, " ").trim();
+function usedByCore(d, used) {
+  const title = coreTitle(d.title), pub = String(d.publisher || "").toLowerCase();
+  if (!pub) return false;
+  for (const k of used) {
+    if (!k.startsWith("core:")) continue;
+    const [core, p] = k.slice(5).split("|");
+    if (title.includes(core) && (pub.includes(p) || p.includes(pub))) return true;
+  }
+  return false;
+}
+
 export function rankLayers(results, { words, what = null, used = new Set(), allow = {}, trusted = null }) {
   const ok = latestEditions((results || []).filter((d) => !d.extent_may_be_overstated && (d.capabilities || []).includes("query") && inTitle(d.title, words) && !STAND_IN.test(d.title || "") && (!what || namesEnough(d.title, what))
-    && !used.has(String(d.id)) && !used.has(`${d.title}|${d.publisher}`.toLowerCase())
+    && !used.has(String(d.id)) && !used.has(`${d.title}|${d.publisher}`.toLowerCase()) && !usedByCore(d, used)
     && !licenceBlock(classifyLicence(d.licence).class, allow)));
   const rank = (d) => (trusted && trusted.test(d.publisher || "") ? 0 : 2)
     + (/central-gov|regional-gov|public-body|intergov|national|regulator|mapping-agency/i.test(d.publisher_type || "") ? 0 : 1)
@@ -141,6 +159,10 @@ export async function offerFor(record, { atlas, catalogue = {}, allow = {}, trus
     if (s.dataset) used.add(`${s.dataset}|${s.publisher || ""}`.toLowerCase());
   }
   for (const c of r.checked || []) if (c.dataset) used.add(`${c.dataset}|${c.publisher || ""}`.toLowerCase());
+  // The same data under another record's title (Heswall, 26 Nov: the run read "Authorised Landfill Site Boundaries,
+  // England (Environment Agency)" and the offer came back with "Permitted Waste Sites - Authorised Landfill Site
+  // Boundaries", same publisher). A title that holds a used title's core, from the same publisher, is the same layer.
+  for (const k of [...used]) { const [t, pub] = k.split("|"); const core = coreTitle(t); if (core.length >= 12 && pub) used.add(`core:${core}|${pub}`); }
   const answers = await Promise.all(gaps.map(async (g) => {
     const got = await Promise.allSettled(g.words.map((text) => withTimeout(atlas("find_datasets", { text, bbox, limit: 25 }), timeoutMs)));
     const bad = got.find((x) => x.status === "rejected");
@@ -152,20 +174,38 @@ export async function offerFor(record, { atlas, catalogue = {}, allow = {}, trus
   // that's too big (a Surrey council's layers came up for Linlithgow).
   const reach = r.extent === "inside" ? 0 : Math.min(50, r.assessed_within_km ?? runFurthest(r));
   const around = turf.bbox(turf.buffer(site, Math.max(reach, 0.05), { units: "kilometers", steps: 8 })).map((v) => Math.round(v * 1e5) / 1e5);
-  const preview = async (d) => {
-    let got;
-    try { got = await withTimeout(atlas("fetch_features", { id: d.id, bbox: around, limit: PREVIEW_LIMIT }), timeoutMs); }
-    catch (e) { return { failed: String(e.message || e).slice(0, 120) }; }
+  // One look at a layer: its features out to km from the site, measured, nearest first.
+  const look = async (d, km) => {
+    const box = km === reach ? around : turf.bbox(turf.buffer(site, Math.max(km, 0.05), { units: "kilometers", steps: 8 })).map((v) => Math.round(v * 1e5) / 1e5);
+    const got = await withTimeout(atlas("fetch_features", { id: d.id, bbox: box, limit: PREVIEW_LIMIT }), timeoutMs);
     const near = [];
     for (const f of got?.features || []) {
       if (!f?.geometry) continue;
-      let km;
-      try { km = geometryDistanceKm(site.geometry, f.geometry); } catch { continue; }
-      if (km == null || km > reach + 1e-9) continue;
-      near.push({ name: tidyName(pickName(f.properties || {}) || d.title), distance_km: Math.round(km * 100) / 100, ...relationFields(site.geometry, f.geometry, km) });
+      let dk;
+      try { dk = geometryDistanceKm(site.geometry, f.geometry); } catch { continue; }
+      if (dk == null || dk > km + 1e-9) continue;
+      near.push({ name: tidyName(pickName(f.properties || {}) || d.title), distance_km: Math.round(dk * 100) / 100, ...relationFields(site.geometry, f.geometry, dk) });
     }
     near.sort((a, b) => a.distance_km - b.distance_km);
-    return { count: near.length, inside: near.filter(isOnSite).length, nearest: near.slice(0, 2), capped: (got?.returned ?? (got?.features || []).length) >= PREVIEW_LIMIT };
+    return { near, capped: (got?.returned ?? (got?.features || []).length) >= PREVIEW_LIMIT };
+  };
+  const preview = async (d) => {
+    let got;
+    try { got = await look(d, reach); }
+    catch (e) { return { failed: String(e.message || e).slice(0, 120) }; }
+    const { near } = got;
+    const capped = got.capped;
+    const out = { count: near.length, inside: near.filter(isOnSite).length, nearest: near.slice(0, 2), capped };
+    // A capped answer is the server's first 500 in its own order, not the nearest 500 (Heswall, 26 Nov: surface water
+    // flood risk "nearest 12 km away" on the Wirral). Look again close to the site; if that's capped too, or nothing
+    // is there, no nearest is given rather than a wrong one.
+    if (capped && reach > NEAR_LOOK_KM) {
+      const close = await look(d, NEAR_LOOK_KM).catch(() => null);
+      out.nearest = close && !close.capped && close.near.length ? close.near.slice(0, 2) : [];
+      if (close && !close.capped && close.near.length) out.inside = close.near.filter(isOnSite).length;
+      else if (close?.capped) out.nearest_within_km = NEAR_LOOK_KM;
+    } else if (capped) out.nearest = [];
+    return out;
   };
   const taken = new Set();
   // The gaps in order; each looks at up to three candidates, one at a time, until one has something in reach.
@@ -211,7 +251,10 @@ export function offerLines(r) {
   const open = o.items.filter((x) => x.state === "offered");
   if (open.length) {
     const reach = r.extent === "inside" ? "inside the area" : `out to ${runFurthest(r)} km`;
-    const holds = (x) => { const p = x.preview; if (!p) return ""; const n = p.nearest?.[0]; return `: ${p.count}${p.capped ? "+" : ""} within ${p.within_km} km${n ? `, nearest ${n.name}, ${where(n.distance_km)}` : ""}`; };
+    const holds = (x) => { const p = x.preview; if (!p) return ""; const n = p.nearest?.[0];
+      // A feature with no name of its own is named after the layer: say "the nearest", not the layer's title again.
+      const nm = n && n.name !== x.dataset.title ? `nearest ${n.name}, ${where(n.distance_km)}` : n ? `nearest ${where(n.distance_km)}` : p.nearest_within_km ? `many within ${p.nearest_within_km} km` : "";
+      return `: ${p.count}${p.capped ? "+" : ""} within ${p.within_km} km${nm ? `, ${nm}` : ""}`; };
     out.push([`The atlas has ${open.length === 1 ? "a layer" : "layers"} with something in reach for ${open.length === 1 ? "a gap" : "some of these gaps"}:`,
       ...open.map((x) => `- **${x.dataset.title}** (${x.dataset.publisher || "publisher not stated"}; ${licWords(x.dataset)}), for ${lower(x.label)}${holds(x)}`)].join("\n"));
     out.push(`Bring ${open.length === 1 ? "it" : "them"} in? Use the buttons below, or tell me which. I'll put ${open.length === 1 ? "it" : "them"} on the map ${reach === "inside the area" ? "inside the area" : reach.replace(/^out/, "out")}, with the source. Nothing is added unless you say so.`);

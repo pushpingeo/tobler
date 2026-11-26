@@ -142,4 +142,42 @@ await test("a no, a yes and ids not on offer; a point is held to its footprint, 
   assert.match(unknown.not_available, /L7 isn't on offer for R1/);
 });
 
+await test("Heswall (26 Nov): a look-for naming a not-checked check is the same gap, searched once; nothing for it isn't said", () => {
+  const r = run({ look_for: [
+    { what: "Surface water flood risk", words: ["surface water flood", "pluvial"], topic: "water" },
+    { what: "Permitted industrial and waste sites", words: ["waste permit"], topic: "ground-soil" },
+    { what: "Important Bird Areas", words: ["important bird area"], topic: "biodiversity" }] }).tobler_run;
+  r.checks.push(nc("ground.permits-eng", "Permitted industrial and waste sites", "ground-soil"));
+  const g = gapsToSearch(r, checksCat);
+  assert.deepEqual(g.map((x) => x.label), ["Surface water flooding", "Important Bird Areas", "Landfill (historic and authorised)", "Permitted industrial and waste sites"]);
+});
+
+await test("Heswall (26 Nov): the same data under another title isn't offered again; a capped look gives no wrong nearest", async () => {
+  const r = run({ checks: [nc("water.surface-water", "Surface water flooding", "water", { must: true }), nc("ground.landfill", "Landfill (historic and authorised)", "ground-soil")],
+    checked: [{ dataset: "Authorised Landfill Site Boundaries, England (Environment Agency)", publisher: "Environment Agency" }], look_for: [] }).tobler_run;
+  const far = turf.destination([-2.9, 53.28], 12, 90).geometry.coordinates;
+  const near = turf.destination([-2.9, 53.28], 0.9, 90).geometry.coordinates;
+  const looks = [];
+  const atlas = async (tool, args) => {
+    if (tool === "find_datasets") return /landfill/.test(args.text)
+      ? { results: [{ id: "pws", title: "Permitted Waste Sites - Authorised Landfill Site Boundaries", publisher: "Environment Agency", publisher_type: "regulator", capabilities: ["query"], licence: "OGL" }] }
+      : { results: [{ id: "rofsw", title: "Risk of Flooding from Surface Water Extent: 1 percent annual chance", publisher: "Defra Group", publisher_type: "central-gov", capabilities: ["query"], licence: "Open Government Licence" }] };
+    looks.push(args);
+    const wide = turf.distance([args.bbox[0], args.bbox[1]], [args.bbox[2], args.bbox[3]]) > 20;
+    // Wide: 500 features in the server's order, the first one far off. Close: a few, nearest 400 m (900 m from the centre).
+    const pt = (c) => ({ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: c } });
+    return wide ? { returned: 500, features: Array.from({ length: 500 }, () => pt(far)) } : { returned: 3, features: [pt(near), pt(far), pt(near)] };
+  };
+  const o = await offerFor({ tobler_run: r, features: [site] }, { atlas, catalogue: checksCat });
+  assert.deepEqual(o.items.map((x) => x.dataset.title), ["Risk of Flooding from Surface Water Extent: 1 percent annual chance"], "the landfill layer the run read isn't offered again");
+  const p = o.items[0].preview;
+  assert.equal(p.capped, true);
+  assert.ok(Math.abs(p.nearest[0].distance_km - 0.4) < 0.05, `nearest from the close look: ${p.nearest[0]?.distance_km}`);
+  assert.equal(looks.length, 2, "one wide look, one close look");
+  r.offer = o;
+  const lines = offerLines(r).join("\n");
+  assert.match(lines, /500\+ within 20 km, nearest 4\d0 m away/, "a nameless feature isn't named after its layer");
+  assert.doesNotMatch(lines, /for surface water[^\n]*found no layer/, "a gap with an offer isn't also said to have none");
+});
+
 console.log(`${passed} bring-in tests passed`);

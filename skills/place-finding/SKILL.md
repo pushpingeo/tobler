@@ -1,6 +1,6 @@
 ---
 name: place-finding
-version: 4.18
+version: 4.19
 description: Turn words into a place on the map. Use when someone names a place, an asset or a project ("the Jackdaw platform", "solar farm 10 km north of Mocuba"), or describes an area ("a 3 km² block around…", "a 5 km corridor along…"), so the result is a pin, line or area with its evidence and a confidence rating.
 ---
 
@@ -22,6 +22,7 @@ You never do geometry in your head. Tools find anchors and build shapes; you cho
    - **Project and area names are often town names.** "The Sembehun mining area" or "the Kipoi project" may share a name with a village. The village tells you where to search; the site is the mine, lease or plant found near it. If only the village can be found, it's `settlement_or_region`.
    - If the asset isn't found by name, find the town or feature it's described from, then use `find_features_near` to look for the asset by type around it (e.g. solar farms within 15 km of Mocuba). A feature of the right type, size and bearing is strong evidence. For big assets (mines, dams, large plants), the largest feature of the right type near the named place is usually the one.
    - You may use what you already know (for example that a company mines near a particular town) to decide **where to search**, but the place itself must come from a found feature. Say when a clue came from your own knowledge.
+   - **"X near Y" is two searches and one place.** "Brimstage Road near the train station": find X and Y in the same step. When Y has no name ("the station", "the roundabout"), look for it by type with `find_features_near` around X's candidates (`railway station`). The X beside Y is the one, and the place meant is the part of X by Y: a point there (Y itself, if it sits on X), not the whole of X. Only offer choices if Y doesn't settle which X.
 3. **Triangulate** when there are two or more clues: the candidate should fit all of them (name, type, country, distance and bearing). Say which clues agree and which don't.
    - **Once the asset itself is found, distances in the description are checks, not moves.** "Village X lies 25 km east of the mine" tells you where the village is relative to the mine; it doesn't mean the mine is 25 km from where you found it. Use offsets to *place* something only when the asset can't be found and you're working out where it is from a named reference.
    - **Large features need their outline, not a point.** A salt flat, reservoir, lake, concession or district can be tens of kilometres across, and a gazetteer point is just somewhere in it, often the middle. Use the feature's outline (`shape: "feature"`) where the source has one; if the description says which part ("the south-eastern sector of the salar"), find that part. A point for a large feature can't be better than medium confidence.

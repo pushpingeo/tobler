@@ -75,26 +75,36 @@ export async function osmAnswers({ wants, site, query, snapshot = null, timeoutS
   const out = new Map();
   if (!kinds.length) return out;
   const boxOf = (k) => grownBox(site, wants.get(k));
-  let json = null, via = "overpass", snapErr = null;
+  // The copy first, for the kinds it can answer; Overpass for the rest (or all, if the copy can't be read or the site
+  // is outside it). Each kind says which answered it.
+  const parts = []; // { kinds, json, via, source }
+  let snapErr = null, left = kinds;
   if (snapshot) {
-    try { json = await snapshot(kinds, boxOf); if (json) via = "copy"; }
-    catch (e) { snapErr = String(e.message || e); }
+    try {
+      const json = await snapshot(kinds, boxOf);
+      if (json) {
+        const served = Array.isArray(json.kinds) ? kinds.filter((k) => json.kinds.includes(k)) : kinds;
+        if (served.length) parts.push({ kinds: served, json, via: "copy", source: { via: "copy", data_as_of: json.data_as_of || null, release: json.release || null } });
+        left = kinds.filter((k) => !served.includes(k));
+      }
+    } catch (e) { snapErr = String(e.message || e); }
   }
-  if (!json) {
+  if (left.length) {
     onOverpass();
-    try { json = await query(osmQuery(kinds, boxOf, { timeoutS })); }
+    try { parts.push({ kinds: left, json: await query(osmQuery(left, boxOf, { timeoutS })), via: "overpass", source: { via: "overpass", ...(snapErr ? { copy_failed: snapErr.slice(0, 160) } : {}) } }); }
     catch (e) {
       const why = String(e.message || e).slice(0, 200);
-      for (const k of kinds) out.set(k, { not_checked: snapErr ? `${snapErr.slice(0, 120)}; then ${why}` : why });
-      return out;
+      for (const k of left) out.set(k, { not_checked: snapErr ? `${snapErr.slice(0, 120)}; then ${why}` : why });
     }
   }
+  const checkedAt = now();
+  for (const { kinds: ks, json, via, source } of parts) answerKinds(ks, json, via, source);
+  return new Map(kinds.filter((k) => out.has(k)).map((k) => [k, out.get(k)]));
+
+  function answerKinds(ks, json, via, source) {
   const els = json?.elements || [];
   const capped = via === "copy" ? !!json.capped : els.filter((e) => e.type !== "relation").length >= MAX_ELEMENTS;
-  const checkedAt = now();
-  const source = via === "copy" ? { via, data_as_of: json.data_as_of || null, release: json.release || null }
-    : { via, ...(snapErr ? { copy_failed: snapErr.slice(0, 160) } : {}) };
-  for (const k of kinds) {
+  for (const k of ks) {
     const def = OSM_KINDS[k], within = wants.get(k);
     const features = [];
     for (const el of els) {
@@ -129,7 +139,7 @@ export async function osmAnswers({ wants, site, query, snapshot = null, timeoutS
     for (const f of features) Object.assign(f, relationFieldsAll(site.geometry, [f.geometry, ...(f.parts || []).map((x) => x.geometry)], f.distance_km));
     out.set(k, { features, meta: { dataset: via === "copy" ? copyTitle(k, source.data_as_of) : osmTitle(k), publisher: "OpenStreetMap contributors", licence: "ODbL 1.0 (© OpenStreetMap contributors)", checked_at: checkedAt, capped, fetched_km: within, ...source } });
   }
-  return out;
+  }
 }
 const PLURAL = { "power line": "power lines", substation: "substations", pipeline: "pipelines", "main road": "main roads", railway: "railways", aerodrome: "aerodromes",
   "wind turbine": "wind turbines", homes: "residential land", school: "schools", "health care": "hospitals, clinics and care homes",

@@ -912,6 +912,7 @@ const host = {
   showFindings,
   clearFindings,
   offerChoices: (o) => makeChoiceCard(o),
+  pickedCandidate: () => lastPick,
   // A file the person dropped, waiting for them to pick the site from it; forgotten once used.
   loadedFile: () => siteFile?.file || null,
   fileUsed: () => closeSiteFile("used"),
@@ -1484,13 +1485,16 @@ svcEl('[data-op="svc-proxy"]').addEventListener("click", () => { const S = svcOp
 setupFileDrop({ overlay: $("drop-overlay"), input: $("site-file"), onFiles: openSiteFile, onError: (e) => note(`The files couldn't be read: ${e.message || e}`) });
 document.querySelector('.tools [data-action="file"]').addEventListener("click", () => $("site-file").click());
 
-function makeChoiceCard({ choices, recommended, reason, question }) {
+// The candidate the person last picked from a choice card: a place built on it as they saw it needs no second yes.
+let lastPick = null;
+function makeChoiceCard({ choices, recommended, reason, question, labels }) {
+  const nameOf = (c) => labels?.get?.(c) || c.name || c.id;
   const card = $("choice-card").content.firstElementChild.cloneNode(true);
   let i = 0;
   card.querySelector(".question").textContent = question || "Which one do you mean?";
   const show = () => {
     const c = choices[i];
-    card.querySelector("h2").textContent = c.name || c.id;
+    card.querySelector("h2").textContent = nameOf(c);
     card.querySelector(".kind").textContent = c.type || "";
     const src = card.querySelector(".src");
     src.replaceChildren(document.createTextNode("Source: "), Object.assign(el("a", `${c.source.publisher}, ${c.source.title}`), { href: c.source.url, target: "_blank", rel: "noopener" }), document.createTextNode(` (${c.source.licence})`));
@@ -1512,7 +1516,8 @@ function makeChoiceCard({ choices, recommended, reason, question }) {
   const pick = (c) => {
     if (busy) return;
     card.classList.add("done");
-    const said = `Use ${c.name || "that one"} (${c.source.publisher}).`;
+    lastPick = c.id;
+    const said = `Use ${nameOf(c) || "that one"} (${c.source.publisher}).`;
     send(said, `${said}\n[Picked from the choices you offered: candidate ${c.id}, still available. Build it with make_place, anchor ${c.id}, match named_place (the person chose it); no need to search again. Don't mention the id.]`);
   };
   card.querySelector('[data-op="use"]').addEventListener("click", () => pick(choices[i]));

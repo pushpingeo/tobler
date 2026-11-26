@@ -39,7 +39,14 @@ function whereOf(f, searchArea) {
   // that only touches its edge.
   const at = (f.evidence || []).filter((e) => e.relation && e.distance_km === f.nearest_km);
   const e = at.find(isOnSite) || at[0];
-  return (!searchArea && e && whereWords(e, U.dist)) || km(f.nearest_km);
+  const said = (!searchArea && e && whereWords(e, U.dist)) || km(f.nearest_km);
+  // A flag that joins two kinds of evidence says which one is that near (Heswall, 26 Nov: "SSSI close to the site,
+  // inside an SSSI Impact Risk Zone …; on the site" read as an SSSI on the site, when the zone was and the SSSI was
+  // 520 m off).
+  const sets = new Set((f.evidence || []).map((x) => x.dataset).filter(Boolean));
+  const near = e || (f.evidence || []).find((x) => x.distance_km === f.nearest_km);
+  const name = near && sets.size > 1 ? String(near.name || near.dataset || "").split(":")[0].trim() : "";
+  return name && name.length <= 60 ? `${name}: ${said}` : said;
 }
 
 function flagLine(f, searchArea) {

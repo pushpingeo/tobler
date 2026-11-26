@@ -247,10 +247,19 @@ await test("class answers: flood zones and farmland by class, with the share of 
     { name: "c", distance_km: 0, coverage: 0.001, extra: { flood_zone: "FZ3" } }, { name: "d", distance_km: 0.3, extra: { flood_zone: "FZ2" } },
     { name: "e", distance_km: 0, coverage: 0.1, extra: { flood_zone: "??" } }], meta: { fetched_km: 0.5 } }], LADDER);
   assert.equal(r.state, "found");
-  assert.deepEqual(r.classes.map((c) => [c.label, c.on_site, c.coverage]), [["Flood Zone 3", true, 0.3], ["Flood Zone 2", true, 0.2]], "a sliver touching the edge (0.1%) is not on the site");
+  // Since Heswall (26 Nov), a detailed source's overlap is on the site however small its share (package B: over 1 m² is
+  // a crossing); only a coarse source keeps the share cut-off.
+  assert.deepEqual(r.classes.map((c) => [c.label, c.on_site, c.coverage]), [["Flood Zone 3", true, 0.301], ["Flood Zone 2", true, 0.2]], "a small overlap (0.1%) of a detailed map is on the site");
   assert.equal(K.checkLine(r), "on the site: Flood Zone 3 (30%), Flood Zone 2 (20%)");
   const near = K.fromSources(fz, [{ source: sepa, features: [{ name: "x", distance_km: 0.2, extra: {} }, { name: "y", distance_km: 0, coverage: 0.002, extra: {} }], meta: {} }], LADDER);
-  assert.equal(K.checkLine(near), "none on the site; nearby: River, medium likelihood (1 in 200 years) at the edge", "a sliver touching the edge is nearest, not on the site");
+  assert.equal(K.checkLine(near), "on the site: River, medium likelihood (1 in 200 years) (under 1%)", "2 ha of an 8 km² site is on it, said as under 1%");
+  const touch = K.fromSources(fz, [{ source: ea, features: [{ name: "t", distance_km: 0, relation: "adjacent", extra: { flood_zone: "FZ3" } }], meta: {} }], LADDER);
+  assert.equal(K.checkLine(touch), "none on the site; nearby: Flood Zone 3 at the edge", "touching from outside is next to the site, not on it");
+  const alc = plan("land.farmland-grade");
+  const prov = alc.check.sources.find((x) => /Provisional/.test(x.record?.title || ""));
+  assert.equal(prov.coarse, true);
+  const coarse = K.fromSources(alc, [{ source: prov, features: [{ name: "g2", distance_km: 0, relation: "crosses", coverage: 0.002, extra: { ALC_GRADE: "Grade 2" } }, { name: "g3", distance_km: 0, relation: "crosses", coverage: 0.7, extra: { ALC_GRADE: "Grade 3" } }], meta: {} }], LADDER);
+  assert.deepEqual(coarse.classes.filter((c) => c.on_site).map((c) => c.label), ["Grade 3 (provisional map)"], "a 1:250,000 map keeps the cut-off: a 0.2% sliver may just be its resolution");
   const near2 = K.fromSources(fz, [{ source: sepa, features: [{ name: "x", distance_km: 0.2, extra: {} }], meta: {} }], LADDER);
   assert.equal(K.checkLine(near2), "none on the site; nearby: River, medium likelihood (1 in 200 years) at 200 m");
   assert.equal(K.checkLine(K.fromSources(fz, [{ source: sepa, features: [], meta: {} }], LADDER)), "none within 500 m");

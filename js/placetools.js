@@ -19,6 +19,28 @@ import { ASSET_TYPES } from "./reach.js";
 import { searchAnchors, searchNominatim, searchNaturalEarth, searchWikidata, findFeaturesNear, featureOutline, FEATURE_TYPES, candidate, settlementNear } from "./gazetteer.js";
 import { parseCoordinates, formatLatLon } from "./coords.js";
 
+// Candidates of one name within this distance are one place, not a choice.
+export const SAME_PLACE_KM = 0.3;
+const sameNameNear = (a, b) => {
+  if (String(a.name).trim().toLowerCase() !== String(b.name).trim().toLowerCase()) return false;
+  // The same kind of thing too: a platform and the field round it share a name and a place but are different choices.
+  const kind = (c) => `${String(c.type || "").split(":")[0].trim().toLowerCase()}|${String(c.geometry?.type || "").replace(/^Multi/, "")}`;
+  if (kind(a) !== kind(b)) return false;
+  try { return geometryDistanceKm(a.geometry, b.geometry) <= SAME_PLACE_KM; } catch { return false; }
+};
+// How a choice is named to the person: its name, and where it is when names repeat ("Brimstage Road, Heswall").
+export function choiceLabels(list) {
+  const out = new Map();
+  const count = new Map();
+  for (const c of list) count.set(c.name, (count.get(c.name) || 0) + 1);
+  for (const c of list) {
+    if (count.get(c.name) < 2) { out.set(c, c.name); continue; }
+    const parts = String(c.extra?.place || "").split(",").map((x) => x.trim()).filter((x) => x && x !== c.name && !/^\d/.test(x) && !/^[A-Z]{1,2}\d/.test(x));
+    out.set(c, parts.length ? `${c.name}, ${parts[0]}` : c.name);
+  }
+  return out;
+}
+
 // The developable area skill's asset types and rule ids (skills/developable-area/SKILL.md "Rules"; a test checks they
 // match), so the analyst can pass only what the skill knows.
 export const BUDGET_ASSETS = ["solar", "bess", "wind-onshore", "warehouse", "general"];
@@ -622,7 +644,12 @@ export function createPlaceTools(host) {
               f = turf.union(turf.featureCollection([f, p.feature])) || f;
             }
             steps.push(`outlines of ${[a.label, ...parts.map((p) => p.label)].join(", ")}, joined`);
-          } else steps.push(`outline of ${a.label}`);
+          } else {
+            // Say what the shape is: "outline of" only for an outline (Heswall, 26 Nov: a point was called an outline,
+            // and the agent had to take it back a turn later).
+            const t = f.geometry?.type || "";
+            steps.push(/Polygon/.test(t) ? `outline of ${a.label}` : /LineString/.test(t) ? `the line of ${a.label}` : `the point for ${a.label} (the source gives no outline)`);
+          }
           if (i.offset_km) f = G.move(f, i.offset_km, i.bearing_deg ?? 0);
           break;
         case "buffer":
@@ -705,8 +732,13 @@ export function createPlaceTools(host) {
       // Replacing: the old proposal goes first, so the new one can take its name.
       // Replacing: add the new place first (so a failure leaves the old one), then remove the old one and let the new
       // one take its name unless a new name was given.
-      const p = host.addPlace({ feature: f, origin, scale: i.scale, name: placeName(i, a, f), given: i.name ? String(i.name).replace(/\s+/g, " ").trim() : null });
-      if (!["typed", "transformed"].includes(a.cand?.source?.id)) unseen.add(p);
+      // The person picked this candidate on the map and it's built as they saw it (its own shape, not moved or grown):
+      // the pick was the confirmation, so it isn't shown as a proposal to confirm again (Heswall, 26 Nov: pick, then
+      // "Yes, use Brimstage Road", then the asset type, then the screen). Decided in code from the page's record of
+      // the pick, never from the analyst's say-so.
+      const asPicked = !!a.cand && host.pickedCandidate?.() === a.cand.id && ["feature", "point"].includes(i.shape) && !i.offset_km && !i.also?.length && !i.clip;
+      const p = host.addPlace({ feature: f, origin, scale: i.scale, name: placeName(i, a, f), given: i.name ? String(i.name).replace(/\s+/g, " ").trim() : null, ...(asPicked ? { status: "accepted" } : {}) });
+      if (!asPicked && !["typed", "transformed"].includes(a.cand?.source?.id)) unseen.add(p);
       if (old && host.removePlace) {
         const oldName = old.name;
         host.removePlace(oldName, { by: "analyst", reason: "replaced by a rebuilt place" });
@@ -717,7 +749,7 @@ export function createPlaceTools(host) {
         ...(origin.role === "search_area" ? { role: "search_area", role_why: origin.role_why, what_it_is: `A search area (${origin.role_why}), standing in for an outline that wasn't found. A screen of it reports findings by how much of the area they cover, not as on site.` } : {}),
         ...(checks.length ? { checks } : {}),
         ...(dropped.length ? { failed_checks_left_out: dropped, about_them: "These clues failed on the place this one replaces and aren't checked now." } : {}),
-        shown_as: "proposal" };
+        shown_as: asPicked ? "accepted: the person picked it from the choices" : "proposal" };
     },
 
     async remove_place({ place, reason }) {
@@ -782,12 +814,26 @@ export function createPlaceTools(host) {
     },
 
     async offer_choices({ candidates, recommended, reason, question }) {
-      const list = (candidates || []).map((id) => cands.get(String(id).trim().toUpperCase())).filter(Boolean);
+      let list = (candidates || []).map((id) => cands.get(String(id).trim().toUpperCase())).filter(Boolean);
+      const allLabels = choiceLabels(list);
       if (list.length < 2) throw new Error("Give at least two candidate ids from this conversation.");
       const rec = cands.get(String(recommended).trim().toUpperCase());
       if (!rec || !list.includes(rec)) throw new Error("The recommended id must be one of the candidates.");
-      host.offerChoices?.({ choices: list, recommended: rec, reason, question });
-      return { offered: list.length, recommended: rec.id, recommended_name: rec.name, reason, buttons_shown: true };
+      // Two of the same name within a few hundred metres are one place (Heswall, 26 Nov: the primary and residential
+      // stretches of Brimstage Road, 30 m apart, were offered as two choices). Kept: the recommended one, else the first.
+      const kept = [];
+      for (const c of [rec, ...list.filter((x) => x !== rec)]) {
+        const twin = kept.find((k) => sameNameNear(k, c));
+        if (!twin) kept.push(c);
+      }
+      list = list.filter((c) => kept.includes(c));
+      if (list.length < 2) throw new Error(`${list.map((c) => c.id).join(", ")}: the candidates are the same ${rec.name} within ${SAME_PLACE_KM * 1000} m of each other, so there's only one to offer.`);
+      const labels = choiceLabels(list);
+      // The person reads names, never ids: ids in the analyst's reason become the choice's name.
+      const said = String(reason || "").replace(/\bC\d+\b/g, (id) => { const c = cands.get(id); return c ? (labels.get(c) || allLabels.get(c) || c.name) : "another candidate"; });
+      host.offerChoices?.({ choices: list, recommended: rec, reason: said, question, labels });
+      return { offered: list.length, recommended: rec.id, recommended_name: labels.get(rec) || rec.name, reason: said, buttons_shown: true,
+        ...(list.length < (candidates || []).length ? { merged: "candidates of the same name within a few hundred metres were shown as one" } : {}) };
     },
 
     async edit_place(i) {

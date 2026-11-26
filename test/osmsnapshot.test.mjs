@@ -158,10 +158,24 @@ await test("switched off (no base URL): no request, straight to Overpass", async
   assert.equal(served.requests, 0);
 });
 
-await test("a kind the copy doesn't hold: the whole query goes to Overpass", async () => {
+await test("a kind the copy doesn't hold: the copy answers the rest and says which (Heswall, 26 Nov)", async () => {
   forgetManifests();
   const s = osmSnapshot({ base, markets: ["uk"] });
-  assert.equal(await s(["railway", "ferry terminal"], () => turf.bbox(site)), null);
+  assert.deepEqual((await s(["railway", "ferry terminal"], () => turf.bbox(site))).kinds, ["railway"]);
+});
+
+await test("Heswall (26 Nov): one kind's box past the outline sends only that kind to Overpass; the rest come from the copy", async () => {
+  forgetManifests();
+  const asked = [];
+  // The aerodrome check looks out far enough to leave the copy's outline; the railway's 0.5 km stays inside.
+  const got = await osmAnswers({ wants: new Map([["railway", 0.5], ["aerodrome", 400]]), site, snapshot: osmSnapshot({ base, markets: ["uk"] }),
+    query: async (q) => { asked.push(q); throw new Error("OpenStreetMap's Overpass service isn't answering right now"); } });
+  assert.equal(got.get("railway").meta.via, "copy");
+  assert.deepEqual(got.get("railway").features.map((f) => f.name), ["Borderlands Line"]);
+  assert.match(got.get("aerodrome").not_checked, /Overpass service isn't answering/);
+  assert.equal(asked.length, 1);
+  assert.doesNotMatch(asked[0], /railway/, "only the aerodromes were asked of Overpass");
+  assert.deepEqual([...got.keys()], ["railway", "aerodrome"], "in the order asked");
 });
 
 // ---- The place search through the copy (js/gazetteer.js findFeaturesNear, 25 Nov) ----
