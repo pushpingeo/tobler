@@ -18,8 +18,8 @@ await test("screen: decision, why, distances, at most three flags most serious f
   assert.match(t, /Heritage assets sit at the site's edge/);
   assert.match(t, /Screened for a solar farm; each check looks out its own distance from the site's edge: 250 m to 5 km, by check \(defaults for a solar farm\)\./);
   assert.match(t, /The 3 most serious of 4 flags/);
-  assert.match(t, /- F-01 Listed buildings and a scheduled monument at the site's edge: high severity, high confidence; 40 m away/);
-  assert.match(t, /- F-02 .*: medium severity, medium confidence; on the site/);
+  assert.match(t, /- F-01 Listed buildings and a scheduled monument at the site's edge: high severity, high confidence; next to the site, 40 m/);
+  assert.match(t, /- F-02 .*: medium severity, medium confidence; crosses the site's edge, 40% of the site/);
   assert.ok(!/F-04/.test(t), "the fourth is on the card");
   assert.match(t, /Not checked: Flood zones and Peat\./, "a must-check comes first");
   assert.ok(t.split(/\s+/).length < 160, "short");

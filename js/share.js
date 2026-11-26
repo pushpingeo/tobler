@@ -45,7 +45,7 @@ export function simplifyGeometry(g, tol) {
 }
 
 const KEEP_PROPS = ["role", "fid", "name", "type", "theme", "distance_km", "band", "dataset", "publisher", "licence", "checked_at", "surrounds", "in_search_area", "coverage", "side",
-  "part", "deduction", "label", "kind", "ha"];
+  "part", "deduction", "label", "kind", "ha", "relation", "site_share", "length_inside_km", "parts", "parts_on_site"];
 const pick = (o, keys) => Object.fromEntries(keys.filter((k) => o[k] != null).map((k) => [k, o[k]]));
 
 // The run, slimmed for a link. tol: simplification in degrees (0.0002 ≈ 20 m).
@@ -62,12 +62,12 @@ export function slimRun(record, { tol = 0.0002, now = () => new Date().toISOStri
     extent: r.extent, ...(r.reach ? { reach: r.reach } : { distances: r.distances }), fetched_to_km: r.fetched_to_km, assessed_within_km: r.assessed_within_km, method: r.method,
     flags: r.flags.map((f) => ({ id: f.id, risk: f.risk, theme: f.theme, severity: f.severity ?? null, confidence: f.confidence, why: f.why, next_step: f.next_step || "",
       nearest_km: f.nearest_km, fids: f.fids || [], ...pick(f, ["relation", "coverage", "confidence_capped", "linkage"]),
-      evidence: f.evidence.map((e) => pick(e, ["name", "distance_km", "band", "dataset", "publisher", "licence", "checked", "traced", "fid", "ref", "check", "from_values", "in_search_area", "coverage", "side"])) })),
+      evidence: f.evidence.map((e) => pick(e, ["name", "distance_km", "band", "dataset", "publisher", "licence", "checked", "traced", "fid", "ref", "check", "from_values", "in_search_area", "coverage", "side", "relation", "site_share", "length_inside_km", "parts", "parts_on_site"])) })),
     checked: r.checked.map((c) => ({ ...pick(c, ["evidence", "dataset", "publisher", "licence", "checked_at", "result", "count"]), ...(c.why ? { why: String(c.why).slice(0, 160) } : {}) })),
-    ...(r.checks ? { checks: r.checks.map((c) => ({ ...pick(c, ["id", "topic", "label", "must", "answer", "scale", "reach_km", "reach_wanted_km", "reach_from", "reach_default_km", "reach_note", "state", "reason", "count", "bands", "around", "nearest", "inside", "text", "capped", "partly", "search_area", "classes", "irz_codes"]),
+    ...(r.checks ? { checks: r.checks.map((c) => ({ ...pick(c, ["id", "topic", "label", "must", "answer", "scale", "reach_km", "reach_wanted_km", "reach_from", "reach_default_km", "reach_note", "state", "reason", "count", "bands", "around", "nearest", "inside", "text", "capped", "partly", "search_area", "classes", "irz_codes", "adjacent", "site_share", "zones", "next_to"]),
       ...(c.irz ? { irz: c.irz.map((z) => ({ key: z.key, category: z.category, consult: z.consult })) } : {}),
       // The nearest ten of each check's features travel in a link, by name (the shapes behind the flags travel anyway).
-      ...(c.features?.length ? { features: c.features.slice(0, 10).map((f) => pick(f, ["name", "distance_km", "around", "coverage", "detail", "publisher"])), features_total: c.features.length } : {}),
+      ...(c.features?.length ? { features: c.features.slice(0, 10).map((f) => pick(f, ["name", "distance_km", "around", "coverage", "detail", "publisher", "relation", "site_share", "length_inside_km", "parts", "parts_on_site"])), features_total: c.features.length } : {}),
       ...(c.why ? { why: String(c.why).slice(0, 160) } : {}), ...(c.source ? { source: pick(c.source, ["atlas_id", "tool", "dataset", "publisher", "licence", "checked_at"]) } : {}),
       ...(c.sources?.length ? { sources: c.sources.map((x) => pick(x, ["region", "atlas_id", "dataset", "publisher", "licence", "checked_at", "state"])) } : {}) })),
       checks_scale: r.checks_scale, ...pick(r, ["checks_version", "checks_merge_shapes", "no_check_topics", "topic_labels"]) } : {}),

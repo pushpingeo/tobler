@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import * as turf from "../js/vendor/turf.js";
 import { fromLocal } from "../js/geometry.js";
-import { relationOf, zonesAtSite, ADJACENT_KM, RELATIONS } from "../js/relation.js";
+import { relationOf, zonesAtSite, ADJACENT_KM, RELATIONS, relationFields, relationFieldsAll, whereWords, isOnSite } from "../js/relation.js";
 import { laea } from "../js/siterole.js";
 import { planarKm2 } from "../js/areabudget.js";
 
@@ -231,6 +231,51 @@ test("a detailed site and many features stay quick", () => {
   const ms = Date.now() - t0;
   console.log(`  500 features on a 4,688-vertex edge: ${ms} ms`);
   assert.ok(ms < 2000, `${ms} ms`);
+});
+
+test("the fields a measured feature carries: nothing more to work out for a feature off the site", () => {
+  assert.deepEqual(relationFields(site, poly(box(400, 0, 450, 50)), 0.2), { relation: "outside" });
+  assert.deepEqual(relationFields(site, poly(box(230, 0, 260, 50)), 0.03), { relation: "adjacent" });
+  assert.deepEqual(relationFields(site, poly(box(200, 0, 260, 50)), 0), { relation: "adjacent" });
+  const c = relationFields(site, poly(box(150, -50, 250, 50)), 0);
+  assert.equal(c.relation, "crosses");
+  near(c.site_share, 0.03125, 5e-4);
+  const l = relationFields(site, line([-300, 10], [100, 10]), 0);
+  near(l.length_inside_km, 0.3, 0.002);
+  assert.deepEqual(relationFields(pt(0, 0), poly(box(-50, -50, 50, 50)), 0), {}); // a point site: no outline, no relation
+  assert.deepEqual(relationFields(site, null, 0), {});
+});
+
+test("on site means within, crosses or covers; touching from outside isn't; old records fall back to 0 km", () => {
+  assert.equal(isOnSite({ relation: "crosses", distance_km: 0 }), true);
+  assert.equal(isOnSite({ relation: "adjacent", distance_km: 0 }), false);
+  assert.equal(isOnSite({ distance_km: 0 }), true);
+  assert.equal(isOnSite({ distance_km: 0.2 }), false);
+});
+
+test("one thing in several pieces is measured as a whole (an OpenStreetMap road)", () => {
+  const road = [line([-300, 0], [-100, 0]).coordinates, line([-100, 0], [300, 0]).coordinates].map((c) => ({ type: "LineString", coordinates: c }));
+  const r = relationFieldsAll(site, road, 0);
+  assert.equal(r.relation, "crosses");
+  near(r.length_inside_km, 0.4, 0.003);
+  assert.equal(r.parts, undefined);
+  assert.equal(relationFieldsAll(site, [line([-100, 0], [0, 0]), line([0, 0], [100, 0])], 0).relation, "within");
+  assert.equal(relationFieldsAll(site, [line([-100, 0], [0, 0]), pt(600, 0)], 0).relation, "crosses");
+  assert.equal(relationFieldsAll(site, [line([210, 0], [220, 0]), pt(600, 0)], 0.01).relation, "adjacent");
+});
+
+test("where a feature is, in words", () => {
+  const m = (km) => `${Math.round(km * 1000)} m`;
+  assert.equal(whereWords({ relation: "within" }), "on site");
+  assert.equal(whereWords({ relation: "covers" }), "the site lies within it");
+  assert.equal(whereWords({ relation: "crosses", site_share: 0.12 }), "crosses the site's edge, 12% of the site");
+  assert.equal(whereWords({ relation: "crosses", site_share: 0.004 }), "crosses the site's edge, under 1% of the site");
+  assert.equal(whereWords({ relation: "crosses", length_inside_km: 0.3 }, m), "crosses the site's edge, 300 m of it on site");
+  assert.equal(whereWords({ relation: "crosses", parts: 3, parts_on_site: 1, site_share: 0.05 }), "partly on site (1 of 3 parts), 5% of the site");
+  assert.equal(whereWords({ relation: "adjacent", distance_km: 0 }), "next to the site (touching its edge)");
+  assert.equal(whereWords({ relation: "adjacent", distance_km: 0.03 }, m), "next to the site, 30 m");
+  assert.equal(whereWords({ relation: "outside", distance_km: 2 }), null);
+  assert.equal(whereWords({ distance_km: 0 }), null);
 });
 
 console.log(`relation: ${passed} passed`);

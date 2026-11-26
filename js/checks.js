@@ -4,6 +4,7 @@
 // and the tests share it. The run (js/ntrrun.js) does the fetching with the existing tools and hands the outputs here.
 
 import { LADDER, bandLabel } from "./reach.js";
+import { isOnSite, whereWords, relationPart as relOf } from "./relation.js";
 
 export const STATES = { found: "found", none: "none found", not_checked: "not checked" };
 // Why a check wasn't checked. "no_check" is for a topic, not a check: nothing standard checks it yet.
@@ -169,27 +170,33 @@ export function fromFeatures(plan, features, edges = LADDER, meta = {}) {
   if (meta.capped) out.capped = true;
   if (capped) out.reach_wanted_km = plan.reach_km;
   if (plan.check.answer === "inside") {
-    const hit = within.filter((f) => !(f.distance_km > 0));
+    // Inside means on the site: a zone that only touches its edge from outside isn't (js/relation.js).
+    const hit = within.filter(isOnSite);
     out.inside = hit.length > 0;
     out.state = hit.length ? "found" : "none";
-    if (hit.length) out.nearest = { name: hit[0].name, distance_km: 0, ...(hit[0].around_site ? { around: true } : {}) };
+    if (hit.length) out.nearest = { name: hit[0].name, distance_km: 0, ...(hit[0].around_site ? { around: true } : {}), ...relOf(hit[0]) };
     return out;
   }
   const around = within.filter((f) => f.around_site);
-  const onSite = within.filter((f) => !f.around_site && !(f.distance_km > 0));
-  const rest = within.filter((f) => !f.around_site && f.distance_km > 0);
+  // On site: within, crossing the edge, or covering it. A feature that only touches the edge from outside is next to
+  // the site, at 0 m, and is counted in the first band (Rob, 26 Nov).
+  const onSite = within.filter((f) => !f.around_site && isOnSite(f));
+  const rest = within.filter((f) => !f.around_site && !isOnSite(f));
   const tops = bandsFor(edges, reach);
   out.count = within.length;
   out.bands = [
     ...(onSite.length || reach === 0 ? [{ label: "on site", count: onSite.length }] : []),
     ...tops.map((to, i) => {
       const from = i ? tops[i - 1] : 0;
-      return { from_km: from, to_km: to, label: bandLabel(from, to), count: rest.filter((f) => f.distance_km > from && f.distance_km <= to + 1e-9).length };
+      return { from_km: from, to_km: to, label: bandLabel(from, to), count: rest.filter((f) => (i ? f.distance_km > from : f.distance_km >= 0) && f.distance_km <= to + 1e-9).length };
     }),
   ];
   if (around.length) out.around = around.length;
-  const near = [...onSite, ...rest].sort((a, b) => a.distance_km - b.distance_km)[0] || around[0];
-  if (near) out.nearest = { name: near.name, distance_km: near.around_site ? 0 : near.distance_km, ...(near.around_site ? { around: true } : {}) };
+  const adjacent = rest.filter((f) => f.relation === "adjacent").length;
+  if (adjacent) out.adjacent = adjacent;
+  // Nearest: something on the site first, then the closest off it.
+  const near = onSite[0] || rest.sort((a, b) => a.distance_km - b.distance_km)[0] || around[0];
+  if (near) out.nearest = { name: near.name, distance_km: near.around_site ? 0 : near.distance_km, ...(near.around_site ? { around: true } : relOf(near)) };
   out.state = within.length ? "found" : "none";
   return out;
 }
@@ -375,11 +382,16 @@ export function checkLine(r, { nearest: withNearest = true } = {}) {
     return hit.length ? `inside a risk zone; consult Natural England for: ${hit.map((x) => x.category.toLowerCase()).join(", ")}` : "inside a risk zone; no consultation needed for this kind of development";
   }
   const where = r.reach_km === 0 ? `inside or touching the ${r.search_area ? "search area" : "site"}` : `within ${km(r.reach_km)}${r.reach_wanted_km ? ` (of ${km(r.reach_wanted_km)}: the tools fetch to ${km(r.reach_km)})` : ""}`;
-  if (r.answer === "inside") return r.inside ? `the ${r.search_area ? "search area" : "site"} is inside ${r.nearest?.name || "one"}${r.nearest?.around ? " (a wide area it lies within)" : ""}` : "the site isn't inside one";
+  if (r.answer === "inside") {
+    if (!r.inside) return `the site isn't inside one${r.next_to ? ` (${r.next_to.name} is next to it, ${r.next_to.distance_km > 0 ? km(r.next_to.distance_km) : "touching its edge"})` : ""}`;
+    const share = r.site_share == null || r.nearest?.around ? "" : r.site_share >= 0.995 ? ", all of it" : `, about ${r.site_share >= 0.01 ? `${Math.round(r.site_share * 100)}%` : "under 1%"} of it`;
+    return `the ${r.search_area ? "search area" : "site"} is inside ${r.zones > 1 ? `${r.zones} zones, among them ${r.nearest?.name || "one"}` : r.nearest?.name || "one"}${r.nearest?.around ? " (a wide area it lies within)" : ""}${share}`;
+  }
   if (r.state === "none") return r.only_partial ? `none found ${where} in the records read (${r.partial}); the records are partial, so this isn't a clear answer` : `none found ${where}${r.partial ? ` (partial records: ${r.partial})` : ""}`;
   const onSite = r.search_area ? "in the search area" : "on site";
-  const bits = (r.bands || []).filter((b) => b.count).map((b) => `${b.count} ${b.from_km == null ? onSite : `at ${b.label}`}`);
-  const nearest = withNearest && r.nearest ? `; nearest ${r.nearest.name}${r.nearest.around ? " (around the site)" : r.nearest.distance_km > 0 ? `, ${km(r.nearest.distance_km)}` : ` (${onSite})`}` : "";
+  const bits = (r.bands || []).filter((b) => b.count).map((b) => `${b.count} ${b.from_km == null ? onSite : `at ${b.label}`}${b.from_km === 0 && r.adjacent ? ` (${r.adjacent} next to the site)` : ""}`);
+  const words = !r.search_area && r.nearest && whereWords(r.nearest, km);
+  const nearest = withNearest && r.nearest ? `; nearest ${r.nearest.name}${r.nearest.around ? " (around the site)" : words ? ` (${words})` : r.nearest.distance_km > 0 ? `, ${km(r.nearest.distance_km)}` : ` (${onSite})`}` : "";
   if (r.around) bits.push(`${r.around} around the site`);
   return `${r.count}${r.capped ? "+" : ""} ${where}${bits.length ? ` (${bits.join(", ")})` : ""}${nearest}`;
 }

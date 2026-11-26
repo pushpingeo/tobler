@@ -235,3 +235,65 @@ export function zonesAtSite(site, zones = []) {
   return { inside: touching.length > 0, wholly: touching.length > 0 && s.km2 - together <= Math.max(SLIVER_KM2, s.km2 * 1e-6), site_share: r6(share),
     site_km2: r6(s.km2), zones: touching, nearest, not_areas: notAreas };
 }
+
+// ---- for the places that measure features (fetch_features, the OpenStreetMap checks, the offer) ----------------
+
+const KEEP = ["site_share", "length_inside_km", "parts", "parts_on_site"];
+// The relations that put a feature on the site. Adjacent, touching included, isn't on it (Rob, 26 Nov).
+export const ON_SITE = new Set(["within", "crosses", "covers"]);
+// Just the relation fields of a feature, to copy onto another record (a check's nearest, a card row, the map).
+export const relationPart = (f = {}) => Object.fromEntries(["relation", ...KEEP].filter((k) => f[k] != null).map((k) => [k, f[k]]));
+export const isOnSite = (f) => (f?.relation ? ON_SITE.has(f.relation) : f?.distance_km != null && !(f.distance_km > 0));
+
+// The fields a measured feature carries: relation, and the overlap that goes with it. distKm is the distance the
+// caller has already measured, so a feature off the site costs nothing more. {} when the site has no outline (a point:
+// its run measures from the point), or when the shape can't be read.
+export function relationFields(site, geometry, distKm = null) {
+  const sg = geomOf(site);
+  if (!isArea(sg) || !geometry) return {};
+  if (distKm != null && distKm > ADJACENT_KM) return { relation: "outside" };
+  if (distKm != null && distKm > 0) return { relation: "adjacent" };
+  let r;
+  try { r = relationOf(sg, geometry); } catch { return {}; }
+  if (!r) return {};
+  return Object.fromEntries([["relation", r.relation], ...KEEP.filter((k) => r[k] != null && !(k === "site_share" && !r.site_share) && !(k === "length_inside_km" && !r.length_inside_km)).map((k) => [k, r[k]])]);
+}
+
+// One thing in several pieces (a road, a river, patches of homes): its relation as a whole. Pieces of one kind are
+// measured together as one multi-part shape; mixed kinds fall back to the pieces one by one.
+export function relationFieldsAll(site, geometries, distKm = null) {
+  const gs = geometries.filter((g) => g?.coordinates);
+  if (gs.length <= 1) return relationFields(site, gs[0], distKm);
+  const fam = (g) => g.type.replace(/^Multi/, "");
+  const kinds = new Set(gs.map(fam));
+  if (kinds.size === 1) {
+    const k = [...kinds][0];
+    const coords = gs.flatMap((g) => (/^Multi/.test(g.type) ? g.coordinates : [g.coordinates]));
+    const out = relationFields(site, { type: `Multi${k}`, coordinates: coords }, distKm);
+    // Pieces of one thing aren't "parts" to the person: say how much is on the site, not how many pieces.
+    delete out.parts; delete out.parts_on_site;
+    return out;
+  }
+  const each = gs.map((g) => relationFields(site, g));
+  const on = each.filter((x) => ON_SITE.has(x.relation));
+  if (!on.length) return each.some((x) => x.relation === "adjacent") ? { relation: "adjacent" } : each[0] || {};
+  return { relation: on.length === each.length && on.every((x) => x.relation === "within") ? "within" : "crosses" };
+}
+
+// Where a feature is, in a few words, for the card, the map, the report and the replies. dist formats a distance in
+// the person's units. Null for a feature off the site and not next to it: the caller writes its distance as usual.
+const pct = (v) => (v >= 0.995 ? "all" : v >= 0.01 ? `${Math.round(v * 100)}%` : "under 1%");
+export function whereWords(f, dist = (km) => `${Math.round(km * 1000)} m`) {
+  switch (f?.relation) {
+    case "within": return "on site";
+    case "covers": return "the site lies within it";
+    case "crosses": {
+      const partly = f.parts > 1 && f.parts_on_site != null ? `partly on site (${f.parts_on_site} of ${f.parts} parts)` : "crosses the site's edge";
+      if (f.site_share) return `${partly}, ${pct(f.site_share)} of the site`;
+      if (f.length_inside_km) return `${partly}, ${dist(f.length_inside_km)} of it on site`;
+      return partly;
+    }
+    case "adjacent": return f.distance_km > 0 ? `next to the site, ${dist(f.distance_km)}` : "next to the site (touching its edge)";
+    default: return null;
+  }
+}

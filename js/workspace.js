@@ -19,6 +19,7 @@ import { createScreening, evidenceOf, evidenceWithin, nearestByTheme, flagBeyond
 import { groupGaps, gapSummary, GAP_GROUPS } from "./gaps.js";
 import { checksView, noCheckGap } from "./checks.js";
 import * as U from "./units.js";
+import { relationPart, whereWords } from "./relation.js";
 import { pickExamples } from "./examples.js";
 import { chooseIndustry, industryNote } from "./industry.js";
 import { getUserKey, setUserKey } from "./claude.js";
@@ -486,7 +487,7 @@ function addFindings(list, meta = {}) {
   const theme = topicOf(meta.theme || themeFor({}));
   for (const c of list) {
     findings.set(c.id, { type: "Feature", geometry: c.geometry, properties: {
-      id: c.id, label: c.name || c.type || "", theme, band: bandOf(c.distance_km), distance_km: c.distance_km ?? null,
+      id: c.id, label: c.name || c.type || "", theme, band: bandOf(c.distance_km), distance_km: c.distance_km ?? null, ...(c.around_site ? {} : relationPart(c)),
       area_km2: c.area_km2 ?? null, dataset: meta.dataset || "", publisher: meta.publisher || c.source?.publisher || "",
     } });
   }
@@ -557,7 +558,7 @@ function drawKey() {
     if (keyOpen === k) {
       const items = [...findings.values()].filter((f) => f.properties.theme === k)
         .sort((a, b) => (a.properties.surrounds ? 1e9 : a.properties.distance_km ?? 1e9) - (b.properties.surrounds ? 1e9 : b.properties.distance_km ?? 1e9))
-        .map((f) => ({ id: f.properties.id, name: f.properties.label, distance_km: f.properties.distance_km, around: !!f.properties.surrounds, dataset: f.properties.dataset }));
+        .map((f) => ({ id: f.properties.id, name: f.properties.label, distance_km: f.properties.distance_km, around: !!f.properties.surrounds, dataset: f.properties.dataset, ...relationPart(f.properties) }));
       li.append(featureList(items, { record: shownRun ? runs.get(shownRun)?.record : null, label: t.label }));
     }
     return li;
@@ -580,7 +581,7 @@ function openPopup(p, lngLat) {
   box.className = "finding-pop";
   const name = document.createElement("b"); name.textContent = p.label || "Unnamed feature";
   const what = document.createElement("span");
-  const km = p.surrounds ? "around the site (a wide area it lies within) · " : p.in_search_area ? `${whereText(p)} · ` : p.distance_km == null || p.distance_km === "null" ? "" : +p.distance_km === 0 ? "on site · " : `${U.dist(+p.distance_km)} from the site · `;
+  const km = p.surrounds ? "around the site (a wide area it lies within) · " : p.in_search_area ? `${whereText(p)} · ` : p.distance_km == null || p.distance_km === "null" ? "" : whereWords({ ...p, distance_km: +p.distance_km }, U.dist) ? `${whereWords({ ...p, distance_km: +p.distance_km }, U.dist)} · ` : +p.distance_km === 0 ? "on site · " : `${U.dist(+p.distance_km)} from the site · `;
   // The publisher only when the layer's title doesn't already name it ("... (JNCC)").
   const pub = p.publisher && !/\([^)]*\)\s*$/.test(p.dataset || "") && !String(p.dataset || "").includes(p.publisher) ? ` (${p.publisher})` : "";
   what.textContent = `${topicInfo(p.theme).label} · ${km}${p.dataset}${pub}`;
@@ -625,7 +626,7 @@ function featureList(rawItems, { record = null, label = "" } = {}) {
     const li = el("li");
     const b = el("button", null, "feat");
     b.type = "button";
-    const where = f.around ? "around the site" : f.coverage ? `${Math.max(1, Math.round(f.coverage * 100))}% of the site` : f.distance_km == null ? "" : f.distance_km === 0 ? "on site" : U.dist(f.distance_km);
+    const where = f.around ? "around the site" : f.coverage ? `${Math.max(1, Math.round(f.coverage * 100))}% of the site` : f.distance_km == null ? "" : whereWords(f, U.dist) || (f.distance_km === 0 ? "on site" : U.dist(f.distance_km));
     const name = f.name || "Unnamed";
     const layer = layerTitle(f);
     // The layer goes on the row only when the list mixes layers, and not when it's the feature's name already.
@@ -1673,7 +1674,7 @@ function showRunOnMap(record, { fit = true, instant = false } = {}) {
     findings.set(`${r.id}:${p.fid}`, { type: "Feature", geometry: f.geometry, properties: {
       id: `${r.id}:${p.fid}`, run: r.id, label: p.name, theme: topicOf(p.theme), band: p.surrounds ? "wider" : band, ...(p.surrounds ? { surrounds: true } : {}),
       ...(p.in_search_area ? { in_search_area: true, ...(p.coverage != null ? { coverage: p.coverage } : {}), ...(p.side ? { side: p.side } : {}) } : {}), distance_km: p.distance_km, area_km2: p.area_km2 ?? null, dataset: p.dataset, publisher: p.publisher,
-      ...(p.role === "added" ? { added: true } : {}),
+      ...(p.role === "added" ? { added: true } : {}), ...(p.surrounds || p.in_search_area ? {} : relationPart(p)),
     } });
   }
   shownRun = r.id;
@@ -1999,7 +2000,7 @@ function paintRun(entry) {
     const ev = el("ul", null, "ev");
     for (const e of f.evidence) {
       const item = el("li");
-      item.append(el("b", e.name || "Unnamed"), document.createTextNode(` · ${e.band === "around the site" ? "around the site (a wide area it lies within)" : e.band === SEARCH_BAND ? whereText(e) : e.distance_km == null ? "distance not given" : `${fmtKm(e.distance_km)}${e.band && e.band !== "on site" ? ` (${e.band})` : ""}`} `));
+      item.append(el("b", e.name || "Unnamed"), document.createTextNode(` · ${e.band === "around the site" ? "around the site (a wide area it lies within)" : e.band === SEARCH_BAND ? whereText(e) : e.distance_km == null ? "distance not given" : whereWords(e, U.dist) || `${fmtKm(e.distance_km)}${e.band && e.band !== "on site" ? ` (${e.band})` : ""}`} `));
       item.append(el("span", `· ${[e.dataset, e.publisher && `(${e.publisher})`].filter(Boolean).join(" ")}${e.licence ? `, ${e.licence}` : ""}${e.checked ? `, checked ${String(e.checked).slice(0, 10)}` : ""} `, "src"));
       item.append(e.traced ? el("span", "· traced to the data", "src") : el("span", "· not traced to fetched data", "untraced"));
       ev.append(item);

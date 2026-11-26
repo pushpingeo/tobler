@@ -815,6 +815,51 @@ await test("a published outline stays a site: 'on site' and no cap", async () =>
   assert.equal(rec.tobler_run.flags.find((f) => /pipelines/.test(f.risk)).confidence, "high");
 });
 
+await test("how a feature sits against the site (package B): crossing the edge, touching it, and a zone over part of it", async () => {
+  // The 10 km square, edges 5 km from the centre. A pipeline from the centre to 8 km east crosses the east edge; a
+  // marine site whose west edge is the site's east edge only touches it; MARPOL's area covers the western 4 km.
+  const at = (x, y) => G.fromLocal([x, y], FIELD);
+  const rect = (x0, y0, x1, y1) => ({ type: "Polygon", coordinates: [[at(x0, y0), at(x1, y0), at(x1, y1), at(x0, y1), at(x0, y0)]] });
+  const edgeAtlas = async (tool, args) => {
+    if (tool === "fetch_features" && (args.id === "pipe" || args.id === "c026fa004eab396c")) return { returned: 1, features: [
+      { type: "Feature", geometry: { type: "LineString", coordinates: [at(0, 0), at(8, 0)] }, properties: { PIPE_NAME: "Edge export line", Lease_Description: "Edge export line" } }] };
+    if (tool === "fetch_features" && args.id === "1d6371b702df0abc") return { returned: 1, features: [
+      { type: "Feature", geometry: rect(5, -2, 7, 2), properties: { SITE_NAME: "Neighbour Bank", SITE_CODE: "UK0000001", SITE_STATU: "SAC" } }] };
+    if (tool === "fetch_features" && args.id === "7d382e1686a08bff") return { returned: 0, features: [] };
+    if (tool === "fetch_features" && args.id === "751ddc65885f897d") return { returned: 1, features: [
+      { type: "Feature", geometry: rect(-20, -10, -1, 10), properties: { name: "Western special area" } }] };
+    return atlas(tool, args);
+  };
+  const rec = await runScreening({ broughtIn: BROUGHT, host: { ...host(), atlas: edgeAtlas }, site, asset: chooseAsset(table, { asset_type: "oil-gas-field", offshore: true }), skill, callClaude: standardScript(), inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
+  const by = Object.fromEntries(rec.tobler_run.checks.map((c) => [c.id, c]));
+  const pipes = by["material.subsea-pipelines"];
+  assert.equal(pipes.nearest.relation, "crosses");
+  near(pipes.nearest.length_inside_km, 5, 0.02);
+  assert.match(K.checkLine(pipes), /nearest Edge export line \(crosses the site's edge, 5 km of it on site\)/);
+  assert.equal(pipes.bands.find((b) => b.label === "on site").count, 1);
+  const sac = by["bio.sac"];
+  assert.equal(sac.nearest.name, "Neighbour Bank");
+  assert.equal(sac.nearest.relation, "adjacent");
+  assert.ok(!sac.bands.some((b) => b.label === "on site" && b.count), "touching from outside isn't on site");
+  assert.equal(sac.bands[0].count, 1);
+  assert.equal(sac.adjacent, 1);
+  assert.match(K.checkLine(sac), /\(1 next to the site\).*nearest Neighbour Bank \(next to the site \(touching its edge\)\)/);
+  const marpol = by["material.marpol-special-areas"];
+  assert.equal(marpol.inside, true);
+  near(marpol.site_share, 0.4, 0.005);
+  assert.match(K.checkLine(marpol), /inside Western special area, about 40% of it/);
+  // On the map: the touching site is in the first band and says how it sits; the pipeline carries its length inside.
+  const ev = rec.features.filter((f) => f.properties.role === "evidence").map((f) => f.properties);
+  const bank = ev.find((e) => e.name === "Neighbour Bank");
+  assert.equal(bank.relation, "adjacent");
+  assert.notEqual(bank.band, "on site");
+  const line = ev.find((e) => e.name === "Edge export line");
+  assert.equal(line.relation, "crosses");
+  near(line.length_inside_km, 5, 0.02);
+  // The card's list for the check carries it too.
+  assert.equal(pipes.features?.[0]?.relation ?? pipes.nearest.relation, "crosses");
+});
+
 await test("display units: conversions, text in km shown in miles or nautical miles, metric untouched", async () => {
   const U = await import("../js/units.js");
   U.setUnits("metric");

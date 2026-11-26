@@ -2,6 +2,7 @@
 // Layout follows the outline in the plan ("Outputs", PDF), from the ESIA read: decision first, a site map, a map of
 // numbered findings, one row per finding, the evidence and gaps, the method, sources and licences, the disclaimer.
 // No DOM, so it can be tested; js/reportpage.js draws it.
+import { relationPart } from "./relation.js";
 import * as turf from "./vendor/turf.js";
 import { topicInfo } from "./findings.js";
 import { groupGaps } from "./gaps.js";
@@ -51,7 +52,7 @@ export function findingRows(run) {
     id: f.id || "", risk: f.risk, theme: themeLabel(f.theme), colour: topicInfo(f.theme).colour,
     severity: f.severity || "not rated", confidence: f.confidence, nearest_km: f.nearest_km, why: f.why || "", next_step: f.next_step || "",
     relation: f.relation || null, confidence_capped: f.confidence_capped || null, ...(f.linkage ? { linkage: f.linkage } : {}),
-    evidence: (f.evidence || []).map((e) => ({ name: e.name || "Unnamed", distance_km: e.distance_km, band: e.band, dataset: e.dataset || "", publisher: e.publisher || "", checked: e.checked ? String(e.checked).slice(0, 10) : "", traced: !!e.traced,
+    evidence: (f.evidence || []).map((e) => ({ name: e.name || "Unnamed", distance_km: e.distance_km, band: e.band, ...relationPart(e), dataset: e.dataset || "", publisher: e.publisher || "", checked: e.checked ? String(e.checked).slice(0, 10) : "", traced: !!e.traced,
       ...(e.in_search_area ? { in_search_area: true, coverage: e.coverage ?? null, side: e.side ?? null } : {}) })),
   }));
 }

@@ -6,6 +6,7 @@ import * as turf from "./vendor/turf.js";
 import { classifyLicence, licenceBlock } from "./licence.js";
 import { runBand, runFurthest } from "./reach.js";
 import { geometryDistanceKm } from "./datatools.js";
+import { relationFields, relationPart, isOnSite } from "./relation.js";
 import { pickName, tidyName } from "./atlasfeatures.js";
 
 export const MAX_GAPS = 6; // gaps searched per run
@@ -161,10 +162,10 @@ export async function offerFor(record, { atlas, catalogue = {}, allow = {}, trus
       let km;
       try { km = geometryDistanceKm(site.geometry, f.geometry); } catch { continue; }
       if (km == null || km > reach + 1e-9) continue;
-      near.push({ name: tidyName(pickName(f.properties || {}) || d.title), distance_km: Math.round(km * 100) / 100 });
+      near.push({ name: tidyName(pickName(f.properties || {}) || d.title), distance_km: Math.round(km * 100) / 100, ...relationFields(site.geometry, f.geometry, km) });
     }
     near.sort((a, b) => a.distance_km - b.distance_km);
-    return { count: near.length, inside: near.filter((n) => n.distance_km === 0).length, nearest: near.slice(0, 2), capped: (got?.returned ?? (got?.features || []).length) >= PREVIEW_LIMIT };
+    return { count: near.length, inside: near.filter(isOnSite).length, nearest: near.slice(0, 2), capped: (got?.returned ?? (got?.features || []).length) >= PREVIEW_LIMIT };
   };
   const taken = new Set();
   // The gaps in order; each looks at up to three candidates, one at a time, until one has something in reach.
@@ -268,7 +269,7 @@ export async function bringIn(record, ids, { get, keep, placeName, placeIsPoint 
     const collect = (list, meta) => {
       for (const c of list.slice(0, MAX_KEPT)) record.features.push({ type: "Feature", geometry: c.geometry, properties: {
         role: "added", fid: `A${++k}`, run: r.id, offer: x.id, name: c.name || c.type || "Unnamed feature", theme: x.topic, distance_km: c.distance_km,
-        band: c.around_site ? "around the site" : runBand(c.distance_km, r), ...(c.around_site ? { surrounds: true } : {}),
+        band: c.around_site ? "around the site" : runBand(c.relation === "adjacent" ? Math.max(c.distance_km, 1e-9) : c.distance_km, r), ...(c.around_site ? { surrounds: true } : relationPart(c)),
         dataset: meta.dataset, publisher: meta.publisher, licence: meta.licence, checked_at: meta.checked_at, ...(c.extra && Object.keys(c.extra).length ? { details: c.extra } : {}) } });
     };
     try { out = await get({ dataset: id, place: placeName, within_km: within, theme: x.topic, limit: 500, collect }); }
@@ -279,7 +280,7 @@ export async function bringIn(record, ids, { get, keep, placeName, placeIsPoint 
       atlas_id: x.dataset.atlas_id, checked_at: out.checked_at || now(), within_km: within, scope: r.extent === "inside" ? "inside the area" : within === 0 ? "on the site" : `within ${within} km`,
       measured_from: placeIsPoint ? "the point" : r.extent === "inside" ? "inside the area" : "the site's edge",
       ...(out.not_checked ? { not_checked: String(out.not_checked).split(/(?<=\.)\s/)[0].slice(0, 160) } : {
-        count: out.within_distance ?? 0, inside: out.inside_or_touching ?? 0,
+        count: out.within_distance ?? 0, inside: out.on_site ?? out.inside_or_touching ?? 0,
         nearest: (out.nearest || []).filter((n) => !n.around_site).slice(0, 3).map((n) => ({ name: n.name, distance_km: n.distance_km })),
         ...(out.capped ? { capped: true } : {}), ...(out.time_note ? { time_note: out.time_note } : {}),
       }),

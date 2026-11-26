@@ -8,6 +8,7 @@ import { candidate } from "./gazetteer.js";
 import { classifyLicence, LICENCE_NOTE, licenceBlock } from "./licence.js";
 import { themeFor, TOPIC_IDS } from "./findings.js";
 import { nearestKm } from "./nearness.js";
+import { relationFields, isOnSite } from "./relation.js";
 
 // A wide area the site merely lies within (a sea, a region, a very large designation) isn't a feature "on site"
 // (Rob, 18 Nov: "North West European waters" and "Eastern Scotland" counted as on site for a box at Linlithgow).
@@ -238,6 +239,8 @@ export function createDataTools(host) {
         c.distance_km = round(dist, 2);
         const around = aroundSiteKm2(siteKm2, f.geometry, dist);
         if (around) { c.around_site = true; c.area_km2 = Math.round(around); }
+        // How it sits against the site: on it, crossing its edge, next to it (js/relation.js). Sites with an outline.
+        else Object.assign(c, relationFields(p.feature.geometry, f.geometry, dist));
         c.extra = keyAttributes(f.properties || {});
         for (const k of fields) if (f.properties?.[k] != null && f.properties[k] !== "") c.extra[k] = f.properties[k];
         found.push(c);
@@ -250,14 +253,17 @@ export function createDataTools(host) {
       if (kept.length) host.onCandidates?.(kept, { theme: themeFor({ theme: theme || d.service?.theme, concepts: d.concepts }), dataset: d.title, publisher: d.publisher, place: p.feature });
       if (typeof collect === "function") collect(kept, { dataset: d.title, publisher: d.publisher, licence: lic.short, checked_at: checkedAt });
       const inside = kept.filter((c) => c.distance_km === 0 && !c.around_site).length;
+      const onSite = kept.filter((c) => !c.around_site && c.relation && isOnSite(c)).length;
+      const nextTo = kept.filter((c) => c.relation === "adjacent").length;
       const around = kept.filter((c) => c.around_site).length;
       const returned = g.returned ?? (g.features || []).length;
       return {
         ...head, ...extra,
         returned_by_service: returned, inside_or_touching: inside, within_distance: kept.length,
+        ...(/Polygon/.test(p.feature.geometry.type) ? { on_site: onSite, next_to_site: nextTo } : {}),
         ...(around ? { around_the_site: around, around_note: AROUND_NOTE } : {}),
         ...(returned === 0 ? { service_note: "The service returned no features at all for this box." } : {}),
-        nearest: kept.slice(0, 12).map((c) => ({ id: c.id, name: c.name, type: c.type, distance_km: c.distance_km, ...(c.around_site ? { around_site: true, area_km2: c.area_km2 } : {}), ...(Object.keys(c.extra).length ? { details: c.extra } : {}) })),
+        nearest: kept.slice(0, 12).map((c) => ({ id: c.id, name: c.name, type: c.type, distance_km: c.distance_km, ...(c.relation ? { relation: c.relation } : {}), ...(c.site_share ? { site_share: c.site_share } : {}), ...(c.length_inside_km ? { length_inside_km: c.length_inside_km } : {}), ...(c.around_site ? { around_site: true, area_km2: c.area_km2 } : {}), ...(Object.keys(c.extra).length ? { details: c.extra } : {}) })),
         ...(kept.length > 12 ? { more: kept.length - 12 } : {}),
         ...(!d.service && returned >= lim ? { capped: `The service returned its ${lim}-feature limit for this box, so there may be more.` } : {}),
         ...(d.service?.time_aware ? { time_note: `Detections from the last ${extra.days_checked} days only, not a long record.` } : (d.capabilities || []).includes("time") ? { time_note: "A live, time-aware layer: it shows recent detections only (often the last 24 hours to 7 days)." } : {}),

@@ -1,5 +1,6 @@
 // The report page (report.html): reads a run from the link's # part (js/share.js) and draws the report. On screen it's
 // a web page with live maps; printed or saved as PDF it's an A4 report, with the maps as pictures (labels drawn in).
+import { whereWords } from "./relation.js";
 import * as turf from "./vendor/turf.js";
 import * as U from "./units.js";
 import { topicOf, topicInfo, colourExpression } from "./findings.js";
@@ -143,7 +144,7 @@ function render(record) {
       if (f.evidence.length) {
         const ul = el("ul", null, "ev");
         for (const e of f.evidence) {
-          const li = el("li", `${e.name} · ${e.band === "around the site" ? "around the site" : e.band === SEARCH_BAND ? whereText(e) : km(e.distance_km)}${e.dataset ? ` · ${e.dataset}` : ""}${e.publisher ? ` (${e.publisher})` : ""}${e.checked ? `, ${e.checked}` : ""}`);
+          const li = el("li", `${e.name} · ${e.band === "around the site" ? "around the site" : e.band === SEARCH_BAND ? whereText(e) : whereWords(e, U.dist) || km(e.distance_km)}${e.dataset ? ` · ${e.dataset}` : ""}${e.publisher ? ` (${e.publisher})` : ""}${e.checked ? `, ${e.checked}` : ""}`);
           if (!e.traced) li.append(el("span", " · not traced to fetched data", "untraced"));
           ul.append(li);
         }

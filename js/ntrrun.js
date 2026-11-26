@@ -13,6 +13,7 @@ import { DISCLAIMER } from "./disclaimer.js";
 // The caveat for a screen of something the profile isn't built for, when the profile doesn't give its own words.
 export const OUTSIDE_PROFILE = "A general screen: the method wasn't built for this kind of development, so treat it as a first look.";
 import { aroundSiteKm2 } from "./datatools.js";
+import { relationPart, zonesAtSite, isOnSite } from "./relation.js";
 import { siteChange } from "./outofdate.js";
 import { runDiff } from "./rundiff.js";
 import { waterDepth, vesselTraffic, seaLines } from "./seavalues.js";
@@ -173,7 +174,7 @@ function resolveRef(e, byFid, byCheck, d, sea) {
   const id = String(refOf(e) || "").trim().replace(/^\[|\]$/g, "");
   if (!ID_LIKE.test(id)) return { ref: (typeof e === "object" && e ? String(e.name || e.ref || e.id || "") : String(e || "")).slice(0, 120), traced: false, why: "not cited by id" };
   const p = byFid.get(id.toUpperCase());
-  if (p) return { ref: p.fid, name: p.name, distance_km: p.distance_km, band: bandOf(p, d), dataset: p.dataset, publisher: p.publisher, licence: p.licence, checked: p.checked_at, fid: p.fid, traced: true,
+  if (p) return { ref: p.fid, name: p.name, distance_km: p.distance_km, band: bandOf(p, d), ...(p.surrounds || p.in_search_area ? {} : relationPart(p)), dataset: p.dataset, publisher: p.publisher, licence: p.licence, checked: p.checked_at, fid: p.fid, traced: true,
     ...(p.in_search_area ? { in_search_area: true, ...(p.coverage != null ? { coverage: p.coverage } : {}), ...(p.side ? { side: p.side } : {}) } : {}) };
   const c = byCheck.get(id);
   if (c && c.state === "found") {
@@ -338,7 +339,9 @@ export async function runScreening({ host, site, inputs, asset, said = { search:
       }
       evidence.push({ type: "Feature", geometry: c.geometry, properties: {
         role: "evidence", fid, run: runId, name: c.name || c.type || "Unnamed feature", type: c.type || "", theme: meta.theme || "context",
-        distance_km: round(c.distance_km, 2), band: around ? AROUND : where ? SEARCH_BAND : ladderBand(c.distance_km, reach || MAX_KM), area_km2: c.area_km2 ?? (around ? Math.round(around) : null),
+        // A feature that only touches the edge from outside is next to the site, in the first band, not "on site".
+        distance_km: round(c.distance_km, 2), band: around ? AROUND : where ? SEARCH_BAND : ladderBand(c.relation === "adjacent" ? Math.max(c.distance_km, 1e-9) : c.distance_km, reach || MAX_KM),
+        ...(around ? {} : relationPart(c)), area_km2: c.area_km2 ?? (around ? Math.round(around) : null),
         ...(where ? { in_search_area: true, ...(where.coverage != null ? { coverage: Math.round(where.coverage * 1000) / 1000 } : {}), ...(where.side ? { side: where.side } : {}) } : {}),
         ...(around ? { surrounds: true } : {}),
         dataset, publisher: meta.publisher || c.source?.publisher || "", licence: c.source?.licence || "",
@@ -533,7 +536,7 @@ export async function runScreening({ host, site, inputs, asset, said = { search:
       const plan = layerPlans.find((p) => p.sources.some((x) => x.osm === kind));
       if (a.not_checked) { checked.push({ evidence: kind, dataset: `OpenStreetMap: ${kind}`, publisher: "OpenStreetMap contributors", result: "not checked", why: a.not_checked, check: plan.check.id }); continue; }
       checked.push({ evidence: kind, dataset: a.meta.dataset, publisher: a.meta.publisher, licence: a.meta.licence, result: a.features.length ? "features" : "none found", count: a.features.length, within_km: a.meta.fetched_km, checked_at: a.meta.checked_at, via: a.meta.via, ...(a.meta.data_as_of ? { data_as_of: a.meta.data_as_of } : {}), check: plan.check.id });
-      capture(a.features.map((f) => ({ name: f.name, type: kind, geometry: f.geometry, distance_km: f.distance_km, extra: f.extra,
+      capture(a.features.map((f) => ({ name: f.name, type: kind, geometry: f.geometry, distance_km: f.distance_km, extra: f.extra, ...relationPart(f),
         source: { title: a.meta.dataset, publisher: a.meta.publisher, licence: a.meta.licence, url: `https://www.openstreetmap.org/${f.osm}` } })), { theme: topicOf(plan.check.topic) });
     }
     onEvent({ type: "tool", name: "openstreetmap", input: { kinds }, ms: Date.now() - t0, baseline: true,
@@ -555,7 +558,7 @@ export async function runScreening({ host, site, inputs, asset, said = { search:
       // covers (equal-area, js/siterole.js), so a polygon that only touches the edge isn't counted as on the site.
       const cov = (c) => { if (!l.coverage || c.distance_km > 0 || !isArea(fp.feature)) return null; try { return coverageIn(fp.feature, c.geometry)?.coverage ?? 0; } catch { return null; } };
       const box = (c) => { try { return turf.bbox({ type: "Feature", properties: {}, geometry: c.geometry }); } catch { return null; } };
-      layerAnswers.set(x.atlas_id, { features: (rawFound.get(raw.dataset) || []).map((c) => ({ name: c.name, distance_km: c.distance_km, around_site: !!c.around_site, extra: c.extra || {}, bbox: box(c), geometry: c.geometry, coverage: cov(c) })),
+      layerAnswers.set(x.atlas_id, { features: (rawFound.get(raw.dataset) || []).map((c) => ({ name: c.name, distance_km: c.distance_km, around_site: !!c.around_site, extra: c.extra || {}, bbox: box(c), geometry: c.geometry, coverage: cov(c), ...relationPart(c) })),
         meta: { dataset: raw.dataset, publisher: raw.publisher, licence: raw.licence, checked_at: raw.checked_at, capped: !!raw.capped, fetched_km: raw.within_km } });
     } catch (e) {
       onEvent({ type: "tool", name: "get_data", input, error: String(e.message || e), ms: Date.now() - t0, baseline: true });
@@ -572,6 +575,20 @@ export async function runScreening({ host, site, inputs, asset, said = { search:
       const keys = host.profile?.()?.irz_categories?.[inputs.asset_type] || host.profile?.()?.irz_categories?.other || [];
       r.irz = K.decodeIrz(codes, host.irz, keys);
       r.irz_codes = [...new Set(codes)].slice(0, 12);
+    }
+    // The zone answer (js/relation.js): for a check that asks "is the site inside?", how much of the site the zones
+    // cover together, each piece once; and when it isn't inside, a zone next to it is said.
+    if (p.check.answer === "inside" && isArea(fp.feature) && !searchArea && r.state !== "not_checked") {
+      const feats = answers.flatMap((a) => (a.features || []).filter((f) => f.geometry && K.passes(a.source, f)));
+      if (r.state === "found") {
+        try {
+          const z = zonesAtSite(fp.feature, feats.filter(isOnSite).map((f) => ({ name: f.name, geometry: f.geometry })));
+          if (z.zones.length) { r.site_share = z.site_share; if (z.zones.length > 1) r.zones = z.zones.length; }
+        } catch { /* the line keeps its name without a share */ }
+      } else {
+        const next = feats.filter((f) => f.relation === "adjacent").sort((a, b) => a.distance_km - b.distance_km)[0];
+        if (next) r.next_to = { name: next.name, distance_km: round(next.distance_km, 3) };
+      }
     }
     results.set(p.check.id, r);
     // The analyst's nearest names: the features this check counted, from its own sources (after each source's filter).
@@ -615,7 +632,7 @@ export async function runScreening({ host, site, inputs, asset, said = { search:
     if (r.members) {
       r.features = r.members.map((m) => {
         const p = fidOf.get(`${norm(m.dataset)}|${norm(m.name)}|${round(m.distance_km, 2)}`);
-        return { ...(p ? { fid: p.fid } : {}), name: m.name, distance_km: m.around_site ? null : m.distance_km, ...(m.around_site ? { around: true } : {}),
+        return { ...(p ? { fid: p.fid } : {}), name: m.name, distance_km: m.around_site ? null : m.distance_km, ...(m.around_site ? { around: true } : relationPart(m)),
           ...(m.coverage ? { coverage: Math.round(m.coverage * 1000) / 1000 } : {}), ...(m.detail ? { detail: m.detail } : {}), ...(m.publisher ? { publisher: m.publisher } : {}) };
       });
       delete r.members;

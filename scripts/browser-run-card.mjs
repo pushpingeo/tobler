@@ -27,7 +27,9 @@ function atlas(tool, args) {
   // Scotland's layer), and the wreck layer is offered after the run and fetched only on a yes.
   if (tool === "fetch_features" && (args.id === "pipe" || args.id === "c026fa004eab396c")) {
     const line = (a, name) => ({ type: "Feature", geometry: { type: "LineString", coordinates: [a, turf.destination(a, 2, 0).geometry.coordinates] }, properties: { PIPE_NAME: name, Lease_Description: name } });
-    return { returned: 3, features: [line(FIELD, "Rosebank 9 inch Production flowline 1"), line(east(1.5), "West of Shetland Pipeline"), line(east(30), "Clair export")] };
+    // The field's own flowline runs from the centre out across the site's east edge, 8 km (package B: it crosses).
+    const out = { type: "Feature", geometry: { type: "LineString", coordinates: [FIELD, east(3)] }, properties: { PIPE_NAME: "Rosebank 9 inch Production flowline 1", Lease_Description: "Rosebank 9 inch Production flowline 1" } };
+    return { returned: 3, features: [out, line(east(1.5), "West of Shetland Pipeline"), line(east(30), "Clair export")] };
   }
   if (tool === "fetch_features" && args.id === "wreck") return { returned: 2, features: [
     { type: "Feature", geometry: { type: "Point", coordinates: east(2) }, properties: { name: "TROLDFOS (POSSIBLY)" } },
@@ -272,12 +274,15 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
     disclaimer: document.querySelector(".disclaimer")?.textContent || "",
     units: [...document.querySelectorAll(".facts dt")].find((d) => d.textContent === "Units")?.nextElementSibling?.textContent || "",
     search: location.search,
+    flowline: document.body.innerText.split("\n").filter((l) => /flowline/i.test(l)).slice(0, 4),
+    crossing: /Rosebank 9 inch Production flowline 1 · crosses the site's edge, 4\.9\d km of it on site/.test(document.body.innerText),
   }));
   check(!rep.error && rep.h1 === "Constraints screenArea 1" && /^Progress with targeted investigation\./.test(rep.decision), `${label}: report opens from the link with the site and decision (${rep.error || rep.h1}; ${rep.url} chars)`);
   check(rep.rows.join(",") === "F-01,F-02" && /^Next step: Agree crossing/.test(rep.next), `${label}: report has one row per finding with its next step (${rep.rows.join(",")})`);
   check(rep.imgs.length === 2 && rep.imgs.every((n) => n > 5000), `${label}: both maps drawn and copied as pictures for print (${rep.imgs.join(", ")})`);
   check(rep.sources > 0 && /Indicative desk screening/.test(rep.disclaimer), `${label}: sources and disclaimer in the report (${rep.sources} sources)`);
   check(rep.search === "?u=metric" && /^Distances in metres and kilometres/.test(rep.units), `${label}: the report link carries its units and the report says which it shows (${rep.search} "${rep.units.slice(0, 40)}")`);
+  check(rep.crossing, `${label}: the report says the flowline crosses the site's edge, with its length on the site (package B) (${rep.flowline.join(" | ").slice(0, 300)})`);
   check(!repErrors.length, `${label}: no errors on the report page${repErrors.length ? `: ${repErrors.join(" | ").slice(0, 200)}` : ""}`);
   await rp.screenshot({ path: `/tmp/report-${label}.png`, fullPage: true });
   if (label === "desktop") { await rp.emulateMedia({ media: "print" }); await rp.pdf({ path: "/tmp/report.pdf", format: "A4", printBackground: true, preferCSSPageSize: true }); }
@@ -317,6 +322,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   check(ck && ck.lines.some((l) => /^Special Areas of Conservation\s*must: 1 within 50 km .*nearest Wyville Thomson Ridge/.test(l.text) && /found/.test(l.cls))
     && ck.lines.some((l) => /^Special Protection Areas \(birds\)\s*must: not checked: NatureScot didn't answer \(none in the others\)$/.test(l.text) && /\bnc\b/.test(l.cls))
     && ck.lines.some((l) => /^MARPOL special areas: the site is inside North West European waters/.test(l.text) && /found/.test(l.cls))
+    && ck.lines.some((l) => /^Subsea pipelines.*1 on site.*nearest Rosebank 9 inch Production flowline 1 \(crosses the site's edge, 5 km of it on site\)/.test(l.text))
     && ck.lines.some((l) => /^Water depth: about 120 m/.test(l.text))
     && ck.lines.some((l) => /none found within/.test(l.text) && /\bnone\b/.test(l.cls)), `${label}: one check of each state (${ck?.lines.map((l) => l.text.slice(0, 40)).join(" | ")})`);
   check(ck && ck.nocheckShown && /^\d+ topics have no standard check yet$/.test(ck.nocheck), `${label}: topics with no check in one summary line (${ck?.nocheck})`);

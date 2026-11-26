@@ -2,6 +2,7 @@
 // reply after a screen, a study or an area budget: every name, number and decision here comes from the record, so
 // nothing can be retyped wrong, and the reply can't run long. The model answers follow-ups (get_run).
 // No DOM, so the page, the replay script and the tests share it.
+import { whereWords, isOnSite } from "./relation.js";
 import { budgetSummary } from "./developable.js";
 import { searchHeadline } from "./siterole.js";
 import { offerLines, bringInReply } from "./bringin.js";
@@ -33,7 +34,11 @@ const sentence = (s) => { const t = String(s || "").trim(); return t ? (/[.!?]$/
 function whereOf(f, searchArea) {
   if (f.nearest_km == null) return null;
   if (f.nearest_km === 0 && searchArea) return "in the search area";
-  return km(f.nearest_km);
+  // How the nearest sits against the site, when the evidence says (js/relation.js): something on it before something
+  // that only touches its edge.
+  const at = (f.evidence || []).filter((e) => e.relation && e.distance_km === f.nearest_km);
+  const e = at.find(isOnSite) || at[0];
+  return (!searchArea && e && whereWords(e, U.dist)) || km(f.nearest_km);
 }
 
 function flagLine(f, searchArea) {

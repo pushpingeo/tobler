@@ -13,8 +13,10 @@ export const oracleSolar = run({
   site: { name: "Oracle campus, Linlithgow", asset_label: "solar farm", asset_assumed: false, role: "area", area_km2: 0.121 },
   decision: { value: "progress with targeted investigation", why: "Heritage assets sit at the site's edge and the land class needs checking at field scale" },
   flags: [
-    { id: "F-01", risk: "Listed buildings and a scheduled monument at the site's edge", severity: "high", confidence: "high", nearest_km: 0.04, traced: 2, untraced: 0 },
-    { id: "F-02", risk: "Prime agricultural land (Class 2) mapped across the site", severity: "medium", confidence: "medium", nearest_km: 0, traced: 1, untraced: 0 },
+    { id: "F-01", risk: "Listed buildings and a scheduled monument at the site's edge", severity: "high", confidence: "high", nearest_km: 0.04, traced: 2, untraced: 0,
+      evidence: [{ name: "Kettilstoun Mains", distance_km: 0.04, relation: "adjacent", traced: true }, { name: "Linlithgow Bridge", distance_km: 0.3, relation: "outside", traced: true }] },
+    { id: "F-02", risk: "Prime agricultural land (Class 2) mapped across the site", severity: "medium", confidence: "medium", nearest_km: 0, traced: 1, untraced: 0,
+      evidence: [{ name: "Class 2 land", distance_km: 0, relation: "crosses", site_share: 0.4, traced: true }] },
     { id: "F-03", risk: "Linlithgow Loch SSSI downstream of site drainage", severity: "medium", confidence: "medium", nearest_km: 1.6, traced: 1, untraced: 0 },
     { id: "F-04", risk: "Homes along the eastern boundary", severity: "low", confidence: "high", nearest_km: 0.12, traced: 1, untraced: 0 },
   ],

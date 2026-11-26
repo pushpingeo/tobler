@@ -2,6 +2,37 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 26 Nov 2026 (night, later): how a feature sits against the site, wired in (package B, second half)
+- **Rob's yes (26 Nov, 20:28)** to the five calls below ("covers"; a multi-part feature partly on the site is
+  "crosses"; touching from outside is adjacent at 0 m; a point on the edge is on the site; under 1 m² is a touch).
+- **Measured where distances are measured:** `fetch_features` (`js/datatools.js`), the OpenStreetMap checks
+  (`js/osmchecks.js`: a road's or river's pieces taken together, `relationFieldsAll`) and the offer's look before
+  offering (`js/bringin.js`). Each feature carries `relation` and, on the site, `site_share` or `length_inside_km`
+  (and `parts`/`parts_on_site` for a multi-part feature). Only features within 50 m are measured further; the rest
+  are "outside" from the distance already found. A point site has no outline, so it gets none (its run measures
+  from the point, as before). The tool result gives the analyst `on_site` and `next_to_site` counts beside
+  `inside_or_touching`.
+- **What changes in answers:** a feature that only touches the site's edge from outside is no longer "on site": it
+  counts in the first band (0–100 m), the check says "(n next to the site)", and its map band is the first band. An
+  inside check (MARPOL, coal mining risk, IRZs, World Heritage buffers) is inside only when a zone is on the site,
+  not touching it; it now says how much of the site the zones cover together ("about 40% of it", each piece once,
+  `zonesAtSite`), and when it isn't inside, a zone next to the site is named. A check's nearest is something on
+  the site before anything off it.
+- **Where it shows:** the check line ("nearest X (crosses the site's edge, 5 km of it on site)"), the map's tap
+  details, the card's feature lists and flag evidence, the report, the share link (it now keeps the fields) and the
+  code-written replies ("next to the site, 40 m"; "crosses the site's edge, 40% of the site"). The words are
+  `whereWords` in `js/relation.js`, in the person's units; package E may reword them. A search area keeps its own
+  words ("in the search area"), and a wide area the site lies within keeps "around the site".
+- **Left as they were:** class checks (flood zones, farmland) still use `coverageIn` with their own minimum share;
+  `coverageIn` for search areas. Both could move onto `relationOf` later. The point-site fault (brought-in layers
+  measured from the point) stays: it's about which shape a point run measures from, not the relation.
+- **Tested:** `npm test` (relation 25 tests; a sealed run with a pipeline crossing the edge, a SAC touching it and
+  MARPOL over 40% of the site; replies with relation evidence); all 14 browser checks on desktop and phone, with
+  `browser-run-card`'s flowline now crossing the edge and checked on the card's check line and in the report.
+  **Not tested:** a live replay; the map's tap details by a real tap (the words come from the same function the
+  report uses); a site with thousands of features on its edge in a real browser (node: 500 features on a
+  4,688-vertex edge in about 0.3 s).
+
 ## 26 Nov 2026 (evening, later): how a feature sits against the site, as a tool (package B, first half)
 - **What:** `js/relation.js`, new and not yet wired in. `relationOf(site, feature)` says **within**, **crosses**,
   **covers**, **adjacent** (off the site, within 50 m of its edge: `ADJACENT_KM`) or **outside**, with the distance;

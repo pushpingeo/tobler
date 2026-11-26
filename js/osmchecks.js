@@ -5,6 +5,7 @@
 // by place, so these checks are never must-checks and their line says where the data comes from. No DOM.
 import * as turf from "./vendor/turf.js";
 import { geometryDistanceKm } from "./datatools.js";
+import { relationFieldsAll } from "./relation.js";
 
 // The kinds a check can ask for (catalogue/checks.json "osm"). sel: Overpass selectors (the bbox is added);
 // match: the same rule on a feature's tags, to sort one combined answer back into kinds; name: a fallback name.
@@ -124,6 +125,8 @@ export async function osmAnswers({ wants, site, query, snapshot = null, timeoutS
       }
       features.length = 0; features.push(...kept);
     }
+    // How each sits against the site, the pieces of one thing taken together (js/relation.js).
+    for (const f of features) Object.assign(f, relationFieldsAll(site.geometry, [f.geometry, ...(f.parts || []).map((x) => x.geometry)], f.distance_km));
     out.set(k, { features, meta: { dataset: via === "copy" ? copyTitle(k, source.data_as_of) : osmTitle(k), publisher: "OpenStreetMap contributors", licence: "ODbL 1.0 (© OpenStreetMap contributors)", checked_at: checkedAt, capped, fetched_km: within, ...source } });
   }
   return out;
