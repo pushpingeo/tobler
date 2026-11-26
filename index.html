@@ -31,7 +31,7 @@
   "./js/datatools.js": "./js/datatools.js?v=70c4f76e",
   "./js/developable.js": "./js/developable.js?v=713ed76f",
   "./js/disclaimer.js": "./js/disclaimer.js?v=8cfa6424",
-  "./js/elevation.js": "./js/elevation.js?v=2c7251b2",
+  "./js/elevation.js": "./js/elevation.js?v=5314c7b4",
   "./js/epsgtools.js": "./js/epsgtools.js?v=9bf5b66f",
   "./js/examples.js": "./js/examples.js?v=8fee0134",
   "./js/feedback.js": "./js/feedback.js?v=f09b2bc7",
@@ -49,12 +49,12 @@
   "./js/osmchecks.js": "./js/osmchecks.js?v=4581e335",
   "./js/osmsnapshot.js": "./js/osmsnapshot.js?v=91ca4b49",
   "./js/outofdate.js": "./js/outofdate.js?v=09c95316",
-  "./js/placetools.js": "./js/placetools.js?v=a93583eb",
+  "./js/placetools.js": "./js/placetools.js?v=dd4203f0",
   "./js/projectstore.js": "./js/projectstore.js?v=c0e11ae3",
-  "./js/reach.js": "./js/reach.js?v=4733a46b",
-  "./js/reference.js": "./js/reference.js?v=c5ac2d6a",
+  "./js/reach.js": "./js/reach.js?v=417108c1",
+  "./js/reference.js": "./js/reference.js?v=c23a5252",
   "./js/rundiff.js": "./js/rundiff.js?v=2af47559",
-  "./js/runreply.js": "./js/runreply.js?v=071cd4a8",
+  "./js/runreply.js": "./js/runreply.js?v=5a832105",
   "./js/seavalues.js": "./js/seavalues.js?v=fd697cba",
   "./js/servicesite.js": "./js/servicesite.js?v=142927ba",
   "./js/share.js": "./js/share.js?v=39fc717a",
@@ -63,12 +63,12 @@
   "./js/sitetree.js": "./js/sitetree.js?v=c53a8072",
   "./js/transform.js": "./js/transform.js?v=007b7bff",
   "./js/ukareas.js": "./js/ukareas.js?v=0935133f",
-  "./js/units.js": "./js/units.js?v=106ee5ce",
+  "./js/units.js": "./js/units.js?v=820678b3",
   "./js/vendor/draw.js": "./js/vendor/draw.js?v=d46ad546",
   "./js/vendor/fileread.js": "./js/vendor/fileread.js?v=c6e0d988",
   "./js/vendor/flatgeobuf.js": "./js/vendor/flatgeobuf.js?v=5d6365ac",
   "./js/vendor/turf.js": "./js/vendor/turf.js?v=555787c6",
-  "./js/workspace.js": "./js/workspace.js?v=7a051c34",
+  "./js/workspace.js": "./js/workspace.js?v=16c2dc55",
   "@turf/turf": "./js/vendor/turf.js?v=555787c6",
   "osmtogeojson": "./js/vendor/osmtogeojson.js?v=75ffea00"
  }
@@ -195,11 +195,12 @@
     <fieldset>
       <legend>Units</legend>
       <div class="unit-choices" role="radiogroup" aria-label="Units">
-        <label><input type="radio" name="units" value="metric"> Kilometres</label>
-        <label><input type="radio" name="units" value="imperial"> Miles</label>
+        <label><input type="radio" name="units" value="auto"> From the site's country</label>
+        <label><input type="radio" name="units" value="metric"> Metres and kilometres</label>
+        <label><input type="radio" name="units" value="imperial"> Feet and miles</label>
         <label><input type="radio" name="units" value="nautical"> Nautical miles</label>
       </div>
-      <p class="hint-line">For display. The analyst still measures in kilometres and says both.</p>
+      <p class="hint-line">For display only: Tobler measures and records in metres. From the site's country means feet and miles in the United States, metres and kilometres elsewhere. A choice here is kept and wins.</p>
     </fieldset>
     <fieldset>
       <legend>Colour of your shapes</legend>
@@ -386,6 +387,6 @@
   </article>
 </template>
 
-<script type="module" src="js/workspace.js?v=7a051c34"></script>
+<script type="module" src="js/workspace.js?v=16c2dc55"></script>
 </body>
 </html>

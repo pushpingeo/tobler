@@ -8,6 +8,7 @@ import { serviceOriginText } from "./servicesite.js";
 import * as turf from "./vendor/turf.js";
 import * as G from "./geometry.js";
 import * as R from "./reference.js";
+import * as U from "./units.js";
 import { rateConfidence, runCheck, MATCHES } from "./confidence.js";
 import { atlasFindNamed, NAMED_KINDS, describeChecked } from "./atlasfeatures.js";
 import { DATA_TOOL_DEFS, createDataTools, geometryDistanceKm } from "./datatools.js";
@@ -401,7 +402,7 @@ export function createPlaceTools(host) {
 
   async function placeSummary(p) {
     const d = await R.describe(host.ref, p.feature);
-    return { place: p.name, status: p.status, summary: R.summaryLine(d), scale: d.scale, area_km2: d.area_km2, length_km: d.length_km, countries: d.countries, offshore: d.offshore };
+    return { place: p.name, status: p.status, summary: R.summaryLine(d, U.forModel()), scale: d.scale, area_km2: d.area_km2, length_km: d.length_km, countries: d.countries, offshore: d.offshore };
   }
 
   // Where to search the catalogue: a country (with a margin for its waters), a sea, a candidate or place, any other
@@ -807,7 +808,7 @@ export function createPlaceTools(host) {
       if (!p) throw new Error(`No place called "${place}".`);
       const d = await R.describe(host.ref, p.feature);
       return {
-        place: p.name, status: p.status, summary: R.summaryLine(d), ...pickD(d),
+        place: p.name, status: p.status, summary: R.summaryLine(d, U.forModel()), ...pickD(d),
         how_made: p.origin?.method === "words" ? { words: p.origin.words, anchor: p.origin.anchor?.name || p.origin.anchor?.place, source: p.origin.anchor?.source?.title, steps: p.origin.steps, confidence: p.origin.confidence } : p.origin?.method === "file" ? { file: p.origin.file, features: p.origin.features, coordinates: p.origin.crs?.how, ...(p.origin.buffer_m ? { width_m: p.origin.buffer_m } : {}), steps: p.origin.steps }
           : p.origin?.method === "service" ? { from: serviceOriginText(p.origin), features: p.origin.features, ...(p.origin.buffer_m ? { buffer_m: p.origin.buffer_m } : {}), steps: p.origin.steps } : { method: "drawn on the map" },
         what_it_is: (({ role, why }) => `${role === "search_area" ? "search area" : role}: ${why}`)(placeRole(p.origin, p.feature.geometry)),
@@ -977,7 +978,7 @@ const pickD = (d) => ({ scale: d.scale, area_km2: d.area_km2, length_km: d.lengt
 // One line per place for the conversation agent's project summary. Coordinates stay out.
 // runs: one line per screening run (js/outofdate.js runLines), so the analyst knows which are out of date.
 export async function projectSummary(ref, places, focus, view = null, runs = [], file = null) {
-  const viewLine = view ? `Map view: about ${Math.round(R.viewKm(view))} km across (${R.scaleForKm(R.viewKm(view))} scale).` : "";
+  const viewLine = view ? `Map view: about ${U.distBoth(Math.round(R.viewKm(view)))} across (${R.scaleForKm(R.viewKm(view))} scale).` : "";
   const runPart = runs.length ? ["Screening runs:", ...runs] : [];
   // A file the person dropped, shown on the map and waiting for them to pick the site from it (use_file_features).
   if (file) runPart.push(`A file is loaded and waiting for the person to pick the site from it (card shown; or use use_file_features if they say which in words): ${JSON.stringify(fileSummary(file))}`);
@@ -988,7 +989,7 @@ export async function projectSummary(ref, places, focus, view = null, runs = [],
     const how = p.origin?.method === "words" ? `from words "${p.origin.words}" (anchor: ${p.origin.anchor?.name || p.origin.anchor?.place}, ${p.origin.confidence} confidence)` : p.origin?.method === "file" ? fileOriginText(p.origin) : p.origin?.method === "service" ? serviceOriginText(p.origin) : "drawn on the map";
     const role = placeRole(p.origin, p.feature.geometry).role === "search_area" ? "; a search area (the site's outline wasn't found)" : "";
     const edits = p.edits?.length ? `; edited: ${p.edits.slice(-3).map((e) => e.change).join("; ")}` : "";
-    lines.push(`- ${p.name}${p.name === focus ? " [in focus]" : ""} (${p.status}): ${R.summaryLine(d)}; scale ${p.scale || d.scale}${p.scaleFrom && p.scaleFrom !== "size" ? ` (from ${p.scaleFrom === "you" ? "the person" : p.scaleFrom})` : ""}; ${how}${role}${edits}`);
+    lines.push(`- ${p.name}${p.name === focus ? " [in focus]" : ""} (${p.status}): ${R.summaryLine(d, U.forModel())}; scale ${p.scale || d.scale}${p.scaleFrom && p.scaleFrom !== "size" ? ` (from ${p.scaleFrom === "you" ? "the person" : p.scaleFrom})` : ""}; ${how}${role}${edits}`);
   }
   lines.push(...runPart);
   if (viewLine) lines.push(viewLine);

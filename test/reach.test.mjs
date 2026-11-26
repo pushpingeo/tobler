@@ -183,9 +183,11 @@ await test("\"keep 50 m from homes\" in the developable area changes the homes b
 });
 
 await test("what can't be read is said, not guessed; old inputs still come in", () => {
-  const x = D.readDistances([{ what: "all", value: 3, unit: "miles" }, { what: "unicorns", value: 2, unit: "km" }], { catalogue: cat });
+  const x = D.readDistances([{ what: "all", value: 3, unit: "furlongs" }, { what: "unicorns", value: 2, unit: "km" }], { catalogue: cat });
   assert.equal(x.search.length, 0);
-  assert.match(x.not_used[0].why, /only metres and kilometres/);
+  assert.match(x.not_used[0].why, /not a distance Tobler reads/);
+  // Package C: miles are read, converted by code with the exact factor.
+  assert.equal(D.readDistances([{ what: "all", value: 3, unit: "miles" }], { catalogue: cat }).search[0].km, 4.828032);
   assert.match(x.not_used[1].why, /no check or topic/);
   assert.deepEqual(D.distancesFromInputs({ distances: { wider: 15 } }), [{ what: "all", value: 15, unit: "km" }]);
   assert.deepEqual(D.distancesFromInputs({ buffers: [{ id: "homes", buffer_m: 100 }] }), [{ what: "homes", value: 100, unit: "m" }]);
@@ -198,7 +200,8 @@ await test("units: metres and kilometres as said, exactly; others wait for packa
   assert.equal(toKm(2.5, "km"), 2.5);
   assert.equal(toKm(1200, "metres"), 1.2);
   assert.equal(toKm(3), 3, "no unit is km");
-  assert.equal(toKm(150, "feet"), null);
+  assert.equal(toKm(150, "feet"), 0.04572, "package C: feet, miles and nautical miles, exact");
+  assert.equal(toKm(5, "furlongs"), null);
   assert.equal(toKm("lots", "km"), null);
 });
 

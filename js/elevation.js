@@ -11,8 +11,9 @@
 // and in open ocean, finer coastal and survey DEMs where NOAA holds them). One getSamples call for up to 25 points.
 // Later (with slope, for area discounting): Copernicus GLO-30 as a grid, read through the Worker.
 import * as turf from "./vendor/turf.js";
+import { M_PER } from "./units.js";
 
-const UNIT_TO_M = { m: 1, metre: 1, meter: 1, metres: 1, ft: 0.3048, feet: 0.3048 };
+const UNIT_TO_M = { m: 1, metre: 1, meter: 1, metres: 1, ft: M_PER.ft, feet: M_PER.ft };
 
 // A raw value from a source → elevation in metres, positive up. Unknown units or sign are refused, never guessed.
 export function toElevation(raw, source) {

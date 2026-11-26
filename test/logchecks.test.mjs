@@ -24,6 +24,15 @@ test("traced allows the rounding the reply implies, and km/m", () => {
   assert.ok(!traced(replyNumbers("5.1 km")[0], vals));
 });
 
+test("a figure in miles, feet or acres traces through the exact factors (package C)", () => {
+  const vals = recordNumbers({ nearest_km: 1.609344, edge_m: 45.72, area_ha: 40.468564224 });
+  assert.ok(traced(replyNumbers("1 mi")[0], vals));
+  assert.ok(traced(replyNumbers("150 ft")[0], vals));
+  assert.ok(traced(replyNumbers("100 acres")[0], vals));
+  assert.ok(!traced(replyNumbers("1.2 mi")[0], vals), "a wrong conversion stays untraced");
+  assert.ok(!traced(replyNumbers("1.61 mi")[0], vals), "km passed off as miles stays untraced");
+});
+
 const screenTurn = (reply, extra = {}) => ({ log: {
   user: "Screen it", reply, ms: 30000,
   events: [

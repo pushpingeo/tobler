@@ -51,7 +51,7 @@ const store = {
   get(k, d = null) { try { return localStorage.getItem(`tobler.${k}`) ?? d; } catch { return d; } },
   set(k, v) { try { v == null ? localStorage.removeItem(`tobler.${k}`) : localStorage.setItem(`tobler.${k}`, v); } catch { /* storage blocked */ } },
 };
-U.setUnits(store.get("units", "metric"));
+U.setUnits(store.get("units", "metric")); // until a place is in view; see autoUnits
 const savedColour = store.get("shapeColour");
 if (/^#[0-9a-f]{6}$/i.test(savedColour || "")) C.pole = savedColour;
 applyColourCss();
@@ -1941,7 +1941,7 @@ async function rerun(entry) {
 // Report and Copy share link buttons don't have to wait inside the click.
 function prepShare(entry) {
   entry.shareReady = null;
-  const p = shareCode(entry.record).then((s) => ({ url: new URL(`report.html#${s.code}`, location.href).href, ...s }));
+  const p = shareCode(entry.record).then((s) => ({ url: new URL(`report.html?u=${U.getUnits()}#${s.code}`, location.href).href, ...s }));
   entry.share = p;
   p.then((s) => { if (entry.share === p) entry.shareReady = s; }).catch(() => {});
 }
@@ -2295,7 +2295,7 @@ async function refreshCard(p) {
     // Scale is worked out (from the request, the size or the zoom) and goes to the analyst; it isn't shown or
     // set on the card (Rob, 19 Nov: the Local/Regional/Global buttons spilled out of the panel and did little).
     if (p.scaleFrom === "size") p.scale = d.scale;
-    sum.textContent = U.localise(R.summaryLine(d));
+    sum.textContent = R.summaryLine(d, U.forPage());
     sum.classList.remove("loading");
     const [lon, lat] = d.centroid;
     const role = placeRole(p.origin || {}, p.feature.geometry);
@@ -2314,9 +2314,39 @@ async function refreshCard(p) {
     const input = p.card.querySelector(".resize input");
     if (input && document.activeElement !== input) input.value = p.kind === "Area" ? +U.toArea(d.area_km2).toPrecision(4) : +U.toDist(d.length_km).toPrecision(4);
     p.card.querySelector(".unit") && (p.card.querySelector(".unit").textContent = p.kind === "Area" ? U.areaUnit() : U.distUnit());
-    if (!busy) activity(`${p.name}: ${U.localise(R.summaryLine(d))}`);
+    autoUnits(p, d);
+    if (p.seq !== seq) return; // the switch redrew this card; the newer refresh writes the line
+    // A switch of units is said once, on the redrawn line of the place that caused it.
+    const why = unitsSwitched?.p === p && U.getUnits() === unitsSwitched.units ? ` ${unitsSwitched.text}` : "";
+    if (why) unitsSwitched = null;
+    if (!busy) activity(`${p.name}: ${R.summaryLine(d, U.forPage())}.${why}`.replace(/\.\./g, "."));
   } catch (e) {
     sum.textContent = `Couldn't place this shape: ${e.message}`;
+  }
+}
+
+// Display units (package C): the person's choice in Settings wins and is kept; without one, the units follow the
+// country of the place in view (imperial in the United States, metric elsewhere; js/units.js unitsFor). Nothing is
+// re-measured: the record stays metric and everything on screen is redrawn from it.
+let lastDescribed = null, unitsSwitched = null;
+function applyUnits(u) {
+  U.setUnits(u);
+  scaleCtl.setUnit(U.UNIT_SETS[U.getUnits()].scale);
+  places.forEach((p) => refreshCard(p));
+  runs.forEach((e) => paintRun(e));
+  if (ringsArgs) { ringsAround = null; drawRings(...ringsArgs); }
+}
+function autoUnits(p, d, { force = false } = {}) {
+  if (!p || !d) { if (force) applyUnits("metric"); return; }
+  const current = places.get(selectedId) || [...places.values()].at(-1);
+  if (p !== current && !force) return;
+  lastDescribed = { p, d };
+  if (store.get("units") != null) return;
+  const pick = U.unitsFor({ country: d.countries?.length === 1 ? d.countries[0] : null, offshore: d.offshore });
+  if (pick.units === U.getUnits() && !force) return;
+  if (pick.units !== U.getUnits()) {
+    unitsSwitched = { p, units: pick.units, text: `Showing ${pick.units === "imperial" ? "feet and miles" : "metres and kilometres"}, ${pick.why}. Change it in Settings${pick.offer_nautical ? ", where nautical miles are too" : ""}.` };
+    applyUnits(pick.units);
   }
 }
 
@@ -2778,7 +2808,8 @@ function paintSettings() {
   form.nonCommercial.checked = host.nonCommercial();
   form.mergeShapes.checked = host.mergeShapes();
   form.shareSessions.checked = store.get("shareSessions") !== "no";
-  form.querySelectorAll('input[name="units"]').forEach((r) => { r.checked = r.value === U.getUnits(); });
+  const chosen = store.get("units");
+  form.querySelectorAll('input[name="units"]').forEach((r) => { r.checked = chosen == null ? r.value === "auto" : r.value === chosen; });
   const preset = [...form.querySelectorAll("[data-colour]")].find((b) => b.dataset.colour.toLowerCase() === C.pole.toLowerCase());
   form.querySelectorAll("[data-colour]").forEach((b) => b.setAttribute("aria-checked", String(b === preset)));
   form.colour.value = C.pole;
@@ -2816,12 +2847,10 @@ document.querySelectorAll("[data-open-settings]").forEach((b) => b.addEventListe
 }));
 form.querySelectorAll('input[name="units"]').forEach((r) => r.addEventListener("change", () => {
   if (!r.checked) return;
-  store.set("units", U.setUnits(r.value));
-  scaleCtl.setUnit(U.UNIT_SETS[U.getUnits()].scale);
-  // Everything on screen that shows a distance or an area is redrawn; nothing is re-measured.
-  places.forEach((p) => refreshCard(p));
-  runs.forEach((e) => paintRun(e));
-  if (ringsArgs) { ringsAround = null; drawRings(...ringsArgs); }
+  // "From the site's country" forgets the choice; anything else is the person's and is kept (it always wins).
+  if (r.value === "auto") { store.set("units", null); autoUnits(lastDescribed?.p, lastDescribed?.d, { force: true }); return; }
+  store.set("units", r.value);
+  applyUnits(r.value);
 }));
 form.querySelectorAll("[data-colour]").forEach((b) => b.addEventListener("click", () => { setShapeColour(b.dataset.colour); paintSettings(); }));
 form.colour.addEventListener("input", () => { setShapeColour(form.colour.value); paintSettings(); });

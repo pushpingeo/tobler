@@ -14,7 +14,8 @@ import { findingLabels, findingRows, evidenceRows, sourcesOf, gapsOf, checksOf, 
 const $ = (id) => document.getElementById(id);
 const BASEMAP = "https://tiles.openfreemap.org/styles/positron";
 const store = (k) => { try { return localStorage.getItem(`tobler.${k}`); } catch { return null; } };
-U.setUnits(store("units") || "metric");
+// Units: the ones the link was made in (?u=, package C), else this browser's choice, else metric. The report says which.
+U.setUnits(new URLSearchParams(location.search).get("u") || store("units") || "metric");
 const SITE = /^#[0-9a-f]{6}$/i.test(store("shapeColour") || "") ? store("shapeColour") : "#d1352a";
 document.documentElement.style.setProperty("--site", SITE);
 const INK = "#15303c";
@@ -96,6 +97,7 @@ function render(record) {
   const facts = el("dl", null, "facts");
   const fact = (k, v) => { if (v) facts.append(el("dt", k), el("dd", cap(v))); };
   fact("Site", U.localise(s.summary));
+  fact("Units", U.unitsLine());
   fact("How it was found", s.how_found);
   if (!r.study) fact("Planned", `${s.asset_label}${s.asset_assumed ? " (assumed)" : ""}; stage ${s.stage}${s.outside_profile ? `. ${s.outside_profile}` : ""}`);
   fact("Screened", r.extent === "inside" ? "Inside the area only (the surroundings weren't screened)." : U.localise(`${s.footprint}; ${runDistancesLine(r)}.`));

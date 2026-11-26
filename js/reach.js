@@ -106,7 +106,7 @@ export function readDistances(list, { catalogue = {}, deductions = null, budget 
     const what = String(x.what ?? "all").trim() || "all";
     const said = `${x.value}${x.unit ? ` ${x.unit}` : ""}`.trim();
     const km = toKm(x.value, x.unit);
-    if (km == null) { out.not_used.push({ what, said, why: "only metres and kilometres are read for now" }); continue; }
+    if (km == null) { out.not_used.push({ what, said, why: "not a distance Tobler reads (metres, kilometres, feet, yards, miles or nautical miles)" }); continue; }
     if (km < 0) { out.not_used.push({ what, said, why: "a distance can't be negative" }); continue; }
     // A deduction (the developable area): a protection distance. Changing one doesn't change how far anything looks.
     const ded = (deductions || []).find((d) => d.id === what || norm(d.label) === norm(what)) || (deductions || []).find((d) => wordsIn(what, d.label) || wordsIn(what, d.id));

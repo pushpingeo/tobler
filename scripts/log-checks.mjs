@@ -6,13 +6,16 @@
 //   long_replies       a reply after a screen longer than LONG_REPLY_WORDS words: the card holds the detail, the reply
 //                      should point to it.
 //   untraced_numbers   a reply that states a number (a distance, a count, an area) found nowhere in the session's
-//                      record so far (what the person typed, and every tool and run output). Rounding is allowed.
+//                      record so far (what the person typed, and every tool and run output). Rounding is allowed,
+//                      and a figure in feet, miles, nautical miles or acres is traced through the exact factors
+//                      in js/units.js (package C: code gives the model both, so a quoted conversion traces).
 //   untraced_evidence  evidence on a run's flags that the run itself marked "(not traced)".
 //   mixed_nations      a run whose checks and gaps name bodies from more than one UK nation. Right near a border,
 //                      wrong elsewhere (Stanlow, 24 Nov): worth a look, not always a fault.
 //   licence_mismatch   a dataset from a publisher known to publish under an open licence, classed as something else.
 //   slow_runs          a screen that took longer than SLOW_RUN_S seconds.
 
+import { M_PER, M2_PER } from "../js/units.js";
 export const LONG_REPLY_WORDS = 250;
 export const SLOW_RUN_S = 120;
 
@@ -46,14 +49,14 @@ export function replyNumbers(text) {
     .replace(/\b\d{1,2}:\d{2}\b/g, " ")                // times
     .replace(/^\s*\d+[.)]\s/gm, " ");                  // numbered list items
   const out = [];
-  for (const m of t.matchAll(/(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?\s*(sq mi|km²|km2|km|mi|miles?|m²|m2|m|ha|hectares?|%|acres?)?(?![a-z])/gi)) {
+  for (const m of t.matchAll(/(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?\s*(sq mi|km²|km2|km|mi|miles?|ft|feet|nm|m²|m2|m|ha|hectares?|%|acres?)?(?![a-z])/gi)) {
     const raw = (m[1] + (m[2] || "")).replace(/,/g, "");
     const value = +raw;
     // Precision as written: "4.28" to 0.01, "37,000" to the nearest 1,000 (trailing zeros of a whole number).
     const decimals = m[2] ? m[2].length - 1 : -((raw.match(/0+$/) || [""])[0].length);
     if (!Number.isFinite(value)) continue;
     if (!m[2] && !m[3] && value < 10) continue;
-    out.push({ text: m[0].trim(), value, decimals });
+    out.push({ text: m[0].trim(), value, decimals, unit: (m[3] || "").toLowerCase() });
   }
   return out;
 }
@@ -69,7 +72,14 @@ export function recordNumbers(record) {
 export function traced(n, values) {
   const tol = 0.5 * 10 ** -n.decimals + 1e-9;
   const near = (x) => Math.abs(x - n.value) <= tol;
-  const alt = [1, 1000, 0.001, 100, 0.01];
+  // Record values are km, m, ha and km²; a figure in another unit is compared after converting them exactly.
+  const u = n.unit || "";
+  const alt = /^(mi|miles?)$/.test(u) ? [1000 / M_PER.mi, 1 / M_PER.mi]
+    : /^(ft|feet)$/.test(u) ? [1000 / M_PER.ft, 1 / M_PER.ft]
+    : u === "nm" ? [1000 / M_PER.nmi, 1 / M_PER.nmi]
+    : /^acres?$/.test(u) ? [M2_PER.ha / M2_PER.acre, M2_PER.km2 / M2_PER.acre]
+    : u === "sq mi" ? [M2_PER.km2 / M2_PER.mi2, M2_PER.ha / M2_PER.mi2]
+    : [1, 1000, 0.001, 100, 0.01];
   return values.some((v) => alt.some((k) => near(v * k)));
 }
 

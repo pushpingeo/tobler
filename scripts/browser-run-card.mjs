@@ -270,11 +270,14 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
     imgs: [...document.querySelectorAll("figure img")].map((i) => i.src.length),
     failed: document.querySelectorAll(".checked tr.failed").length, sources: document.querySelectorAll(".sources li").length,
     disclaimer: document.querySelector(".disclaimer")?.textContent || "",
+    units: [...document.querySelectorAll(".facts dt")].find((d) => d.textContent === "Units")?.nextElementSibling?.textContent || "",
+    search: location.search,
   }));
   check(!rep.error && rep.h1 === "Constraints screenArea 1" && /^Progress with targeted investigation\./.test(rep.decision), `${label}: report opens from the link with the site and decision (${rep.error || rep.h1}; ${rep.url} chars)`);
   check(rep.rows.join(",") === "F-01,F-02" && /^Next step: Agree crossing/.test(rep.next), `${label}: report has one row per finding with its next step (${rep.rows.join(",")})`);
   check(rep.imgs.length === 2 && rep.imgs.every((n) => n > 5000), `${label}: both maps drawn and copied as pictures for print (${rep.imgs.join(", ")})`);
   check(rep.sources > 0 && /Indicative desk screening/.test(rep.disclaimer), `${label}: sources and disclaimer in the report (${rep.sources} sources)`);
+  check(rep.search === "?u=metric" && /^Distances in metres and kilometres/.test(rep.units), `${label}: the report link carries its units and the report says which it shows (${rep.search} "${rep.units.slice(0, 40)}")`);
   check(!repErrors.length, `${label}: no errors on the report page${repErrors.length ? `: ${repErrors.join(" | ").slice(0, 200)}` : ""}`);
   await rp.screenshot({ path: `/tmp/report-${label}.png`, fullPage: true });
   if (label === "desktop") { await rp.emulateMedia({ media: "print" }); await rp.pdf({ path: "/tmp/report.pdf", format: "A4", printBackground: true, preferCSSPageSize: true }); }
@@ -284,12 +287,12 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await page.click('.run [data-op="share"]');
   await page.waitForFunction(() => /Link copied|won't let Tobler copy|couldn't/.test(document.querySelector(".run .share-note")?.textContent || ""), null, { timeout: 10000 }).catch(() => {});
   const denied = await page.evaluate(() => ({ note: document.querySelector(".run .share-note").textContent, shown: document.querySelector(".run .share-note .share-link")?.value || "" }));
-  check(/^Link copied/.test(denied.note) || (/won't let Tobler copy/.test(denied.note) && /\/report\.html#v1\./.test(denied.shown)), `${label}: with the clipboard refused, the link is still copied or shown to copy (${denied.note.slice(0, 50)})`);
+  check(/^Link copied/.test(denied.note) || (/won't let Tobler copy/.test(denied.note) && /\/report\.html\?u=metric#v1\./.test(denied.shown)), `${label}: with the clipboard refused, the link is still copied or shown to copy (${denied.note.slice(0, 50)})`);
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: "http://localhost:8000" });
   await page.click('.run [data-op="share"]');
   await page.waitForFunction(() => /Link copied|couldn't/.test(document.querySelector(".run .share-note")?.textContent || ""), null, { timeout: 10000 }).catch(() => {});
   const copied = await page.evaluate(async () => ({ note: document.querySelector(".run .share-note").textContent, clip: await navigator.clipboard.readText().catch(() => "") }));
-  check(/^Link copied/.test(copied.note) && /\/report\.html#v1\./.test(copied.clip), `${label}: Copy share link copies the report's link (${copied.note.slice(0, 40)})`);
+  check(/^Link copied/.test(copied.note) && /\/report\.html\?u=metric#v1\./.test(copied.clip), `${label}: Copy share link copies the report's link (${copied.note.slice(0, 40)})`);
   check(s.out === "50 km" && s.onMap === 4, `${label}: slider at 50 km, 3 findings (two pipelines from the check, the UK SAC) and the wide area on the map (${s.out}, ${s.onMap})`);
   check(/^Each check looks out its own distance from the site's edge: 10 km to 50 km, by check \(defaults for an offshore oil or gas field\)/.test(s.dists), `${label}: each check's own distance and where it came from (${s.dists.slice(0, 90)})`);
   check(s.sea === "Water depth about 120 m, 110–130 m across the site (NOAA). Vessel traffic: light on the site (0.3 h/km² a month) (AIS 2023, EMODnet).", `${label}: water depth and vessel traffic on the card (${s.sea.slice(0, 80)})`);

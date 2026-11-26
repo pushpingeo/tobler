@@ -198,17 +198,20 @@ export async function describe(ref, feature) {
 }
 
 // One line a person can read, e.g. "3.0 km² · offshore, 98 km from the coast · nearest town Peterhead (UK), 180 km".
-export function summaryLine(d) {
-  const size = d.area_km2 != null ? fmtArea(d.area_km2) : d.length_km != null ? `${fmtNum(d.length_km)} km long` : "A point";
-  const coast = d.coast_km != null && d.coast_km < 50 ? `, ${fmtNum(d.coast_km)} km from the coast` : "";
+// `f` formats distances (km) and areas (km²): metric by default; the page passes its display units (js/units.js), so
+// code converts and no text is rewritten afterwards.
+const METRIC = { dist: (km) => `${fmtNum(km)} km`, area: (km2) => fmtArea(km2) };
+export function summaryLine(d, f = METRIC) {
+  const size = d.area_km2 != null ? f.area(d.area_km2) : d.length_km != null ? `${f.dist(d.length_km)} long` : "A point";
+  const coast = d.coast_km != null && d.coast_km < 50 ? `, ${f.dist(d.coast_km)} from the coast` : "";
   const where = d.offshore
-    ? `offshore${d.coast_km != null ? `, ${fmtNum(d.coast_km)} km from the coast` : ""}`
+    ? `offshore${d.coast_km != null ? `, ${f.dist(d.coast_km)} from the coast` : ""}`
     : d.countries.length > 3 ? `across ${d.countries.length} countries`
     : d.countries.length > 1 ? `across ${listOf(d.countries)}` : `in ${d.countries[0] || "an unnamed area"}${coast}`;
   const edge = d.touches_at_edge?.length ? `touching ${listOf(d.touches_at_edge)} at its edge` : "";
   const p = d.nearest_places[0];
   const big = d.places_inside?.largest[0];
-  const near = p ? `nearest town ${p.name}${p.country && (d.offshore || d.countries.length !== 1 || p.country !== d.countries[0]) ? ` (${p.country})` : ""}, ${fmtNum(p.km)} km`
+  const near = p ? `nearest town ${p.name}${p.country && (d.offshore || d.countries.length !== 1 || p.country !== d.countries[0]) ? ` (${p.country})` : ""}, ${f.dist(p.km)}`
     : big ? `largest city ${big.name}` : "";
   return [size, where, edge, near].filter(Boolean).join(", ");
 }

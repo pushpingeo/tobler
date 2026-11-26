@@ -6,11 +6,14 @@ import { budgetSummary } from "./developable.js";
 import { searchHeadline } from "./siterole.js";
 import { offerLines, bringInReply } from "./bringin.js";
 import { reachLine as reachWords, changesLine, legacyDistancesLine } from "./reach.js";
+import * as U from "./units.js";
 
 const MAX_FLAGS = 3;
 const MAX_GAPS = 4;
 
-const km = (v) => (v == null ? null : v === 0 ? "on the site" : v < 1 ? `${Math.round(v * 1000)} m away` : `${Math.round(v * 10) / 10} km away`);
+// Distances and sizes in the person's units, converted here from the record (package C): the reply carries no figure
+// that code didn't work out.
+const km = (v) => (v == null ? null : v === 0 ? "on the site" : `${U.dist(v)} away`);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const list = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 const an = (w) => (/^[aeiou]/i.test(w) ? `an ${w}` : `a ${w}`);
@@ -146,7 +149,9 @@ export function runReply(record, opts = {}) {
 }
 
 // ---- held runs: the place is shown and confirmed, or narrowed, before anything runs ----------------------------
-const size = (o) => (o.geometry === "Point" ? "a point" : o.area_km2 != null ? (o.area_km2 < 0.01 ? `${(Math.round(o.area_km2 * 1e6 / 10) * 10).toLocaleString("en-GB")} m²` : o.area_km2 < 1 ? `${Math.round(o.area_km2 * 100)} ha` : `${Math.round(o.area_km2 * 10) / 10 > 100 ? Math.round(o.area_km2).toLocaleString("en-GB") : Math.round(o.area_km2 * 10) / 10} km²`) : o.length_km != null ? `${Math.round(o.length_km * 10) / 10} km long` : null);
+// Replies round harder than cards (whole hectares): the approved wording of 25 Nov. Imperial uses the card's acres.
+const metricArea = (a) => (a < 0.01 ? `${(Math.round(a * 1e6 / 10) * 10).toLocaleString("en-GB")} m²` : a < 1 ? `${Math.round(a * 100)} ha` : `${Math.round(a * 10) / 10 > 100 ? Math.round(a).toLocaleString("en-GB") : Math.round(a * 10) / 10} km²`);
+const size = (o) => (o.geometry === "Point" ? "a point" : o.area_km2 != null ? (U.getUnits() === "metric" ? metricArea(o.area_km2) : U.area(o.area_km2)) : o.length_km != null ? `${U.dist(o.length_km)} long` : null);
 const WHICH_PART = {
   water: (o) => ({ is: `is a lake or other water body${o.area_km2 ? ` (${size(o)})` : ""}`, ask: "Which part of it is the site?", ways: `draw it on the map, describe it ("a 2 km² block at the north end"), or use the whole of ${o.place} as a rough first look` }),
   region: (o) => ({ is: `is ${o.what}${o.area_km2 ? ` (${size(o)})` : ""}`, ask: "Which part of it is the site?", ways: `draw it, name a block, permit or parcel, or describe it ("a 10 km² area south-east of the capital"). I can run it on all of ${o.place} as a rough first look, but flags from anywhere in it won't say much about one site` }),

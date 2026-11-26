@@ -272,4 +272,15 @@ await test("GeoJSON without a crs member is WGS 84 by its standard: not a guess,
   assert.doesNotMatch(b.layers[0].crs.how, /\.prj/);
   assert.match(b.layers[0].crs.how, /save the file as WGS 84 GeoJSON/);
 });
+await test("a state plane .prj in US survey feet converts exactly (package C: the survey foot belongs to coordinates, not display)", () => {
+  // EPSG:2249, NAD83 / Massachusetts Mainland (ftUS), as ArcGIS writes it. The point is the Pittsfield test site; its
+  // easting and northing come from PROJ (pyproj 3, EPSG:4326 → 2249), independently of proj4js.
+  const wkt = `PROJCS["NAD_1983_StatePlane_Massachusetts_Mainland_FIPS_2001_Feet",GEOGCS["GCS_North_American_1983",DATUM["D_North_American_1983",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Lambert_Conformal_Conic"],PARAMETER["False_Easting",656166.667],PARAMETER["False_Northing",2460625.0],PARAMETER["Central_Meridian",-71.5],PARAMETER["Standard_Parallel_1",42.6833333333333],PARAMETER["Standard_Parallel_2",41.7166666666667],PARAMETER["Latitude_Of_Origin",41.0],UNIT["US survey foot",0.304800609601219]]`;
+  const ll = converterFor(proj4, wkt).convert([188140.83474331454, 2995078.459191167]);
+  assert.ok(metres(ll, [-73.23436, 42.45359]) < 0.001, `off by ${metres(ll, [-73.23436, 42.45359])} m`);
+  // Read as international feet, the same numbers land about 0.4 m away here (2 ppm of the coordinates): the unit matters.
+  const asIntl = converterFor(proj4, wkt.replace(/"US survey foot",0\.304800609601219/, '"foot",0.3048')).convert([188140.83474331454, 2995078.459191167]);
+  assert.ok(metres(asIntl, ll) > 0.3);
+});
+
 console.log(`${passed} fileimport tests passed`);
