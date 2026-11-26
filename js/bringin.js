@@ -5,11 +5,14 @@
 import * as turf from "./vendor/turf.js";
 import { classifyLicence, licenceBlock } from "./licence.js";
 import { bandFor } from "./distances.js";
+import { geometryDistanceKm } from "./datatools.js";
+import { pickName, tidyName } from "./atlasfeatures.js";
 
 export const MAX_GAPS = 6; // gaps searched per run
 export const MAX_WORDS = 2; // wordings per gap
 export const MAX_OFFER = 4; // layers offered per run
 export const SEARCH_TIMEOUT_MS = 12000;
+export const PREVIEW_LIMIT = 500; // features asked for when a candidate is looked at before it's offered
 export const MAX_KEPT = 200; // features kept on the record per layer brought in, nearest first
 
 // Short text, cut at a word.
@@ -114,10 +117,6 @@ export function rankLayers(results, { words, what = null, used = new Set(), allo
 }
 export const pickLayer = (results, opts) => rankLayers(results, opts)[0] || null;
 
-// A council's or an unknown publisher's layer is offered only if it has something at the site: the atlas can
-// overstate where such layers reach (a Surrey council's layers came up for Linlithgow, 26 Nov). One feature, asked
-// for and not kept.
-const LOCAL = (d) => !d.publisher_type || /local|unknown|city|municipal|community/i.test(d.publisher_type);
 
 const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error(`no answer in ${Math.round(ms / 1000)} s`)), ms))]);
 
@@ -129,7 +128,7 @@ const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeou
 export async function offerFor(record, { atlas, catalogue = {}, allow = {}, trusted = null, now = () => new Date().toISOString(), timeoutMs = SEARCH_TIMEOUT_MS } = {}) {
   const r = record.tobler_run;
   const gaps = gapsToSearch(r, catalogue);
-  const offer = { at: now(), searched: gaps.map((g) => ({ label: g.label, words: g.words })), items: [], nothing: [], failed: [], state: "none" };
+  const offer = { at: now(), searched: gaps.map((g) => ({ label: g.label, words: g.words })), items: [], empty: [], nothing: [], failed: [], state: "none" };
   if (!gaps.length) return offer;
   if (!atlas) { offer.failed = gaps.map((g) => g.label); offer.why_failed = "the atlas isn't connected here"; return offer; }
   const site = record.features.find((f) => f.properties?.role === "site");
@@ -146,25 +145,53 @@ export async function offerFor(record, { atlas, catalogue = {}, allow = {}, trus
     const bad = got.find((x) => x.status === "rejected");
     return { g, results: got.filter((x) => x.status === "fulfilled").flatMap((x) => x.value?.results || []), ...(bad ? { failed: String(bad.reason?.message || bad.reason).slice(0, 120) } : {}) };
   }));
-  const taken = new Set();
-  const probe = async (d) => {
-    try { const got = await withTimeout(atlas("fetch_features", { id: d.id, bbox, limit: 1 }), timeoutMs); return (got?.returned ?? got?.features?.length ?? 0) > 0; }
-    catch { return false; }
-  };
-  for (const a of answers) {
-    let d = null;
-    if (offer.items.length < MAX_OFFER) {
-      for (const c of rankLayers(a.results, { words: a.g.words, what: a.g.key.startsWith("look:") ? a.g.label : null, used: new Set([...used, ...taken]), allow, trusted }).slice(0, 3)) {
-        if (!LOCAL(c) || await probe(c)) { d = c; break; }
-      }
+  // Each candidate is looked at before it's offered (Rob, 26 Nov: a layer was offered that had nothing in reach): its
+  // features out to the run's reach, measured from the site, counted, nearest first. Nothing is put on the map or kept;
+  // only a layer with something in reach is offered, and one with nothing is said. This also catches an atlas extent
+  // that's too big (a Surrey council's layers came up for Linlithgow).
+  const reach = r.extent === "inside" ? 0 : Math.min(50, r.assessed_within_km ?? r.distances?.wider ?? 0);
+  const around = turf.bbox(turf.buffer(site, Math.max(reach, 0.05), { units: "kilometers", steps: 8 })).map((v) => Math.round(v * 1e5) / 1e5);
+  const preview = async (d) => {
+    let got;
+    try { got = await withTimeout(atlas("fetch_features", { id: d.id, bbox: around, limit: PREVIEW_LIMIT }), timeoutMs); }
+    catch (e) { return { failed: String(e.message || e).slice(0, 120) }; }
+    const near = [];
+    for (const f of got?.features || []) {
+      if (!f?.geometry) continue;
+      let km;
+      try { km = geometryDistanceKm(site.geometry, f.geometry); } catch { continue; }
+      if (km == null || km > reach + 1e-9) continue;
+      near.push({ name: tidyName(pickName(f.properties || {}) || d.title), distance_km: Math.round(km * 100) / 100 });
     }
-    // Nothing to offer: "found nothing" only when every wording was searched; if one failed, the search failed.
-    if (!d && a.failed) { offer.failed.push(a.g.label); offer.why_failed = a.failed; continue; }
-    if (!d) { if (offer.items.length < MAX_OFFER) offer.nothing.push(a.g.label); continue; }
-    taken.add(String(d.id));
-    const lic = classifyLicence(d.licence);
-    offer.items.push({ id: `L${offer.items.length + 1}`, gap: a.g.key, label: a.g.label, topic: a.g.topic, why: a.g.why, state: "offered",
-      dataset: { atlas_id: d.id, title: d.title, publisher: d.publisher || "", publisher_type: d.publisher_type || "", licence: d.licence || "not stated", licence_class: lic.class, licence_short: licenceLabel(d.licence, lic.class), coverage: d.coverage || "", capabilities: d.capabilities || [], concepts: d.concepts || [] } });
+    near.sort((a, b) => a.distance_km - b.distance_km);
+    return { count: near.length, inside: near.filter((n) => n.distance_km === 0).length, nearest: near.slice(0, 2), capped: (got?.returned ?? (got?.features || []).length) >= PREVIEW_LIMIT };
+  };
+  const taken = new Set();
+  // The gaps in order; each looks at up to three candidates, one at a time, until one has something in reach.
+  const picks = await Promise.all(answers.map(async (a) => {
+    const tried = [];
+    for (const c of rankLayers(a.results, { words: a.g.words, what: a.g.key.startsWith("look:") ? a.g.label : null, used, allow, trusted }).slice(0, 3)) {
+      const p = await preview(c);
+      if (p.failed) { tried.push({ d: c, failed: p.failed }); continue; }
+      if (p.count > 0) return { a, d: c, p, tried };
+      tried.push({ d: c, empty: true });
+    }
+    return { a, d: null, tried };
+  }));
+  for (const { a, d, p, tried } of picks) {
+    for (const t of tried.filter((x) => x.empty)) offer.empty.push({ label: a.g.label, title: t.d.title, publisher: t.d.publisher || "" });
+    if (d && !taken.has(String(d.id)) && offer.items.length < MAX_OFFER) {
+      taken.add(String(d.id));
+      const lic = classifyLicence(d.licence);
+      offer.items.push({ id: `L${offer.items.length + 1}`, gap: a.g.key, label: a.g.label, topic: a.g.topic, why: a.g.why, state: "offered", preview: { ...p, within_km: reach },
+        dataset: { atlas_id: d.id, title: d.title, publisher: d.publisher || "", publisher_type: d.publisher_type || "", licence: d.licence || "not stated", licence_class: lic.class, licence_short: licenceLabel(d.licence, lic.class), coverage: d.coverage || "", capabilities: d.capabilities || [], concepts: d.concepts || [] } });
+      continue;
+    }
+    if (d) continue; // already offered for another gap, or the offer is full
+    // Nothing to offer: "found nothing" only when every wording was searched and every candidate looked at.
+    const failure = a.failed || tried.find((x) => x.failed)?.failed;
+    if (failure && !tried.some((x) => x.empty)) { offer.failed.push(a.g.label); offer.why_failed = failure; continue; }
+    if (!tried.length) offer.nothing.push(a.g.label);
   }
   offer.state = offer.items.length ? "open" : "none";
   return offer;
@@ -183,10 +210,13 @@ export function offerLines(r) {
   const open = o.items.filter((x) => x.state === "offered");
   if (open.length) {
     const reach = r.extent === "inside" ? "inside the area" : `out to ${r.distances.wider} km`;
-    out.push([`The atlas has ${open.length === 1 ? "a layer" : "layers"} that may fill ${open.length === 1 ? "a gap" : "some of these gaps"}:`,
-      ...open.map((x) => `- **${x.dataset.title}** (${x.dataset.publisher || "publisher not stated"}; ${licWords(x.dataset)}), for ${lower(x.label)}`)].join("\n"));
-    out.push(`Bring ${open.length === 1 ? "it" : "them"} in? Use the buttons below, or tell me which. I'll fetch ${reach} and put what's there on the map, with its source. Nothing is added unless you say so.`);
+    const holds = (x) => { const p = x.preview; if (!p) return ""; const n = p.nearest?.[0]; return `: ${p.count}${p.capped ? "+" : ""} within ${p.within_km} km${n ? `, nearest ${n.name}, ${where(n.distance_km)}` : ""}`; };
+    out.push([`The atlas has ${open.length === 1 ? "a layer" : "layers"} with something in reach for ${open.length === 1 ? "a gap" : "some of these gaps"}:`,
+      ...open.map((x) => `- **${x.dataset.title}** (${x.dataset.publisher || "publisher not stated"}; ${licWords(x.dataset)}), for ${lower(x.label)}${holds(x)}`)].join("\n"));
+    out.push(`Bring ${open.length === 1 ? "it" : "them"} in? Use the buttons below, or tell me which. I'll put ${open.length === 1 ? "it" : "them"} on the map ${reach === "inside the area" ? "inside the area" : reach.replace(/^out/, "out")}, with the source. Nothing is added unless you say so.`);
   }
+  const empty = o.empty || [];
+  if (empty.length) out.push(`I also looked at ${list(empty.map((e) => `${e.title} (${e.publisher || "publisher not stated"}) for ${lower(e.label)}`))}: nothing within ${r.extent === "inside" ? "the area" : `${r.assessed_within_km ?? r.distances.wider} km`}, so ${empty.length === 1 ? "it isn't" : "they aren't"} offered.`);
   if (o.nothing.length) out.push(`I looked in the atlas for ${list(o.nothing.map(lower))} and found no layer to offer.`);
   if (o.failed.length) out.push(`The atlas search for ${list(o.failed.map(lower))} didn't answer (${o.why_failed || "no reply"}), so there's nothing to offer for ${o.failed.length === 1 ? "it" : "them"} yet.`);
   return out;

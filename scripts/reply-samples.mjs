@@ -28,8 +28,9 @@ add("Something that can't run here", "The developable area needs an outline, and
 const withOffer = (rec) => {
   const r = JSON.parse(JSON.stringify(rec));
   r.tobler_run.offer = { at: "2026-11-26T03:00:00Z", searched: [{}, {}, {}], state: "open", why_failed: "no answer in 12 s",
-    items: [{ id: "L1", label: "Flood zones", topic: "water", state: "offered", dataset: { atlas_id: "x", title: "Flood Map for Planning (Rivers and Sea) - Flood Zone 3", publisher: "Environment Agency", licence: "Open Government Licence v3.0", licence_class: "open", licence_short: "Open Government Licence v3.0", capabilities: ["query"] } },
-      { id: "L2", label: "Peat", topic: "ground-soil", state: "offered", dataset: { atlas_id: "y", title: "Carbon and Peatland 2016", publisher: "NatureScot", licence: "", licence_class: "unknown", licence_short: "licence not stated", capabilities: ["query"] } }],
+    items: [{ id: "L1", label: "Flood zones", topic: "water", state: "offered", preview: { count: 4, within_km: 20, nearest: [{ name: "Flood Zone 3", distance_km: 0.8 }] }, dataset: { atlas_id: "x", title: "Flood Map for Planning (Rivers and Sea) - Flood Zone 3", publisher: "Environment Agency", licence: "Open Government Licence v3.0", licence_class: "open", licence_short: "Open Government Licence v3.0", capabilities: ["query"] } },
+      { id: "L2", label: "Peat", topic: "ground-soil", state: "offered", preview: { count: 1, within_km: 20, nearest: [{ name: "Blanket bog", distance_km: 0 }] }, dataset: { atlas_id: "y", title: "Carbon and Peatland 2016", publisher: "NatureScot", licence: "", licence_class: "unknown", licence_short: "licence not stated", capabilities: ["query"] } }],
+    empty: [{ label: "Subsea pipelines and pipeline agreements", title: "Pipelines", publisher: "EMODnet Human Activities" }],
     nothing: ["Important Bird Areas"], failed: ["Surface water flooding"] };
   return r;
 };

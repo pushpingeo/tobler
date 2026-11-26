@@ -78,7 +78,9 @@ await test("the offer: searched over the site, one layer per gap, nothing found 
       { id: "far", title: "Landfill sites (Runnymede)", publisher: "Runnymede Borough Council", publisher_type: "local-gov", capabilities: ["query"], licence: "OGL" },
       { id: "ea", title: "Historic Landfill Sites", publisher: "Environment Agency", publisher_type: "regulator", capabilities: ["query"], licence: "Open Government Licence v3.0" }] };
     if (/surface water/.test(args.text)) throw new Error("D1 DB is overloaded");
-    if (tool === "fetch_features") return { returned: args.id === "far" ? 0 : 1, features: [] };
+    // The EA's layer has a landfill 300 m from the site; the council's, nothing in reach.
+    if (tool === "fetch_features") return args.id === "far" ? { returned: 0, features: [] }
+      : { returned: 1, features: [{ type: "Feature", geometry: { type: "Point", coordinates: turf.destination([-2.9, 53.28], 0.8, 0).geometry.coordinates }, properties: { name: "Stanlow tip" } }] };
     if (/important bird/.test(args.text)) return { results: [{ id: "iba", title: "Important Bird Areas (centroids)", publisher: "BirdLife", capabilities: ["query"], licence: "CC BY 4.0" }] };
     return { results: [] };
   };
@@ -89,15 +91,22 @@ await test("the offer: searched over the site, one layer per gap, nothing found 
   assert.deepEqual(o.nothing, ["Important Bird Areas"], "a layer of centroids stands in for the sites, so it isn't offered");
   assert.deepEqual(o.failed, ["Surface water flooding"]);
   assert.equal(o.state, "open");
-  assert.ok(calls.some((a) => a.id === "far" && a.limit === 1), "the council layer was probed, one feature");
-  assert.ok(!calls.some((a) => a.id === "ea"), "a regulator's layer isn't probed");
+  // Each candidate is looked at, out to the run's 20 km, before it's offered; the council's had nothing, so it isn't.
+  const looked = calls.filter((a) => a.id);
+  assert.deepEqual(looked.map((a) => a.id), ["far", "ea"]);
+  assert.ok(looked.every((a) => turf.distance([a.bbox[0], a.bbox[1]], [a.bbox[2], a.bbox[3]]) > 40), "looked at out to the run's reach");
+  assert.deepEqual(o.empty, [{ label: "Landfill (historic and authorised)", title: "Landfill sites (Runnymede)", publisher: "Runnymede Borough Council" }]);
+  assert.equal(o.items[0].preview.count, 1);
+  assert.equal(o.items[0].preview.nearest[0].name, "Stanlow tip");
+  assert.ok(Math.abs(o.items[0].preview.nearest[0].distance_km - 0.3) < 0.05);
   // The search box is the site and a small margin, not the run's 20 km.
   const [w, s, e, n] = calls[0].bbox;
   assert.ok(turf.distance([w, s], [e, n]) < 3, String(calls[0].bbox));
   rec.tobler_run.offer = o;
   const lines = offerLines(rec.tobler_run).join("\n\n");
-  assert.match(lines, /The atlas has a layer that may fill a gap:\n- \*\*Historic Landfill Sites\*\* \(Environment Agency; Open Government Licence v3\.0\), for landfill \(historic and authorised\)/);
-  assert.match(lines, /I'll fetch out to 20 km/);
+  assert.match(lines, /The atlas has a layer with something in reach for a gap:\n- \*\*Historic Landfill Sites\*\* \(Environment Agency; Open Government Licence v3\.0\), for landfill \(historic and authorised\): 1 within 20 km, nearest Stanlow tip, 3\d0 m away/);
+  assert.match(lines, /I'll put it on the map out to 20 km/);
+  assert.match(lines, /I also looked at Landfill sites \(Runnymede\) \(Runnymede Borough Council\) for landfill \(historic and authorised\): nothing within 20 km, so it isn't offered\./);
   assert.match(lines, /found no layer to offer/);
   assert.match(lines, /didn't answer \(D1 DB is overloaded\)/);
   assert.match(offerSummary(rec.tobler_run), /R1: layers offered after the run.*L1 Historic Landfill Sites/);

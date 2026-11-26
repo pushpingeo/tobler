@@ -1182,7 +1182,10 @@ await test("the sealed screen (26 Nov): one judgement with no tools, then the at
   assert.ok(item, JSON.stringify(r.offer));
   assert.equal(item.dataset.atlas_id, "wreck");
   assert.equal(item.state, "offered");
-  assert.ok(!atlasCalls.some(([tool, a]) => tool === "fetch_features" && a.id === "wreck" && a.limit > 1), "nothing fetched before a yes (a publisher with no type is probed for one feature)");
+  // Looked at once before it was offered (2 within 50 km), but nothing kept or added until the yes.
+  assert.equal(atlasCalls.filter(([tool, a]) => tool === "fetch_features" && a.id === "wreck").length, 1);
+  assert.deepEqual([item.preview.count, item.preview.within_km, item.preview.nearest[0].name], [2, 50, "Troldfos (Possibly)"]);
+  assert.ok(!shown[0].features.some((f) => f.properties.role === "added"), "nothing added before a yes");
   // The reply after the run, written in code, offers it and says nothing comes in unasked.
   const reply = finishTurn(h.screening)("screen_site", {}, out);
   assert.match(reply, /\*\*Worldwide wreck locations \(UK Hydrographic Office\)\*\* \(EMODnet Human Activities; CC BY 4\.0\), for shipwrecks/);
@@ -1192,8 +1195,8 @@ await test("the sealed screen (26 Nov): one judgement with no tools, then the at
   assert.equal(g.offered_after_run.find((x) => x.for === "Shipwrecks").dataset, "Worldwide wreck locations (UK Hydrographic Office)");
   // A yes: fetched out to the run's wider band, kept with its source, on the record; the reply is code's.
   const got = await t.exec("bring_in_layers", { run: "R1", layers: [item.id] });
-  const fetched = atlasCalls.filter(([tool, a]) => tool === "fetch_features" && a.id === "wreck" && a.limit > 1);
-  assert.equal(fetched.length, 1);
+  const fetched = atlasCalls.filter(([tool, a]) => tool === "fetch_features" && a.id === "wreck");
+  assert.equal(fetched.length, 2, "the look before the offer, then the fetch on the yes");
   assert.equal(got.added[0].within_km, 50);
   assert.equal(got.added[0].count, 2);
   assert.equal(got.added[0].publisher, "EMODnet Human Activities");

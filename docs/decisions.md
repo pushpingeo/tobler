@@ -2,6 +2,22 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 26 Nov 2026 (morning, Rob's log): look at a layer before offering it
+- **Rob's Riccarton Road log:** the offer put up EMODnet's Pipelines for "subsea pipelines" on a site in Linlithgow;
+  brought in, it had nothing within 20 km. The offer only checked that a layer's extent covered the site.
+- **Now each candidate is looked at first** (`offerFor`): its features out to the run's reach (the assessed distance;
+  inside only stays inside), measured from the site, counted and the nearest named. Only a layer with something in
+  reach is offered, and the offer says what it holds ("2 within 50 km, nearest Troldfos (Possibly), 2 km away").
+  Up to three candidates per gap are tried in turn. One with nothing in reach is said ("I also looked at Pipelines
+  (EMODnet Human Activities) for subsea pipelines: nothing within 20 km, so it isn't offered"). Nothing is put on the
+  map or kept until the yes. The one-feature probe of council layers is gone: the look covers it.
+- **Cost:** one `fetch_features` (up to 500 features) per candidate looked at, in parallel across gaps, 12 s each.
+  The yes fetches again through `get_data` (the page's atlas client may answer it from its cache).
+- **Approximations:** a layer that hits the 500-feature limit shows its count with a "+"; distances are from the run's
+  site (the footprint, for a point).
+- **Tested:** `npm test` (bring-in 6, ntrrun 41); `browser-run-card` (the layer is looked at once before the offer, the
+  offer says what it holds, it comes in on the yes), `browser-search-area`, `browser-outofdate`, `browser-study`.
+
 ## 26 Nov 2026 (morning, later): a re-run takes what was brought in; the screen's old search code deleted (Rob's yes to both)
 - **A re-run includes the layers brought in after the last run** of the same kind on the same place (and whatever that
   run carried over). They're fetched again, out to the new run's reach, become evidence the analyst can cite, and
