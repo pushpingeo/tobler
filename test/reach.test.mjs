@@ -224,4 +224,18 @@ await test("reached by: plain data on checks where it's clear", () => {
   assert.ok(cat.checks.find((c) => c.id === "water.pollution-incidents").reached_by.includes("water"));
 });
 
+await test("rings, slider and a finding's band on the reader's ladder (package C: B in imperial)", () => {
+  const run = { reach: { furthest_km: 5, ladder: D.ladderTo(5) } };
+  assert.deepEqual(D.runRings(run), [0.1, 0.25, 0.5, 1, 2, 5]);
+  assert.deepEqual(D.runRings(run, "imperial"), [0.09144, 0.3048, 0.402336, 0.804672, 1.609344, 3.218688, 5]);
+  assert.deepEqual(D.sliderSteps(run, true, "imperial"), [0, 0.09144, 0.3048, 0.402336, 0.804672, 1.609344, 3.218688, 5]);
+  assert.equal(D.runBand(0.7, run, "imperial"), "¼–½ mi");
+  assert.equal(D.runBand(0.7, run), "500 m–1 km");
+  assert.equal(D.bandLabel(0.3048, 0.402336, "imperial"), "1,000 ft–¼ mi");
+  assert.deepEqual(D.runRings({ reach: { furthest_km: 0, ladder: [] } }, "imperial"), [], "inside only: no rings");
+  // Old runs keep their near/close/wider whatever the units.
+  const legacy = { distances: { near: 1, close: 5, wider: 20 }, fetched_to_km: 20 };
+  assert.deepEqual(D.runRings(legacy, "imperial"), [1, 5, 20]);
+});
+
 console.log(`\n${passed} reach tests passed`);

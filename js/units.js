@@ -43,7 +43,7 @@ export const toArea = (km2) => km2 / km2Per();
 export const fromArea = (v) => clean(v * km2Per());
 
 // Short distances. Metric and nautical: metres under 1 km (sea practice gives safety zones and passing distances in
-// metres). Imperial: feet under 1,000 ft (about 305 m), miles from there. The switch is Rob's to confirm.
+// metres). Imperial: feet up to 1,000 ft (about 305 m, the imperial ladder's second edge), miles beyond. The switch is Rob's to confirm.
 export const FEET_BELOW_FT = 1000;
 const nearest = (v) => (v < 100 ? Math.round(v) : Math.round(v / 10) * 10);
 const group = (v) => v.toLocaleString("en-GB");
@@ -53,7 +53,7 @@ export function dist(km, units = current) {
   const m = +km * 1000;
   if (units === "imperial") {
     const ft = m / M_PER.ft;
-    if (ft < FEET_BELOW_FT) return `${group(nearest(ft))} ft`;
+    if (nearest(ft) <= FEET_BELOW_FT) return `${group(nearest(ft))} ft`;
     return `${fmtNum(m / M_PER.mi)} mi`;
   }
   if (m < 1000) return `${group(nearest(m))} m`;
@@ -102,7 +102,7 @@ export function hectares(ha, units = current) {
 // that fall on US practice's search distances, ½ and 1 mile (Rob, 26 Nov: "B everywhere in imperial"; 40 CFR
 // 312.26). Nautical uses the metric ladder. Bands are for reporting only: each finding keeps its own distance in
 // metres, so changing units regroups the same findings. Edges are exact metres (300 ft is 91.44 m).
-// Not wired yet: the rings, the slider and the band lines move onto these with package A.
+// Used by js/reach.js (rings, slider, a finding's band) and js/checks.js (each check's bands, counted on both).
 const LADDER_SAID = {
   metric: [[100, "m"], [250, "m"], [500, "m"], [1, "km"], [2, "km"], [5, "km"], [10, "km"], [20, "km"], [30, "km"], [50, "km"]],
   imperial: [[300, "ft"], [1000, "ft"], [0.25, "mi"], [0.5, "mi"], [1, "mi"], [2, "mi"], [5, "mi"], [10, "mi"], [20, "mi"], [30, "mi"]],
@@ -112,17 +112,28 @@ const said = (v, u) => `${u === "mi" && FRACTION[v] ? FRACTION[v] : v.toLocaleSt
 export function ladder(units = current) {
   return (LADDER_SAID[units] || LADDER_SAID.metric).map(([v, u]) => ({ km: clean((v * M_PER[u]) / 1000), value: said(v, u), unit: u }));
 }
+// An edge as the ladder says it ({ value, unit }): the ladder's own words where the edge is a step ("¼", "mi"),
+// otherwise the distance in those units ("1.24", "mi").
+export function edgeText(km, units = current) {
+  const step = ladder(units === "imperial" ? "imperial" : "metric").find((e) => Math.abs(e.km - km) < 1e-9);
+  if (step && (units === "imperial" || units === "metric")) return { value: step.value, unit: step.unit };
+  const [value, unit] = dist(km, units).split(" ");
+  return { value, unit };
+}
+// A ring's label: the ladder's own words for a step ("1,000 ft", "¼ mi"), the distance otherwise.
+export const ringText = (km, units = current) => { const e = edgeText(km, units); return `${e.value} ${e.unit}`; };
+// A band's words: "0–300 ft", "1,000 ft–¼ mi", "500 m–1 km", "2–5 km".
+export function bandText(fromKm, toKm, units = current) {
+  const b = edgeText(toKm, units);
+  if (!(fromKm > 0)) return `0–${b.value} ${b.unit}`;
+  const a = edgeText(fromKm, units);
+  return a.unit === b.unit ? `${a.value}–${b.value} ${b.unit}` : `${a.value} ${a.unit}–${b.value} ${b.unit}`;
+}
 // The bands inside a reach, closed at the reach itself: [{ from_km, to_km, label }], e.g. "1,000 ft–¼ mi", "1–1.24 mi".
 export function ladderBands(reachKm, units = current) {
-  const steps = ladder(units).filter((e) => e.km < reachKm - 1e-9);
-  const top = ladder(units).find((e) => Math.abs(e.km - reachKm) < 1e-9);
-  const end = top || (() => { const t = dist(reachKm, units).split(" "); return { km: reachKm, value: t[0], unit: t[1] }; })();
-  const edges = [{ km: 0, value: "0", unit: null }, ...steps, end];
-  return edges.slice(1).map((e, i) => {
-    const a = edges[i];
-    const label = a.unit == null || a.unit === e.unit ? `${a.value}–${e.value} ${e.unit}` : `${a.value} ${a.unit}–${e.value} ${e.unit}`;
-    return { from_km: a.km, to_km: e.km, label };
-  });
+  const steps = ladder(units).filter((e) => e.km < reachKm - 1e-9).map((e) => e.km);
+  const edges = [0, ...steps, reachKm];
+  return edges.slice(1).map((to, i) => ({ from_km: edges[i], to_km: to, label: bandText(edges[i], to, units) }));
 }
 
 // A length as the person said it ("150", "feet") → km, with what was said kept beside it for the record. Accepts the
@@ -179,10 +190,14 @@ export function unitsLine(units = current) {
 // didn't build from a value (catalogue prose, older runs); anything with a value to hand uses dist() or area().
 export function localise(text) {
   if (current === "metric") return String(text ?? "");
-  return String(text ?? "").replace(/(\d[\d,]*(?:\.\d+)?)\s?(km²|km2|km)(?![a-z])/g, (_, n, u) => {
-    const v = +n.replace(/,/g, "");
-    return u === "km" ? dist(v) : area(v);
-  });
+  const num = (n) => +String(n).replace(/,/g, "");
+  return String(text ?? "")
+    // Ranges first, so both ends convert: "1–2 km", "100–250 m".
+    .replace(/(\d[\d,]*(?:\.\d+)?)\s?[–-]\s?(\d[\d,]*(?:\.\d+)?)\s?(km|m)(?![²2a-zA-Z])/g, (_, a, b, u) => {
+      const k = u === "km" ? 1 : 0.001;
+      return bandText(num(a) * k, num(b) * k);
+    })
+    .replace(/(\d[\d,]*(?:\.\d+)?)\s?(km²|km2|km|m)(?![²2a-zA-Z])/g, (_, n, u) => (u === "km" ? dist(num(n)) : u === "m" ? dist(num(n) / 1000) : area(num(n))));
 }
 
 // One line for the conversation agent. It never converts: the summary it reads carries distances in the person's

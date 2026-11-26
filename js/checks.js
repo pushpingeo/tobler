@@ -3,7 +3,8 @@
 // with the reason, and the analyst judges what it means. Pure (no DOM, no fetching), so the run, the card, the report
 // and the tests share it. The run (js/ntrrun.js) does the fetching with the existing tools and hands the outputs here.
 
-import { LADDER, bandLabel } from "./reach.js";
+import { LADDER, bandLabel, ladderFor } from "./reach.js";
+import { dist as uDist, distBoth, localise } from "./units.js";
 import { isOnSite, whereWords, relationPart as relOf } from "./relation.js";
 
 export const STATES = { found: "found", none: "none found", not_checked: "not checked" };
@@ -191,6 +192,18 @@ export function fromFeatures(plan, features, edges = LADDER, meta = {}) {
       return { from_km: from, to_km: to, label: bandLabel(from, to), count: rest.filter((f) => (i ? f.distance_km > from : f.distance_km >= 0) && f.distance_km <= to + 1e-9).length };
     }),
   ];
+  // The same features on the imperial ladder (Rob, 26 Nov: "B everywhere in imperial"): counts, with edges in km, so
+  // a reader in feet and miles gets round bands without re-measuring. The metric bands stay the record's own.
+  if (edges === LADDER) {
+    const imp = bandsFor(ladderFor("imperial"), reach);
+    out.bands_imperial = [
+      ...(onSite.length || reach === 0 ? [{ label: "on site", count: onSite.length }] : []),
+      ...imp.map((to, i) => {
+        const from = i ? imp[i - 1] : 0;
+        return { from_km: from, to_km: to, label: bandLabel(from, to, "imperial"), count: rest.filter((f) => (i ? f.distance_km > from : f.distance_km >= 0) && f.distance_km <= to + 1e-9).length };
+      }),
+    ];
+  }
   if (around.length) out.around = around.length;
   const adjacent = rest.filter((f) => f.relation === "adjacent").length;
   if (adjacent) out.adjacent = adjacent;
@@ -365,8 +378,11 @@ export function fromValue(plan, { text, value = null, meta = {} }) {
 }
 
 // One line per check, for the card, the report, the analyst and the share link.
-const km = (v) => (v < 1 ? `${Math.round(v * 1000)} m` : `${+(+v).toFixed(1)} km`);
-export function checkLine(r, { nearest: withNearest = true } = {}) {
+const kmMetric = (v) => (v < 1 ? `${Math.round(v * 1000)} m` : `${+(+v).toFixed(1)} km`);
+// units: the reader's ("metric" by default, as the record and the sealed judge read it); both: give each distance in
+// the reader's units with the metric value beside it, for the conversation agent (it quotes, never converts).
+export function checkLine(r, { nearest: withNearest = true, units = "metric", both = false } = {}) {
+  const km = units === "metric" ? kmMetric : both ? (v) => distBoth(v, units) : (v) => uDist(v, units);
   if (r.state === "not_checked") return `not checked: ${r.why || REASONS[r.reason] || "no reason given"}`;
   if (r.answer === "value_at_site") return r.text || "read";
   if (r.answer === "classes") {
@@ -389,7 +405,11 @@ export function checkLine(r, { nearest: withNearest = true } = {}) {
   }
   if (r.state === "none") return r.only_partial ? `none found ${where} in the records read (${r.partial}); the records are partial, so this isn't a clear answer` : `none found ${where}${r.partial ? ` (partial records: ${r.partial})` : ""}`;
   const onSite = r.search_area ? "in the search area" : "on site";
-  const bits = (r.bands || []).filter((b) => b.count).map((b) => `${b.count} ${b.from_km == null ? onSite : `at ${b.label}`}${b.from_km === 0 && r.adjacent ? ` (${r.adjacent} next to the site)` : ""}`);
+  // Bands in the reader's units: the imperial ladder's own where the run counted it; an older run's metric bands
+  // with their words converted otherwise.
+  const bands = units === "imperial" && r.bands_imperial ? r.bands_imperial : r.bands || [];
+  const bandWords = (b) => (units === "metric" || bands === r.bands_imperial ? b.label : bandLabel(b.from_km, b.to_km, units));
+  const bits = bands.filter((b) => b.count).map((b) => `${b.count} ${b.from_km == null ? onSite : `at ${bandWords(b)}`}${b.from_km === 0 && r.adjacent ? ` (${r.adjacent} next to the site)` : ""}`);
   const words = !r.search_area && r.nearest && whereWords(r.nearest, km);
   const nearest = withNearest && r.nearest ? `; nearest ${r.nearest.name}${r.nearest.around ? " (around the site)" : words ? ` (${words})` : r.nearest.distance_km > 0 ? `, ${km(r.nearest.distance_km)}` : ` (${onSite})`}` : "";
   if (r.around) bits.push(`${r.around} around the site`);
@@ -448,7 +468,7 @@ export function noCheckLine(catalogue, topics = []) {
 
 // What the card and the report show, from a run record alone (a share link has no catalogue): the checks by topic,
 // each with its line and source, and the topics nothing checks yet. null for runs from before checks.
-export function checksView(run) {
+export function checksView(run, units = "metric") {
   if (!Array.isArray(run?.checks)) return null;
   const labels = run.topic_labels || {};
   const cat = { topics: Object.entries(labels).map(([id, label]) => ({ id, label })) };
@@ -458,10 +478,10 @@ export function checksView(run) {
     : byTopic(cat, run.checks);
   const groups = grouped.map((g) => ({
     topic: g.topic, label: g.label,
-    items: g.results.map((r) => ({ id: r.id, label: r.label, must: !!r.must, state: r.state, line: checkLine(r),
+    items: g.results.map((r) => ({ id: r.id, label: r.label, must: !!r.must, state: r.state, line: checkLine(r, { units }),
       source: (r.sources?.length ? r.sources.filter((x) => x.dataset) : r.source ? [r.source] : [])
         .map((x) => [x.dataset, x.publisher && !x.dataset.includes(x.publisher) ? `(${x.publisher})` : null].filter(Boolean).join(" ")).join("; "),
-      ...(r.partly ? { partly: r.partly } : {}) })),
+      ...(r.partly ? { partly: units === "metric" ? r.partly : localise(r.partly) } : {}) })),
   }));
   const noCheck = run.no_check_topics || [];
   // A check's caveat (the contamination checks: "an early screen of open records…") travels with the run and is

@@ -3,7 +3,7 @@
 // (catalogue/assets.json); the person's own distances override both. One reporting ladder for every check, the map's
 // rings and the card's slider. Replaces near/close/wider (catalogue/distances.json), which old runs still carry and
 // still open with (read, not re-run). Pure, no DOM: the run, the page, the scripts and the tests share it.
-import { toKm } from "./units.js";
+import { toKm, ladder as unitLadder, bandText } from "./units.js";
 
 // Tools fetch at most 50 km from a site's edge (nothing beyond 50 km for now: Rob, 26 Nov).
 export const MAX_KM = 50;
@@ -18,28 +18,33 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 // "250 m", "1.5 km": a distance as the card and the replies write it (metric: package C does the person's units).
 export const kmText = (km) => (km == null ? "" : km < 1 ? `${Math.round(km * 1000)} m` : `${+(+km).toFixed(1)} km`);
 
+// The ladder for a reader's units: the metric one, or in imperial the round one (300 ft, 1,000 ft, ¼ mi, …; Rob,
+// 26 Nov: "B everywhere in imperial"). Edges in km either way; the record keeps the metric ladder.
+export const ladderFor = (units = "metric") => (units === "imperial" ? unitLadder("imperial").map((e) => e.km) : LADDER);
+
 // The ladder's steps up to a reach, closed at the reach itself: 45 km → …, 20, 30, 45.
-export function ladderTo(km) {
+export function ladderTo(km, units = "metric") {
   if (!(km > 0)) return [];
   const top = Math.min(MAX_KM, km);
-  const out = LADDER.filter((e) => e < top - 1e-9);
+  const out = ladderFor(units).filter((e) => e < top - 1e-9);
   out.push(r3(top));
   return out;
 }
 
-// "0–100 m", "500 m–1 km", "2–5 km".
-export function bandLabel(from, to) {
+// "0–100 m", "500 m–1 km", "2–5 km"; in imperial "0–300 ft", "1,000 ft–¼ mi".
+export function bandLabel(from, to, units = "metric") {
+  if (units !== "metric") return bandText(from, to, units);
   const f = (km) => (km < 1 ? `${Math.round(km * 1000)} m` : `${+km.toFixed(1)} km`);
   if (to < 1) return `${from === 0 ? "0" : Math.round(from * 1000)}–${f(to)}`;
   return `${from === 0 ? "0" : from < 1 ? f(from) : +from.toFixed(1)}–${f(to)}`;
 }
 
 // The band a distance falls in, on the ladder up to top (the run's furthest reach): "on site", a band, or "beyond".
-export function ladderBand(km, top = MAX_KM) {
+export function ladderBand(km, top = MAX_KM, units = "metric") {
   if (km == null) return "unknown";
   if (km <= 0) return "on site";
-  const steps = ladderTo(top);
-  for (let i = 0; i < steps.length; i++) if (km <= steps[i] + 1e-9) return bandLabel(i ? steps[i - 1] : 0, steps[i]);
+  const steps = ladderTo(top, units);
+  for (let i = 0; i < steps.length; i++) if (km <= steps[i] + 1e-9) return bandLabel(i ? steps[i - 1] : 0, steps[i], units);
   return "beyond";
 }
 
@@ -233,28 +238,29 @@ export const changesLine = (reach) => (reach?.changes?.length ? `You changed: ${
 // (tobler-run/2 before 27 Nov) carry near/close/wider in run.distances and open as they were.
 export const isLegacy = (run) => !run?.reach && !!run?.distances;
 export const runFurthest = (run) => (run?.reach ? run.reach.furthest_km : run?.fetched_to_km ?? run?.distances?.wider ?? 0);
-export function runRings(run) {
+// units: the reader's; the rings in imperial sit on the imperial ladder, up to the same furthest reach.
+export function runRings(run, units = "metric") {
   if (!run || run.extent === "inside" || run.budget) return [];
-  if (run.reach) return [...run.reach.ladder];
+  if (run.reach) return units === "imperial" ? (run.reach.ladder.length ? ladderTo(run.reach.furthest_km, units) : []) : [...run.reach.ladder];
   const d = run.distances || {};
   return [d.near, d.close, run.fetched_to_km].filter((v, i, a) => v > 0 && a.indexOf(v) === i);
 }
-export function runBand(km, run) {
+export function runBand(km, run, units = "metric") {
   if (run && isLegacy(run)) {
     const d = run.distances;
     if (km == null) return "unknown";
     if (km <= 0) return "on site";
     return km <= d.near ? "near" : km <= d.close ? "close" : km <= d.wider ? "wider" : "beyond";
   }
-  return ladderBand(km, runFurthest(run) || MAX_KM);
+  return ladderBand(km, runFurthest(run) || MAX_KM, units);
 }
 export function legacyDistancesLine(d) {
   return `near ${d.near} km · close ${d.close} km · wider ${d.wider} km (${d.set_by === "person" ? "set by you" : `default for ${d.asset_label} ${d.setting}`})`;
 }
 export const runDistancesLine = (run) => (run?.reach ? reachLine(run.reach) : run?.distances ? legacyDistancesLine(run.distances) : "");
 // The slider's steps: the ladder up to the run's furthest reach (0 first for an area: inside it).
-export function sliderSteps(run, area = false) {
+export function sliderSteps(run, area = false, units = "metric") {
   const top = runFurthest(run);
-  const steps = ladderTo(top);
+  const steps = isLegacy(run) ? ladderTo(top) : ladderTo(top, units);
   return area ? [0, ...steps] : steps;
 }

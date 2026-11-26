@@ -69,7 +69,7 @@ ok("accepted spellings, and anything else is refused, never guessed", () => {
   assert.equal(U.parseLength(5, "furlongs"), null);
 });
 
-ok("short distances: metres under 1 km, feet under 1,000 ft", () => {
+ok("short distances: metres under 1 km, feet up to 1,000 ft", () => {
   assert.equal(U.dist(0.25, "metric"), "250 m");
   assert.equal(U.dist(0.04572, "metric"), "46 m");
   assert.equal(U.dist(0.999, "metric"), "1,000 m");
@@ -78,7 +78,11 @@ ok("short distances: metres under 1 km, feet under 1,000 ft", () => {
   assert.equal(U.dist(0.04572, "imperial"), "150 ft");
   assert.equal(U.dist(0.05, "imperial"), "160 ft");
   assert.equal(U.dist(0.3, "imperial"), "980 ft");
-  assert.equal(U.dist(0.3048, "imperial"), "0.19 mi");
+  assert.equal(U.dist(0.3048, "imperial"), "1,000 ft");
+  assert.equal(U.dist(0.31, "imperial"), "0.19 mi");
+  assert.equal(U.ringText(0.402336, "imperial"), "¼ mi");
+  assert.equal(U.ringText(0.3048, "imperial"), "1,000 ft");
+  assert.equal(U.ringText(31.0686, "imperial"), "19.31 mi".replace("19.31", U.dist(31.0686, "imperial").split(" ")[0]));
   assert.equal(U.dist(1.609344, "imperial"), "1 mi");
   assert.equal(U.dist(0.5, "nautical"), "500 m");
   assert.equal(U.dist(1.852, "nautical"), "1 nm");
@@ -137,6 +141,17 @@ ok("two ladders: metric, and round imperial values (Rob: B everywhere in imperia
   const b = U.ladderBands(2, "imperial");
   assert.equal(b.at(-1).label, "1–1.24 mi");
   assert.equal(b.at(-1).to_km, 2);
+});
+
+ok("band words and the last-resort rewrite take metres and ranges", () => {
+  assert.equal(U.bandText(0, 0.09144, "imperial"), "0–300 ft");
+  assert.equal(U.bandText(0.5, 1, "metric"), "500 m–1 km");
+  U.setUnits("imperial");
+  assert.equal(U.localise("250 m to 5 km, by check"), "820 ft to 3.11 mi, by check");
+  assert.equal(U.localise("1 at 1–2 km"), "1 at 0.62–1.24 mi");
+  assert.equal(U.localise("an area of 3 km²"), "an area of 1.16 sq mi");
+  assert.equal(U.localise("Natura 2000 and 5 mins"), "Natura 2000 and 5 mins", "not a unit");
+  U.setUnits("metric");
 });
 
 console.log(`${n} units tests passed`);

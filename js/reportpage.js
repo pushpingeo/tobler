@@ -170,7 +170,7 @@ function render(record) {
 
   // 3b. Checks (plan item 1): one line per check, by topic, found, none found or not checked. Runs from before checks
   // (old share links) have none, and the section is left out.
-  const cv = checksOf(r);
+  const cv = checksOf(r, U.getUnits());
   const ckSec = cv ? el("section", null, "checks") : null;
   if (cv) {
     ckSec.append(el("h2", "Checks"));
@@ -244,7 +244,7 @@ function render(record) {
   main.replaceChildren(...head, ...(oldNote ? [oldNote] : []), decision, ...(replNote ? [replNote] : []), ...(searchNote ? [searchNote] : []), summary, siteSec, findSec, ...(ckSec ? [ckSec] : []), evSec, meth, src, foot);
   const site = record.features.find((f) => f.properties.role === "site");
   const evid = record.features.filter((f) => f.properties.role === "evidence");
-  pending.push(drawMap(siteFig, { site, rings: runRings(r), evidence: [], labels: null, searchArea }));
+  pending.push(drawMap(siteFig, { site, rings: runRings(r, U.getUnits()), evidence: [], labels: null, searchArea }));
   if (budgetFig) pending.push(drawMap(budgetFig, { site, rings: [], evidence: [], labels: null, budget: record.features.filter((f) => f.properties.role === "budget") }));
   else pending.push(drawMap(findFig, { site, rings: [], evidence: evid, labels: findingLabels(record), searchArea }));
   Promise.allSettled(pending).then(() => { window.__report.ready = true; });

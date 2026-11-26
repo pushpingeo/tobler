@@ -7,6 +7,7 @@ import { FENCE_RULE } from "./fence.js";
 import { createPlaceTools } from "./placetools.js";
 import { fileOriginText } from "./fileimport.js";
 import { serviceOriginText } from "./servicesite.js";
+import * as U from "./units.js";
 import { LADDER, ASSET_TYPES, MAX_KM, chooseAsset, readDistances, distancesFromInputs, resolveReaches, changeLines, reachRecord, reachLine, changesLine, runBand, runDistancesLine, runFurthest, isLegacy, ladderBand, kmText } from "./reach.js";
 import { nearestBoundaries } from "./boundaries.js";
 import { DISCLAIMER } from "./disclaimer.js";
@@ -1123,7 +1124,8 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
           evidence: f.evidence.map((e) => ({ name: e.name, distance_km: e.distance_km, band: e.band, dataset: e.dataset, publisher: e.publisher, traced: e.traced })) })),
         checked: r.checked.map((c) => ({ dataset: c.dataset, publisher: c.publisher, result: c.result, ...(c.count ? { count: c.count } : {}), ...(c.why ? { why: c.why.slice(0, 160) } : {}) })),
         data_gaps: r.data_gaps,
-        ...(r.checks ? { checks: r.checks.map((c) => `${c.label}${c.must ? " (must)" : ""}: ${K.checkLine(c)}`) } : {}),
+        // In the reader's units with the metric value beside each distance: the agent quotes, never converts (package C).
+        ...(r.checks ? { checks: r.checks.map((c) => `${c.label}${c.must ? " (must)" : ""}: ${K.checkLine(c, { units: U.getUnits(), both: true })}`) } : {}),
         ...(r.sea ? { sea: seaLines(r.sea) } : {}),
         ...(r.elevation ? { elevation: elevationLine(r.elevation, r.elevation.significance) } : {}),
         ...(r.offer?.items?.length ? { offered_after_run: r.offer.items.map((x) => ({ id: x.id, for: x.label, dataset: x.dataset.title, publisher: x.dataset.publisher, licence: x.dataset.licence_short, state: x.state })) } : {}),

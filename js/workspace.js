@@ -507,7 +507,7 @@ async function drawRings(place, kms = null) {
     const b = turf.buffer(place, km, { units: "kilometers", steps: 32 });
     const line = turf.polygonToLine(b);
     const f = line.type === "FeatureCollection" ? line.features[0] : line;
-    f.properties = { label: U.dist(km) };
+    f.properties = { label: U.ringText(km) };
     return f;
   });
   map.getSource("rings")?.setData(turf.featureCollection(rings));
@@ -1694,7 +1694,7 @@ function showRunOnMap(record, { fit = true, instant = false } = {}) {
 
 // Distance rings for a run: none when it's looking inside the area only.
 // New runs: faint labelled rings at the ladder's steps up to the furthest any check looked (js/reach.js).
-const ringsFor = (r) => runRings(r);
+const ringsFor = (r) => runRings(r, U.getUnits());
 
 // Inside the area only: dim the world outside the site and drop the rings; otherwise the rings come back.
 function paintMask() {
@@ -1767,7 +1767,7 @@ function showRun(record) {
   if (r.parse_error) { const pr = card.querySelector(".problem"); pr.hidden = false; pr.textContent = r.parse_error; }
   // The slider steps along the ladder (on the site, 100 m, 250 m, … up to the furthest any check looked).
   const slider = card.querySelector('input[type="range"]');
-  const steps = sliderSteps(r, true);
+  const steps = sliderSteps(r, true, U.getUnits());
   const stepOf = (km) => { let k = 0; steps.forEach((v, j) => { if (Math.abs(v - km) < Math.abs(steps[k] - km)) k = j; }); return k; };
   slider.min = "0"; slider.max = String(Math.max(0, steps.length - 1)); slider.step = "1";
   slider.value = String(stepOf(r.assessed_within_km));
@@ -2029,7 +2029,7 @@ function paintRun(entry) {
   // Where the distances came from (opens under the line): the scale and why, the asset's extensions with their sources.
   const why = r.reach
     ? U.localise([`Screened at ${r.reach.scale} scale: ${r.reach.scale_why}.`,
-      r.reach.extended?.length ? `Extended for ${r.reach.asset.label}: ${r.reach.extended.map((e) => `${e.label} to ${kmText(e.to_km)} (was ${kmText(e.from_km)})`).join("; ")}. Why: ${[...new Set(r.reach.extended.map((e) => e.why))].join("; ")}.` : ""].filter(Boolean).join(" "))
+      r.reach.extended?.length ? `Extended for ${r.reach.asset.label}: ${r.reach.extended.map((e) => `${e.label} to ${U.dist(e.to_km)} (was ${U.dist(e.from_km)})`).join("; ")}. Why: ${[...new Set(r.reach.extended.map((e) => e.why))].join("; ")}.` : ""].filter(Boolean).join(" "))
     : r.distances?.reasons?.length ? U.localise(`Why: ${r.distances.reasons.slice(0, 2).join("; ")}.`) : "";
   dists.querySelector("summary").textContent = r.extent === "inside"
     ? "Inside the area only: findings inside it or touching its edge."
@@ -2069,7 +2069,7 @@ function paintRun(entry) {
   gaps.hidden = !GAP_GROUPS.some(([k]) => groups[k].length) && !r.study?.full_study_adds?.length;
   // Checks (plan item 1): one line per check, by topic, in three states; the topics nothing checks yet in one line
   // that opens into the list (Rob, 23 Nov). Open on a desktop, closed on a phone. Runs from before checks have none.
-  const cv = checksView(r);
+  const cv = checksView(r, U.getUnits());
   const ck = card.querySelector(".checks");
   ck.hidden = !cv;
   if (cv) {
@@ -2335,7 +2335,9 @@ function applyUnits(u) {
   scaleCtl.setUnit(U.UNIT_SETS[U.getUnits()].scale);
   places.forEach((p) => refreshCard(p));
   runs.forEach((e) => paintRun(e));
-  if (ringsArgs) { ringsAround = null; drawRings(...ringsArgs); }
+  // Rings sit on the reader's ladder: a run's rings are worked out again; others keep their distances.
+  if (shownRun && runs.get(shownRun)) { ringsAround = null; paintMask(); }
+  else if (ringsArgs) { ringsAround = null; drawRings(...ringsArgs); }
 }
 function autoUnits(p, d, { force = false } = {}) {
   if (!p || !d) { if (force) applyUnits("metric"); return; }

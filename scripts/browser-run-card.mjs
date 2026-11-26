@@ -316,6 +316,31 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   const ck = s.checks;
   await page.evaluate(() => { const c = document.querySelector(".run .checks"); c.open = true; c.querySelector(".nocheck").open = true; });
   await page.locator(".run .checks").screenshot({ path: `/tmp/run-card-${label}-checks.png` }).catch(() => {});
+  // Package C: the same run read in feet and miles. Rings, slider and check lines move onto the imperial ladder
+  // (300 ft, 1,000 ft, ¼ mi, …); nothing is re-measured; back to metric restores them.
+  const unitsView = () => page.evaluate(() => ({
+    rings: (window.__ws.map.getSource("rings")?.serialize?.().data?.features || []).map((f) => f.properties.label),
+    steps: +document.querySelector('.run input[type="range"]').max,
+    lines: [...document.querySelectorAll(".run .checks li")].map((li) => li.textContent).join(" | ") }));
+  const unitsBefore = await unitsView();
+  await page.click("#gear");
+  await page.waitForSelector("#settings[open]");
+  await page.check('input[name="units"][value="imperial"]');
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(500);
+  const imp = await unitsView();
+  check(imp.rings.length > 0 && imp.rings.every((t) => /\b(ft|mi)$/.test(t)) && ["300 ft", "1,000 ft", "¼ mi", "½ mi", "1 mi"].every((t) => imp.rings.includes(t)),
+    `${label}: in imperial the rings sit on round feet and miles (${imp.rings.join(", ")}; metric was ${unitsBefore.rings.join(", ")})`);
+  check(imp.steps !== unitsBefore.steps || imp.rings.join() !== unitsBefore.rings.join(), `${label}: the slider is redrawn on the imperial ladder (${imp.steps + 1} steps)`);
+  check(/\b(mi|ft)\b/.test(imp.lines) && !/\d\s?km\b/.test(imp.lines), `${label}: check lines in feet and miles, no km left (${imp.lines.slice(0, 120)})`);
+  await page.locator(".run .checks").screenshot({ path: `/tmp/run-card-${label}-checks-imperial.png` }).catch(() => {});
+  await page.click("#gear");
+  await page.waitForSelector("#settings[open]");
+  await page.check('input[name="units"][value="metric"]');
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(500);
+  const back = await unitsView();
+  check(back.rings.join() === unitsBefore.rings.join() && back.steps === unitsBefore.steps, `${label}: back to metric, the rings and slider are as they were`);
   await page.evaluate((open) => { const c = document.querySelector(".run .checks"); c.open = open; c.querySelector(".nocheck").open = false; }, ck?.open ?? false);
   check(ck && /^Checks: \d+ \(\d+ found, \d+ none found, \d+ not checked\)$/.test(ck.summary), `${label}: checks section with its summary (${ck?.summary})`);
   check(ck && ck.heads.join("|") === "Biodiversity|Hazards|Material assets|Topography and bathymetry|Context", `${label}: checks grouped by topic in order (${ck?.heads.join(", ")})`);

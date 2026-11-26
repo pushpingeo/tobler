@@ -25,9 +25,10 @@ function reachLine(r) {
     const d = r.distances || {};
     return `looking out to ${d.wider} km (${legacyDistancesLine(d)})`;
   }
-  return reachWords(r.reach);
+  // The record holds these as words, in metric; shown in the reader's units (localise is the last resort here).
+  return U.localise(reachWords(r.reach));
 }
-const changes = (r) => [changesLine(r.reach), r.reach?.not_used?.length ? `Not used: ${r.reach.not_used.map((n) => n.line).join("; ")}.` : ""].filter(Boolean);
+const changes = (r) => [changesLine(r.reach), r.reach?.not_used?.length ? `Not used: ${r.reach.not_used.map((n) => n.line).join("; ")}.` : ""].filter(Boolean).map(U.localise);
 const sentence = (s) => { const t = String(s || "").trim(); return t ? (/[.!?]$/.test(t) ? t : `${t}.`) : ""; };
 
 // Where the nearest traced evidence is, in the words the card uses.

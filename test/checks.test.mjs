@@ -107,6 +107,26 @@ const plan = (id, scale = "regional", reach) => {
   return { check, source: check.sources.at(-1), reach_km: reach ?? check.reach_km?.[scale] ?? null, scale };
 };
 
+await test("imperial: the same features counted on the round ladder, and the line in the reader's units (package C)", () => {
+  const sac = plan("bio.sac");
+  const f = K.fromFeatures(sac, [
+    { name: "Inside SAC", distance_km: 0 }, { name: "Next door", distance_km: 0.05 }, { name: "Half a mile", distance_km: 0.7 },
+    { name: "Near SAC", distance_km: 1.5 }, { name: "Mid SAC", distance_km: 6 }], LADDER, { fetched_km: 20 });
+  // 10 km reach: imperial bands to 6.21 mi, the last one cut at the reach.
+  assert.deepEqual(f.bands_imperial.map((b) => [b.label, b.count]), [["on site", 1], ["0–300 ft", 1], ["300–1,000 ft", 0], ["1,000 ft–¼ mi", 0],
+    ["¼–½ mi", 1], ["½–1 mi", 1], ["1–2 mi", 0], ["2–5 mi", 1], ["5–6.21 mi", 0]]);
+  assert.equal(f.bands_imperial.at(-1).to_km, 10, "edges stay in km");
+  assert.equal(K.checkLine(f), "5 within 10 km (1 on site, 1 at 0–100 m, 1 at 500 m–1 km, 1 at 1–2 km, 1 at 5–10 km); nearest Inside SAC (on site)", "metric unchanged");
+  assert.equal(K.checkLine(f, { units: "imperial" }), "5 within 6.21 mi (1 on site, 1 at 0–300 ft, 1 at ¼–½ mi, 1 at ½–1 mi, 1 at 2–5 mi); nearest Inside SAC (on site)");
+  assert.match(K.checkLine(f, { units: "imperial", both: true }), /^5 within 6\.21 mi \(10 km\)/);
+  // An older run without imperial counts: its metric bands, with the words converted.
+  const old = { ...f }; delete old.bands_imperial;
+  assert.match(K.checkLine(old, { units: "imperial" }), /1 at 0–330 ft, 1 at 0\.31–0\.62 mi/);
+  // The view the page draws follows the units it's given.
+  const view = K.checksView({ checks: [{ ...f, id: "bio.sac", label: "SACs", topic: "biodiversity" }], topic_labels: { biodiversity: "Biodiversity" } }, "imperial");
+  assert.match(view.groups[0].items[0].line, /6\.21 mi/);
+});
+
 await test("every state: found by band, none found, not checked for each reason", () => {
   const sac = plan("bio.sac");
   const f = K.fromFeatures(sac, [

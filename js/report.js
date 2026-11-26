@@ -83,7 +83,7 @@ export function sourcesOf(record) {
 
 export const gapsOf = (run) => groupGaps(run.data_gaps || [], run.checked || [], [noCheckGap(run)]);
 // The checks table (null for runs from before checks): the table a consultant would otherwise build by hand.
-export const checksOf = (run) => checksView(run);
+export const checksOf = (run, units = "metric") => checksView(run, units);
 
 export function decisionText(run) {
   return run.decision ? { head: `${cap(run.decision.value)}.`, why: [run.decision.why, run.decision.changed ? `Set by Tobler's rules, ${run.decision.changed}.` : ""].filter(Boolean).join(" ") } : null;

@@ -2,6 +2,16 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 26 Nov 2026 (late night): imperial wired into rings, slider, bands and check lines (package C's last part)
+
+- **Rings and slider** sit on the reader's ladder: in feet and miles, 300 ft, 1,000 ft, ¼, ½, 1, 2, 5, 10, 20, 30 mi, cut at the run's furthest reach (`runRings`, `sliderSteps`, `ladderTo` in `js/reach.js` take the units). Ring labels use the ladder's own words (`U.ringText`: "¼ mi", not "0.25 mi"). Changing units redraws a run's rings; nothing is re-measured. Old runs keep their near/close/wider rings in any units.
+- **Each check is counted on both ladders at run time:** `bands` (metric, as before) and `bands_imperial` (counts, edges in km). Counts aren't a unit, so the record stays metric; the share link carries both. An older run without `bands_imperial` shows its metric bands with the words converted (0–330 ft, 0.31–0.62 mi), the only honest regrouping without the features' distances.
+- **Check lines are built in the reader's units** when drawn (`checkLine(r, { units })`, `checksView(run, units)`), on the card and the report. Metric lines are unchanged. The sealed judge still reads metric (the record); `get_run` gives the conversation agent both ("6.21 mi (10 km)").
+- **Short distances:** 1,000 ft now shows as "1,000 ft" (feet up to and including 1,000 ft), so the ladder's edge and the distance agree.
+- **localise** (the last resort, for text the record holds as words: the reach line, changes, sea, elevation, the analyst's summary) now converts metres and ranges ("1–2 km" → "0.62–1.24 mi"), not only km. Package A's record lines (`range`, `changes`) stay metric words in the record and pass through it.
+- **Approximations:** none that change an answer. Counts in imperial bands come from the same features and distances as the metric ones. Densities ("hours per km²") stay in km²: converting a rate isn't a distance and is left as the publisher gave it.
+- **Tested:** `npm test` (new tests in `test/checks.test.mjs`, `test/reach.test.mjs`, `test/units.test.mjs`); all 14 browser checks, desktop and phone; `browser-run-card` now switches a finished run to feet and miles and back (rings on the round ladder with its words, the slider redrawn, check lines with no km left, back to metric as it was). **Not tested:** a live replay in imperial on a US site; a real phone.
+
 ## 26 Nov 2026 (night, later): how a feature sits against the site, wired in (package B, second half)
 - **Rob's yes (26 Nov, 20:28)** to the five calls below ("covers"; a multi-part feature partly on the site is
   "crosses"; touching from outside is adjacent at 0 m; a point on the edge is on the site; under 1 m² is a touch).
