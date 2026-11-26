@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Tobler: signing in to ArcGIS</title>
+<style>
+  body { font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: #17212b; margin: 0; display: grid; place-items: center; min-height: 100vh; background: #f4f4f2; }
+  main { max-width: 26rem; padding: 1.5rem; text-align: center; }
+</style>
+</head>
+<body>
+<main><p id="msg">Finishing the sign-in…</p></main>
+<script>
+// Where ArcGIS sends the person back after Sign in with ArcGIS (js/arcgisauth.js). This page only hands the code back
+// to the Tobler page that asked for it (same site only) and closes. It doesn't exchange the code (the Tobler page
+// holds the PKCE verifier, so the code is useless without it), and it saves nothing.
+(function () {
+  var q = new URLSearchParams(location.search);
+  var msg = { type: "tobler-arcgis-oauth", state: q.get("state") || "", code: q.get("code") || null, error: q.get("error") || null, error_description: q.get("error_description") || null };
+  // The code doesn't stay in the address bar or the history.
+  try { history.replaceState(null, "", location.pathname); } catch (e) { /* fine */ }
+  var sent = false;
+  try { if (window.opener && !window.opener.closed) { window.opener.postMessage(msg, location.origin); sent = true; } } catch (e) { /* cut off */ }
+  try { var ch = new BroadcastChannel("tobler-arcgis-oauth"); ch.postMessage(msg); ch.close(); sent = true; } catch (e) { /* old browser */ }
+  var el = document.getElementById("msg");
+  if (!msg.state) el.textContent = "Nothing to finish here. Go back to Tobler and press Sign in with ArcGIS.";
+  else if (!sent) el.textContent = "This browser couldn't pass the sign-in back to Tobler. Close this window and paste a token in Tobler instead.";
+  else el.textContent = msg.error ? "The sign-in didn't go through. You can close this window; Tobler says why." : "Signed in. You can close this window and go back to Tobler.";
+  setTimeout(function () { window.close(); }, 300);
+})();
+</script>
+</body>
+</html>

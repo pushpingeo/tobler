@@ -111,7 +111,8 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   const tried = serviceCalls.filter((c) => /corp\.example/.test(c.url));
   check(tried.length >= 2 && !tried.some((c) => /token=/.test(c.url)), `${label}: secured: a plain request, then the browser's own login, before asking (${tried.length} tries)`);
   check(/needs a sign-in/.test(await page.textContent(".svc-why")), `${label}: says it needs a sign-in and how`);
-  await page.fill(".svc-signin input", "TOK");
+  check(await page.evaluate(() => document.querySelector(".svc-arcgis").hidden && document.querySelector(".svc-other").open), `${label}: a company server: no ArcGIS Online sign-in offered, the token field open`);
+  await page.fill(".svc-token-in", "TOK");
   await page.click('[data-op="svc-token"]');
   await page.waitForFunction(() => /Click a feature/.test(document.querySelector(".svc-status")?.textContent || ""), null, { timeout: 15000 });
   const box2 = await page.locator("#svc-map").boundingBox();
@@ -158,6 +159,47 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   const via = await page.evaluate(() => [...window.__ws.places.values()].find((p) => p.origin?.service?.read_through).origin.service);
   check(proxied.length > 0 && proxied.every((u) => !/token=/.test(u)) && /Tobler's server/.test(via.read_through || "") && via.secured === false,
     `${label}: read through Tobler's server, public, and the record says so (${proxied.length} requests)`);
+  // 4. A secured ArcGIS Online service: Sign in with ArcGIS, through the organisation's own sign-in page, in a popup.
+  // The popup hands the code back; this page exchanges it; the token goes only to ArcGIS Online's servers.
+  const reqs = [];
+  ctx.on("request", (r) => reqs.push(r.url()));
+  let authorizeAt = null, tokenBody = "";
+  await ctx.route(/linlithgow-test\.maps\.arcgis\.com\/sharing\/rest\/oauth2\/authorize/, (r) => {
+    authorizeAt = new URL(r.request().url());
+    r.fulfill({ status: 302, headers: { location: `http://localhost:8000/oauth.html?code=C0DE&state=${encodeURIComponent(authorizeAt.searchParams.get("state"))}` } });
+  });
+  await ctx.route(/linlithgow-test\.maps\.arcgis\.com\/sharing\/rest\/oauth2\/token/, (r) => { tokenBody = r.request().postData() || ""; reply(r, { access_token: "AT1", expires_in: 1800, refresh_token: "RT1", refresh_token_expires_in: 7200, username: "rob_test" }); });
+  await ctx.route(/linlithgow-test\.maps\.arcgis\.com\/sharing\/rest\/portals\/self/, (r) => reply(r, { name: "Linlithgow test org", user: { username: "rob_test" } }));
+  await page.route(/services9\.arcgis\.com/, (r) => (new URL(r.request().url()).searchParams.get("token") === "AT1" ? arcgis(r) : reply(r, { error: { code: 499, message: "Token Required" } })));
+  const ONLINE = "https://services9.arcgis.com/AbC123/arcgis/rest/services/Parcels/FeatureServer/0";
+  await page.fill("#say", ONLINE);
+  await page.click("#ask button[type=submit]");
+  await page.waitForSelector(".svc-arcgis:not([hidden])", { timeout: 15000 });
+  const offer = await page.evaluate(() => ({ why: document.querySelector(".svc-why").textContent, other: document.querySelector(".svc-other").open, btn: document.querySelector('[data-op="svc-arcgis"]').textContent }));
+  check(offer.btn === "Sign in with ArcGIS" && !offer.other && /Sign in with your ArcGIS account/.test(offer.why), `${label}: ArcGIS Online: Sign in with ArcGIS first, the token folded away (${offer.why.slice(0, 80)})`);
+  check(!reqs.some((u) => /services9/.test(u) && /token=/.test(u)), `${label}: no token tried before the sign-in`);
+  await page.screenshot({ path: `/tmp/svc-${label}-signin.png` });
+  await page.fill(".svc-org", "linlithgow-test.maps.arcgis.com");
+  const [popup] = await Promise.all([page.waitForEvent("popup"), page.click('[data-op="svc-arcgis"]')]);
+  await popup.waitForEvent("close", { timeout: 15000 }).catch(() => {});
+  await page.waitForFunction(() => /Opened with your ArcGIS sign-in \(rob_test\)/.test(document.querySelector(".svc-status")?.textContent || ""), null, { timeout: 15000 })
+    .catch(async (e) => { console.log("DEBUG", await page.evaluate(() => [document.querySelector(".svc-status")?.textContent, document.querySelector(".svc-why")?.textContent, document.querySelector(".svc-who")?.textContent])); throw e; });
+  const tb = new URLSearchParams(tokenBody);
+  check(authorizeAt?.host === "linlithgow-test.maps.arcgis.com" && authorizeAt.searchParams.get("client_id") === "4GhkbypqSzSYKEb2" && authorizeAt.searchParams.get("code_challenge_method") === "S256" && authorizeAt.searchParams.get("redirect_uri") === "http://localhost:8000/oauth.html",
+    `${label}: the organisation's own sign-in page, Tobler's client id, PKCE, oauth.html as the way back`);
+  check(tb.get("code") === "C0DE" && tb.get("code_verifier")?.length === 43 && !tb.has("client_secret") && popup.isClosed(), `${label}: this page exchanged the code with its verifier, no secret; the popup closed itself`);
+  const withToken = reqs.filter((u) => /AT1/.test(u));
+  check(withToken.length > 0 && withToken.every((u) => /^https:\/\/[^/]+\.arcgis\.com\//.test(u)), `${label}: the token went only to ArcGIS Online (${withToken.length} requests)`);
+  const box4 = await page.locator("#svc-map").boundingBox();
+  await page.mouse.click(box4.x + box4.width / 2, box4.y + box4.height / 2);
+  await page.waitForFunction(() => /Picked: Field 7/.test(document.querySelector(".svc-list")?.textContent || ""), null, { timeout: 10000 });
+  await page.click('[data-op="svc-use"]');
+  await page.waitForFunction(() => [...window.__ws.places.values()].filter((p) => /^Field 7/.test(p.name)).length >= 3, null, { timeout: 15000 })
+    .catch(async (e) => { console.log("DEBUG", await page.evaluate(() => [[...window.__ws.places.values()].map((p) => p.name), document.querySelector(".svc-status")?.textContent, [...document.querySelectorAll("#conversation .msg")].at(-1)?.textContent])); throw e; });
+  const onl = await page.evaluate(() => ({ svc: [...window.__ws.places.values()].filter((p) => /^Field 7/.test(p.name)).at(-1).origin.service, ls: JSON.stringify(localStorage), log: JSON.stringify(window.toblerLog), html: document.body.innerHTML }));
+  check(onl.svc.secured === true && onl.svc.licence === "your own or your organisation's data", `${label}: signed-in data is marked as your organisation's`);
+  check(!/AT1|RT1|C0DE|CODE_VERIFIER|rob_test/.test(onl.ls + onl.log) && !/AT1|RT1/.test(onl.html) && /linlithgow-test/.test(onl.ls), `${label}: no token, code or name in storage or the log (only the organisation's address is remembered)`);
+  check(!/AT1|RT1/.test(logs.join("\n") + modelBodies.join("\n")) && !reqs.some((u) => /AT1/.test(u) && /tobler-api|atlas/.test(u)), `${label}: the token never reaches the Worker, the atlas or the model`);
   check(errors.length === 0, `${label}: no page errors${errors.length ? `: ${errors.slice(0, 3).join(" | ")}` : ""}`);
   await ctx.close();
 }

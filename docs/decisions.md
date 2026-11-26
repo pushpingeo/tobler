@@ -2,6 +2,36 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 26 Nov 2026 (late morning): Sign in with ArcGIS in the service panel
+- **What:** when a service on ArcGIS Online (`*.arcgis.com`) says it needs a sign-in, the service panel leads with
+  "Sign in with ArcGIS". Above it is an optional field for the organisation's address (e.g. `shell.maps.arcgis.com`),
+  so a company's own SAML page appears. OAuth 2.0 authorization code with PKCE, in a popup, with Tobler's app
+  "Ask Tobler" (client ID `4GhkbypqSzSYKEb2`, in Rob's own org). No client secret. `js/arcgisauth.js`, `oauth.html`.
+- **Hand-rolled, not ArcGIS REST JS** (Rob asked us to consider vendoring it). Its popup flow writes the PKCE verifier
+  and state to localStorage, and puts the page's full address into the `state` it sends to ArcGIS. Its best feature,
+  token exchange for federated servers, only matters for Enterprise. About 150 lines and no new dependency instead.
+  Revisit for Enterprise portals.
+- **Where things live:** the popup only hands the code back (to its opener, same origin only, and on a
+  BroadcastChannel for when a sign-in page cuts the popup's link to the opener). This page holds the verifier,
+  exchanges the code and keeps the token and refresh token in memory. A reload forgets the sign-in. `oauth.html`
+  takes the code out of its address and history at once. The organisation's address (not a secret) is remembered in
+  localStorage. The log records only "signed in", "cancelled" or "failed", with no name or org.
+- **Where the token may go:** `tokenAllowed`, one rule used by the panel too (`SV.isOnline`): https, no port, an
+  `arcgis.com` host. A company server, the Worker, the atlas and the model never get it (unit tests and
+  `browser-service` check this). The sign-in is asked for only after the service says it needs one, so a public
+  Online service is still read, and recorded, as public. ArcGIS Online gets no credentialed (browser-login) try.
+- **The token field** stays, folded under "Other ways in" for Online services (open by default for other servers).
+  Next to it: a portal's Generate Token works; an app item's "Temporary Token" doesn't, because it's the app's own.
+- **Messages:** signed in but not shared → "Your ArcGIS sign-in doesn't open this service: it isn't shared with you,
+  or it belongs to another organisation." Org declines the app / person cancels → "The sign-in was cancelled, or your
+  organisation doesn't allow this app." Popup blocked → says to allow pop-ups.
+- **Tested:** `npm test` (new `test/arcgisauth.test.mjs`: the token rule, org addresses, redirect, PKCE, the return
+  by message and channel, wrong origin/state ignored, refusal, pop-up blocker, refresh); `browser-service` desktop and
+  phone (new: a faked Online service, org sign-in page, popup, token exchange, pick, bring in; no token, code or name
+  in storage or the log; token only to arcgis.com); `browser-ux`, `browser-sitefile`, `browser-run-card`.
+  **Not tested:** real ArcGIS Online (the sign-in page, token endpoint and CORS are faked), a real SAML login, a real
+  phone's popup handling, the registered redirect URIs.
+
 ## 26 Nov 2026 (morning, Rob's log): look at a layer before offering it
 - **Rob's Riccarton Road log:** the offer put up EMODnet's Pipelines for "subsea pipelines" on a site in Linlithgow;
   brought in, it had nothing within 20 km. The offer only checked that a layer's extent covered the site.

@@ -9,11 +9,12 @@
 <link rel="icon" href="img/tobler.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/public-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="js/vendor/maplibre-gl.css">
-<link rel="stylesheet" href="css/workspace.css?v=14c1406b">
+<link rel="stylesheet" href="css/workspace.css?v=0c9e304b">
 <script src="js/vendor/maplibre-gl.js"></script>
 <script type="importmap">
 {
  "imports": {
+  "./js/arcgisauth.js": "./js/arcgisauth.js?v=64df2845",
   "./js/areabudget.js": "./js/areabudget.js?v=8c33f8d4",
   "./js/assetpicks.js": "./js/assetpicks.js?v=01d8f63a",
   "./js/atlasclient.js": "./js/atlasclient.js?v=6e6b994a",
@@ -55,7 +56,7 @@
   "./js/rundiff.js": "./js/rundiff.js?v=13084e59",
   "./js/runreply.js": "./js/runreply.js?v=7aa1ee5b",
   "./js/seavalues.js": "./js/seavalues.js?v=a6bb8879",
-  "./js/servicesite.js": "./js/servicesite.js?v=e0b687b9",
+  "./js/servicesite.js": "./js/servicesite.js?v=142927ba",
   "./js/share.js": "./js/share.js?v=cd01f743",
   "./js/sharelog.js": "./js/sharelog.js?v=c41ca9c5",
   "./js/siterole.js": "./js/siterole.js?v=f9df2b66",
@@ -66,7 +67,7 @@
   "./js/vendor/fileread.js": "./js/vendor/fileread.js?v=c6e0d988",
   "./js/vendor/flatgeobuf.js": "./js/vendor/flatgeobuf.js?v=5d6365ac",
   "./js/vendor/turf.js": "./js/vendor/turf.js?v=555787c6",
-  "./js/workspace.js": "./js/workspace.js?v=10ca412a",
+  "./js/workspace.js": "./js/workspace.js?v=607a168a",
   "@turf/turf": "./js/vendor/turf.js?v=555787c6",
   "osmtogeojson": "./js/vendor/osmtogeojson.js?v=75ffea00"
  }
@@ -274,16 +275,23 @@
   <p class="svc-status quiet" aria-live="polite"></p>
   <div class="svc-signin" hidden>
     <p class="svc-why"></p>
+    <div class="svc-arcgis" hidden>
+      <label class="quiet">Your organisation's ArcGIS address, for a company sign-in (optional) <input type="text" class="svc-org" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="yourorg.maps.arcgis.com"></label>
+      <button type="button" class="arcgis-btn" data-op="svc-arcgis">Sign in with ArcGIS</button>
+      <p class="svc-who quiet" aria-live="polite"></p>
+    </div>
     <button type="button" data-op="svc-proxy" hidden>Read it through Tobler's server (public services only)</button>
-    <label>Token <input type="password" autocomplete="off" spellcheck="false" placeholder="Paste a token for this service"></label>
-    <button type="button" data-op="svc-token">Try again</button>
-    <p class="quiet">The token stays in this browser tab: it isn't saved, logged or sent to the AI. Or export the feature from ArcGIS as GeoJSON or a shapefile and <button type="button" class="link" data-op="svc-file">drop the file here</button> instead.</p>
+    <details class="svc-other"><summary>Other ways in</summary>
+      <label>Token <input type="password" class="svc-token-in" autocomplete="off" spellcheck="false" placeholder="Paste a token for this service"></label>
+      <button type="button" data-op="svc-token">Try again</button>
+      <p class="quiet">A token from your portal's Generate Token page works here. The "Temporary Token" on an app item doesn't: it's the app's own, not yours, so it can't open what's shared with you. A token stays in this browser tab: it isn't saved, logged or sent to the AI. Or export the feature from ArcGIS as GeoJSON or a shapefile and <button type="button" class="link" data-op="svc-file">drop the file here</button> instead.</p>
+    </details>
   </div>
   <div class="svc-picked" hidden><p class="svc-list"></p>
     <div class="svc-buffer" hidden><p>Points and lines need a buffer to become a site:</p>
       <div class="widths"><button type="button" data-b="10">10 m</button><button type="button" data-b="30">30 m</button><button type="button" data-b="50">50 m</button><button type="button" data-b="100">100 m</button></div></div>
   </div>
-  <p class="svc-notice quiet">Tobler copies the outline into this project, in your browser. The service's address and any token stay here and aren't saved. The AI sees the feature's name, the layer's name and the site's size and whereabouts, not the outline itself.</p>
+  <p class="svc-notice quiet">Tobler copies the outline into this project, in your browser. The service's address and any token or ArcGIS sign-in stay in this tab and aren't saved; the sign-in is only ever sent to ArcGIS Online. The AI sees the feature's name, the layer's name and the site's size and whereabouts, not the outline itself.</p>
   <footer><button type="button" class="primary" data-op="svc-use" disabled>Bring in as the site</button><button type="button" data-op="svc-close">Cancel</button></footer>
 </section>
 
@@ -376,6 +384,6 @@
   </article>
 </template>
 
-<script type="module" src="js/workspace.js?v=10ca412a"></script>
+<script type="module" src="js/workspace.js?v=607a168a"></script>
 </body>
 </html>

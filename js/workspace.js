@@ -10,6 +10,7 @@ import { parseSkill, systemPrompt, buildMessages, runTurn, activityFor } from ".
 import { finishTurn, runReply } from "./runreply.js";
 import { offerSummary, lower as lowerLabel } from "./bringin.js";
 import * as SV from "./servicesite.js";
+import { createSignIn } from "./arcgisauth.js";
 import { callClaude, LimitReached } from "./claude.js";
 import { atlasViaWorker, firmsViaWorker, epsgViaWorker } from "./atlasclient.js";
 import { CONFIG } from "./config.js";
@@ -1256,7 +1257,9 @@ const svcLabel = (a, layer, id) => { const k = Object.keys(a || {}).find((x) => 
 async function openServicePanel(svc) {
   closeServicePanel();
   const panel = $("svc-panel");
-  const state = { token: svc.token || null, credentialed: false, secured: false, proxy: svc.viaProxy ? CONFIG.proxyUrl : null };
+  const state = { token: svc.token || null, credentialed: false, secured: false, proxy: svc.viaProxy ? CONFIG.proxyUrl : null,
+    // Sign in with ArcGIS, for ArcGIS Online's own servers only (js/arcgisauth.js decides; nothing else gets the token).
+    getToken: SV.isOnline(svc.url) && !svc.viaProxy ? (u) => arcgisSignIn.tokenFor(u) : null };
   const S = { svc, state, info: null, layer: null, picked: new Map(), buffer: null, map: null, shown: null };
   svcOpen = S;
   panel.hidden = false;
@@ -1283,7 +1286,8 @@ async function openServicePanel(svc) {
   } catch (e) { if (svcOpen === S) showSignIn(S, e); return; }
   await loaded;
   if (svcOpen !== S) return;
-  status(`${S.info.name}: ${S.info.layers.length === 1 ? "one layer" : `${S.info.layers.length} layers`}. Click a feature to pick it; click again to drop it.`);
+  const via = state.signedIn && arcgisSignIn.who() ? ` Opened with your ArcGIS sign-in (${arcgisSignIn.who().username || "signed in"}).` : "";
+  status(`${S.info.name}: ${S.info.layers.length === 1 ? "one layer" : `${S.info.layers.length} layers`}. Click a feature to pick it; click again to drop it.${via}`);
   for (const id of ["svc-pick-fill", "svc-pick-line"]) if (S.map.getLayer(id)) S.map.removeLayer(id);
   S.map.addSource("svc-pick", { type: "geojson", data: turf.featureCollection([]) });
   S.map.addSource("svc-feat", { type: "geojson", data: turf.featureCollection([]) });
@@ -1368,16 +1372,61 @@ function showSignIn(S, err) {
   // (the address then goes to Tobler's server; no login or token ever does).
   const via = svcEl('[data-op="svc-proxy"]');
   via.hidden = !(err.blocked && CONFIG.proxyUrl && !S.svc.token && !S.svc.viaProxy);
-  svcEl(".svc-why").textContent = err.needsSignIn
-    ? `${err.message} If it's on your organisation's network, it should use your login when you're signed in to its portal; otherwise paste a token for it below.`
-    : err.message;
+  // ArcGIS Online: Sign in with ArcGIS first; a token and a file are folded under "Other ways in".
+  const online = SV.isOnline(S.svc.url) && !S.svc.viaProxy;
+  svcEl(".svc-arcgis").hidden = !online;
+  svcEl(".svc-other").open = !online || !!S.svc.token;
+  if (online) {
+    let org = "";
+    try { org = localStorage.getItem(ORG_KEY) || ""; } catch { /* no storage */ }
+    if (!svcEl(".svc-org").value) svcEl(".svc-org").value = org;
+    renderArcgisWho();
+  }
+  svcEl(".svc-why").textContent = !err.needsSignIn ? err.message
+    : online ? (err.refused ? `${err.message} Sign in as someone it's shared with, or check the address.` : `${err.message} Sign in with your ArcGIS account. If your organisation has its own sign-in page (a company login), give its ArcGIS address first.`)
+    : `${err.message} If it's on your organisation's network, it should use your login when you're signed in to its portal; otherwise use a token below. (Sign in with ArcGIS covers ArcGIS Online only for now, not an organisation's own ArcGIS Enterprise.)`;
 }
+// Sign in with ArcGIS (js/arcgisauth.js): one sign-in for the page, in memory only; a reload forgets it. The
+// organisation's address (not a secret) is remembered in this browser, so a company sign-in is one press next time.
+const arcgisSignIn = createSignIn();
+const ORG_KEY = "tobler.arcgisOrg";
+function renderArcgisWho(note) {
+  const w = arcgisSignIn.who();
+  const line = svcEl(".svc-who");
+  line.replaceChildren();
+  if (note) line.append(note);
+  else if (w) {
+    line.append(`Signed in to ${w.org || new URL(w.portal).host} as ${w.username || "you"}. `);
+    const out = el("button", "Sign out"); out.type = "button"; out.className = "link";
+    out.addEventListener("click", () => { arcgisSignIn.signOut(); if (svcOpen) openServicePanel({ ...svcOpen.svc }); });
+    line.append(out);
+  }
+  svcEl('[data-op="svc-arcgis"]').textContent = arcgisSignIn.waiting() ? "Waiting for the sign-in window…" : w ? "Sign in again" : "Sign in with ArcGIS";
+}
+arcgisSignIn.onChange(() => { if (svcOpen) renderArcgisWho(); });
+svcEl('[data-op="svc-arcgis"]').addEventListener("click", () => {
+  const S = svcOpen;
+  if (!S) return;
+  const org = svcEl(".svc-org").value.trim();
+  // Straight from the click, so the window isn't blocked.
+  const going = arcgisSignIn.begin(org);
+  renderArcgisWho("Sign in in the window that opened. It closes itself when you're done.");
+  svcEl('[data-op="svc-arcgis"]').textContent = "Waiting for the sign-in window…";
+  going.then(() => {
+    try { if (org) localStorage.setItem(ORG_KEY, org); else localStorage.removeItem(ORG_KEY); } catch { /* no storage */ }
+    sessionLog.push({ at: new Date().toISOString(), user: "[signed in with ArcGIS]", events: [{ arcgis_sign_in: "ok" }], reply: "[signed in]" });
+    if (svcOpen === S) openServicePanel({ ...S.svc });
+  }, (e) => {
+    sessionLog.push({ at: new Date().toISOString(), user: "[signed in with ArcGIS]", events: [{ arcgis_sign_in: e.cancelled ? "cancelled" : "failed" }], reply: "[not signed in]" });
+    if (svcOpen === S) renderArcgisWho(e.message);
+  });
+});
 function closeServicePanel() {
   const S = svcOpen;
   svcOpen = null;
   if (S) { S.state.token = null; try { S.map?.remove(); } catch { /* already gone */ } }
   $("svc-panel").hidden = true;
-  svcEl(".svc-signin input").value = "";
+  svcEl(".svc-token-in").value = "";
 }
 async function useServicePicks() {
   const S = svcOpen;
@@ -1422,9 +1471,9 @@ document.querySelectorAll('#svc-panel [data-op="svc-close"]').forEach((b) => b.a
 svcEl('[data-op="svc-use"]').addEventListener("click", () => useServicePicks());
 svcEl(".svc-buffer").querySelectorAll("[data-b]").forEach((b) => b.addEventListener("click", () => { if (svcOpen) { svcOpen.buffer = +b.dataset.b; paintServicePicks(svcOpen); } }));
 svcEl('[data-op="svc-token"]').addEventListener("click", () => {
-  const S = svcOpen; const t = svcEl(".svc-signin input").value.trim();
+  const S = svcOpen; const t = svcEl(".svc-token-in").value.trim();
   if (!S || !t) return;
-  svcEl(".svc-signin input").value = "";
+  svcEl(".svc-token-in").value = "";
   const svc = { ...S.svc, token: t };
   openServicePanel(svc);
 });

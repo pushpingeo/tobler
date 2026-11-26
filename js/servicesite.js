@@ -5,6 +5,7 @@
 // The feature is fetched in the service's own coordinates and converted by Tobler's file pipeline (js/fileimport.js),
 // so the datum is chosen from the EPSG registry as for a dropped file, not trusted to the server.
 // No DOM: js/workspace.js does the panel.
+import { tokenAllowed } from "./arcgisauth.js";
 
 // An ArcGIS REST address in what the person typed: a MapServer or FeatureServer, the service or one layer.
 // Returns { url, base, kind, layerId, host, token } or null. A token in the address is taken out of it.
@@ -28,8 +29,10 @@ export const redactService = (text) => String(text || "").replace(REST, "[a serv
 
 const TOKEN_ERRORS = new Set([498, 499, 401, 403]);
 export class ServiceError extends Error {
-  constructor(message, { needsSignIn = false, blocked = false } = {}) { super(message); this.needsSignIn = needsSignIn; this.blocked = blocked; }
+  constructor(message, { needsSignIn = false, blocked = false, refused = false } = {}) { super(message); this.needsSignIn = needsSignIn; this.blocked = blocked; this.refused = refused; }
 }
+// Is the service on ArcGIS Online (where Sign in with ArcGIS applies, and the only place its token may go)?
+export const isOnline = tokenAllowed;
 
 // A JSON request to the service. Tries a plain request first; when the service wants a sign-in, tries again sending
 // the browser's own login (a company network's single sign-on), then with the person's token if they gave one.
@@ -47,17 +50,27 @@ export async function serviceJson(url, params, state, { fetchFn = globalThis.fet
     let body = null;
     try { body = await r.json(); } catch { /* below */ }
     if (!r.ok) throw new ServiceError(body?.message || `Tobler's server couldn't read it (HTTP ${r.status}).`);
-    if (body?.error) throw new ServiceError(TOKEN_ERRORS.has(+body.error.code) ? "The service needs a sign-in, so it isn't public: Tobler's server can't read it. Paste a token instead, or drop an exported file." : `The service said: ${String(body.error.message || "an error").slice(0, 160)}.`, { needsSignIn: TOKEN_ERRORS.has(+body.error.code) });
+    if (body?.error) throw new ServiceError(TOKEN_ERRORS.has(+body.error.code) ? "The service needs a sign-in, so it isn't public: Tobler's server can't read it. Sign in instead, or drop an exported file." : `The service said: ${String(body.error.message || "an error").slice(0, 160)}.`, { needsSignIn: TOKEN_ERRORS.has(+body.error.code) });
     state.secured = false;
     return body;
   }
+  // ArcGIS Online's own servers don't take a browser login from another site, so they get no credentialed try; they
+  // take the person's Sign in with ArcGIS instead (state.getToken, js/arcgisauth.js), which is only asked for when
+  // the service turns out to need it, so a public service is read as public.
+  const online = isOnline(url);
   const tries = [];
   if (state.token) tries.push({ token: true });
-  else { tries.push({}); tries.push({ credentials: true }); }
+  else { tries.push({}); if (!online) tries.push({ credentials: true }); if (online && state.getToken) tries.push({ signIn: true }); }
   let last = null;
   for (const t of state.credentialed && !state.token ? [{ credentials: true }] : tries) {
     const qp = new URLSearchParams(q);
     if (t.token) qp.set("token", state.token);
+    if (t.signIn) {
+      if (!last?.needsSignIn) break; // only after the service said it needs one
+      const tok = await state.getToken(url);
+      if (!tok) break;
+      qp.set("token", tok);
+    }
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), timeoutMs);
     let r;
@@ -71,18 +84,24 @@ export async function serviceJson(url, params, state, { fetchFn = globalThis.fet
         : "The service didn't answer this page. It may not allow requests from other websites (CORS), or it may need a sign-in.", { blocked: true });
       continue;
     } finally { clearTimeout(timer); }
-    if (TOKEN_ERRORS.has(r.status)) { last = new ServiceError("The service needs a sign-in.", { needsSignIn: true }); continue; }
+    if (TOKEN_ERRORS.has(r.status)) { last = t.signIn ? new ServiceError("Your ArcGIS sign-in doesn't open this service: it isn't shared with you, or it belongs to another organisation.", { needsSignIn: true, refused: true }) : new ServiceError("The service needs a sign-in.", { needsSignIn: true }); continue; }
     if (!r.ok) { last = new ServiceError(`The service answered with an error (HTTP ${r.status}).`); continue; }
     let body;
     try { body = await r.json(); } catch { last = new ServiceError("The service's answer wasn't readable."); continue; }
     if (body?.error) {
       const code = +body.error.code;
-      if (TOKEN_ERRORS.has(code)) { last = new ServiceError(code === 498 ? "The token was refused (it may have expired)." : "The service needs a sign-in.", { needsSignIn: true }); continue; }
+      if (TOKEN_ERRORS.has(code)) {
+        last = t.signIn ? new ServiceError("Your ArcGIS sign-in doesn't open this service: it isn't shared with you, or it belongs to another organisation.", { needsSignIn: true, refused: true })
+          : new ServiceError(code === 498 ? "The token was refused (it may have expired)." : "The service needs a sign-in.", { needsSignIn: true });
+        continue;
+      }
       last = new ServiceError(`The service said: ${String(body.error.message || "an error").slice(0, 160)}.`);
       continue;
     }
     if (t.credentials) state.credentialed = true;
-    state.secured = !!(t.credentials || t.token) || !!state.secured;
+    // A sign-in that worked: its token is used for the rest of this panel (the map's tiles too), in memory only.
+    if (t.signIn) { state.token = qp.get("token"); state.signedIn = true; }
+    state.secured = !!(t.credentials || t.token || t.signIn) || !!state.secured;
     return body;
   }
   throw last || new ServiceError("The service couldn't be reached.");
