@@ -1224,6 +1224,7 @@ await test("the sealed screen (26 Nov): one judgement with no tools, then the at
   assert.equal(r2.brought_in[0].atlas_id, "wreck");
   assert.ok(shown[1].features.some((f) => f.properties.role === "evidence" && /Troldfos/i.test(f.properties.name)), "now part of the run's evidence");
   assert.ok(!r2.offer.items.some((x) => x.dataset.atlas_id === "wreck"), "not offered again");
+  assert.match(r2.replaces.diff.lines.join(" "), /This run also judged what you brought in: Worldwide wreck locations/);
   assert.ok(atlasCalls.slice(before).some(([tool, a]) => tool === "fetch_features" && a.id === "wreck" && a.limit === 500));
 });
 

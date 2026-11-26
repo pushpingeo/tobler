@@ -437,7 +437,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     const l = layerFetch.get(x.atlas_id) || { source: x, km: 0, fields: new Set(), name_field: x.name_field || null, coverage: false };
     // Every check layer fetches only to its own reach, up to 500 features (24 Nov): fetched out to the wider band, a
     // busy layer filled its limit with features far away and undercounted the ones in reach (15+ scheduled monuments
-    // round Linlithgow). The analyst's own searches still go to the wider band, for the slider.
+    // round Linlithgow). Layers the person brought in still go to the wider band, for the slider.
     l.km = Math.max(l.km, Math.min(MAX_KM, Math.max(0, p.reach_km || 0)));
     if (p.check.answer === "classes") l.coverage = true;
     for (const f of [x.code_field, x.filter?.field, x.class_field, ...(x.keep_fields || [])].filter(Boolean)) l.fields.add(f);

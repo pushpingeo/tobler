@@ -15,6 +15,10 @@ Judgement calls made while building, newest first. Bigger product decisions live
   that used it now bring the same layers in (`BROUGHT` in `ntrrun.test.mjs`) or take them from the checks (the
   fixture's Crown Estate Scotland pipelines); counts that changed say why. The re-assess call uses the sealed
   screen's prompt.
+- **A re-run says what it judged anew:** "This run also judged what you brought in: …" in the comparison with the run
+  before; the old line blaming "the analyst's own searches" is now "the analyst's judgement of them".
+- **Live replay on main** (run 45770920810): Stanlow solar, bring them all in, re-run: R2 fetched the two brought-in
+  layers (Pipelines, Battlefields) to 20 km and judged them; no layer offered twice.
 - **Tested:** `npm test` (ntrrun 41, a re-run including what was brought in), and the browser checks that run
   screens and studies (run-card, search-area, outofdate, choice, ux, study, budget, cards), desktop and phone.
 

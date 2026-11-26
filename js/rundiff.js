@@ -44,6 +44,10 @@ export function runDiff(oldRec, newRec, { siteChanged = null } = {}) {
   if (moves.reached.length) lines.push(`Reached this time but not before: ${list(moves.reached)}.`);
   if (moves.answer.length) lines.push(`Different answers: ${list(moves.answer)}.`);
   const sameChecks = !moves.lost.length && !moves.reached.length && !moves.answer.length;
+  // Layers the person brought in after the earlier run, judged in this one (26 Nov).
+  const had = new Set((a.brought_in || []).map((x) => x.atlas_id));
+  const newly = (b.brought_in || []).filter((x) => !had.has(x.atlas_id)).map((x) => x.dataset);
+  if (newly.length) lines.push(`This run also judged what you brought in: ${list(newly)}.`);
   // The result.
   if (a.budget && b.budget) {
     if (a.budget.net_ha !== b.budget.net_ha) lines.push(`Net area: was ${a.budget.net_ha} ha, now ${b.budget.net_ha} ha.`);
@@ -59,10 +63,8 @@ export function runDiff(oldRec, newRec, { siteChanged = null } = {}) {
     }
     // Nothing moved underneath, but the result did: say plainly where the difference comes from.
     const resultMoved = dv(a) !== dv(b) || added.length || dropped.length || a.flags.length !== b.flags.length;
-    if (resultMoved && !asked.length && !siteChanged && sameChecks) {
-      lines.push(b.study
-        ? "The checks came back the same, so the difference is in the analyst's judgement of them, not in the data."
-        : "The checks came back the same, so the difference is in the analyst's own searches and judgement, not in the standard checks.");
+    if (resultMoved && !asked.length && !siteChanged && sameChecks && !newly.length) {
+      lines.push("The checks came back the same, so the difference is in the analyst's judgement of them, not in the data.");
     }
   }
   if (!lines.length) lines.push("Nothing changed: same request, same checks, same result.");

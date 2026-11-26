@@ -164,7 +164,7 @@ await test("a rerun says what changed, and when nothing underneath did, that it'
   assert.deepEqual(same.lines, [
     "Decision: was progress with targeted investigation, now major issue.",
     "Flags: was 4, now 2; none now on biodiversity or community and health.",
-    "The checks came back the same, so the difference is in the analyst's own searches and judgement, not in the standard checks.",
+    "The checks came back the same, so the difference is in the analyst's judgement of them, not in the data.",
   ]);
   const ev = runDiff(F.evoraFirst, F.evoraSecond);
   assert.deepEqual(ev.lines, [
@@ -182,7 +182,7 @@ await test("a rerun says what changed, and when nothing underneath did, that it'
   rec.tobler_run.replaces = { run: "R1", why: "run again on the same site", diff: same };
   const t = runReply(rec);
   clean(t);
-  assert.match(t, /\n\nCompared with R1: Decision: was progress with targeted investigation, now major issue\. .* not in the standard checks\.\n\n/);
+  assert.match(t, /\n\nCompared with R1: Decision: was progress with targeted investigation, now major issue\. .* not in the data\.\n\n/);
 });
 
 console.log(`${passed} run reply tests passed`);
