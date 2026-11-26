@@ -13,13 +13,17 @@ Judgement calls made while building, newest first. Bigger product decisions live
   "battery storage", "power station", "… quarry") and no `kind`, code asks the atlas for that kind too (`projectKind`
   in `js/placetools.js`), in the call's area or country, or a map view no wider than 15°; otherwise it says it
   wasn't searched. The report says `kind_from_name`. Rob's Droves log (25 Nov): the analyst searched by name only, so
-  the Planning Inspectorate's outline was never asked for.
+  the Planning Inspectorate's outline was never asked for. Only the main query is read: in a replay (run
+  45826101833) the analyst added "Riccarton solar farm" as an alternative to a Riccarton Road search, and the extra
+  UK-wide atlas search made a 3 s search take 34 s. An atlas search by kind takes about 30 s either way.
 - **Live replay on main** (run 45824550185, real outlines, before these two): the Stanlow desk study and a Barnston
   housing screen asked England's layers only; their not-checked lines are England's own pending sources (permits,
   pollution incidents, surface water flooding), with no Welsh source among them.
 - **Tested:** `npm test` (a checks test for sea checks inland, on the shore, just past the slack and at sea; a place
   test for the kinds read from names and the wide-view refusal); browser checks choice, ux, run-card, search-area,
-  study, desktop and phone. **Not tested:** a live replay of a named project after the change.
+  study, desktop and phone. Replay 45826101833: Droves found the Planning Inspectorate's outline (the analyst gave
+  the kind itself that time, so the new path wasn't needed); Riccarton Road showed the slow-search problem above,
+  now fixed. **Not tested:** a live replay where the analyst leaves the kind out.
 
 ## 26 Nov 2026 (afternoon): real nation and council outlines in place of boxes (plan item 1, first part)
 - **What:** which UK nation's or council's layers a site gets is now decided on real outlines, not boxes

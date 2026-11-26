@@ -529,7 +529,9 @@ export function createPlaceTools(host) {
       const catalogueNames = [...new Set([...names, ...names.map(core).filter((c) => c && c.length >= 3)])].slice(0, 6);
       // A kind read from the name is searched where the call says (its area, or its country), or in a map view no
       // wider than a region: the whole world's power-plant layers would be slow and noisy.
-      const named = !kind ? projectKind(names) : null;
+      // Only the main query: a project name the analyst adds as an alternative spelling to an address search
+      // ("Riccarton solar farm" beside "Riccarton Road") made a 3 s search take 34 s in a replay (26 Nov).
+      const named = !kind ? projectKind([asked[0]]) : null;
       const namedSearch = named ? searchCatalogue(catalogueNames, named, area || country, nearAt, { maxSpanDeg: 15 }) : null;
       const [atlas, ...byName] = await Promise.all([kind ? searchCatalogue(catalogueNames, kind, area, nearAt) : namedSearch, ...names.map(perName)]);
       if (atlas?.report && named) atlas.report.kind_from_name = named;
