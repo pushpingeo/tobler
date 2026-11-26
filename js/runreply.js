@@ -4,6 +4,7 @@
 // No DOM, so the page, the replay script and the tests share it.
 import { budgetSummary } from "./developable.js";
 import { searchHeadline } from "./siterole.js";
+import { offerLines, bringInReply } from "./bringin.js";
 
 const MAX_FLAGS = 3;
 const MAX_GAPS = 4;
@@ -86,6 +87,7 @@ export function screenReply(record, { replaced = null } = {}) {
   const gaps = gapsLine(r);
   if (gaps) paras.push(gaps);
   paras.push(r.flags.length ? "The card below has the evidence, next steps and the distance slider. Ask me about any flag." : "The card below has what was checked and the distance slider.");
+  paras.push(...offerLines(r));
   return paras.join("\n\n");
 }
 
@@ -106,6 +108,7 @@ export function studyReply(record, { replaced = null } = {}) {
   if (gaps) paras.push(gaps);
   const adds = r.study?.full_study_adds?.length || 0;
   paras.push(`The card below sets out the sources, pathways and receptors checked${adds ? `, and the ${plural(adds, "thing")} a full desk study would add that open records don't hold` : ""}. Ask me about any linkage.`);
+  paras.push(...offerLines(r));
   return paras.join("\n\n");
 }
 
@@ -184,6 +187,8 @@ export function finishTurn(screening) {
       // Held until the person has seen the place, said which part of it is the site, or picked an analysis.
       if (out.held) return heldReply(out);
     }
+    // Layers brought in after a run (or the offer declined): what came back, written in code.
+    if (name === "bring_in_layers") return bringInReply(out);
     // Buttons are on screen: the turn ends here, so nothing runs or gets built until the person picks.
     if (BUTTONS[name] && !out.not_available) return { text: BUTTONS[name](out, input), soft: true };
     return null;

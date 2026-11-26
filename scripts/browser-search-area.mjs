@@ -25,6 +25,11 @@ function atlas(tool, args) {
   if (tool === "find_datasets" && /monument/i.test(args.text || "")) return { matches: 1, results: [{ id: "sm", title: "Scheduled Monuments", publisher: "Historic Environment Scotland", capabilities: ["query"], licence: "Historic Environment Scotland" }] };
   if (tool === "find_datasets" && /peat/i.test(args.text || "")) return { matches: 1, results: [{ id: "peat", title: "Carbon and peatland map", publisher: "NatureScot", capabilities: ["query"], licence: "Open Government Licence" }] };
   if (tool === "find_datasets") return { matches: 0, results: [] };
+  // Since 26 Nov the screen's analyst has no tools: the roost, the monument and the peat come from the checks'
+  // own Scottish layers (SPA, scheduled monuments, SSSIs).
+  if (tool === "fetch_features" && args.id === "b10cb9d7a2892f7f") return { returned: 1, features: [{ type: "Feature", geometry: ROOST, properties: { NAME: "Kintyre Goose Roosts" } }] };
+  if (tool === "fetch_features" && args.id === "a6136b469d7f05be") return { returned: 1, features: [{ type: "Feature", geometry: { type: "Point", coordinates: MONUMENT }, properties: { DES_TITLE: "Killocraw, cup marked stone" } }] };
+  if (tool === "fetch_features" && args.id === "c6e90f0435ff9097") return { returned: 1, features: [{ type: "Feature", geometry: PEAT, properties: { NAME: "Class 1 peat" } }] };
   if (tool === "fetch_features" && args.id === "spa") return { returned: 1, features: [{ type: "Feature", geometry: ROOST, properties: { NAME: "Kintyre Goose Roosts" } }] };
   if (tool === "fetch_features" && args.id === "peat") return { returned: 1, features: [{ type: "Feature", geometry: PEAT, properties: { NAME: "Class 1 peat" } }] };
   if (tool === "fetch_features" && args.id === "sm") return { returned: 1, features: [{ type: "Feature", geometry: { type: "Point", coordinates: MONUMENT }, properties: { DES_TITLE: "Killocraw, cup marked stone" } }] };
@@ -47,9 +52,8 @@ const firsts = [];
 function model(body) {
   const sys = (Array.isArray(body.system) ? body.system.map((b) => b.text).join("") : body.system) || "";
   const n = body.messages.length;
-  if (/running one sealed screen/.test(sys)) {
-    if (n === 1) { firsts.push(String(body.messages[0].content)); return toolUse(["find_data", { text: "protection", area: "Cnoc Buidhe" }], ["find_data", { text: "monument", area: "Cnoc Buidhe" }], ["find_data", { text: "peat", area: "Cnoc Buidhe" }]); }
-    if (n === 3) return toolUse(["get_data", { dataset: "D1", place: "Cnoc Buidhe", theme: "biodiversity" }], ["get_data", { dataset: "D2", place: "Cnoc Buidhe", theme: "heritage" }], ["get_data", { dataset: "D3", place: "Cnoc Buidhe", theme: "biodiversity" }]);
+  if (/one sealed screen/.test(sys)) {
+    firsts.push(String(body.messages[0].content));
     return text(cite(RESULT, body));
   }
   const last = body.messages.at(-1);

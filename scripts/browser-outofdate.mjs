@@ -22,13 +22,15 @@ const SCHOOL = turf.destination(CENTRE, 0.9, 45).geometry.coordinates;
 function atlas(tool, args) {
   if (tool === "find_datasets" && /school/i.test(args.text || "")) return { matches: 1, results: [{ id: "sch", title: "Schools", publisher: "Scottish Government", capabilities: ["query"], licence: "Open Government Licence" }] };
   if (tool === "find_datasets") return { matches: 0, results: [] };
+  // Since 26 Nov the screen's analyst has no tools: the evidence comes from a check's own layer (NatureScot's SSSIs).
+  if (tool === "fetch_features" && args.id === "c6e90f0435ff9097") return { returned: 1, features: [{ type: "Feature", geometry: turf.circle(SCHOOL, 0.2, { units: "kilometers", steps: 16 }).geometry, properties: { NAME: "Linlithgow Loch SSSI" } }] };
   if (tool === "fetch_features" && args.id === "sch") return { returned: 1, features: [{ type: "Feature", geometry: { type: "Point", coordinates: SCHOOL }, properties: { NAME: "Linlithgow Bridge Primary" } }] };
   return { matches: 0, results: [], returned: 0, features: [] };
 }
 const json = (s) => "```json\n" + JSON.stringify(s) + "\n```";
 let screens = 0;
-const result = () => "Screened as solar.\n\n" + json({ decision: screens > 1 ? "progress" : "progress with targeted investigation", decision_why: "A school nearby.", flags: [
-  { risk: "Primary school close to the site", theme: "PS4", severity: "medium", confidence: "high", next_step: "Traffic plan", why: "Construction traffic.", evidence: [{ name: "Linlithgow Bridge Primary", distance_km: 0.4, dataset: "Schools" }] },
+const result = () => "Screened as solar.\n\n" + json({ decision: screens > 1 ? "progress" : "progress with targeted investigation", decision_why: "An SSSI nearby.", flags: [
+  { risk: "SSSI close to the site", topic: "biodiversity", severity: "medium", confidence: "high", next_step: "Ecology walkover", why: "Drainage and disturbance.", evidence: [{ name: "Linlithgow Loch SSSI" }] },
 ], checked: [], data_gaps: [] });
 const toolUse = (...u) => ({ id: "m", type: "message", role: "assistant", stop_reason: "tool_use", content: u.map(([name, input], i) => ({ type: "tool_use", id: `t${Date.now()}${i}`, name, input })), usage: { input_tokens: 100, output_tokens: 10 } });
 const text = (t) => ({ id: "m", type: "message", role: "assistant", stop_reason: "end_turn", content: [{ type: "text", text: t }], usage: { input_tokens: 100, output_tokens: 10 } });
@@ -36,9 +38,8 @@ const asked = [];
 function model(body) {
   const sys = (Array.isArray(body.system) ? body.system.map((b) => b.text).join("") : body.system) || "";
   const n = body.messages.length;
-  if (/running one sealed screen/.test(sys)) {
-    if (n === 1) { screens++; return toolUse(["find_data", { text: "school", area: "Area 1" }]); }
-    if (n === 3) return toolUse(["get_data", { dataset: "D1", place: "Area 1", theme: "community" }]);
+  if (/one sealed screen/.test(sys)) {
+    screens++;
     return text(cite(result(), body));
   }
   const first = body.messages[0];

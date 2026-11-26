@@ -194,7 +194,8 @@ export function createDataTools(host) {
     // fields and name_field are for the run's checks, not the analyst (not in the tool's schema): attributes to keep on
     // every feature whatever they're called (a site code, a flood zone, a grade), and the field that holds the name.
     // limit: features per query for the checks (the atlas allows up to 500; the analyst's own calls keep 100).
-    async get_data({ dataset, place, within_km, name, days, theme, fields = [], name_field = null, limit = 100 }) {
+    // collect(features, meta): for code that keeps what came back (layers brought in after a run, js/bringin.js).
+    async get_data({ dataset, place, within_km, name, days, theme, fields = [], name_field = null, limit = 100, collect = null }) {
       const lim = Math.max(1, Math.min(500, +limit || 100));
       const d = datasets.get(String(dataset).trim().toUpperCase());
       if (!d) throw new Error(`"${dataset}" isn't a dataset id from find_data in this conversation. Use find_data first.`);
@@ -247,6 +248,7 @@ export function createDataTools(host) {
       found.sort((x, y) => x.distance_km - y.distance_km || x._fromCentre - y._fromCentre);
       const kept = found.map((c) => ({ ...c, id: host.keep(c) }));
       if (kept.length) host.onCandidates?.(kept, { theme: themeFor({ theme: theme || d.service?.theme, concepts: d.concepts }), dataset: d.title, publisher: d.publisher, place: p.feature });
+      if (typeof collect === "function") collect(kept, { dataset: d.title, publisher: d.publisher, licence: lic.short, checked_at: checkedAt });
       const inside = kept.filter((c) => c.distance_km === 0 && !c.around_site).length;
       const around = kept.filter((c) => c.around_site).length;
       const returned = g.returned ?? (g.features || []).length;

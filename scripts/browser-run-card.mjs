@@ -15,14 +15,18 @@ const half = 5 / 111.32, halfLon = 5 / (111.32 * Math.cos(FIELD[1] * Math.PI / 1
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
 const SQUARE = { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [[[FIELD[0] - halfLon, FIELD[1] - half], [FIELD[0] + halfLon, FIELD[1] - half], [FIELD[0] + halfLon, FIELD[1] + half], [FIELD[0] - halfLon, FIELD[1] + half], [FIELD[0] - halfLon, FIELD[1] - half]].map((c) => c.map(r6))] } };
 
+const atlasLog = [];
 function atlas(tool, args) {
+  atlasLog.push({ tool, args });
   if (tool === "find_datasets" && /pipeline/i.test(args.text || "")) return { matches: 1, results: [{ id: "pipe", title: "UKCS pipelines (WGS84)", publisher: "North Sea Transition Authority", capabilities: ["query"], licence: "NSTA Open User Licence" }] };
   if (tool === "find_datasets" && /wreck/i.test(args.text || "")) return { matches: 1, results: [{ id: "wreck", title: "Worldwide wreck locations (UK Hydrographic Office)", publisher: "EMODnet Human Activities", capabilities: ["query"], licence: "Creative Commons CC-BY 4.0" }] };
   if (tool === "find_datasets") return { matches: 0, results: [] };
   // MARPOL's North West European waters: a wide area the field lies within ("around the site").
   if (tool === "fetch_features" && args.id === "751ddc65885f897d") return { returned: 1, features: [{ type: "Feature", geometry: turf.bboxPolygon([-15, 48, 10, 64]).geometry, properties: { name: "North West European waters" } }] };
-  if (tool === "fetch_features" && args.id === "pipe") {
-    const line = (a, name) => ({ type: "Feature", geometry: { type: "LineString", coordinates: [a, turf.destination(a, 2, 0).geometry.coordinates] }, properties: { PIPE_NAME: name } });
+  // Since 26 Nov the screen's analyst has no tools: the pipelines come from the subsea pipelines check (Crown Estate
+  // Scotland's layer), and the wreck layer is offered after the run and fetched only on a yes.
+  if (tool === "fetch_features" && (args.id === "pipe" || args.id === "c026fa004eab396c")) {
+    const line = (a, name) => ({ type: "Feature", geometry: { type: "LineString", coordinates: [a, turf.destination(a, 2, 0).geometry.coordinates] }, properties: { PIPE_NAME: name, Lease_Description: name } });
     return { returned: 3, features: [line(FIELD, "Rosebank 9 inch Production flowline 1"), line(east(1.5), "West of Shetland Pipeline"), line(east(30), "Clair export")] };
   }
   if (tool === "fetch_features" && args.id === "wreck") return { returned: 2, features: [
@@ -36,25 +40,27 @@ function atlas(tool, args) {
 }
 
 const json = (s) => "```json\n" + JSON.stringify(s) + "\n```";
-const RESULT = "Screened as an offshore oil field (assumed, greenfield).\n\n" + json({ decision: "progress with targeted investigation", decision_why: "Live pipelines and a wreck need checking; nothing found so far should stop it.", flags: [
+const RESULT = "Screened as an offshore oil field (assumed, greenfield).\n\n" + json({ decision: "progress with targeted investigation", decision_why: "Live pipelines and a SAC need checking; nothing found so far should stop it.", flags: [
   { risk: "Existing pipelines on and near the site (simultaneous operations)", theme: "PS4", severity: "high", confidence: "high", next_step: "Agree crossing and proximity arrangements with the pipeline operators", why: "Work beside live lines needs SIMOPS planning.", evidence: [{ name: "Rosebank 9 inch Production flowline 1", distance_km: 0, dataset: "UKCS pipelines (WGS84)" }, { name: "West of Shetland Pipeline", distance_km: 1.5, dataset: "UKCS pipelines (WGS84)" }] },
-  { risk: "A wreck close to the field may need a survey and an exclusion zone", theme: "PS8", severity: "medium", confidence: "medium", why: "Heritage and safety.", evidence: [{ name: "TROLDFOS (POSSIBLY)", distance_km: 2, dataset: "Worldwide wreck locations (UK Hydrographic Office)" }] },
+  { risk: "A Special Area of Conservation in the wider band may need an appropriate assessment", theme: "PS6", severity: "medium", confidence: "medium", why: "Spill and noise reach.", evidence: [{ name: "Wyville Thomson Ridge" }] },
   { risk: "Seabird colonies on Shetland may be in spill reach", theme: "PS6", severity: "medium", confidence: "low", why: "Regional knowledge, not mapped data.", evidence: [{ name: "Foula seabird colony", distance_km: 40, dataset: "none (regional knowledge)" }] },
-], checked: [], data_gaps: ["Key Biodiversity Areas not checked", "Fishing effort not checked", "No Indigenous Peoples data in the catalogue here", "Stage assumed to be greenfield"] });
+], checked: [], data_gaps: ["Key Biodiversity Areas not checked", "Fishing effort not checked", "No Indigenous Peoples data in the catalogue here", "Stage assumed to be greenfield"],
+  look_for: [{ what: "Shipwrecks", words: ["wreck"], topic: "heritage" }] });
 const REASSESS = "Within 1 km only the field's own lines matter.\n\n" + json({ flags: [{ risk: "Existing flowlines on site", theme: "PS4", confidence: "high", why: "SIMOPS.", evidence: [{ name: "Rosebank 9 inch Production flowline 1", distance_km: 0, dataset: "UKCS pipelines (WGS84)" }] }], data_gaps: ["Key Biodiversity Areas not checked"] });
 
 const toolUse = (...u) => ({ id: "m", type: "message", role: "assistant", stop_reason: "tool_use", content: u.map(([name, input], i) => ({ type: "tool_use", id: `t${Date.now()}${i}`, name, input })), usage: { input_tokens: 100, output_tokens: 10 } });
 const text = (t) => ({ id: "m", type: "message", role: "assistant", stop_reason: "end_turn", content: [{ type: "text", text: t }], usage: { input_tokens: 100, output_tokens: 10 } });
+const calls = { screen: [], conversation: [] };
 function model(body) {
   const sys = (Array.isArray(body.system) ? body.system.map((b) => b.text).join("") : body.system) || "";
   const n = body.messages.length;
   const first = String(body.messages[0]?.content || "");
-  if (/running one sealed screen/.test(sys)) {
+  if (/one sealed screen/.test(sys)) {
     if (/^Re-assess/.test(first)) return text(cite(REASSESS, body));
-    if (n === 1) return toolUse(["find_data", { text: "pipeline", area: "Area 1" }], ["find_data", { text: "wreck", area: "Area 1" }]);
-    if (n === 3) return toolUse(["get_data", { dataset: "D1", place: "Area 1", within_km: 5, theme: "community" }], ["get_data", { dataset: "D2", place: "Area 1", theme: "heritage" }]);
+    calls.screen.push(body);
     return { ...text(cite(RESULT, body)), held: true };
   }
+  calls.conversation.push(body);
   const last = body.messages.at(-1);
   if (Array.isArray(last.content) && last.content.some((b) => b.type === "tool_result")) return text("Screened Area 1: live pipelines on and next to the field are the main flag, then a wreck 2 km east. Key Biodiversity Areas and fishing effort weren't checked.");
   const asked = JSON.stringify(body.messages);
@@ -65,6 +71,7 @@ const browser = await chromium.launch({ executablePath: CHROME, args: ["--no-san
 const results = [];
 const check = (ok, what) => { results.push(`${ok ? "PASS" : "FAIL"} ${what}`); };
 for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["phone", { width: 390, height: 844 }]]) {
+  const log0 = atlasLog.length;
   const page = await browser.newPage({ viewport });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -194,6 +201,33 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   check(s.flags.length === 2 && /pipelines/.test(s.flags[0]), `${label}: two flags, high first; the untraced one isn't raised (${s.flags[0]})`);
   check(/^Progress with targeted investigation\. Live pipelines/.test(s.decision), `${label}: decision line first on the card (${s.decision.slice(0, 50)})`);
   check(/^F-01/.test(s.flags[0]) && /F-02/.test(s.flags[1]), `${label}: findings numbered F-01 to F-02`);
+  // Bring in a layer after the run (plan item 1, 26 Nov): the screen's analyst had no tools, the reply offered the wreck
+  // layer the analyst named in look_for, and nothing was fetched until the button.
+  check(calls.screen.length > 0 && calls.screen.every((b) => !b.tools), `${label}: the screen's model call had no tools (${calls.screen.length} calls)`);
+  const offer = await page.evaluate(() => {
+    const card = document.querySelector(".layer-offer");
+    const reply = card?.previousElementSibling;
+    return { buttons: [...(card?.querySelectorAll("button") || [])].map((b) => b.textContent), title: card?.querySelector("button")?.title || "",
+      replyText: reply?.textContent || "", afterReply: !!reply?.classList.contains("msg") && !reply.classList.contains("run") };
+  });
+  check(offer.buttons.join("|") === "Worldwide wreck locations (UK Hydrographic Office)|No thanks" && /EMODnet Human Activities · Creative Commons CC-BY 4\.0 · for shipwrecks/.test(offer.title),
+    `${label}: one button per layer offered, and No thanks (${offer.buttons.join("|")})`);
+  check(offer.afterReply && /Bring it in\? Use the buttons below/.test(offer.replyText) && /Nothing is added unless you say so/.test(offer.replyText), `${label}: the offer sits under the reply that asks (${offer.replyText.slice(-120)})`);
+  check(!atlasLog.slice(log0).some((a) => a.tool === "fetch_features" && a.args.id === "wreck"), `${label}: the wreck layer wasn't fetched before a yes`);
+  const nConv = calls.conversation.length;
+  await page.click(".layer-offer button");
+  await page.waitForFunction(() => /Brought in for R1/.test(document.querySelector("#conversation .msg.analyst:last-of-type")?.textContent || "") || [...document.querySelectorAll("#conversation .msg.analyst")].some((m) => /Brought in for R1/.test(m.textContent)), null, { timeout: 20000 });
+  const got = await page.evaluate(() => ({
+    reply: [...document.querySelectorAll("#conversation .msg.analyst")].map((m) => m.textContent).find((t) => /Brought in for R1/.test(t)) || "",
+    added: document.querySelector('.run[data-run="R1"] .added')?.hidden === false ? document.querySelector('.run[data-run="R1"] .added').textContent : "",
+    done: document.querySelector(".layer-offer").classList.contains("done"),
+  }));
+  check(/Worldwide wreck locations \(UK Hydrographic Office\) \(EMODnet Human Activities; Creative Commons CC-BY 4\.0; checked \d{4}-\d\d-\d\d\): 2 features within/.test(got.reply) && /made without this layer/.test(got.reply),
+    `${label}: the reply after the button is code's, with source, licence and date (${got.reply.slice(0, 400)})`);
+  check(calls.conversation.length === nConv, `${label}: no model call for the button (${calls.conversation.length - nConv})`);
+  check(atlasLog.slice(log0).some((a) => a.tool === "fetch_features" && a.args.id === "wreck"), `${label}: the wreck layer was fetched on the yes`);
+  check(/^Brought in after the run \(1\)/.test(got.added) && /made without these/.test(got.added) && got.done, `${label}: the run card lists what came in, apart from the run's own evidence; the offer is closed (${got.added.slice(0, 80)})`);
+  await page.screenshot({ path: `/tmp/ux-${label}-bring-in.png` });
   check(/^Next step: Agree crossing/.test(s.next), `${label}: a flag shows its next step (${s.next.slice(0, 40)})`);
   // Feedback (Rob, 22 Nov): thumbs and a "Something's wrong?" box on the run card and on the reply, each sent to the
   // session log beside the turn. Thumbs down opens the box; an empty note isn't sent.
@@ -255,7 +289,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await page.waitForFunction(() => /Link copied|couldn't/.test(document.querySelector(".run .share-note")?.textContent || ""), null, { timeout: 10000 }).catch(() => {});
   const copied = await page.evaluate(async () => ({ note: document.querySelector(".run .share-note").textContent, clip: await navigator.clipboard.readText().catch(() => "") }));
   check(/^Link copied/.test(copied.note) && /\/report\.html#v1\./.test(copied.clip), `${label}: Copy share link copies the report's link (${copied.note.slice(0, 40)})`);
-  check(s.out === "50 km" && s.onMap === 7, `${label}: slider at 50 km, 6 findings (with the UK SAC) and the wide area on the map (${s.out}, ${s.onMap})`);
+  check(s.out === "50 km" && s.onMap === 4, `${label}: slider at 50 km, 3 findings (two pipelines from the check, the UK SAC) and the wide area on the map (${s.out}, ${s.onMap})`);
   check(/near 2 km · close 10 km · wider 50 km/.test(s.dists), `${label}: distances and reason shown`);
   check(s.sea === "Water depth about 120 m, 110–130 m across the site (NOAA). Vessel traffic: light on the site (0.3 h/km² a month) (AIS 2023, EMODnet).", `${label}: water depth and vessel traffic on the card (${s.sea.slice(0, 80)})`);
   await page.$eval(".run", (e) => e.scrollIntoView({ block: "start" }));
@@ -264,7 +298,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   s = await st();
   check(s.onMap === 2 && s.out === "1 km", `${label}: slider to 1 km leaves 1 finding and the wide area on the map (${s.onMap})`);
   check(s.stale && s.beyond === 1, `${label}: re-assess offered, wreck flag dimmed as beyond (${s.beyond})`);
-  check(/Nearest: community and health, Rosebank 9 inch Production flowline 1 \(on site\)/.test(s.nearest), `${label}: nearest-by-topic line (an old record: its theme reads as a topic) (${s.nearest})`);
+  check(/Nearest: material assets, Rosebank 9 inch Production flowline 1 \(on site\)/.test(s.nearest), `${label}: nearest-by-topic line (the check's topic) (${s.nearest})`);
   check(/lies within a wide area: North West European waters\./.test(s.nearest) && !/Nearest:[^.]*North West European/.test(s.nearest), `${label}: a wide area around the site is counted apart, not as on site (${s.nearest})`);
   // Checks (plan item 1): UK waters, so the UK's own layers (24 Nov) beside the EU's; one SPA layer down; the run's
   // active faults (global, 24 Nov coverage drive) put Hazards in too;
@@ -349,7 +383,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   check(!s.stale && s.flags.length === 1, `${label}: re-assessed at 1 km: one flag, offer gone`);
   await page.$eval(".run input[type=range]", (el) => { el.value = "50"; el.dispatchEvent(new Event("input", { bubbles: true })); });
   s = await st();
-  check(s.onMap === 7 && s.stale, `${label}: slider back to 50 km shows all 7 again, offers re-assess (no refetch)`);
+  check(s.onMap === 6 && s.stale, `${label}: slider back to 50 km shows all 6 again (with the 2 wrecks brought in), offers re-assess (no refetch)`);
   await page.click(".run .flag summary");
   await page.waitForTimeout(300);
   s = await st();
@@ -370,7 +404,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await page.click('.run [data-scope="around"]');
   await page.waitForTimeout(300);
   s = await st();
-  check(!s.insideChecked && s.onMap === 7 && s.mask === 0 && s.rings > 0 && s.out === "50 km", `${label}: back to area and surroundings at 50 km (${s.onMap}, ${s.out})`);
+  check(!s.insideChecked && s.onMap === 6 && s.mask === 0 && s.rings > 0 && s.out === "50 km", `${label}: back to area and surroundings at 50 km (${s.onMap}, ${s.out})`);
   // Settings: units, colour, licence switches.
   if (label === "phone") await page.evaluate(() => document.getElementById("panel").classList.remove("collapsed"));
   await page.click("#gear");

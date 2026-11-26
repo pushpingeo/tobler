@@ -8,6 +8,7 @@ import * as R from "./reference.js";
 import { placeToolDefs, createPlaceTools, projectSummary } from "./placetools.js";
 import { parseSkill, systemPrompt, buildMessages, runTurn, activityFor } from "./converse.js";
 import { finishTurn, runReply } from "./runreply.js";
+import { offerSummary, lower as lowerLabel } from "./bringin.js";
 import { callClaude, LimitReached } from "./claude.js";
 import { atlasViaWorker, firmsViaWorker, epsgViaWorker } from "./atlasclient.js";
 import { CONFIG } from "./config.js";
@@ -586,6 +587,7 @@ function openPopup(p, lngLat) {
   const [runId, fid] = String(p.id || "").split(":");
   const counted = fid ? (runs.get(runId)?.record.tobler_run.checks || []).filter((c) => c.features?.some((x) => x.fid === fid)).map((c) => c.label) : [];
   if (counted.length) box.append(el("span", `Counted in: ${counted.join("; ")}`, "counted"));
+  if (p.added === true || p.added === "true") box.append(el("span", "Brought in after the run; not part of its judgement", "counted"));
   popup?.remove();
   popup = new maplibregl.Popup({ closeButton: true, maxWidth: "280px" }).setLngLat(lngLat).setDOMContent(box).addTo(map);
 }
@@ -975,10 +977,13 @@ host.screening = createScreening({
     // A screen's asset type is the place's; a study's isn't (the developable area has its own few types).
     if (site && r.site.asset_type && !r.study) site.assetType = r.site.asset_type;
     showRun(record);
+    if (r.offer?.items?.some((x) => x.state === "offered")) showOffer(record);
   },
   onEvent: (ev) => {
     progressEvent(ev);
     if (ev.type === "tool_start") activity(`Screening: ${activityFor(ev.name, ev.input)}…`, true);
+    if (ev.type === "offer_start") activity(`${activityFor("offer_start")}…`, true);
+    if (ev.type === "offer") runLog?.events.push({ offer: { run: ev.run, offered: ev.offered } });
     if (ev.type === "round") runLog?.events.push({ screen_model_round: ev.round, ms: ev.ms, tokens_in: ev.input_tokens, tokens_out: ev.output_tokens, tool_calls: ev.tools });
     if (ev.type === "tool") {
       runLog?.events.push({ screen_tool: ev.name, ...(ev.baseline ? { baseline: true } : {}), input: ev.input, ms: ev.ms, ...(ev.error ? { error: ev.error } : { output: ev.output }) });
@@ -1421,12 +1426,14 @@ function showRunOnMap(record, { fit = true, instant = false } = {}) {
   const r = record.tobler_run;
   if (shownRun !== r.id) setFocus(null);
   findings.clear(); hiddenThemes.clear();
-  for (const f of evidenceOf(record)) {
+  // Layers brought in after the run (js/bringin.js) show with it, marked as added.
+  for (const f of [...evidenceOf(record), ...record.features.filter((x) => x.properties?.role === "added")]) {
     const p = f.properties;
     const band = p.band === "on site" || p.band === SEARCH_BAND ? "near" : p.band === "beyond" || p.band === "unknown" ? "wider" : p.band;
     findings.set(`${r.id}:${p.fid}`, { type: "Feature", geometry: f.geometry, properties: {
       id: `${r.id}:${p.fid}`, run: r.id, label: p.name, theme: topicOf(p.theme), band: p.surrounds ? "wider" : band, ...(p.surrounds ? { surrounds: true } : {}),
       ...(p.in_search_area ? { in_search_area: true, ...(p.coverage != null ? { coverage: p.coverage } : {}), ...(p.side ? { side: p.side } : {}) } : {}), distance_km: p.distance_km, area_km2: p.area_km2 ?? null, dataset: p.dataset, publisher: p.publisher,
+      ...(p.role === "added" ? { added: true } : {}),
     } });
   }
   shownRun = r.id;
@@ -1487,6 +1494,7 @@ function showRun(record) {
   runs.set(r.id, entry);
   queueMicrotask(paintTree);
   card.dataset.run = r.id;
+  paintAdded(entry);
   card.querySelector(".site").textContent = r.site.name;
   if (r.study) card.querySelector(".kind").textContent = r.study.label;
   // Run id and time only: the method version and how long it took are in the report's Method section (Rob, 22 Nov).
@@ -1635,7 +1643,10 @@ function checkRuns() {
   if (moved) paintTree();
 }
 function runSummaryLines() {
-  return runLines([...runs.values()].map((e) => ({ record: e.record, change: e.change, replacedBy: e.record.tobler_run.replaced_by })));
+  const list = [...runs.values()];
+  // Layers offered after a run and not yet answered (js/bringin.js), so a "yes" in words can be acted on.
+  const offers = list.filter((e) => !e.record.tobler_run.replaced_by).map((e) => offerSummary(e.record.tobler_run)).filter(Boolean).map((l) => `- ${l}`);
+  return [...runLines(list.map((e) => ({ record: e.record, change: e.change, replacedBy: e.record.tobler_run.replaced_by }))), ...offers];
 }
 // The card's re-run: the same request on the place as it is now, without a model call to decide it. It still
 // costs a screen (a minute or two), shown with the usual progress block, and the conversation hears about it.
@@ -2259,6 +2270,7 @@ function traceLine(ev) {
     case "run_study": return o.run ? `Ran ${i.study?.replace(/-/g, " ")} on ${o.site} (${o.run})` : o.held ? `Not run yet: ${HELD_WHY[o.held] || "held"}` : `Not run: ${o.not_available || "no result"}`;
     case "offer_skills": return o.not_available || `Offered the skills for ${o.place}`;
     case "get_run": return `Read the screen ${o.run || ""}`;
+    case "bring_in_layers": return o.not_available || (o.declined ? `Left out the layers offered for ${o.run}` : `Brought in for ${o.run}: ${(o.added || []).map((a) => `${a.dataset} (${a.not_checked ? "not checked" : `${a.count} ${a.scope}`})`).join("; ")}`);
     case "remove_place": return `Removed ${o.removed}`;
     case "ask_asset_type": return `Asked what's planned at ${o.place}`;
     case "get_elevation": return o.not_checked ? `Elevation: not checked (${String(o.not_checked).slice(0, 80)})` : o.water_depth_m?.typical != null ? `Water depth about ${o.water_depth_m.typical} m (${o.dataset})` : `Elevation about ${o.elevation_m?.typical} m (${o.dataset})`;
@@ -2355,6 +2367,64 @@ function offerSkills(name) {
   card.scrollIntoView({ block: "nearest", behavior: "smooth" });
   expandSheet();
   return { place: p.name, offered: offered.map((s) => `${s.label || "screen"}${s.status === "ready" ? "" : " (not built yet)"}`) };
+}
+
+// Layers offered after a run (plan item 1, 26 Nov; js/bringin.js): one button per layer, all of them, or no. A tap runs
+// bring_in_layers with no model call, and code writes the reply, as the held-run buttons do.
+const offerCards = new Map(); // run id → the offer's card
+function showOffer(record) {
+  const r = record.tobler_run;
+  const open = r.offer.items.filter((x) => x.state === "offered");
+  const card = el("div", null, "msg analyst layer-offer");
+  card.dataset.run = r.id;
+  card.append(el("p", `Bring in from the atlas, for ${r.id}?`));
+  const row = el("div", null, "picks");
+  const go = (layers, words) => {
+    if (busy) return;
+    card.classList.add("done");
+    card.querySelectorAll("button").forEach((b) => { b.disabled = true; });
+    send(words, words, { name: "bring_in_layers", input: { run: r.id, layers } });
+  };
+  const button = (label, layers, words, cls = "chip") => { const b = el("button", label, cls); b.type = "button"; b.addEventListener("click", () => go(layers, words)); return b; };
+  for (const x of open) {
+    const b = button(x.dataset.title, [x.id], `Bring in ${x.dataset.title}`);
+    b.title = `${x.dataset.publisher || "Publisher not stated"} · ${x.dataset.licence_short} · for ${lowerLabel(x.label)}`;
+    row.append(b);
+  }
+  if (open.length > 1) row.append(button("All of them", ["all"], "Bring in all of them", "chip primary"));
+  row.append(button("No thanks", [], "No thanks, leave them out", "chip general"));
+  card.append(row);
+  offerCards.set(r.id, card);
+  // Under the reply, which says "use the buttons below".
+  if (pendingReply?.isConnected) pendingReply.after(card);
+  else $("conversation").append(card);
+  expandSheet();
+}
+// A run changed after it was shown (layers brought in, or the offer answered in words): the card's list, the offer's
+// buttons, and the saved project.
+function runChanged(record) {
+  const r = record.tobler_run;
+  const entry = runs.get(r.id);
+  if (entry) paintAdded(entry);
+  // What came in shows with the run (it replaces the plain search results the fetch put on the map).
+  if (r.added?.length && entry) showRunOnMap(record, { fit: false });
+  const card = offerCards.get(r.id);
+  if (card && !r.offer?.items?.some((x) => x.state === "offered")) { card.classList.add("done"); card.querySelectorAll("button").forEach((b) => { b.disabled = true; }); }
+  else if (card) card.querySelectorAll("button").forEach((b) => { const x = r.offer.items.find((y) => b.textContent === y.dataset.title); if (x && x.state !== "offered") b.disabled = true; });
+  saveSoon();
+}
+host.onRunChanged = runChanged;
+function paintAdded(entry) {
+  const r = entry.record.tobler_run;
+  const box = entry.card.querySelector(".added");
+  if (!box) return;
+  const added = r.added || [];
+  box.hidden = !added.length;
+  if (!added.length) return;
+  box.querySelector("summary").textContent = `Brought in after the run (${added.length})`;
+  const ul = box.querySelector("ul");
+  ul.replaceChildren(...added.map((a) => el("li", `${a.dataset} (${a.publisher || "publisher not stated"}; ${a.licence_class === "unknown" ? "licence not stated" : a.licence}; checked ${String(a.checked_at).slice(0, 10)}): ${a.not_checked ? `not checked (${a.not_checked})` : a.count ? `${a.count} within ${U.dist(a.within_km)}${a.nearest?.[0] ? `, nearest ${a.nearest[0].name} ${U.dist(a.nearest[0].distance_km)}` : ""}` : `none within ${U.dist(a.within_km)}`}. For ${lowerLabel(a.for)}.`)));
+  box.querySelector(".added-note").textContent = "Fetched after the run, at your request. The decision and flags above were made without these.";
 }
 
 // "What's planned at <place>?": a few buttons, More… for the rest, and a general screen. A tap screens at once.

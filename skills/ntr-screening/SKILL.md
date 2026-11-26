@@ -1,6 +1,6 @@
 ---
 name: ntr-screening
-version: 3.12-draft
+version: 4.0-draft
 description: Screen a site, onshore or offshore, for non-technical risk (NTR) from published spatial data. Flags anything that could become a risk, concern or delay (land and livelihoods, biodiversity, Indigenous Peoples, cultural heritage, community health and safety, and the operating context), with traced evidence and what wasn't checked. Use when someone asks what risks, sensitivities or constraints a site, block, field, route or area might raise.
 ---
 
@@ -8,7 +8,7 @@ description: Screen a site, onshore or offshore, for non-technical risk (NTR) fr
 
 A desk-based first look at a site, the way a GIS analyst supports an opportunity manager: **flag anything that might be a risk, a concern or a cause of delay**, show the evidence, and say how confident you are. The person decides what to act on. A missed risk costs far more than a flag that turns out not to matter, so when in doubt, flag it and say the evidence is weak.
 
-It is a screen, not an impact assessment. The themes follow IFC's Performance Standards (PS4–PS8), because they give the result a structure people recognise; the screen is not an IFC review and doesn't need IFC's language unless asked. This version works onshore and offshore, and finds its own data: it says *what evidence to look for*, and the analyst searches for the best published sources for this place. (The IFC-calibrated, evaluated version is `ntr-screening-ifc`.)
+It is a screen, not an impact assessment. The themes follow IFC's Performance Standards (PS4–PS8), because they give the result a structure people recognise; the screen is not an IFC review and doesn't need IFC's language unless asked. This version works onshore and offshore. The run carries out the standard checks for the place in code and gives them to you; you judge them, with no tools of your own. The method says *what evidence matters*, so you can say what's missing: after the run, Tobler searches the atlas for what you name and asks the person before bringing anything in. (The IFC-calibrated, evaluated version is `ntr-screening-ifc`.)
 
 ## Inputs
 - **Site:** a point, line or area that's already been found or drawn. If there's none yet, find it first (place-finding skill).
@@ -30,17 +30,12 @@ Distances are measured from the footprint edge. When the screen runs as its own 
 State the distances used at the top of the result, and offer to change them.
 
 ## Steps
-0. **Start from the checks.** The run has already carried out the standard checks before you start, grouped by topic: each is found, none found, or not checked with the reason, and "must" marks a check its topic can't be called clear without. Use them as evidence and don't fetch them again; spend your searches on what's specific to this site, and on the topics the run says have no standard check yet where they matter here. At sea the checks include the water depth over the site and, in European waters, AIS vessel traffic at and around it; on land, the elevation. Judge whether a value matters (low-lying land is a flooding hazard; deep water rules out fixed foundations); the check only measures it. You can read elevation yourself for any place with the elevation operation.
+0. **Start from the checks.** The run has carried out the standard checks before you start, grouped by topic: each is found, none found, or not checked with the reason, and "must" marks a check its topic can't be called clear without. They are your evidence. At sea the checks include the water depth over the site and, in European waters, AIS vessel traffic at and around it; on land, the elevation. Judge whether a value matters (low-lying land is a flooding hazard; deep water rules out fixed foundations); the check only measures it.
 1. **Confirm the site:** location, onshore/offshore, asset type, stage, footprint and distances used.
 2. **Plan the evidence.** For each theme below, decide which kinds of evidence apply to this site (onshore, offshore or both).
-3. **Find the data.** For each kind of evidence, search for datasets with short, distinctive words (the "search words" below), two or three wordings at a time. Choose, in this order: trusted services and national or intergovernmental publishers; open licences; datasets whose features can be fetched; the most specific coverage (a national layer beats a global one where both exist). Use the everyday feature search for settlements, schools, hospitals, places of worship and cemeteries.
-4. **Fetch and measure.** Fetch each chosen dataset for the footprint **out to the wider band** (20 km onshore, 50 km offshore, unless the person set others), then sort what comes back into bands; don't fetch a shorter distance and call the rest clear. A protected area at 20 km offshore is still named. Say which topic each fetch is for (one of the topic ids the tools list: biodiversity, landscape-visual, water, ground-soil, land-use, hazards, air-climate, heritage, community-health, indigenous, material-assets, topography, context), so the result can be shown by topic. Record name, distance, band, source, licence and date for every feature used.
-5. **Raise flags** (below), one per distinct risk, most serious first.
-6. **State the gaps:** every kind of evidence that applies but wasn't found, failed, or was left out for licence reasons.
-
-Stop searching a kind of evidence after two or three tries with different words. Say what was searched.
-
-If a dataset returns no features at all where you'd expect some (a field's own pipelines, a coast's settlements), suspect the dataset before the site: read its title again ("removed", "proposed", "historic" layers hold something else) and try another source.
+3. **Raise flags** (below) from the checks, one per distinct risk, most serious first.
+4. **State the gaps:** every kind of evidence that applies here but wasn't checked, failed, or was left out for licence reasons, in data_gaps. Not-checked checks are already on the card, so add them only with something to say.
+5. **Name what to look for.** Of those gaps, name up to three that matter most for this site and that a published map layer could answer, in look_for, each with two or three short words that would be in such a layer's title (the "search words" below are starting points; adapt them to the place and language). Tobler searches the atlas for them after the run and offers what it finds to the person; nothing is brought in unless they say yes. Leave out what no layer could answer (a landowner's plans, a site visit).
 
 ## Evidence to look for, by theme
 Search words are starting points; adapt them to the place and language (e.g. "Natura 2000", "SSSI", "parque nacional").
@@ -68,7 +63,7 @@ Search words are starting points; adapt them to the place and language (e.g. "Na
 
 **Community health, safety and security (PS4)**
 - Onshore: schools, hospitals and clinics within the near band or by the likely access road; settlements in the close band; no main road within 10 km (new access needed).
-- Offshore: vessel traffic from AIS (density by vessel type: the run reads it in European waters; elsewhere search for it); shipping lanes, traffic separation schemes and fairways; ports and anchorages; other installations, pipelines and cables (simultaneous operations); military practice areas; unexploded ordnance; coastal communities in the wider band (spill reach).
+- Offshore: vessel traffic from AIS (density by vessel type: the run reads it in European waters; elsewhere name it in look_for); shipping lanes, traffic separation schemes and fairways; ports and anchorages; other installations, pipelines and cables (simultaneous operations); military practice areas; unexploded ordnance; coastal communities in the wider band (spill reach).
 - Both: existing industry nearby (cumulative effects); **thermal hotspots and gas flaring** from satellite detections as a sign of existing operations and emissions. *Search words:* shipping, AIS, vessel density, traffic separation, fairway, shipping lane, port, platform, pipeline, cable, military, ordnance, thermal, flaring.
 
 **Cross-border (transboundary; context).** A land border, a maritime boundary or another country's coast within the wider band is a flag.
@@ -106,10 +101,10 @@ Confidence: **high** = a mapped feature on site or in the near band, from a trus
 - Boundary data is indicative: Marine Regions' data isn't for legal, resource-exploration or navigation use. Say so whenever a boundary is part of a flag.
 - Every feature used keeps its dataset, publisher, licence (as stated) and date checked. "Licence not stated" stays not stated.
 - A source that fails, times out or can't be fetched is **not checked**, never "nothing found". A dataset that answers with nothing means nothing *in that dataset*, not nothing at all.
-- Never invent a feature, name, distance or dataset. Never say data doesn't exist unless you searched for it, and then say what words and area you searched.
+- Never invent a feature, name, distance or dataset. Never say data doesn't exist: a check that wasn't run, or a topic with no check, is "not checked", never "none".
 - **Busy areas.** When a result is marked dense (many features, only the nearest listed), give the count and the nearest, say what they mean for the site, and don't list more: all of them are on the map and in the run.
 - **Wide areas round the site.** Items marked around_site (a sea, a region, a very large designation the site lies within) aren't features on the site. Mention one only where being inside it matters for this project.
-- **A service that returns nothing at all** for the box, where you'd expect something (a field's own pipelines), may be the wrong layer or not cover the area: check its title and publisher and look for another before treating it as none in dataset.
+- **A check that finds nothing at all** where you'd expect something (a field's own pipelines) may be reading the wrong layer, or one that doesn't cover the area: say so in data_gaps rather than treating it as none.
 - **Licences as returned.** A licence the publisher didn't state is "not stated"; one that's stated but not a standard open licence is quoted and isn't confirmed for commercial use. Say which when you use the data.
 
 ## Output
@@ -125,11 +120,12 @@ A short summary for the person, no more than 400 words: the decision and why (on
              "evidence": ["E7", "[heritage.listed-buildings]"],
              "why": "", "next_step": ""}],
   "checked": [{"evidence": "", "dataset": "", "publisher": "", "result": "features|none in dataset|not checked"}],
-  "data_gaps": [""]
+  "data_gaps": [""],
+  "look_for": [{"what": "", "words": ["", ""], "topic": "biodiversity|landscape-visual|water|ground-soil|land-use|hazards|air-climate|heritage|community-health|indigenous|material-assets|topography|context"}]
 }
 ```
 
 Keep distances and counts out of a flag's "risk" words ("Listed buildings at the site's edge", not "Listed buildings 40 m away"): the run adds the distance from the evidence, so the two can't disagree. A flag's **evidence is ids**, never retyped names or distances: the id of each feature the operations returned (E7) or of a check that found something ([check id]). Whoever runs the method fills in the feature's name, distance, band, dataset, publisher, licence and date from the ids, so they can't be retyped wrong. Evidence you can't cite by id (a count with no names, something you remember, a dataset-wide total) can't support a flag: put it in data_gaps. A flag none of whose ids traces isn't raised.
 
 ## Operations
-The operations this method uses (finding datasets, fetching and measuring features, the everyday feature search, reading the site's details) are described in general terms in `operations.md`, beside this file, so the method can run in other settings with their own tools.
+In Tobler the run carries out the operations (the checks) and the analyst has none. Where this method runs with its own tools instead, the operations (finding datasets, fetching and measuring features, the everyday feature search, reading the site's details) are described in general terms in `operations.md`, beside this file: search each kind of evidence with two or three wordings, fetch out to the wider band, and stop after two or three tries.

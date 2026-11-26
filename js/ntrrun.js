@@ -19,10 +19,11 @@ import { waterDepth, vesselTraffic, seaLines } from "./seavalues.js";
 import { elevationFrom, elevationSignificance, elevationLine, elevationShort } from "./elevation.js";
 import { readDecision, settleDecision } from "./industry.js";
 import * as K from "./checks.js";
-import { topicOf } from "./findings.js";
+import { topicOf, TOPIC_IDS } from "./findings.js";
 import { osmAnswers } from "./osmchecks.js";
 import { overpassQuery } from "./gazetteer.js";
 import { osmSnapshot } from "./osmsnapshot.js";
+import { offerFor } from "./bringin.js";
 import { areaBudget, budgetLines } from "./areabudget.js";
 import { budgetRules, resolveDeductions, reachByCheck, classMatches, budgetSummary } from "./developable.js";
 import { placeRole, coverageIn, whereText, applySearchArea, reword, sameShape, SEARCH_BAND, SEARCH_NOTE } from "./siterole.js";
@@ -125,15 +126,47 @@ ${skill.body}
 </method>`;
 }
 
+// The constraints screen, sealed (plan item 1, 26 Nov): one judgement of the checks, with no tools. What the checks
+// couldn't answer goes in data_gaps, and up to three kinds of evidence the analyst would look for go in look_for:
+// after the run, code searches the atlas for them and offers the layers to the person (js/bringin.js). Before this,
+// the analyst searched the catalogue itself and brought in layers nobody asked for (Welsh layers at Stanlow).
+export function systemForScreen(skill) {
+  return `You are Tobler's screening analyst, writing one sealed screen of one site for environmental constraints and environmental and social (E&S) risk. Nobody is chatting with you and you have no tools: the run has already carried out the checks, measured in code, and gives them in the first message. Judge them as the method says, then write the result.
+
+- ${FENCE_RULE}
+- The site, its footprint, the asset type, the stage and the distances are fixed by this run and given in the first message. Use them as given; don't ask about them and don't change them. If the stage or asset type was assumed, say so in the summary.
+- Never work out a distance yourself: the checks give them, measured from the footprint edge.
+- Items marked "around the site" are wide areas the site lies within: seas, regions, very large designations. They are not features on the site. Mention one only where being inside it matters for this project.
+- Name features and datasets as the checks name them.
+- A flag's evidence is a list of ids, never retyped names or distances: an evidence id (E7) from the checks' lines, or a check's id in square brackets ([heritage.listed-buildings]) when the check found something. The run fills in names, distances, sources and licences from the ids. Something you can't cite by id can't support a flag: put it in data_gaps.
+- What the checks couldn't answer, and evidence that matters for this site that no check covers, goes in data_gaps. Name up to three of those that a published map layer could answer in look_for, with two or three short words that would be in such a layer's title. Tobler searches for them after the run and asks the person before bringing anything in.
+- Your reply is the result: the short summary, then the JSON block, exactly as the method's Output section says. Use the distances given (not the skill's table) in "distances_km".
+- Keep the result compact so it fits in one reply: summary under 300 words; at most 8 flags, each next_step one short line; at most 4 evidence items per flag (the nearest or strongest, and say in "why" how many more there are); "data_gaps" at most 12 short lines; leave "checked" as an empty list, because the run records what was checked itself. Keep your thinking before the result short: the reply limit (16,000 tokens) includes it.
+
+<method skill="${skill.name}" version="${skill.version}">
+${skill.body}
+</method>`;
+}
+
+// What the analyst named for the atlas search after the run: at most three, each { what, words, topic }.
+export function readLookFor(v) {
+  if (!Array.isArray(v)) return [];
+  return v.filter((x) => x && typeof x === "object" && x.what).slice(0, 3).map((x) => ({
+    what: String(x.what).replace(/\s+/g, " ").trim().slice(0, 80),
+    words: (Array.isArray(x.words) ? x.words : [x.words]).map((w) => String(w || "").replace(/\s+/g, " ").trim().slice(0, 40)).filter((w) => w.length >= 3).slice(0, 3),
+    topic: TOPIC_IDS.includes(x.topic) ? x.topic : "context",
+  })).filter((x) => x.words.length);
+}
+
 export const isArea = (feature) => /Polygon/.test(feature?.geometry?.type || "");
 
-export function firstMessage({ siteName, describe, inputs, distances, footprintNote, origin, baseline = null, inside = false, searchArea = null }) {
+export function firstMessage({ siteName, describe, inputs, distances, footprintNote, origin, baseline = null, inside = false, searchArea = null, sealed = false }) {
   const reach = inside ? 0 : distances.wider;
   const lines = [
     `Screen ${siteName}.`,
     `Site: ${R.summaryLine(describe)}${footprintNote ? `; ${footprintNote}` : ""}.`,
     origin ? `How the site was found: ${origin}.` : null,
-    searchArea ? `This is a search area, not the site's outline: ${searchArea}. Nobody knows where on it the ${inputs.asset_label} would go. So nothing is "on site": a feature with distance 0 is "in the search area", and the tools say how much of the area it covers (in_search_area). Say "in the search area" and give that share; a small share on the edge is something a layout could avoid. Severity is how much it would matter if it is on the site; the run caps the confidence of findings inside a search area. Put one line in data_gaps saying the site's outline wasn't found.` : null,
+    searchArea ? `This is a search area, not the site's outline: ${searchArea}. Nobody knows where on it the ${inputs.asset_label} would go. So nothing is "on site": a feature with distance 0 is "in the search area", and the run says how much of the area it covers (in_search_area). Say "in the search area" and give that share; a small share on the edge is something a layout could avoid. Severity is how much it would matter if it is on the site; the run caps the confidence of findings inside a search area. Put one line in data_gaps saying the site's outline wasn't found.` : null,
     `Setting: ${describe.offshore ? "offshore" : "onshore"}${describe.coast_km != null && describe.coast_km < 10 ? " (coastal: screen both ways)" : ""}.`,
     `Asset type: ${inputs.asset_label}${inputs.asset_assumed ? " (assumed: say so)" : ""}. Stage: ${inputs.stage || "greenfield (assumed: say so)"}.`,
     inputs.outside_profile ? `This is outside what the method was built for, so do a general screen with the same themes and say once in the summary that it's a first look. The card already carries this caveat: ${inputs.outside_profile}` : null,
@@ -144,9 +177,10 @@ export function firstMessage({ siteName, describe, inputs, distances, footprintN
       : `Distances from the footprint edge: ${distancesLine(distances)}. Why: ${distances.reasons.join("; ")}.`,
     inputs.focus ? `The person asked especially about: ${inputs.focus}.` : null,
     describe.offshore && describe.coast_km != null && describe.coast_km > reach
-      ? `No land ${inside ? "inside the area" : "within the wider band"} (the coast is about ${Math.round(describe.coast_km)} km away): settlements, schools, clinics, roads and other onshore receptors are out of reach. Don't search for them and don't list them as gaps; coastal communities matter only as spill reach beyond the bands.` : null,
-    baseline ? `Already checked by the run before you started, by topic (don't fetch these again; they are evidence like anything you fetch). Each check is found, none found, or not checked with the reason; "must" marks a check its topic can't be called clear without. Not-checked lines are already on the card as gaps, so don't repeat them in data_gaps unless you have something to add:\n${baseline}` : null,
-    `Refer to the site as "${siteName}" in tool calls.`,
+      ? `No land ${inside ? "inside the area" : "within the wider band"} (the coast is about ${Math.round(describe.coast_km)} km away): settlements, schools, clinics, roads and other onshore receptors are out of reach. ${sealed ? "Don't" : "Don't search for them and don't"} list them as gaps; coastal communities matter only as spill reach beyond the bands.` : null,
+    baseline && sealed ? `The checks, by topic: your evidence. Each check is found, none found, or not checked with the reason; "must" marks a check its topic can't be called clear without. Not-checked lines are already on the card as gaps, so don't repeat them in data_gaps unless you have something to add:\n${baseline}` : null,
+    baseline && !sealed ? `Already checked by the run before you started, by topic (don't fetch these again; they are evidence like anything you fetch). Each check is found, none found, or not checked with the reason; "must" marks a check its topic can't be called clear without. Not-checked lines are already on the card as gaps, so don't repeat them in data_gaps unless you have something to add:\n${baseline}` : null,
+    sealed ? null : `Refer to the site as "${siteName}" in tool calls.`,
   ];
   return lines.filter(Boolean).join("\n");
 }
@@ -276,10 +310,10 @@ export function studyMessage({ siteName, describe, origin, distances, baseline, 
   ].filter(Boolean).join("\n");
 }
 
-async function studyTurn({ skill, callClaude, message, onEvent }) {
+async function studyTurn({ skill, callClaude, message, onEvent, system = null }) {
   const t0 = Date.now();
   const messages = [{ role: "user", content: message }];
-  const resp = await callClaude({ system: systemForStudy(skill), messages });
+  const resp = await callClaude({ system: system || systemForStudy(skill), messages });
   onEvent({ type: "round", round: 0, ms: Date.now() - t0, input_tokens: resp.usage?.input_tokens || 0, output_tokens: resp.usage?.output_tokens || 0, tools: 0 });
   const text = (resp.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
   return { text, usage: { input_tokens: resp.usage?.input_tokens || 0, output_tokens: resp.usage?.output_tokens || 0 }, history: [...messages, { role: "assistant", content: resp.content || [] }], stopReason: resp.stop_reason };
@@ -305,7 +339,9 @@ const roomy = (callClaude) => (args) => callClaude({ ...args, maxTokens: SCREEN_
 // study (optional): a skill other than the screen that judges the checks alone (the contamination desk study, 24 Nov):
 // { id, label, groups: [{ id, label, checks: [check ids] }], decisions, full_study_adds }. The run carries out only its
 // checks, then asks once for the judgement, with no tools: its data is the checks, all measured in code.
-export async function runScreening({ host, site, inputs, distances, skill, study = null, callClaude: call, model = "", runId = "R1", maxRounds = 14, onEvent = () => {}, now = () => new Date().toISOString() }) {
+// analystSearches: the screen's analyst may search and fetch data itself, as before 26 Nov. Off in the product (the
+// screen is one judgement with no tools, then the offer); kept for the tests of the evidence pipeline and for the lab.
+export async function runScreening({ host, site, inputs, distances, skill, study = null, callClaude: call, model = "", runId = "R1", maxRounds = 14, onEvent = () => {}, now = () => new Date().toISOString(), analystSearches = false }) {
   const callClaude = roomy(call);
   const started = now();
   const fp = footprintOf(site.feature, distances);
@@ -629,7 +665,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
   }
   if (seaRes) for (const l of seaRes.lines) baselineLines.push(`- ${l}`);
   const ncLine = K.noCheckLine(catalogue, noCheck);
-  if (ncLine) baselineLines.push(`${ncLine}. Search for these yourself where they matter for this site; the card already lists them as not checked.`);
+  if (ncLine) baselineLines.push(`${ncLine}. ${analystSearches ? "Search for these yourself where they matter for this site; the card already lists them as not checked." : "The card already lists them as not checked; where one matters for this site, say so in data_gaps."}`);
   const baselineCalls = calls.length;
   // One line per source the tools reached, for the repair prompt when a write-up is cut off.
   const summarise = (c) => {
@@ -643,7 +679,10 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     : "drawn on the map by the person";
   // An area budget asks no model: the rules are the skill's, the geometry is the area_budget tool's.
   const budgetOut = budget ? budgetFrom({ budget, plans, results, layerAnswers, keyOf, catalogue, site: fp.feature }) : null;
-  const res = budget ? { text: "", usage: { input_tokens: 0, output_tokens: 0 }, history: [], stopReason: null } : study ? await studyTurn({ skill, study, callClaude, message: studyMessage({ siteName: site.name, describe, origin, distances, baseline: baselineLines.join("\n"), searchArea: searchNote, study }), onEvent }) : await runTurn({
+  const sealed = !study && !analystSearches;
+  const screenMessage = () => firstMessage({ siteName: site.name, describe, inputs, distances, footprintNote: fp.note, origin, baseline: baselineLines.join("\n") || null, inside, searchArea: searchNote, sealed: true });
+  const res = budget ? { text: "", usage: { input_tokens: 0, output_tokens: 0 }, history: [], stopReason: null } : study ? await studyTurn({ skill, study, callClaude, message: studyMessage({ siteName: site.name, describe, origin, distances, baseline: baselineLines.join("\n"), searchArea: searchNote, study }), onEvent })
+    : sealed ? await studyTurn({ skill, callClaude, message: screenMessage(), onEvent, system: systemForScreen(skill) }) : await runTurn({
     system: systemFor(skill),
     messages: [{ role: "user", content: firstMessage({ siteName: site.name, describe, inputs, distances, footprintNote: fp.note, origin, baseline: baselineLines.join("\n") || null, inside, searchArea: searchNote }) }],
     tools: defs, exec, callClaude, maxRounds,
@@ -678,7 +717,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     debug.repairs = [];
     for (const a of attempts) {
       try {
-        const resp = await callClaude({ system: study ? systemForStudy(skill) : systemFor(skill), ...(a.how === "history" && !study ? { tools: defs } : {}), messages: a.messages });
+        const resp = await callClaude({ system: study ? systemForStudy(skill) : sealed ? systemForScreen(skill) : systemFor(skill), ...(a.how === "history" && !study && !sealed ? { tools: defs } : {}), messages: a.messages });
         usage.input_tokens += resp.usage?.input_tokens || 0; usage.output_tokens += resp.usage?.output_tokens || 0;
         const t2 = (resp.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
         const again = parseResult(t2);
@@ -730,6 +769,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
       flags, checked, data_gaps: [...(Array.isArray(parsed.json?.data_gaps) ? parsed.json.data_gaps.map(String) : []), ...traced.not_raised.map(notRaisedGap)],
       ...(traced.not_raised.length ? { not_raised: traced.not_raised } : {}),
       model_checked: Array.isArray(parsed.json?.checked) ? parsed.json.checked : [],
+      ...(sealed && readLookFor(parsed.json?.look_for).length ? { look_for: readLookFor(parsed.json.look_for) } : {}),
       summary: parsed.summary, ...(parsed.json ? {} : { parse_error: "The analyst's result had no readable JSON block, so there are no structured flags. The summary is kept as written." }),
       checks: checkResults, checks_scale: scale, checks_merge_shapes: mergeShapes, checks_version: catalogue.version || null, ...(noCheck.length ? { no_check_topics: noCheck } : {}),
       // Topic names travel with the run, so a share link can show them without the catalogue.
@@ -908,7 +948,7 @@ export function budgetHeadline(record) {
 // The screening service the conversation's screen_site and get_run tools call. table: catalogue/distances.json;
 // skill: the parsed NTR skill. onRun(record, place) shows the card; onEvent reports progress.
 // skillFor(name): another parsed skill, for studies (the profile's skills_offered names each study's skill).
-export function createScreening({ host, table, skill, skillFor = () => null, callClaude, model = "", onRun = () => {}, onEvent = () => {}, now }) {
+export function createScreening({ host, table, skill, skillFor = () => null, callClaude, model = "", onRun = () => {}, onEvent = () => {}, now, analystSearches = false }) {
   const runs = new Map();
   let n = 0;
   // Every new run of a skill on a place is linked to the last one, edited or not, and compared with it in code, so
@@ -925,8 +965,22 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
     r.replaces.diff = runDiff(old, record, { siteChanged: ch?.text || null });
     old.tobler_run.replaced_by = r.id;
   };
+  // After a screen or a study, the atlas is searched for what wasn't checked, and what it has is offered (plan item 1,
+  // 26 Nov; js/bringin.js). A failed search is said, never hidden; it doesn't fail the run.
+  const offer = async (record) => {
+    onEvent({ type: "offer_start", run: record.tobler_run.id });
+    const pats = host.trusted?.publishers?.patterns || [];
+    try {
+      record.tobler_run.offer = await offerFor(record, { atlas: host.atlas || null, catalogue: host.checks || {},
+        allow: { esri: !!host.esriLicence?.(), nonCommercial: !!host.nonCommercial?.() }, trusted: pats.length ? new RegExp(pats.join("|"), "i") : null, ...(now ? { now } : {}) });
+    } catch (e) {
+      record.tobler_run.offer = { at: (now || (() => new Date().toISOString()))(), searched: [], items: [], nothing: [], failed: [], state: "none", error: String(e.message || e).slice(0, 160) };
+    }
+    onEvent({ type: "offer", run: record.tobler_run.id, offered: record.tobler_run.offer.items.length });
+  };
   return {
     runs,
+    offer,
     // An asset type's label ("solar farm"), from the distance table.
     assetLabel(id) { const tb = typeof table === "function" ? table() : table; return tb?.assets?.[id]?.label || null; },
     // A run saved in this browser (js/projectstore.js), put back on reload: the analyst can read it again, and new
@@ -955,7 +1009,7 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       onEvent({ type: "screen_start", run: id, site: place.name, setting: site.offshore ? "offshore" : "onshore",
         inside: i.extent === "inside" && /Polygon/.test(place.feature.geometry.type), wider_km: distances.wider });
       const record = await runScreening({
-        host, site: { name: place.name, feature: place.feature, origin: place.origin }, distances, skill: sk, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}),
+        host, site: { name: place.name, feature: place.feature, origin: place.origin }, distances, skill: sk, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}), analystSearches,
         inputs: { asset_type: asset || "other", asset_label: asset ? tb.assets[asset].label : planned || "site of unknown type", asset_assumed: asset ? !!i.assumed : !planned,
           ...(planned ? { outside_profile: host.profile?.()?.wording?.outside || OUTSIDE_PROFILE } : {}),
           stage: i.stage || "", capacity_mw: site.capacity_mw, tip_height_m: site.tip_height_m, focus: i.focus || "", extent: i.extent === "inside" ? "inside" : "around" },
@@ -969,6 +1023,7 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       // A re-run after the site was edited: which run it replaces, and why. From the card's re-run button (replaces),
       // or found here when the analyst screens a place again whose latest run is out of date.
       linkPrevious(record, place, i, "ntr-screen");
+      await offer(record);
       runs.set(id, record);
       onRun(record, place);
       return headline(record);
@@ -992,6 +1047,7 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       record.tobler_run.place_geometry_at_run = JSON.stringify(place.feature.geometry);
       record.tobler_run.inputs = { study: entry.id, focus: i.focus || "" };
       linkPrevious(record, place, i, entry.id);
+      await offer(record);
       runs.set(id, record);
       onRun(record, place);
       return headline(record);
@@ -1045,6 +1101,9 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
         ...(r.checks ? { checks: r.checks.map((c) => `${c.label}${c.must ? " (must)" : ""}: ${K.checkLine(c)}`) } : {}),
         ...(r.sea ? { sea: seaLines(r.sea) } : {}),
         ...(r.elevation ? { elevation: elevationLine(r.elevation, r.elevation.significance) } : {}),
+        ...(r.offer?.items?.length ? { offered_after_run: r.offer.items.map((x) => ({ id: x.id, for: x.label, dataset: x.dataset.title, publisher: x.dataset.publisher, licence: x.dataset.licence_short, state: x.state })) } : {}),
+        ...(r.offer?.nothing?.length ? { atlas_had_nothing_for: r.offer.nothing } : {}),
+        ...(r.added?.length ? { brought_in_after_run: r.added } : {}),
       };
     },
   };

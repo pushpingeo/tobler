@@ -397,6 +397,10 @@ a { color: var(--sea); }
 /* What still needs checking: the consultant's remaining work, so it sits right under the flags, open. */
 .run details.gaps { margin: 0 0 10px; padding: 6px 10px; border-radius: 10px; background: var(--paper); }
 .run details.gaps > summary { color: var(--ink); font-weight: 600; }
+/* Layers brought in after the run, at the person's request: kept apart from the run's own evidence. */
+.run details.added { font-size: 13px; margin: 0 0 10px; padding: 6px 10px; border-radius: 10px; border: 1px dashed var(--line, #d4d4d4); }
+.run details.added > summary { color: var(--ink); font-weight: 600; }
+.run details.added .added-note { margin: 2px 0 0; color: var(--ink-2); font-size: 12.5px; }
 .run details summary { cursor: pointer; color: var(--sea); }
 .run details ul { margin: 4px 0 6px; padding-left: 18px; }
 .run details .nc { color: #9a3412; }
@@ -493,9 +497,10 @@ a { color: var(--sea); }
 .shape h2 .name:hover, .shape h2 .name:focus-visible { border-bottom-color: var(--ink-2); outline: none; }
 .shape h2 input.rename { font: inherit; min-width: 0; flex: 1; border: 1px solid var(--sea); border-radius: 6px; padding: 1px 6px; }
 /* What's planned at a place: quick picks before a screen. */
-.asset-pick .picks, .skill-pick .picks { display: flex; flex-wrap: wrap; gap: 6px; }
-.asset-pick .chip.general { border-style: dashed; }
-.asset-pick.done, .skill-pick.done { opacity: .6; }
+.asset-pick .picks, .skill-pick .picks, .layer-offer .picks { display: flex; flex-wrap: wrap; gap: 6px; }
+.asset-pick .chip.general, .layer-offer .chip.general { border-style: dashed; }
+.layer-offer .chip { max-width: 100%; text-align: left; white-space: normal; }
+.asset-pick.done, .skill-pick.done, .layer-offer.done { opacity: .6; }
 
 /* Feedback under a reply or a run card (js/feedback.js): quiet until used. */
 .feedback { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 8px; font-size: 12.5px; color: var(--ink-2); }

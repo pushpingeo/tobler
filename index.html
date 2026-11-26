@@ -9,7 +9,7 @@
 <link rel="icon" href="img/tobler.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/public-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="js/vendor/maplibre-gl.css">
-<link rel="stylesheet" href="css/workspace.css?v=aab010b1">
+<link rel="stylesheet" href="css/workspace.css?v=0a59402d">
 <script src="js/vendor/maplibre-gl.js"></script>
 <script type="importmap">
 {
@@ -19,14 +19,15 @@
   "./js/atlasclient.js": "./js/atlasclient.js?v=6e6b994a",
   "./js/atlasfeatures.js": "./js/atlasfeatures.js?v=aea7591d",
   "./js/boundaries.js": "./js/boundaries.js?v=b245dfdc",
+  "./js/bringin.js": "./js/bringin.js?v=3184fcfc",
   "./js/checks.js": "./js/checks.js?v=585e4e50",
   "./js/claude.js": "./js/claude.js?v=a4e8d42a",
   "./js/confidence.js": "./js/confidence.js?v=ad22f5c6",
   "./js/config.js": "./js/config.js?v=33489ea2",
   "./js/config.js?v=m2b": "./js/config.js?v=33489ea2",
-  "./js/converse.js": "./js/converse.js?v=758b04de",
+  "./js/converse.js": "./js/converse.js?v=767b1eca",
   "./js/coords.js": "./js/coords.js?v=7f6bb52e",
-  "./js/datatools.js": "./js/datatools.js?v=d23da7d2",
+  "./js/datatools.js": "./js/datatools.js?v=70c4f76e",
   "./js/developable.js": "./js/developable.js?v=713ed76f",
   "./js/disclaimer.js": "./js/disclaimer.js?v=8cfa6424",
   "./js/distances.js": "./js/distances.js?v=8be82f4f",
@@ -44,15 +45,15 @@
   "./js/industry.js": "./js/industry.js?v=0d32f3b5",
   "./js/licence.js": "./js/licence.js?v=3385dd2d",
   "./js/nearness.js": "./js/nearness.js?v=6807b2f9",
-  "./js/ntrrun.js": "./js/ntrrun.js?v=7269a5b3",
+  "./js/ntrrun.js": "./js/ntrrun.js?v=ab5e1161",
   "./js/osmchecks.js": "./js/osmchecks.js?v=4581e335",
   "./js/osmsnapshot.js": "./js/osmsnapshot.js?v=91ca4b49",
   "./js/outofdate.js": "./js/outofdate.js?v=09c95316",
-  "./js/placetools.js": "./js/placetools.js?v=9cfcd2ed",
+  "./js/placetools.js": "./js/placetools.js?v=bccf5180",
   "./js/projectstore.js": "./js/projectstore.js?v=c0e11ae3",
   "./js/reference.js": "./js/reference.js?v=c5ac2d6a",
   "./js/rundiff.js": "./js/rundiff.js?v=129d28e5",
-  "./js/runreply.js": "./js/runreply.js?v=6d39a89c",
+  "./js/runreply.js": "./js/runreply.js?v=7aa1ee5b",
   "./js/seavalues.js": "./js/seavalues.js?v=a6bb8879",
   "./js/share.js": "./js/share.js?v=cd01f743",
   "./js/sharelog.js": "./js/sharelog.js?v=c41ca9c5",
@@ -64,7 +65,7 @@
   "./js/vendor/fileread.js": "./js/vendor/fileread.js?v=c6e0d988",
   "./js/vendor/flatgeobuf.js": "./js/vendor/flatgeobuf.js?v=5d6365ac",
   "./js/vendor/turf.js": "./js/vendor/turf.js?v=555787c6",
-  "./js/workspace.js": "./js/workspace.js?v=4149a6aa",
+  "./js/workspace.js": "./js/workspace.js?v=43343093",
   "@turf/turf": "./js/vendor/turf.js?v=555787c6",
   "osmtogeojson": "./js/vendor/osmtogeojson.js?v=75ffea00"
  }
@@ -77,12 +78,12 @@
  "skills/coordinate-reference/datums.md": "skills/coordinate-reference/datums.md?v=d513687d",
  "skills/coordinate-reference/operations.md": "skills/coordinate-reference/operations.md?v=c2d3f852",
  "skills/developable-area/SKILL.md": "skills/developable-area/SKILL.md?v=b5c80627",
- "skills/ntr-screening/SKILL.md": "skills/ntr-screening/SKILL.md?v=71453f6d",
+ "skills/ntr-screening/SKILL.md": "skills/ntr-screening/SKILL.md?v=564f4699",
  "skills/ntr-screening/operations.md": "skills/ntr-screening/operations.md?v=224cb367",
  "skills/place-finding/SKILL.md": "skills/place-finding/SKILL.md?v=c3bec308",
  "skills/place-finding/operations.md": "skills/place-finding/operations.md?v=5603be0c",
  "catalogue/anchors.json": "catalogue/anchors.json?v=4239096c",
- "catalogue/checks.json": "catalogue/checks.json?v=5eaab9f7",
+ "catalogue/checks.json": "catalogue/checks.json?v=70ad5ef1",
  "catalogue/distances.json": "catalogue/distances.json?v=0373f482",
  "catalogue/industries/energy.json": "catalogue/industries/energy.json?v=b78d8ac8",
  "catalogue/industries/index.json": "catalogue/industries/index.json?v=3e703a5e",
@@ -320,6 +321,7 @@
     <div class="budget" hidden></div>
     <ol class="flags"></ol>
     <details class="gaps" open><summary></summary><ul></ul></details>
+    <details class="added" open hidden><summary></summary><ul></ul><p class="added-note"></p></details>
     <details class="checks" hidden><summary></summary><ul></ul><details class="nocheck" hidden><summary></summary><p></p></details></details>
     <div class="reach">
       <div class="scope" role="radiogroup" aria-label="What to look at" hidden>
@@ -350,6 +352,6 @@
   </article>
 </template>
 
-<script type="module" src="js/workspace.js?v=4149a6aa"></script>
+<script type="module" src="js/workspace.js?v=43343093"></script>
 </body>
 </html>

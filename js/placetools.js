@@ -1,6 +1,7 @@
 // Tools the conversation agent uses to find places and build areas from words.
 // The model works with ids (C3 for a found candidate, "Area 1" for a place); geometry stays here.
 // A host object supplies the project's places and reference data, so the same code runs in the page and in the evaluation.
+import { bringIn } from "./bringin.js";
 import { placeRole, notASite } from "./siterole.js";
 import { placesFromFile, fileSummary, fileOriginText, builtinToWgs84 } from "./fileimport.js";
 import * as turf from "./vendor/turf.js";
@@ -232,6 +233,11 @@ export function placeToolDefs(skills) {
       name: "get_run",
       description: "Details of a screening run (R1, R2…; leave out for the latest): flags with their evidence, what was checked and the gaps. For follow-up questions about a screen; don't re-run to answer them.",
       input_schema: { type: "object", properties: { run: { type: "string" } } },
+    },
+    {
+      name: "bring_in_layers",
+      description: "After a screen or study, Tobler may offer atlas layers for what wasn't checked (the project summary lists them with ids L1, L2… under the run). When the person says yes to some or all of them, bring them in: each is fetched for the run's site, held to the run's distances, and put on the map with its source. An empty list means the person said no. Only for layers on offer, and only when the person has answered the offer; Tobler writes the reply.",
+      input_schema: { type: "object", properties: { run: { type: "string", description: "The run the layers were offered for, e.g. R1" }, layers: { type: "array", items: { type: "string" }, description: "Offer ids (L1, L2…), or [\"all\"]; [] to decline" } }, required: ["run", "layers"] },
     },
     {
       name: "show_on_map",
@@ -872,6 +878,22 @@ export function createPlaceTools(host) {
     });
     r.next = "Each point is now a candidate (see candidate): use it with make_place to put it on the map; the place keeps the transformation.";
     return r;
+  };
+  // Layers offered after a run (js/bringin.js): fetched with get_data for the run's place, so they keep their source,
+  // licence and date and go on the map as findings. The record keeps what came in (run.added).
+  run.bring_in_layers = async ({ run: id, layers }) => {
+    if (!host.screening?.runs) return { not_available: "Screening isn't connected here." };
+    const key = String(id || "").trim().toUpperCase();
+    const rec = host.screening.runs.get(key);
+    if (!rec) throw new Error(`No run called "${id}".`);
+    const r = rec.tobler_run;
+    const p = (r.place_id != null && host.places().find((x) => x.id === r.place_id)) || host.findPlace(r.site.name);
+    if (!p) return { run: r.id, not_available: `${r.site.name}, the site ${r.id} ran on, isn't on the map any more, so there's nothing to bring layers in for.` };
+    const out = await bringIn(rec, Array.isArray(layers) ? layers : [layers].filter(Boolean), {
+      get: (i) => data.get_data(i), keep: (d) => data.keepDataset(d), placeName: p.name, placeIsPoint: p.feature.geometry.type === "Point", now: host.now,
+    });
+    host.onRunChanged?.(rec);
+    return out;
   };
   run.get_run = async ({ run: id }) => {
     if (!host.screening) return { not_available: "Screening isn't connected here." };

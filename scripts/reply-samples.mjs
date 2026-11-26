@@ -4,6 +4,7 @@ import * as F from "../test/fixtures/runreply-records.mjs";
 import { runReply, heldReply, finishTurn } from "../js/runreply.js";
 import { runDiff } from "../js/rundiff.js";
 import { notRaisedGap } from "../js/ntrrun.js";
+import { bringInReply } from "../js/bringin.js";
 
 const withDiff = (rec, old, why = "run again on the same site", siteChanged = null) => {
   const r = JSON.parse(JSON.stringify(rec));
@@ -22,6 +23,22 @@ add("Contamination desk study", runReply(F.stanlowStudy));
 add("Developable area", runReply(F.barnstonBudget), "Unchanged: this is the budget summary the card and report already use.");
 add("A result that couldn't be read", runReply(F.brokenResult));
 add("Something that can't run here", "The developable area needs an outline, and Kelso is a point. Draw the site or bring in its boundary file.", "Already code's own words (not_available); shown as they are.");
+
+// Layers offered after the run (26 Nov): one found, one gap the atlas had nothing for, one search that failed.
+const withOffer = (rec) => {
+  const r = JSON.parse(JSON.stringify(rec));
+  r.tobler_run.offer = { at: "2026-11-26T03:00:00Z", searched: [{}, {}, {}], state: "open", why_failed: "no answer in 12 s",
+    items: [{ id: "L1", label: "Flood zones", topic: "water", state: "offered", dataset: { atlas_id: "x", title: "Flood Map for Planning (Rivers and Sea) - Flood Zone 3", publisher: "Environment Agency", licence: "Open Government Licence v3.0", licence_class: "open", licence_short: "Open Government Licence v3.0", capabilities: ["query"] } },
+      { id: "L2", label: "Peat", topic: "ground-soil", state: "offered", dataset: { atlas_id: "y", title: "Carbon and Peatland 2016", publisher: "NatureScot", licence: "", licence_class: "unknown", licence_short: "licence not stated", capabilities: ["query"] } }],
+    nothing: ["Important Bird Areas"], failed: ["Surface water flooding"] };
+  return r;
+};
+out.push("## After a run, with layers offered\n");
+add("Constraints screen, layers offered for the gaps", runReply(withOffer(F.oracleSolar)), "Buttons under the reply: one per layer, All of them, No thanks.");
+add("Layers brought in", bringInReply({ run: "R1", site: "Oracle campus, Linlithgow", added: [
+  { dataset: "Flood Map for Planning (Rivers and Sea) - Flood Zone 3", publisher: "Environment Agency", licence: "Open Government Licence v3.0", licence_class: "open", checked_at: "2026-11-26T08:10:00Z", within_km: 20, measured_from: "the site's edge", count: 4, inside: 0, nearest: [{ name: "Flood Zone 3", distance_km: 0.8 }, { name: "Flood Zone 3", distance_km: 2.4 }] },
+  { dataset: "Carbon and Peatland 2016", publisher: "NatureScot", licence: "licence not stated", licence_class: "unknown", checked_at: "2026-11-26T08:10:00Z", within_km: 20, measured_from: "the site's edge", not_checked: "The publisher's service didn't answer: 503." }] }));
+add("Offer declined", bringInReply({ run: "R1", declined: ["Flood Map for Planning (Rivers and Sea) - Flood Zone 3", "Carbon and Peatland 2016"] }));
 
 out.push("## A rerun\n");
 add("Same request, same checks, different result", runReply(withDiff(F.oracleSolarAgain, F.oracleSolar)), "The Oracle campus case from the logs.");

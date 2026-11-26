@@ -7,6 +7,7 @@ import * as R from "../js/reference.js";
 import { createPlaceTools, placeToolDefs, projectSummary } from "../js/placetools.js";
 import { parseSkill, systemPrompt, buildMessages, runTurn } from "../js/converse.js";
 import { finishTurn } from "../js/runreply.js";
+import { offerSummary } from "../js/bringin.js";
 import { coordinateNote } from "../js/coords.js";
 import { chooseIndustry, industryNote } from "../js/industry.js";
 import { atlasCall } from "./atlas-client.mjs";
@@ -117,6 +118,8 @@ for (const conv of convs) {
       console.log(`     gaps: ${r.data_gaps.join(" | ").slice(0, 600)}`);
       console.log(`     evidence features: ${evidenceOf(rec).length}; tokens ${r.usage.input_tokens} in / ${r.usage.output_tokens} out${r.parse_error ? `; PROBLEM ${r.parse_error}` : ""}`);
       console.log(`     summary: ${r.summary.replace(/\s+/g, " ").slice(0, 700)}`);
+      if (r.look_for?.length) console.log(`     LOOK FOR (analyst): ${r.look_for.map((l) => `${l.what} [${l.words.join(", ")}]`).join("; ")}`);
+      if (r.offer) console.log(`     OFFER: searched ${r.offer.searched.map((g) => `${g.label} [${g.words.join(", ")}]`).join("; ") || "nothing"} → ${r.offer.items.map((x) => `${x.id} ${x.dataset.title} (${x.dataset.publisher}; ${x.dataset.licence_class}) for ${x.label}`).join("; ") || "no layers"}${r.offer.nothing.length ? ` | nothing for ${r.offer.nothing.join(", ")}` : ""}${r.offer.failed.length ? ` | FAILED ${r.offer.failed.join(", ")} (${r.offer.why_failed})` : ""}`);
       if (r.debug) console.log(`     DEBUG ${JSON.stringify(r.debug).slice(0, 4000)}`);
       if (r.debug?.repairs?.length) console.log(`     RAW END (why the result needed a repair): ${JSON.stringify(String(r.debug.raw_tail || "").slice(-900))}`);
     },
@@ -134,7 +137,7 @@ for (const conv of convs) {
     try {
       const res = await runTurn({
         system: systemPrompt({ skills: convSkills, loaded, comingSoon: ["constraints-and-access analysis"], industryRule: profile.other_requests }),
-        messages: buildMessages({ recent, summary: [await projectSummary(ref, list, list.at(-1)?.name, null, runLines([...host.screening.runs.values()].map((record) => ({ record, change: siteChange(record, list.find((q) => q.id === record.tobler_run.place_id) || null), replacedBy: record.tobler_run.replaced_by })))), industryNote(profile, industries)].join("\n"), userText: coordinateNote(text) ? `${text}\n\n${coordinateNote(text)}` : text }),
+        messages: buildMessages({ recent, summary: [await projectSummary(ref, list, list.at(-1)?.name, null, runLines([...host.screening.runs.values()].map((record) => ({ record, change: siteChange(record, list.find((q) => q.id === record.tobler_run.place_id) || null), replacedBy: record.tobler_run.replaced_by }))).concat([...host.screening.runs.values()].filter((x) => !x.tobler_run.replaced_by).map((x) => offerSummary(x.tobler_run)).filter(Boolean).map((l) => `- ${l}`))), industryNote(profile, industries)].join("\n"), userText: coordinateNote(text) ? `${text}\n\n${coordinateNote(text)}` : text }),
         tools: placeToolDefs(convSkills),
         maxRounds: 14,
         finish: finishTurn(host.screening),
