@@ -106,7 +106,7 @@ await test("the offer: searched over the site, one layer per gap, nothing found 
   const lines = offerLines(rec.tobler_run).join("\n\n");
   assert.match(lines, /The atlas has a layer with something in reach for a gap:\n- \*\*Historic Landfill Sites\*\* \(Environment Agency; Open Government Licence v3\.0\), for landfill \(historic and authorised\): 1 within 20 km, nearest Stanlow tip, 3\d0 m away/);
   assert.match(lines, /I'll put it on the map out to 20 km/);
-  assert.match(lines, /I also looked at Landfill sites \(Runnymede\) \(Runnymede Borough Council\) for landfill \(historic and authorised\): nothing within 20 km, so it isn't offered\./);
+  assert.match(lines, /For landfill \(historic and authorised\), the atlas has Landfill sites \(Runnymede\) \(Runnymede Borough Council\), but it has nothing within 20 km, so it isn't offered\./);
   assert.match(lines, /found no layer to offer/);
   assert.match(lines, /didn't answer \(D1 DB is overloaded\)/);
   assert.match(offerSummary(rec.tobler_run), /R1: layers offered after the run.*L1 Historic Landfill Sites/);

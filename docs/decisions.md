@@ -11,6 +11,11 @@ Judgement calls made while building, newest first. Bigger product decisions live
   Up to three candidates per gap are tried in turn. One with nothing in reach is said ("I also looked at Pipelines
   (EMODnet Human Activities) for subsea pipelines: nothing within 20 km, so it isn't offered"). Nothing is put on the
   map or kept until the yes. The one-feature probe of council layers is gone: the look covers it.
+- **Live replay on main** (run 45775099977): Riccarton Road 1 mile radius and the Oracle campus: Pipelines (EMODnet),
+  a fishing-intensity layer and the NSTA's ED50 pipelines were looked at and not offered (nothing within 20 km);
+  Stirling Council's historic environment records were offered for Riccarton Road (35 within 20 km, nearest 15.5 km).
+  Empty layers are now said once per gap ("For subsea pipelines…, the atlas has 3 layers (…), but none has anything
+  within 20 km").
 - **Cost:** one `fetch_features` (up to 500 features) per candidate looked at, in parallel across gaps, 12 s each.
   The yes fetches again through `get_data` (the page's atlas client may answer it from its cache).
 - **Approximations:** a layer that hits the 500-feature limit shows its count with a "+"; distances are from the run's

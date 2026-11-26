@@ -216,7 +216,17 @@ export function offerLines(r) {
     out.push(`Bring ${open.length === 1 ? "it" : "them"} in? Use the buttons below, or tell me which. I'll put ${open.length === 1 ? "it" : "them"} on the map ${reach === "inside the area" ? "inside the area" : reach.replace(/^out/, "out")}, with the source. Nothing is added unless you say so.`);
   }
   const empty = o.empty || [];
-  if (empty.length) out.push(`I also looked at ${list(empty.map((e) => `${e.title} (${e.publisher || "publisher not stated"}) for ${lower(e.label)}`))}: nothing within ${r.extent === "inside" ? "the area" : `${r.assessed_within_km ?? r.distances.wider} km`}, so ${empty.length === 1 ? "it isn't" : "they aren't"} offered.`);
+  if (empty.length) {
+    // By gap, so three empty pipeline layers read as one line.
+    const scope = r.extent === "inside" ? "inside the area" : `within ${r.assessed_within_km ?? r.distances.wider} km`;
+    const byGap = new Map();
+    for (const e of empty) byGap.set(e.label, [...(byGap.get(e.label) || []), e]);
+    for (const [label, es] of byGap) {
+      out.push(es.length === 1
+        ? `For ${lower(label)}, the atlas has ${es[0].title} (${es[0].publisher || "publisher not stated"}), but it has nothing ${scope}, so it isn't offered.`
+        : `For ${lower(label)}, the atlas has ${es.length} layers (${list(es.map((e) => e.title))}), but none has anything ${scope}, so they aren't offered.`);
+    }
+  }
   if (o.nothing.length) out.push(`I looked in the atlas for ${list(o.nothing.map(lower))} and found no layer to offer.`);
   if (o.failed.length) out.push(`The atlas search for ${list(o.failed.map(lower))} didn't answer (${o.why_failed || "no reply"}), so there's nothing to offer for ${o.failed.length === 1 ? "it" : "them"} yet.`);
   return out;
