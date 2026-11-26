@@ -6,15 +6,24 @@ and the latest entries in `docs/decisions.md`.
 
 ## Where new code goes
 
-The conceptual model in six nouns (full version, with what's built: `docs/conceptual-model.md`). Put new work under
-the noun it belongs to. Don't build a noun ahead of the plan, or bend working code to fit a part that isn't built.
+The conceptual model in short (full version, with what's built: `docs/conceptual-model.md`; widened 26 Nov). Put new
+work under the noun it belongs to. Don't build a noun ahead of the plan, or bend working code to fit a part that
+isn't built.
 
 - **Tools do.** Deterministic and generic, no judgement (`js/placetools.js`, `js/datatools.js`, `js/geometry.js`,
   `js/epsgtools.js`, `js/transform.js`).
 - **Checks measure.** One report line each, always found, none found or not checked; data, not code
   (`catalogue/checks.json`, read by `js/checks.js`). A new must-check is a line there, not code in the run.
-- **Skills judge.** Which checks matter, severity, the decision, the write-up (`skills/*/SKILL.md`).
-- **The profile sets defaults** (`catalogue/industries/`); the project holds the consultant's overrides (*not built*).
+- **Skills judge.** Which checks matter, the decision, the write-up (`skills/*/SKILL.md`). The model's severity
+  rating is due to go (plan).
+- **The asset says what's proposed; the profile says who's asking.** A number that depends on what's being built
+  (a reach, a protection distance) belongs in a shared asset table (*not built*), never the profile. Until it's
+  built, both live in `catalogue/industries/` and `catalogue/distances.json`. The project holds the place, the
+  proposal and the person's overrides (*not built*).
+- **Three kinds of distance, kept apart:** search (the check's reach), protection (a skill's deduction), impact
+  pathway (not a number). A shape someone drew, above all a published zone, beats a buffer Tobler computes.
+- **The record is metric; units are for display.** Code converts, with exact factors (`js/units.js`); the model
+  never does.
 - **A place says where** (role set in code, how it was made recorded); **data says what exists** (the atlas, with
   publisher and licence).
 - **Frameworks map topics to report headings**, per job; each skill owns its report shape and says which frameworks

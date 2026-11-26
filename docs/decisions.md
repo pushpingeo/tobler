@@ -2006,3 +2006,24 @@ have no topic at all, though landscape, peat and farmland quality decided most o
   nature green, hazard yellow).
 - **Not done (in the plan):** topic headings changeable in settings. It overlaps frameworks (topics to report
   headings, per job), so it waits for that design rather than adding a second way to rename topics.
+
+## 26 Nov 2026 (evening): the conceptual model widened; distances, units and the asset table agreed
+A thinking session with Rob, from his review of EIA screening practice. Docs only: no code changed.
+- **Three kinds of distance, kept apart.** Search (a check's reach), protection (a skill's deduction) and impact
+  pathway, which isn't a number: the check says how its receptor can be reached, the asset says what effects it
+  sends out, the skill judges whether a pathway joins them, and tools will measure it later.
+- **Rob's decisions:** the project is stated (place, proposal, overrides, framework, units, data brought in). The
+  asset table is split from the profile, so the profile is only about who's asking. A drawn shape beats a computed
+  buffer, a published zone above all, and the card says whose shape it is. Adjacent means within 50 m of the edge.
+  One reporting ladder whose last band is 30–50 km; nothing is fetched beyond 50 km for now. The model's severity
+  rating goes. Checks gain "reached by". Units need one coherent design: metric record, display in the person's
+  units, defaults from the place's country.
+- **Asset types** come from the person's words, are confirmed like the place, and aren't tied to the profile. An
+  asset with no row runs on general defaults and says so.
+- **Defaults by country** are tables with sources, picked in code from the place's country. No model call advises on
+  practice at run time.
+- **Why nine nouns, not six:** framework and project were already in the model uncounted, and the asset was inside
+  the profile.
+- `docs/conceptual-model.md` rewritten; `CLAUDE.md`'s "Where new code goes" brought into line. The build is split
+  into four packages in the claude.ai project (`claude/work-packages-2026-11-26.md`).
+- **Not tested:** nothing to test beyond `npm test` still passing; no page or answer changes.
