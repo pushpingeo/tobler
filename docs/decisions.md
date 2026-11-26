@@ -2,6 +2,22 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 26 Nov 2026 (morning, later): a re-run takes what was brought in; the screen's old search code deleted (Rob's yes to both)
+- **A re-run includes the layers brought in after the last run** of the same kind on the same place (and whatever that
+  run carried over). They're fetched again, out to the new run's reach, become evidence the analyst can cite, and
+  are listed apart from the standard checks in its brief ("Brought in by the person after an earlier run"). The record
+  keeps them as `brought_in`, and the offer doesn't offer them again. The reply after a bring-in now ends "Explore it
+  on the map; to have it judged, ask me to re-run the screen, which will include it" (the desk study likewise; the
+  developable area has no offer). The card says "a re-run includes them". ntr-screening 4.1-draft: one sentence on
+  judging them.
+- **Deleted:** the screen's analyst searches (`analystSearches`, the tool loop, the tool-era system prompt, and the
+  volume guard, evidence refs and search-area marks that only fed it). The lab has its own copy in asktobler-lab. Tests
+  that used it now bring the same layers in (`BROUGHT` in `ntrrun.test.mjs`) or take them from the checks (the
+  fixture's Crown Estate Scotland pipelines); counts that changed say why. The re-assess call uses the sealed
+  screen's prompt.
+- **Tested:** `npm test` (ntrrun 41, a re-run including what was brought in), and the browser checks that run
+  screens and studies (run-card, search-area, outofdate, choice, ux, study, budget, cards), desktop and phone.
+
 ## 26 Nov 2026 (morning): Rob's answers on item 1, and Tobler's server reads public services that block browsers
 - **Rob:** a run isn't re-judged when layers are brought in; the person explores them first. Prompting a re-run is
   wanted, but a re-run doesn't yet take the brought-in layers, so the prompt waits for his yes on building that.

@@ -1,6 +1,6 @@
 ---
 name: ntr-screening
-version: 4.0-draft
+version: 4.1-draft
 description: Screen a site, onshore or offshore, for non-technical risk (NTR) from published spatial data. Flags anything that could become a risk, concern or delay (land and livelihoods, biodiversity, Indigenous Peoples, cultural heritage, community health and safety, and the operating context), with traced evidence and what wasn't checked. Use when someone asks what risks, sensitivities or constraints a site, block, field, route or area might raise.
 ---
 
@@ -30,7 +30,7 @@ Distances are measured from the footprint edge. When the screen runs as its own 
 State the distances used at the top of the result, and offer to change them.
 
 ## Steps
-0. **Start from the checks.** The run has carried out the standard checks before you start, grouped by topic: each is found, none found, or not checked with the reason, and "must" marks a check its topic can't be called clear without. They are your evidence. At sea the checks include the water depth over the site and, in European waters, AIS vessel traffic at and around it; on land, the elevation. Judge whether a value matters (low-lying land is a flooding hazard; deep water rules out fixed foundations); the check only measures it.
+0. **Start from the checks.** The run has carried out the standard checks before you start, grouped by topic: each is found, none found, or not checked with the reason, and "must" marks a check its topic can't be called clear without. They are your evidence. At sea the checks include the water depth over the site and, in European waters, AIS vessel traffic at and around it; on land, the elevation. Judge whether a value matters (low-lying land is a flooding hazard; deep water rules out fixed foundations); the check only measures it. Layers the person brought in after an earlier run are listed apart from the checks: they asked for them, so judge them like any evidence, citing their ids.
 1. **Confirm the site:** location, onshore/offshore, asset type, stage, footprint and distances used.
 2. **Plan the evidence.** For each theme below, decide which kinds of evidence apply to this site (onshore, offshore or both).
 3. **Raise flags** (below) from the checks, one per distinct risk, most serious first.

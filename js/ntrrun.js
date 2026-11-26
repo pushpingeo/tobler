@@ -4,8 +4,7 @@
 import * as turf from "./vendor/turf.js";
 import * as R from "./reference.js";
 import { FENCE_RULE } from "./fence.js";
-import { runTurn } from "./converse.js";
-import { createPlaceTools, placeToolDefs } from "./placetools.js";
+import { createPlaceTools } from "./placetools.js";
 import { fileOriginText } from "./fileimport.js";
 import { serviceOriginText } from "./servicesite.js";
 import { bandFor, distancesLine, chooseDistances, ASSET_TYPES, MAX_KM } from "./distances.js";
@@ -65,66 +64,10 @@ const round = (v, d = 2) => (v == null || !Number.isFinite(+v) ? null : Math.rou
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 // The site as screened: a point gets a footprint circle (radius from the distance table); lines and areas as they are.
-// Volume guard (Rob's housing screen near Liverpool, 20 Nov: ~400 features to 20 km, and the write-up was cut off).
-// Everything found still goes on the map and into the run record; the analyst sees the count and the nearest few,
-// and details that only repeat the name are dropped.
-export const DENSE_AT = 25, DENSE_SHOW = 6;
-export function forAnalyst(name, out) {
-  if (!out || typeof out !== "object") return out;
-  const key = name === "find_features_near" ? "candidates" : name === "get_data" ? "nearest" : null;
-  if (!key || !Array.isArray(out[key])) return out;
-  const total = name === "find_features_near" ? out.found : (out.within_distance ?? out.returned_by_service);
-  const slim = (x) => {
-    const d = x.details && Object.entries(x.details).filter(([k, v]) => !(k === "name" && v === x.name));
-    return { ...x, ...(x.details ? { details: d.length ? Object.fromEntries(d) : undefined } : {}) };
-  };
-  const list = out[key].map(slim);
-  if (!(total > DENSE_AT) || list.length <= DENSE_SHOW) return { ...out, [key]: list };
-  const shown = list.slice(0, DENSE_SHOW);
-  const { not_listed, listed, ...rest } = out;
-  return { ...rest, [key]: shown, listed: shown.length,
-    dense: `${total} found: a busy area. Only the nearest ${shown.length} are listed here; all are on the map and in the run.` };
-}
-
-// The analyst's view of a tool's output on a search area: items inside it say where, and how much of it they cover.
-export function markInArea(name, out, inArea) {
-  const key = name === "find_features_near" ? "candidates" : name === "get_data" ? "nearest" : null;
-  if (!key || !out || !Array.isArray(out[key])) return out;
-  return { ...out, [key]: out[key].map((x) => {
-    const w = !(x.distance_km > 0) && !x.around_site ? inArea.get(`${norm(x.name)}|${round(x.distance_km, 2)}`) : null;
-    return w ? { ...x, in_search_area: w } : x;
-  }) };
-}
-
-// The analyst's view of a tool's output with each item's evidence id (ref: "E7"), the id a flag cites.
-export function withRefs(name, out, candFid) {
-  const key = name === "find_features_near" ? "candidates" : name === "get_data" ? "nearest" : null;
-  if (!key || !out || !Array.isArray(out[key])) return out;
-  return { ...out, [key]: out[key].map((x) => (candFid.has(x.id) ? { ref: candFid.get(x.id), ...x } : x)) };
-}
-
 export function footprintOf(feature, d) {
   if (feature.geometry.type !== "Point") return { feature, note: null };
   const f = turf.circle(feature.geometry.coordinates, d.footprint_km, { units: "kilometers", steps: 48 });
   return { feature: { type: "Feature", properties: {}, geometry: f.geometry }, note: `a point, screened as a ${d.footprint_km} km footprint round it (default for a ${d.asset_label})` };
-}
-
-export function systemFor(skill) {
-  return `You are Tobler's screening analyst, running one sealed screen of one site for environmental constraints and environmental and social (E&S) risk. Nobody is chatting with you: do the screen, then write the result.
-
-- ${FENCE_RULE}
-- The site, its footprint, the asset type, the stage and the distances are fixed by this run and given in the first message. Use them as given; don't ask about them and don't change them. If the stage or asset type was assumed, say so in the summary.
-- The tools fetch every dataset out to the wider band and measure from the footprint edge. Never work out a distance yourself: use the distances the tools return.
-- Items marked around_site (or "around the site") are wide areas the site lies within: seas, regions, very large designations. They are not features on the site. Mention one only where being inside it matters for this project (for example a large protected area the site sits in, or a MARPOL special area for an offshore site); a sea area around an onshore site is not a finding.
-- Put independent searches in the same step: they run at the same time. Aim to finish within about ten steps.
-- Name features and datasets as the data names them. Ids (C3, D2) are for tool calls only.
-- A flag's evidence is a list of ids, never retyped names or distances: an evidence id (E7) from a tool result's "ref" or the checks' lines, or a check's id in square brackets ([heritage.listed-buildings]) when the check found something. The run fills in names, distances, sources and licences from the ids. Something you can't cite by id can't support a flag: put it in data_gaps.
-- Your last message is the result: the short summary, then the JSON block, exactly as the method's Output section says. Use the distances given (not the skill's table) in "distances_km".
-- Keep the result compact so it fits in one reply: summary under 300 words; at most 8 flags, each next_step one short line; at most 4 evidence items per flag (the nearest or strongest, and say in "why" how many more there are); "data_gaps" at most 12 short lines; leave "checked" as an empty list, because the run records what the tools checked itself. Keep your thinking before the result short: the reply limit (16,000 tokens) includes it.
-
-<method skill="${skill.name}" version="${skill.version}">
-${skill.body}
-</method>`;
 }
 
 // The constraints screen, sealed (plan item 1, 26 Nov): one judgement of the checks, with no tools. What the checks
@@ -161,7 +104,7 @@ export function readLookFor(v) {
 
 export const isArea = (feature) => /Polygon/.test(feature?.geometry?.type || "");
 
-export function firstMessage({ siteName, describe, inputs, distances, footprintNote, origin, baseline = null, inside = false, searchArea = null, sealed = false }) {
+export function firstMessage({ siteName, describe, inputs, distances, footprintNote, origin, baseline = null, inside = false, searchArea = null }) {
   const reach = inside ? 0 : distances.wider;
   const lines = [
     `Screen ${siteName}.`,
@@ -174,14 +117,12 @@ export function firstMessage({ siteName, describe, inputs, distances, footprintN
     inputs.capacity_mw ? `Capacity: ${inputs.capacity_mw} MW.` : null,
     inputs.tip_height_m ? `Turbine tip height: ${inputs.tip_height_m} m.` : null,
     inside
-      ? "Scope: inside the area only, as the person asked. The tools fetch only what lies inside the area or touches its edge (distance 0, band \"on site\"); the surroundings were not screened. Assess only what is inside, and put one line in data_gaps saying the surroundings weren't screened."
+      ? "Scope: inside the area only, as the person asked. The run fetched only what lies inside the area or touches its edge (distance 0, band \"on site\"); the surroundings were not screened. Assess only what is inside, and put one line in data_gaps saying the surroundings weren't screened."
       : `Distances from the footprint edge: ${distancesLine(distances)}. Why: ${distances.reasons.join("; ")}.`,
     inputs.focus ? `The person asked especially about: ${inputs.focus}.` : null,
     describe.offshore && describe.coast_km != null && describe.coast_km > reach
-      ? `No land ${inside ? "inside the area" : "within the wider band"} (the coast is about ${Math.round(describe.coast_km)} km away): settlements, schools, clinics, roads and other onshore receptors are out of reach. ${sealed ? "Don't" : "Don't search for them and don't"} list them as gaps; coastal communities matter only as spill reach beyond the bands.` : null,
-    baseline && sealed ? `The checks, by topic: your evidence. Each check is found, none found, or not checked with the reason; "must" marks a check its topic can't be called clear without. Not-checked lines are already on the card as gaps, so don't repeat them in data_gaps unless you have something to add:\n${baseline}` : null,
-    baseline && !sealed ? `Already checked by the run before you started, by topic (don't fetch these again; they are evidence like anything you fetch). Each check is found, none found, or not checked with the reason; "must" marks a check its topic can't be called clear without. Not-checked lines are already on the card as gaps, so don't repeat them in data_gaps unless you have something to add:\n${baseline}` : null,
-    sealed ? null : `Refer to the site as "${siteName}" in tool calls.`,
+      ? `No land ${inside ? "inside the area" : "within the wider band"} (the coast is about ${Math.round(describe.coast_km)} km away): settlements, schools, clinics, roads and other onshore receptors are out of reach. Don't list them as gaps; coastal communities matter only as spill reach beyond the bands.` : null,
+    baseline ? `The checks, by topic: your evidence. Each check is found, none found, or not checked with the reason; "must" marks a check its topic can't be called clear without. Not-checked lines are already on the card as gaps, so don't repeat them in data_gaps unless you have something to add:\n${baseline}` : null,
   ];
   return lines.filter(Boolean).join("\n");
 }
@@ -340,12 +281,10 @@ const roomy = (callClaude) => (args) => callClaude({ ...args, maxTokens: SCREEN_
 // study (optional): a skill other than the screen that judges the checks alone (the contamination desk study, 24 Nov):
 // { id, label, groups: [{ id, label, checks: [check ids] }], decisions, full_study_adds }. The run carries out only its
 // checks, then asks once for the judgement, with no tools: its data is the checks, all measured in code.
-// analystSearches: the screen's analyst may search and fetch data itself, as before 26 Nov. Off in the product (the
-// screen is one judgement with no tools, then the offer); kept for the tests of the evidence pipeline and for the lab.
 // broughtIn: layers the person brought in after an earlier run on this place (js/bringin.js), each { atlas_id, dataset,
 // publisher, licence, topic, for }. A re-run fetches them again, out to its own reach, as evidence the analyst can cite,
 // listed apart from the standard checks (Rob, 26 Nov: explore first, then re-run to have them judged).
-export async function runScreening({ host, site, inputs, distances, skill, study = null, callClaude: call, model = "", runId = "R1", maxRounds = 14, onEvent = () => {}, now = () => new Date().toISOString(), analystSearches = false, broughtIn = [] }) {
+export async function runScreening({ host, site, inputs, distances, skill, study = null, callClaude: call, model = "", runId = "R1", onEvent = () => {}, now = () => new Date().toISOString(), broughtIn = [] }) {
   const callClaude = roomy(call);
   const started = now();
   const fp = footprintOf(site.feature, distances);
@@ -355,7 +294,6 @@ export async function runScreening({ host, site, inputs, distances, skill, study
   const screenPlace = { name: site.name, feature: fp.feature, origin: site.origin, status: "accepted", edits: [] };
   const evidence = [];
   const seen = new Map();
-  const candFid = new Map(); // a tool's candidate id (C12) → the evidence id it became (E7)
   const siteKm2 = isArea(fp.feature) ? turf.area(fp.feature) / 1e6 : 0;
   // What the site is: a point is screened on a default footprint, which stands in for an outline nobody has, so it's a
   // search area too; an area is whatever make_place recorded (js/siterole.js).
@@ -364,7 +302,6 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     : placeRole(site.origin, site.feature.geometry);
   const searchArea = role.role === "search_area" && isArea(fp.feature);
   const searchNote = searchArea ? SEARCH_NOTE(siteKm2, role.why) : null;
-  const inArea = new Map(); // name|distance → where in the search area, for the analyst's view of the tool output
   const rawFound = new Map(); // dataset title → every feature a tool returned, before de-duplication (for the checks)
   const capture = (list, meta = {}) => {
     for (const c of list) {
@@ -375,16 +312,14 @@ export async function runScreening({ host, site, inputs, distances, skill, study
       const dataset = c.source?.title || meta.dataset || "";
       const key = `${norm(dataset)}|${norm(c.name)}|${round(c.distance_km, 2)}`;
       // The analyst cites evidence by this id (E1, E2…), from its tool output and the checks: code fills in the rest.
-      if (seen.has(key)) { if (c.id) candFid.set(c.id, seen.get(key)); continue; }
+      if (seen.has(key)) continue;
       const fid = `E${evidence.length + 1}`;
       seen.set(key, fid);
-      if (c.id) candFid.set(c.id, fid);
       // Inside a search area: how much of it the feature covers, and where (equal-area, js/siterole.js).
       let where = null;
       if (searchArea && !around && c.geometry && !(c.distance_km > 0)) {
         try { where = coverageIn(fp.feature, c.geometry); } catch { where = null; }
         if (!where) where = { coverage: null, side: null };
-        inArea.set(`${norm(c.name)}|${round(c.distance_km, 2)}`, whereText(where));
       }
       evidence.push({ type: "Feature", geometry: c.geometry, properties: {
         role: "evidence", fid, run: runId, name: c.name || c.type || "Unnamed feature", type: c.type || "", theme: meta.theme || "context",
@@ -408,7 +343,6 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     addFindings: capture,
   };
   const tools = createPlaceTools(sealedHost);
-  const defs = placeToolDefs([]).filter((t) => SCREEN_TOOLS.includes(t.name));
   const checked = [];
   const calls = [];
   const lastOut = new Map(); // dataset id → the tool's own output, for the checks (the analyst sees a slimmer copy)
@@ -425,7 +359,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
       calls.push({ tool: name, input: i, ms: Date.now() - t0 });
       const c = checkedFrom(name, i, out); if (c) checked.push(meta.check ? { ...c, check: meta.check } : c);
       if (name === "get_data") lastOut.set(i.dataset, out);
-      return withRefs(name, forAnalyst(name, searchArea ? markInArea(name, out, inArea) : out), candFid);
+      return out;
     } catch (e) {
       calls.push({ tool: name, input: i, ms: Date.now() - t0, error: String(e.message || e).slice(0, 200) });
       // A mistyped id (a candidate's C1 passed as a dataset) is the analyst's slip, not a source that wasn't checked.
@@ -693,7 +627,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     }
   }
   const ncLine = K.noCheckLine(catalogue, noCheck);
-  if (ncLine) baselineLines.push(`${ncLine}. ${analystSearches ? "Search for these yourself where they matter for this site; the card already lists them as not checked." : "The card already lists them as not checked; where one matters for this site, say so in data_gaps."}`);
+  if (ncLine) baselineLines.push(`${ncLine}. The card already lists them as not checked; where one matters for this site, say so in data_gaps.`);
   const baselineCalls = calls.length;
   // One line per source the tools reached, for the repair prompt when a write-up is cut off.
   const summarise = (c) => {
@@ -708,15 +642,10 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     : "drawn on the map by the person";
   // An area budget asks no model: the rules are the skill's, the geometry is the area_budget tool's.
   const budgetOut = budget ? budgetFrom({ budget, plans, results, layerAnswers, keyOf, catalogue, site: fp.feature }) : null;
-  const sealed = !study && !analystSearches;
-  const screenMessage = () => firstMessage({ siteName: site.name, describe, inputs, distances, footprintNote: fp.note, origin, baseline: baselineLines.join("\n") || null, inside, searchArea: searchNote, sealed: true });
-  const res = budget ? { text: "", usage: { input_tokens: 0, output_tokens: 0 }, history: [], stopReason: null } : study ? await studyTurn({ skill, study, callClaude, message: studyMessage({ siteName: site.name, describe, origin, distances, baseline: baselineLines.join("\n"), searchArea: searchNote, study }), onEvent })
-    : sealed ? await studyTurn({ skill, callClaude, message: screenMessage(), onEvent, system: systemForScreen(skill) }) : await runTurn({
-    system: systemFor(skill),
-    messages: [{ role: "user", content: firstMessage({ siteName: site.name, describe, inputs, distances, footprintNote: fp.note, origin, baseline: baselineLines.join("\n") || null, inside, searchArea: searchNote }) }],
-    tools: defs, exec, callClaude, maxRounds,
-    onEvent: (ev) => { if (ev.type === "tool_start") onEvent({ type: "tool_start", name: ev.name, input: ev.input }); if (ev.type === "tool" || ev.type === "round" || ev.type === "warning") onEvent(ev); },
-  });
+  const screenMessage = () => firstMessage({ siteName: site.name, describe, inputs, distances, footprintNote: fp.note, origin, baseline: baselineLines.join("\n") || null, inside, searchArea: searchNote });
+  const res = budget ? { text: "", usage: { input_tokens: 0, output_tokens: 0 }, history: [], stopReason: null }
+    : study ? await studyTurn({ skill, study, callClaude, message: studyMessage({ siteName: site.name, describe, origin, distances, baseline: baselineLines.join("\n"), searchArea: searchNote, study }), onEvent })
+    : await studyTurn({ skill, callClaude, message: screenMessage(), onEvent, system: systemForScreen(skill) });
   let parsed = budgetOut ? { json: { flags: [], data_gaps: [], checked: [] }, summary: budgetSummary(budgetOut.budget) } : parseResult(res.text);
   const usage = { ...res.usage };
   let repaired = false;
@@ -746,7 +675,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     debug.repairs = [];
     for (const a of attempts) {
       try {
-        const resp = await callClaude({ system: study ? systemForStudy(skill) : sealed ? systemForScreen(skill) : systemFor(skill), ...(a.how === "history" && !study && !sealed ? { tools: defs } : {}), messages: a.messages });
+        const resp = await callClaude({ system: study ? systemForStudy(skill) : systemForScreen(skill), messages: a.messages });
         usage.input_tokens += resp.usage?.input_tokens || 0; usage.output_tokens += resp.usage?.output_tokens || 0;
         const t2 = (resp.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
         const again = parseResult(t2);
@@ -799,7 +728,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
       ...(traced.not_raised.length ? { not_raised: traced.not_raised } : {}),
       ...(brought.length ? { brought_in: brought } : {}),
       model_checked: Array.isArray(parsed.json?.checked) ? parsed.json.checked : [],
-      ...(sealed && readLookFor(parsed.json?.look_for).length ? { look_for: readLookFor(parsed.json.look_for) } : {}),
+      ...(!study && readLookFor(parsed.json?.look_for).length ? { look_for: readLookFor(parsed.json.look_for) } : {}),
       summary: parsed.summary, ...(parsed.json ? {} : { parse_error: "The analyst's result had no readable JSON block, so there are no structured flags. The summary is kept as written." }),
       checks: checkResults, checks_scale: scale, checks_merge_shapes: mergeShapes, checks_version: catalogue.version || null, ...(noCheck.length ? { no_check_topics: noCheck } : {}),
       // Topic names travel with the run, so a share link can show them without the catalogue.
@@ -920,7 +849,7 @@ export async function reassess({ record, km, skill, callClaude: call, now = () =
       ? "Write the short summary and the JSON block as the method says. Features outside the area are out of scope for this view (they were found and stay in the run); gaps still stand."
       : "Write the short summary and the JSON block as the method says. Features beyond the new distance are out of scope; gaps still stand.",
   ].filter(Boolean).join("\n\n");
-  const resp = await callClaude({ system: systemFor(skill), messages: [{ role: "user", content: message }] });
+  const resp = await callClaude({ system: systemForScreen(skill), messages: [{ role: "user", content: message }] });
   const text = (resp.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
   const parsed = parseResult(text);
   if (!parsed.json) throw new Error("The re-assessment came back without a readable result. The earlier flags are unchanged.");
@@ -978,7 +907,7 @@ export function budgetHeadline(record) {
 // The screening service the conversation's screen_site and get_run tools call. table: catalogue/distances.json;
 // skill: the parsed NTR skill. onRun(record, place) shows the card; onEvent reports progress.
 // skillFor(name): another parsed skill, for studies (the profile's skills_offered names each study's skill).
-export function createScreening({ host, table, skill, skillFor = () => null, callClaude, model = "", onRun = () => {}, onEvent = () => {}, now, analystSearches = false }) {
+export function createScreening({ host, table, skill, skillFor = () => null, callClaude, model = "", onRun = () => {}, onEvent = () => {}, now }) {
   const runs = new Map();
   let n = 0;
   // Every new run of a skill on a place is linked to the last one, edited or not, and compared with it in code, so
@@ -1048,7 +977,7 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       onEvent({ type: "screen_start", run: id, site: place.name, setting: site.offshore ? "offshore" : "onshore",
         inside: i.extent === "inside" && /Polygon/.test(place.feature.geometry.type), wider_km: distances.wider });
       const record = await runScreening({
-        host, site: { name: place.name, feature: place.feature, origin: place.origin }, distances, skill: sk, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}), analystSearches, broughtIn: carried(place, "ntr-screen"),
+        host, site: { name: place.name, feature: place.feature, origin: place.origin }, distances, skill: sk, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}), broughtIn: carried(place, "ntr-screen"),
         inputs: { asset_type: asset || "other", asset_label: asset ? tb.assets[asset].label : planned || "site of unknown type", asset_assumed: asset ? !!i.assumed : !planned,
           ...(planned ? { outside_profile: host.profile?.()?.wording?.outside || OUTSIDE_PROFILE } : {}),
           stage: i.stage || "", capacity_mw: site.capacity_mw, tip_height_m: site.tip_height_m, focus: i.focus || "", extent: i.extent === "inside" ? "inside" : "around" },
