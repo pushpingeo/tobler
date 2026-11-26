@@ -342,7 +342,10 @@ const roomy = (callClaude) => (args) => callClaude({ ...args, maxTokens: SCREEN_
 // checks, then asks once for the judgement, with no tools: its data is the checks, all measured in code.
 // analystSearches: the screen's analyst may search and fetch data itself, as before 26 Nov. Off in the product (the
 // screen is one judgement with no tools, then the offer); kept for the tests of the evidence pipeline and for the lab.
-export async function runScreening({ host, site, inputs, distances, skill, study = null, callClaude: call, model = "", runId = "R1", maxRounds = 14, onEvent = () => {}, now = () => new Date().toISOString(), analystSearches = false }) {
+// broughtIn: layers the person brought in after an earlier run on this place (js/bringin.js), each { atlas_id, dataset,
+// publisher, licence, topic, for }. A re-run fetches them again, out to its own reach, as evidence the analyst can cite,
+// listed apart from the standard checks (Rob, 26 Nov: explore first, then re-run to have them judged).
+export async function runScreening({ host, site, inputs, distances, skill, study = null, callClaude: call, model = "", runId = "R1", maxRounds = 14, onEvent = () => {}, now = () => new Date().toISOString(), analystSearches = false, broughtIn = [] }) {
   const callClaude = roomy(call);
   const started = now();
   const fp = footprintOf(site.feature, distances);
@@ -616,6 +619,23 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     // A pending source beside answered ones is still a gap to list.
     for (const a of answers.filter((y) => y.source.pending)) checked.push({ evidence: p.check.topic, dataset: `${p.check.label} (${a.source.region})`, result: "not checked", why: a.source.pending, check: p.check.id });
   }
+  // Layers the person brought in after an earlier run: fetched again here, each to the run's reach.
+  const brought = [];
+  await Promise.all((budget ? [] : broughtIn).map(async (b) => {
+    const id = tools.useDataset({ id: b.atlas_id, title: b.dataset, publisher: b.publisher || "", licence: b.licence_full || b.licence || "", capabilities: ["query"], concepts: [] }, "B");
+    const input = { dataset: id, place: site.name, theme: topicOf(b.topic || "context"), within_km: reach, limit: 500 };
+    const t0 = Date.now();
+    onEvent({ type: "tool_start", name: "get_data", input });
+    try {
+      await exec("get_data", input, { ownReach: true });
+      const raw = lastOut.get(id) || {};
+      onEvent({ type: "tool", name: "get_data", input, output: raw, ms: Date.now() - t0, baseline: true });
+      brought.push({ ...b, dataset: raw.dataset || b.dataset, checked_at: raw.checked_at || now(), within_km: reach, ...(raw.not_checked ? { not_checked: String(raw.not_checked).split(/(?<=\.)\s/)[0].slice(0, 160) } : { count: raw.within_distance ?? 0 }) });
+    } catch (e) {
+      onEvent({ type: "tool", name: "get_data", input, error: String(e.message || e), ms: Date.now() - t0, baseline: true });
+      brought.push({ ...b, checked_at: now(), within_km: reach, not_checked: String(e.message || e).slice(0, 160) });
+    }
+  }));
   const seaRes = seaJob ? await seaJob.catch((e) => ({ lines: [], notChecked: [`elevation, water depth and vessel traffic: not checked (${String(e.message || e).slice(0, 120)})`] })) : null;
   if (seaRes && seaJob) for (const p of [depthPlan, elevPlan, trafficPlan]) if (p && !results.has(p.check.id) && ((p === depthPlan && wantDepth) || (p === elevPlan && wantElev) || (p === trafficPlan && wantTraffic))) results.set(p.check.id, K.notChecked(p, seaRes.notChecked[0] || "no reading"));
   // In plan order (the catalogue's order), only checks that ran or were found wanting: a value check that didn't
@@ -665,6 +685,13 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     }
   }
   if (seaRes) for (const l of seaRes.lines) baselineLines.push(`- ${l}`);
+  if (brought.length) {
+    baselineLines.push("Brought in by the person after an earlier run (not standard checks; judge them like any evidence, citing their ids):");
+    for (const b of brought) {
+      const near = b.not_checked ? [] : evidence.filter((f) => f.properties.dataset === b.dataset).sort((x, y) => x.properties.distance_km - y.properties.distance_km).slice(0, 3).map((f) => nameOf(f.properties));
+      baselineLines.push(`- ${b.dataset} (${b.publisher || "publisher not stated"}), for ${String(b.for || "").toLowerCase()}: ${b.not_checked ? `not checked (${b.not_checked})` : b.count ? `${b.count} within ${reach} km; nearest ${near.join("; ")}` : `none within ${reach} km`}`);
+    }
+  }
   const ncLine = K.noCheckLine(catalogue, noCheck);
   if (ncLine) baselineLines.push(`${ncLine}. ${analystSearches ? "Search for these yourself where they matter for this site; the card already lists them as not checked." : "The card already lists them as not checked; where one matters for this site, say so in data_gaps."}`);
   const baselineCalls = calls.length;
@@ -770,6 +797,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
           : "Distances geodesic on WGS84, measured from the footprint edge (0 = on site); features fetched once out to the wider band. Coordinates WGS84 (EPSG:4326).",
       flags, checked, data_gaps: [...(Array.isArray(parsed.json?.data_gaps) ? parsed.json.data_gaps.map(String) : []), ...traced.not_raised.map(notRaisedGap)],
       ...(traced.not_raised.length ? { not_raised: traced.not_raised } : {}),
+      ...(brought.length ? { brought_in: brought } : {}),
       model_checked: Array.isArray(parsed.json?.checked) ? parsed.json.checked : [],
       ...(sealed && readLookFor(parsed.json?.look_for).length ? { look_for: readLookFor(parsed.json.look_for) } : {}),
       summary: parsed.summary, ...(parsed.json ? {} : { parse_error: "The analyst's result had no readable JSON block, so there are no structured flags. The summary is kept as written." }),
@@ -955,6 +983,15 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
   let n = 0;
   // Every new run of a skill on a place is linked to the last one, edited or not, and compared with it in code, so
   // the card and the reply can say what changed and why (plan item 1, 25 Nov: reruns changed with no explanation).
+  // What the person brought in after the latest run of this kind on this place, and what that run carried over: a
+  // re-run takes it all (deduplicated by layer).
+  const carried = (place, kind) => {
+    const old = [...runs.values()].reverse().find((o) => (o.tobler_run.kind || "ntr-screen") === kind && place.id != null && o.tobler_run.place_id === place.id);
+    if (!old) return [];
+    const r = old.tobler_run, seen = new Set();
+    return [...(r.brought_in || []), ...(r.added || []).filter((a) => !a.not_checked)].filter((a) => a.atlas_id && !seen.has(a.atlas_id) && seen.add(a.atlas_id))
+      .map((a) => ({ atlas_id: a.atlas_id, dataset: a.dataset, publisher: a.publisher, licence: a.licence, licence_full: a.licence_full, topic: a.topic, for: a.for }));
+  };
   const linkPrevious = (record, place, i, kind) => {
     const old = (i.replaces ? runs.get(String(i.replaces).trim().toUpperCase()) : null)
       || [...runs.values()].reverse().find((o) => (o.tobler_run.kind || "ntr-screen") === kind && place.id != null && o.tobler_run.place_id === place.id && !o.tobler_run.replaced_by);
@@ -1011,7 +1048,7 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       onEvent({ type: "screen_start", run: id, site: place.name, setting: site.offshore ? "offshore" : "onshore",
         inside: i.extent === "inside" && /Polygon/.test(place.feature.geometry.type), wider_km: distances.wider });
       const record = await runScreening({
-        host, site: { name: place.name, feature: place.feature, origin: place.origin }, distances, skill: sk, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}), analystSearches,
+        host, site: { name: place.name, feature: place.feature, origin: place.origin }, distances, skill: sk, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}), analystSearches, broughtIn: carried(place, "ntr-screen"),
         inputs: { asset_type: asset || "other", asset_label: asset ? tb.assets[asset].label : planned || "site of unknown type", asset_assumed: asset ? !!i.assumed : !planned,
           ...(planned ? { outside_profile: host.profile?.()?.wording?.outside || OUTSIDE_PROFILE } : {}),
           stage: i.stage || "", capacity_mw: site.capacity_mw, tip_height_m: site.tip_height_m, focus: i.focus || "", extent: i.extent === "inside" ? "inside" : "around" },
@@ -1042,7 +1079,7 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       const id = `R${++n}`;
       onEvent({ type: "screen_start", run: id, site: place.name, setting: "onshore", inside: false, wider_km: distances.wider, study: entry.id });
       const record = await runScreening({
-        host, site: { name: place.name, feature: place.feature, origin: place.origin }, distances, skill: sk, study: entry, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}),
+        host, site: { name: place.name, feature: place.feature, origin: place.origin }, distances, skill: sk, study: entry, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}), broughtIn: carried(place, entry.id),
         inputs: { asset_type: "other", asset_label: entry.label.toLowerCase(), asset_assumed: false, stage: i.stage || "", focus: i.focus || "", extent: "around" },
       });
       record.tobler_run.place_id = place.id ?? null;

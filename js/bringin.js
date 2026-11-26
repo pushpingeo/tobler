@@ -247,7 +247,7 @@ export async function bringIn(record, ids, { get, keep, placeName, placeIsPoint 
   }));
   r.added = [...(r.added || []), ...added];
   o.state = o.items.some((x) => x.state === "offered") ? "open" : "done";
-  return { run: r.id, site: r.site.name, added, ...(unknown.length ? { not_on_offer: unknown } : {}) };
+  return { run: r.id, site: r.site.name, what: r.budget ? null : r.study ? r.study.label.toLowerCase() : "screen", added, ...(unknown.length ? { not_on_offer: unknown } : {}) };
 }
 
 const where = (km) => (km === 0 ? "on the site" : km < 1 ? `${Math.round(km * 1000)} m away` : `${Math.round(km * 10) / 10} km away`);
@@ -268,6 +268,6 @@ export function bringInReply(out) {
   const ok = out.added.filter((a) => !a.not_checked);
   const from = out.added[0]?.measured_from === "the point" ? " Distances are from the point, not the screen's footprint." : "";
   const tail = [ok.some((a) => a.count) ? "What came in is on the map with its source." : "", from.trim(),
-    ok.length ? `${out.run}'s decision and flags were made without ${ok.length === 1 ? "this layer" : "these layers"}; ask me about what came in.` : ""].filter(Boolean).join(" ");
+    ok.length ? `${out.run}'s decision and flags were made without ${ok.length === 1 ? "it" : "them"}. Explore ${ok.length === 1 ? "it" : "them"} on the map${out.what ? `; to have ${ok.length === 1 ? "it" : "them"} judged, ask me to re-run the ${out.what}, which will include ${ok.length === 1 ? "it" : "them"}` : ""}.` : ""].filter(Boolean).join(" ");
   return [`Brought in for ${out.run}:`, ...lines].join("\n") + (tail ? `\n\n${tail}` : "");
 }

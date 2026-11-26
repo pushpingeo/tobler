@@ -222,7 +222,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
     added: document.querySelector('.run[data-run="R1"] .added')?.hidden === false ? document.querySelector('.run[data-run="R1"] .added').textContent : "",
     done: document.querySelector(".layer-offer").classList.contains("done"),
   }));
-  check(/Worldwide wreck locations \(UK Hydrographic Office\) \(EMODnet Human Activities; CC BY 4\.0; checked \d{4}-\d\d-\d\d\): 2 features within/.test(got.reply) && /made without this layer/.test(got.reply),
+  check(/Worldwide wreck locations \(UK Hydrographic Office\) \(EMODnet Human Activities; CC BY 4\.0; checked \d{4}-\d\d-\d\d\): 2 features within/.test(got.reply) && /made without it\. Explore it on the map; to have it judged, ask me to re-run the screen, which will include it\./.test(got.reply),
     `${label}: the reply after the button is code's, with source, licence and date (${got.reply.slice(0, 400)})`);
   check(calls.conversation.length === nConv, `${label}: no model call for the button (${calls.conversation.length - nConv})`);
   check(atlasLog.slice(log0).some((a) => a.tool === "fetch_features" && a.args.id === "wreck" && a.args.limit > 1), `${label}: the wreck layer was fetched on the yes`);

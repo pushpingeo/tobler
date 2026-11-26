@@ -2636,7 +2636,7 @@ function paintAdded(entry) {
   box.querySelector("summary").textContent = `Brought in after the run (${added.length})`;
   const ul = box.querySelector("ul");
   ul.replaceChildren(...added.map((a) => el("li", `${a.dataset} (${a.publisher || "publisher not stated"}; ${a.licence_class === "unknown" ? "licence not stated" : a.licence}; checked ${String(a.checked_at).slice(0, 10)}): ${a.not_checked ? `not checked (${a.not_checked})` : a.count ? `${a.count} within ${U.dist(a.within_km)}${a.nearest?.[0] ? `, nearest ${a.nearest[0].name} ${U.dist(a.nearest[0].distance_km)}` : ""}` : `none within ${U.dist(a.within_km)}`}. For ${lowerLabel(a.for)}.`)));
-  box.querySelector(".added-note").textContent = "Fetched after the run, at your request. The decision and flags above were made without these.";
+  box.querySelector(".added-note").textContent = "Fetched after the run, at your request. The decision and flags above were made without these; a re-run includes them.";
 }
 
 // "What's planned at <place>?": a few buttons, More… for the rest, and a general screen. A tap screens at once.

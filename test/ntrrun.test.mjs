@@ -1222,10 +1222,21 @@ await test("the sealed screen (26 Nov): one judgement with no tools, then the at
   const said = finishTurn(h.screening)("bring_in_layers", {}, got);
   assert.match(said, /Brought in for R1:\n- \*\*Worldwide wreck locations/);
   assert.match(said, /2 features within 50 km; nearest Troldfos \(Possibly\), 2 km away/);
-  assert.match(said, /decision and flags were made without this layer/);
+  assert.match(said, /decision and flags were made without it\. Explore it on the map; to have it judged, ask me to re-run the screen, which will include it\./);
   // Asking again: nothing left on offer for it.
   const again = await t.exec("bring_in_layers", { run: "R1", layers: [item.id] });
   assert.match(again.not_available, /already been brought in or declined/);
+  // A re-run takes what came in as evidence the analyst can cite, listed apart, and doesn't offer it again (Rob, 26 Nov).
+  const before = atlasCalls.length;
+  await t.exec("screen_site", { place: "Area 1", asset_type: "oil-gas-field", assumed: true });
+  const brief = model.calls.at(-1).messages[0].content;
+  assert.match(brief, /Brought in by the person after an earlier run[^\n]*\n- Worldwide wreck locations \(UK Hydrographic Office\) \(EMODnet Human Activities\), for shipwrecks: 2 within 50 km; nearest E\d+ Troldfos \(Possibly\) 2 km/);
+  const r2 = shown[1].tobler_run;
+  assert.equal(r2.brought_in[0].count, 2);
+  assert.equal(r2.brought_in[0].atlas_id, "wreck");
+  assert.ok(shown[1].features.some((f) => f.properties.role === "evidence" && /Troldfos/i.test(f.properties.name)), "now part of the run's evidence");
+  assert.ok(!r2.offer.items.some((x) => x.dataset.atlas_id === "wreck"), "not offered again");
+  assert.ok(atlasCalls.slice(before).some(([tool, a]) => tool === "fetch_features" && a.id === "wreck" && a.limit === 500));
 });
 
 console.log(`${passed} ntrrun tests passed`);
