@@ -6,11 +6,24 @@ import * as turf from "./vendor/turf.js";
 import { classifyLicence, licenceBlock } from "./licence.js";
 import { bandFor } from "./distances.js";
 
-export const MAX_GAPS = 5; // gaps searched per run
+export const MAX_GAPS = 6; // gaps searched per run
 export const MAX_WORDS = 2; // wordings per gap
 export const MAX_OFFER = 4; // layers offered per run
 export const SEARCH_TIMEOUT_MS = 12000;
 export const MAX_KEPT = 200; // features kept on the record per layer brought in, nearest first
+
+// Short text, cut at a word.
+const clip = (t, n) => { const s = String(t || "").replace(/\s+/g, " ").trim(); return s.length <= n ? s : `${s.slice(0, n).replace(/[\s,;:]+\S*$/, "")}…`; };
+
+// A licence as the person reads it in a line: the licence's own name where it's a known one, otherwise the
+// publisher's words cut short (the card and the record keep them whole).
+export function licenceLabel(text, cls) {
+  const t = String(text || "");
+  if (cls === "unknown" || !t.trim()) return "licence not stated";
+  const m = t.match(/\bCC[- ]?BY(?:[- ](?:SA|NC|ND))*(?:[- ]\d\.\d)?\b|\bCC0\b|Open Government Licen[cs]e(?: v(?:ersion)? ?\d(?:\.\d)?)?|\bOGL(?: v?\d(?:\.\d)?)?\b|\bODbL\b|Open Database Licen[cs]e|public domain|Licence Ouverte(?: v?\d\.\d)?|Environment Agency Conditional Licence|Esri Master Licen[cs]e Agreement/i);
+  if (m) return m[0].replace(/^cc[- ]?by/i, "CC BY").replace(/^cc0$/i, "CC0").replace(/creative commons /i, "");
+  return clip(t, 60);
+}
 
 // A check's search words: its own (catalogue/checks.json "search"), or its label without the brackets.
 export function wordsForCheck(check) {
@@ -38,15 +51,14 @@ export function gapsToSearch(run, catalogue = {}) {
   const seen = new Set();
   const add = (g) => { const k = g.words.join("|").toLowerCase(); if (!g.words.length || seen.has(k)) return; seen.add(k); out.push(g); };
   const nc = (run.checks || []).filter((c) => c.state === "not_checked");
-  for (const c of [...nc.filter((x) => x.must), ...nc.filter((x) => !x.must)]) {
-    const def = defs.get(c.id);
-    if (!fillable(c, def)) continue;
-    add({ key: c.id, label: c.label, topic: c.topic, words: wordsForCheck(def || c), why: c.why || "not checked" });
-  }
+  const fromCheck = (c) => { const def = defs.get(c.id); if (fillable(c, def)) add({ key: c.id, label: c.label, topic: c.topic, words: wordsForCheck(def || c), why: c.why || "not checked" }); };
+  // Must-checks first; then what the analyst named for this site (it knows what matters here); then the rest.
+  nc.filter((x) => x.must).forEach(fromCheck);
   for (const l of Array.isArray(run.look_for) ? run.look_for : []) {
     const words = (Array.isArray(l.words) ? l.words : [l.words]).map((w) => String(w || "").trim()).filter((w) => w.length >= 3).slice(0, MAX_WORDS);
-    if (l.what && words.length) add({ key: `look:${String(l.what).slice(0, 40)}`, label: String(l.what).slice(0, 80), topic: l.topic || "context", words, why: "the analyst named it as missing here" });
+    if (l.what && words.length) add({ key: `look:${String(l.what).slice(0, 40)}`, label: clip(l.what, 60), topic: l.topic || "context", words, why: "the analyst named it as missing here" });
   }
+  nc.filter((x) => !x.must).forEach(fromCheck);
   for (const t of run.no_check_topics || []) {
     const def = topics.get(t);
     if (def?.search?.length) add({ key: `topic:${t}`, label: def.label, topic: t, words: def.search.slice(0, MAX_WORDS), why: "no standard check for this topic yet" });
@@ -71,10 +83,13 @@ export function latestEditions(list) {
 // The words must be in the title (the atlas also matches publishers and descriptions, which brings in strays).
 const inTitle = (title, words) => words.some((w) => String(title || "").toLowerCase().includes(String(w).toLowerCase()));
 
+// Layers that stand in for the real shapes (a centroid for each site, labels) don't answer a gap.
+const STAND_IN = /centroid|label|annotation|\bpoints? of\b|index map|footprint grid/i;
+
 // Which result to offer for one gap, or null. Fetchable only; licences the person hasn't switched on are left out;
 // a layer the run already used isn't offered again; then trusted and national publishers, open licences.
 export function pickLayer(results, { words, used = new Set(), allow = {}, trusted = null }) {
-  const ok = latestEditions((results || []).filter((d) => !d.extent_may_be_overstated && (d.capabilities || []).includes("query") && inTitle(d.title, words)
+  const ok = latestEditions((results || []).filter((d) => !d.extent_may_be_overstated && (d.capabilities || []).includes("query") && inTitle(d.title, words) && !STAND_IN.test(d.title || "")
     && !used.has(String(d.id)) && !used.has(`${d.title}|${d.publisher}`.toLowerCase())
     && !licenceBlock(classifyLicence(d.licence).class, allow)));
   const rank = (d) => (trusted && trusted.test(d.publisher || "") ? 0 : 2)
@@ -119,7 +134,7 @@ export async function offerFor(record, { atlas, catalogue = {}, allow = {}, trus
     taken.add(String(d.id));
     const lic = classifyLicence(d.licence);
     offer.items.push({ id: `L${offer.items.length + 1}`, gap: a.g.key, label: a.g.label, topic: a.g.topic, why: a.g.why, state: "offered",
-      dataset: { atlas_id: d.id, title: d.title, publisher: d.publisher || "", publisher_type: d.publisher_type || "", licence: d.licence || "not stated", licence_class: lic.class, licence_short: lic.short, coverage: d.coverage || "", capabilities: d.capabilities || [], concepts: d.concepts || [] } });
+      dataset: { atlas_id: d.id, title: d.title, publisher: d.publisher || "", publisher_type: d.publisher_type || "", licence: d.licence || "not stated", licence_class: lic.class, licence_short: licenceLabel(d.licence, lic.class), coverage: d.coverage || "", capabilities: d.capabilities || [], concepts: d.concepts || [] } });
   }
   offer.state = offer.items.length ? "open" : "none";
   return offer;
@@ -128,7 +143,7 @@ export async function offerFor(record, { atlas, catalogue = {}, allow = {}, trus
 const list = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 // "Flood zones" → "flood zones" mid-sentence; a proper name ("Important Bird Areas", "SSSI Impact Risk Zones") stays.
 export const lower = (s) => { const t = String(s || ""); return /\s[A-Z]/.test(t.replace(/\(.*?\)/g, "")) ? t : t.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase()); };
-const licWords = (d) => (d.licence_class === "unknown" ? "licence not stated" : d.licence_class === "open" ? d.licence_short : `${d.licence_short}, not confirmed for commercial use`);
+const licWords = (d) => (d.licence_class === "unknown" ? "licence not stated" : d.licence_class === "open" ? d.licence_short : `${d.licence_short}: not confirmed for commercial use`);
 
 // The offer's lines in the reply after a run (js/runreply.js), written from the record.
 export function offerLines(r) {
@@ -190,7 +205,7 @@ export async function bringIn(record, ids, { get, keep, placeName, placeIsPoint 
     catch (e) { out = { not_checked: String(e.message || e).slice(0, 160) }; }
     x.state = out.not_checked ? "failed" : "brought_in";
     return {
-      offer: x.id, for: x.label, topic: x.topic, dataset: x.dataset.title, publisher: x.dataset.publisher, licence: x.dataset.licence_short, licence_class: x.dataset.licence_class,
+      offer: x.id, for: x.label, topic: x.topic, dataset: x.dataset.title, publisher: x.dataset.publisher, licence: x.dataset.licence_short, licence_full: x.dataset.licence, licence_class: x.dataset.licence_class,
       atlas_id: x.dataset.atlas_id, checked_at: out.checked_at || now(), within_km: within, scope: r.extent === "inside" ? "inside the area" : within === 0 ? "on the site" : `within ${within} km`,
       measured_from: placeIsPoint ? "the point" : r.extent === "inside" ? "inside the area" : "the site's edge",
       ...(out.not_checked ? { not_checked: String(out.not_checked).split(/(?<=\.)\s/)[0].slice(0, 160) } : {
@@ -213,7 +228,7 @@ export function bringInReply(out) {
   if (out.not_available) return out.not_available;
   if (out.declined) return `OK, nothing brought in. ${out.declined.length === 1 ? "The layer stays" : "The layers stay"} listed on ${out.run}'s card as not checked.`;
   const lines = out.added.map((a) => {
-    const head = `**${a.dataset}** (${a.publisher || "publisher not stated"}; ${a.licence_class === "unknown" ? "licence not stated" : a.licence}${a.licence_class === "open" || a.licence_class === "unknown" ? "" : ", not confirmed for commercial use"}; checked ${String(a.checked_at).slice(0, 10)})`;
+    const head = `**${a.dataset}** (${a.publisher || "publisher not stated"}; ${a.licence_class === "unknown" ? "licence not stated" : a.licence}${a.licence_class === "open" || a.licence_class === "unknown" ? "" : ": not confirmed for commercial use"}; checked ${String(a.checked_at).slice(0, 10)})`;
     if (a.not_checked) return `- ${head}: not checked. ${a.not_checked}`;
     const scope = a.scope || (a.within_km === 0 ? "inside the area" : `within ${a.within_km} km`);
     if (!a.count) return `- ${head}: nothing ${scope} in this layer.`;

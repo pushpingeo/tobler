@@ -1197,7 +1197,7 @@ await test("the sealed screen (26 Nov): one judgement with no tools, then the at
   assert.ok(!atlasCalls.some(([tool, a]) => tool === "fetch_features" && a.id === "wreck"), "nothing fetched before a yes");
   // The reply after the run, written in code, offers it and says nothing comes in unasked.
   const reply = finishTurn(h.screening)("screen_site", {}, out);
-  assert.match(reply, /\*\*Worldwide wreck locations \(UK Hydrographic Office\)\*\* \(EMODnet Human Activities; Creative Commons CC-BY 4\.0\), for shipwrecks/);
+  assert.match(reply, /\*\*Worldwide wreck locations \(UK Hydrographic Office\)\*\* \(EMODnet Human Activities; CC BY 4\.0\), for shipwrecks/);
   assert.match(reply, /Nothing is added unless you say so/);
   // Follow-ups can see it.
   const g = await t.exec("get_run", { run: "R1" });

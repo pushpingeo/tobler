@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as turf from "../js/vendor/turf.js";
-import { gapsToSearch, wordsForCheck, latestEditions, pickLayer, offerFor, offerLines, offerSummary, bringIn, bringInReply } from "../js/bringin.js";
+import { gapsToSearch, wordsForCheck, licenceLabel, latestEditions, pickLayer, offerFor, offerLines, offerSummary, bringIn, bringInReply } from "../js/bringin.js";
 
 const checksCat = JSON.parse(readFileSync(new URL("../catalogue/checks.json", import.meta.url), "utf8"));
 let passed = 0;
@@ -27,11 +27,11 @@ const run = (over = {}) => ({ tobler_run: {
   ...over,
 }, features: [site] });
 
-await test("gaps: must-checks first, then other checks, then what the analyst named; values, OpenStreetMap kinds and licence holds left out", () => {
+await test("gaps: must-checks first, then what the analyst named, then other checks; values, OpenStreetMap kinds and licence holds left out", () => {
   const g = gapsToSearch(run().tobler_run, checksCat);
-  assert.deepEqual(g.map((x) => x.label), ["Surface water flooding", "Landfill (historic and authorised)", "Important Bird Areas"]);
-  assert.deepEqual(g[1].words, ["landfill"], "the label without its brackets");
-  assert.equal(g[2].why, "the analyst named it as missing here");
+  assert.deepEqual(g.map((x) => x.label), ["Surface water flooding", "Important Bird Areas", "Landfill (historic and authorised)"]);
+  assert.deepEqual(g[2].words, ["landfill"], "the label without its brackets (this test's check has no search words of its own)");
+  assert.equal(g[1].why, "the analyst named it as missing here");
   assert.deepEqual(wordsForCheck({ label: "Surface water flooding", search: ["surface water", "pluvial", "extra"] }), ["surface water", "pluvial"]);
 });
 
@@ -43,6 +43,13 @@ await test("editions: the newest of a series is kept; a title with no year is it
     { id: "d", title: "Historic landfill sites", publisher: "Environment Agency" },
   ];
   assert.deepEqual(latestEditions(list).map((d) => d.id), ["b", "c", "d"]);
+});
+
+await test("licences in a line: the licence's own name where known, else the publisher's words cut short", () => {
+  assert.equal(licenceLabel("No limitations on public access; Creative Commons CC-BY 4.0 https://creativecommons.org/licenses/by/4.0/; This data was downloaded", "open"), "CC BY 4.0");
+  assert.equal(licenceLabel("Use of this data is subject to the Open Government Licence: www.nationalarchives.gov.uk", "open"), "Open Government Licence");
+  assert.equal(licenceLabel("", "unknown"), "licence not stated");
+  assert.equal(licenceLabel("© EEA, Copenhagen, 2014-2015. Reproduction is authorised provided the source is acknowledged, save where otherwise stated", "stated"), "© EEA, Copenhagen, 2014-2015. Reproduction is authorised…");
 });
 
 await test("which layer: words in the title, fetchable, licences switched off left out, a layer the run used not offered again, trusted and open first", () => {
@@ -66,13 +73,14 @@ await test("the offer: searched over the site, one layer per gap, nothing found 
     calls.push(args);
     if (/landfill/.test(args.text)) return { results: [{ id: "ea", title: "Historic Landfill Sites", publisher: "Environment Agency", capabilities: ["query"], licence: "Open Government Licence v3.0" }] };
     if (/surface water/.test(args.text)) throw new Error("D1 DB is overloaded");
+    if (/important bird/.test(args.text)) return { results: [{ id: "iba", title: "Important Bird Areas (centroids)", publisher: "BirdLife", capabilities: ["query"], licence: "CC BY 4.0" }] };
     return { results: [] };
   };
   const rec = run();
   const o = await offerFor(rec, { atlas, catalogue: checksCat, now: () => "2026-11-26T03:00:00Z" });
   assert.deepEqual(o.items.map((x) => [x.id, x.dataset.title, x.label]), [["L1", "Historic Landfill Sites", "Landfill (historic and authorised)"]]);
   assert.equal(o.items[0].dataset.licence_class, "open");
-  assert.deepEqual(o.nothing, ["Important Bird Areas"]);
+  assert.deepEqual(o.nothing, ["Important Bird Areas"], "a layer of centroids stands in for the sites, so it isn't offered");
   assert.deepEqual(o.failed, ["Surface water flooding"]);
   assert.equal(o.state, "open");
   // The search box is the site and a small margin, not the run's 20 km.
