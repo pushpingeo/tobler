@@ -1,5 +1,5 @@
 // Industry profiles (catalogue/industries/, js/industry.js): choosing one, what the analyst is told, and that each
-// ready profile only names things that exist (its skill, asset types in the distances table, known themes).
+// ready profile only names things that exist (its skill, asset types in the asset table, known themes).
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { chooseIndustry, industryNote, readDecision, settleDecision, biodiversityChecked, DECISIONS } from "../js/industry.js";
@@ -10,7 +10,7 @@ let passed = 0;
 const test = async (name, fn) => { await fn(); passed++; console.log("ok", name); };
 const read = (rel) => JSON.parse(readFileSync(new URL(`../${rel}`, import.meta.url)));
 const index = read("catalogue/industries/index.json");
-const table = read("catalogue/distances.json");
+const table = read("catalogue/assets.json");
 const trusted = read("catalogue/trusted.json");
 
 await test("choosing an industry: a stored ready choice wins; anything else falls back to the default", () => {
@@ -21,13 +21,13 @@ await test("choosing an industry: a stored ready choice wins; anything else fall
   assert.equal(chooseIndustry({ industries: [] }, "energy"), null);
 });
 
-await test("every ready profile names a skill that exists, picks the distances table knows, and known themes", () => {
+await test("every ready profile names a skill that exists, picks the asset table knows, and known themes", () => {
   for (const entry of index.industries.filter((i) => i.status === "ready")) {
     const p = read(entry.file);
     assert.equal(p.id, entry.id);
     assert.ok(existsSync(new URL(`../${p.skill_file}`, import.meta.url)), `${p.id}: ${p.skill_file}`);
     assert.equal(parseSkill(readFileSync(new URL(`../${p.skill_file}`, import.meta.url), "utf8")).name, p.skill);
-    for (const pick of p.asset_picks.picks) for (const t of [pick.type, pick.onshore, pick.offshore].filter(Boolean)) assert.ok(table.assets[t], `${p.id}: pick ${t} not in distances`);
+    for (const pick of p.asset_picks.picks) for (const t of [pick.type, pick.onshore, pick.offshore].filter(Boolean)) assert.ok(table.assets[t], `${p.id}: pick ${t} not in the asset table, distances`);
     // The profile's themes are IFC framework data until frameworks are data (plan item 3c); each reads as a topic.
     for (const th of p.themes) assert.ok(TOPICS[topicOf(th.ifc || th.id)] && topicOf(th.ifc || th.id) !== "context" || th.id === "context", `${p.id}: theme ${th.id}`);
     assert.deepEqual(p.decisions, DECISIONS);

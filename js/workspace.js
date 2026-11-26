@@ -22,7 +22,7 @@ import * as U from "./units.js";
 import { pickExamples } from "./examples.js";
 import { chooseIndustry, industryNote } from "./industry.js";
 import { getUserKey, setUserKey } from "./claude.js";
-import { distancesLine, bandFor } from "./distances.js";
+import { runDistancesLine, runRings, runFurthest, sliderSteps, changesLine, isLegacy, kmText } from "./reach.js";
 import { DISCLAIMER, DISCLAIMER_SHORT } from "./disclaimer.js";
 import { seaShort, seaMatters } from "./seavalues.js";
 import { placeRole, whereText, searchHeadline, SEARCH_BAND } from "./siterole.js";
@@ -959,7 +959,7 @@ const host = {
   offerSkills: (name) => offerSkills(name),
 };
 // Screening runs: sealed NTR runs with their own tools; the conversation gets the headline, the card the detail.
-let distTable = null;
+let assetTable = null;
 // The industry profile in use (Settings → Industry; catalogue/industries/). Only Environment and Energy is ready so far.
 let industries = null, profile = null;
 host.profile = () => profile;
@@ -967,11 +967,11 @@ const assetPicks = () => profile?.asset_picks || null;
 const screenSkill = () => skills[profile?.skill || "ntr-screening"];
 let runLog = null, runSteps = null; // the turn a run belongs to, for the log and "How I worked this out"
 host.screening = createScreening({
-  host, table: () => distTable, skill: screenSkill, skillFor: (name) => skills[name], callClaude, model: CONFIG.model,
+  host, table: () => assetTable, skill: screenSkill, skillFor: (name) => skills[name], callClaude, model: CONFIG.model,
   onRun: (record) => {
     const r = record.tobler_run;
     // The log keeps what the card shows, so a downloaded log explains the card on its own.
-    runLog?.events.push({ screen_result: { run: r.id, distances: r.distances, baseline: r.baseline, sea: r.sea, flags: r.flags.map((f) => ({ risk: f.risk, theme: f.theme, confidence: f.confidence, nearest_km: f.nearest_km, evidence: f.evidence.map((e) => `${e.name} ${e.distance_km} km${e.traced ? "" : " (not traced)"}`) })),
+    runLog?.events.push({ screen_result: { run: r.id, ...(r.reach ? { reach: { scale: r.reach.scale, range: r.reach.range, furthest_km: r.reach.furthest_km, changes: r.reach.changes, not_used: r.reach.not_used } } : { distances: r.distances }), baseline: r.baseline, sea: r.sea, flags: r.flags.map((f) => ({ risk: f.risk, theme: f.theme, confidence: f.confidence, nearest_km: f.nearest_km, evidence: f.evidence.map((e) => `${e.name} ${e.distance_km} km${e.traced ? "" : " (not traced)"}`) })),
       checked: r.checked.map((c) => `${c.dataset}: ${c.result}${c.count ? ` ${c.count}` : ""}${c.why ? ` (${c.why})` : ""}`), gaps: r.data_gaps, ...(r.parse_error ? { problem: r.parse_error } : {}),
       ...(r.debug ? { debug: r.debug } : {}), ...(r.note ? { note: r.note } : {}), usage: r.usage } });
     stopProgress(record);
@@ -1023,7 +1023,7 @@ Promise.all([
   fetch(asset("catalogue/trusted.json")).then((r) => r.json()).then((j) => { trusted = j; }),
   fetch(asset("catalogue/checks.json")).then((r) => r.json()).then((j) => { checksCatalogue = j; }),
   fetch(asset("catalogue/sssi_irz_codes.json")).then((r) => r.json()).then((j) => { irzCodes = j; }),
-  fetch(asset("catalogue/distances.json")).then((r) => r.json()).then((j) => { distTable = j; }),
+  fetch(asset("catalogue/assets.json")).then((r) => r.json()).then((j) => { assetTable = j; }),
   loadIndustry(store.get("industry")),
 ]).catch((e) => note(`Something the analyst needs didn't load: ${e.message}`));
 
@@ -1668,7 +1668,8 @@ function showRunOnMap(record, { fit = true, instant = false } = {}) {
   // Layers brought in after the run (js/bringin.js) show with it, marked as added.
   for (const f of [...evidenceOf(record), ...record.features.filter((x) => x.properties?.role === "added")]) {
     const p = f.properties;
-    const band = p.band === "on site" || p.band === SEARCH_BAND ? "near" : p.band === "beyond" || p.band === "unknown" ? "wider" : p.band;
+    // Emphasis on the map by distance (strong near the site, fainter further out): display only, never risk.
+    const band = p.band === "on site" || p.band === SEARCH_BAND || !(p.distance_km > 0) ? "near" : bandOf(p.distance_km);
     findings.set(`${r.id}:${p.fid}`, { type: "Feature", geometry: f.geometry, properties: {
       id: `${r.id}:${p.fid}`, run: r.id, label: p.name, theme: topicOf(p.theme), band: p.surrounds ? "wider" : band, ...(p.surrounds ? { surrounds: true } : {}),
       ...(p.in_search_area ? { in_search_area: true, ...(p.coverage != null ? { coverage: p.coverage } : {}), ...(p.side ? { side: p.side } : {}) } : {}), distance_km: p.distance_km, area_km2: p.area_km2 ?? null, dataset: p.dataset, publisher: p.publisher,
@@ -1684,12 +1685,15 @@ function showRunOnMap(record, { fit = true, instant = false } = {}) {
   drawFindings();
   paintMask();
   const inside = r.extent === "inside" || findingLimit === 0 || !!r.budget;
-  if (fit) map.fitBounds(turf.bbox(inside ? site : turf.buffer(site, Math.max(r.distances.close, 1), { units: "kilometers", steps: 16 })), { padding: fitPadding(), maxZoom: 13, ...(instant ? { duration: 0 } : {}) });
+  // Fit to the middle of the reach (an old run's close band), not the furthest ring: a wind farm's 45 km would lose the site.
+  const fitKm = isLegacy(r) ? r.distances.close : Math.min(runFurthest(r), 5);
+  if (fit) map.fitBounds(turf.bbox(inside ? site : turf.buffer(site, Math.max(fitKm, 1), { units: "kilometers", steps: 16 })), { padding: fitPadding(), maxZoom: 13, ...(instant ? { duration: 0 } : {}) });
   paintTree();
 }
 
 // Distance rings for a run: none when it's looking inside the area only.
-const ringsFor = (r) => (r.extent === "inside" || r.budget ? [] : [r.distances.near, r.distances.close, r.fetched_to_km].filter((v, i, a) => v > 0 && a.indexOf(v) === i));
+// New runs: faint labelled rings at the ladder's steps up to the furthest any check looked (js/reach.js).
+const ringsFor = (r) => runRings(r);
 
 // Inside the area only: dim the world outside the site and drop the rings; otherwise the rings come back.
 function paintMask() {
@@ -1760,18 +1764,20 @@ function showRun(record) {
   const seaText = [elevText, seaMatters(r) ? seaShort(r.sea, { units: (km) => U.dist(km) }) : ""].filter(Boolean).join(" ");
   if (seaText) { const p = card.querySelector(".sea"); p.hidden = false; p.textContent = seaText; }
   if (r.parse_error) { const pr = card.querySelector(".problem"); pr.hidden = false; pr.textContent = r.parse_error; }
+  // The slider steps along the ladder (on the site, 100 m, 250 m, … up to the furthest any check looked).
   const slider = card.querySelector('input[type="range"]');
-  slider.max = String(r.fetched_to_km);
-  slider.step = r.fetched_to_km <= 10 ? "0.1" : "0.5";
-  slider.value = String(r.assessed_within_km);
+  const steps = sliderSteps(r, true);
+  const stepOf = (km) => { let k = 0; steps.forEach((v, j) => { if (Math.abs(v - km) < Math.abs(steps[k] - km)) k = j; }); return k; };
+  slider.min = "0"; slider.max = String(Math.max(0, steps.length - 1)); slider.step = "1";
+  slider.value = String(stepOf(r.assessed_within_km));
   const setKm = (km) => {
     entry.km = km;
     if (km > 0) entry.aroundKm = km;
-    slider.value = String(km);
+    slider.value = String(stepOf(km));
     paintReach(entry);
     if (shownRun === r.id) { findingLimit = km; drawFindings(); paintMask(); }
   };
-  slider.addEventListener("input", () => setKm(+slider.value));
+  slider.addEventListener("input", () => setKm(steps[+slider.value] ?? 0));
   // An area screened with its surroundings can be looked at inside the area only, from the same evidence.
   const scope = card.querySelector(".scope");
   if (r.extent === "inside") {
@@ -1808,7 +1814,7 @@ function showRun(record) {
       pr.textContent = err instanceof LimitReached ? err.message : `Re-assessing didn't work: ${err.message}. The flags are unchanged.`;
     } finally { btn.disabled = false; activity(""); }
   });
-  card.querySelector('[data-op="show"]').addEventListener("click", () => { slider.value = String(entry.km); showRunOnMap(record); });
+  card.querySelector('[data-op="show"]').addEventListener("click", () => { slider.value = String(stepOf(entry.km)); showRunOnMap(record); });
   // The More menu closes once something in it is used.
   card.querySelectorAll(".more-menu button").forEach((b) => b.addEventListener("click", () => { card.querySelector(".more").open = false; }));
   // The report and the share link are the same page: the run, slimmed and compressed into the link (js/share.js).
@@ -2019,12 +2025,18 @@ function paintRun(entry) {
   }
   // Distances in one line; the reasons open under it.
   const dists = card.querySelector(".dists");
-  const why = r.distances.reasons?.length ? U.localise(`Why: ${r.distances.reasons.slice(0, 2).join("; ")}.`) : "";
+  // Where the distances came from (opens under the line): the scale and why, the asset's extensions with their sources.
+  const why = r.reach
+    ? U.localise([`Screened at ${r.reach.scale} scale: ${r.reach.scale_why}.`,
+      r.reach.extended?.length ? `Extended for ${r.reach.asset.label}: ${r.reach.extended.map((e) => `${e.label} to ${kmText(e.to_km)} (was ${kmText(e.from_km)})`).join("; ")}. Why: ${[...new Set(r.reach.extended.map((e) => e.why))].join("; ")}.` : ""].filter(Boolean).join(" "))
+    : r.distances?.reasons?.length ? U.localise(`Why: ${r.distances.reasons.slice(0, 2).join("; ")}.`) : "";
   dists.querySelector("summary").textContent = r.extent === "inside"
     ? "Inside the area only: findings inside it or touching its edge."
     : entry.area && r.assessed_within_km === 0
       ? U.localise(`Flags written for inside the area only. Findings were fetched out to ${r.fetched_to_km} km, so you can switch back to the surroundings.`)
-      : U.localise(`Distances from the site's edge: ${distancesLine(r.distances)}.`);
+      : U.localise(r.reach
+        ? [`${runDistancesLine(r).replace(/^e/, "E")}.`, r.reach.asset?.note || "", changesLine(r.reach), r.reach.not_used?.length ? `Not used: ${r.reach.not_used.map((n) => n.line).join("; ")}.` : ""].filter(Boolean).join(" ")
+        : `Distances from the site's edge: ${runDistancesLine(r)}.`);
   dists.querySelector(".why-dists").textContent = why;
   dists.classList.toggle("no-why", !why || r.extent === "inside" || (entry.area && r.assessed_within_km === 0));
   const checked = card.querySelector(".checked");

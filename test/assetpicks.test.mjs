@@ -5,12 +5,12 @@ import { picksFor, pickMessage } from "../js/assetpicks.js";
 import { createPlaceTools, placeToolDefs } from "../js/placetools.js";
 
 const config = JSON.parse(readFileSync(new URL("../catalogue/industries/energy.json", import.meta.url))).asset_picks;
-const table = JSON.parse(readFileSync(new URL("../catalogue/distances.json", import.meta.url)));
+const table = JSON.parse(readFileSync(new URL("../catalogue/assets.json", import.meta.url)));
 
-// Every pick is an asset the distances table knows, in both settings.
+// Every pick is an asset the asset table knows, in both settings.
 for (const offshore of [false, true]) {
   const { shown, more } = picksFor(config, offshore);
-  for (const p of [...shown, ...more]) assert.ok(table.assets[p.type], `${p.label} → ${p.type} is in distances.json`);
+  for (const p of [...shown, ...more]) assert.ok(table.assets[p.type], `${p.label} → ${p.type} is in assets.json`);
 }
 // Energy-led, by setting: six buttons, the rest under More.
 const land = picksFor(config, false), sea = picksFor(config, true);

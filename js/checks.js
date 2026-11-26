@@ -3,6 +3,8 @@
 // with the reason, and the analyst judges what it means. Pure (no DOM, no fetching), so the run, the card, the report
 // and the tests share it. The run (js/ntrrun.js) does the fetching with the existing tools and hands the outputs here.
 
+import { LADDER, bandLabel } from "./reach.js";
+
 export const STATES = { found: "found", none: "none found", not_checked: "not checked" };
 // Why a check wasn't checked. "no_check" is for a topic, not a check: nothing standard checks it yet.
 export const REASONS = {
@@ -16,30 +18,14 @@ export const REASONS = {
 
 const overlaps = (a, b) => !(a[2] < b[0] || a[0] > b[2] || a[3] < b[1] || a[1] > b[3]);
 
-// The screening scale for the check reaches. Until plan item 3 puts scale bands in the profile, it's read off the
-// distances the run already chose from the asset type, the site's size and the request (catalogue/distances.json):
-// a wider band up to 10 km is a local screen, up to 25 km regional, beyond that global (large licences, offshore
-// fields and wind farms). A site of 100 km² or more is global whatever its distances.
-export function screenScale(distances = {}, areaKm2 = 0) {
-  if (areaKm2 >= 100) return "global";
-  const w = +distances.wider || 0;
-  return w <= 10 ? "local" : w <= 25 ? "regional" : "global";
-}
-
-// The bands inside a reach: the scale's band edges up to the reach, closed at the reach itself.
-export function bandsFor(edges = [], reachKm) {
+// The bands inside a reach: the ladder's edges up to the reach, closed at the reach itself (js/reach.js LADDER).
+export function bandsFor(edges = LADDER, reachKm) {
   if (!(reachKm > 0)) return [];
-  const out = edges.filter((e) => e < reachKm - 1e-9);
+  const out = (edges || LADDER).filter((e) => e < reachKm - 1e-9);
   out.push(reachKm);
   return out;
 }
-
-// "0–2 km", "50–250 m": a band's label from its lower and upper edge.
-export function bandLabel(from, to) {
-  const f = (km) => (km < 1 ? `${Math.round(km * 1000)} m` : `${+km.toFixed(1)} km`);
-  if (to < 1) return `${from === 0 ? "0" : Math.round(from * 1000)}–${f(to)}`;
-  return `${from === 0 ? "0" : from < 1 ? f(from) : +from.toFixed(1)}–${f(to)}`;
-}
+export { bandLabel };
 
 // The site as the checks see it. bbox: the footprint's box; countries: from js/reference.js describe (empty
 // offshore); offshore; sea: offshore or the coast within reach (today's rule in js/ntrrun.js).
@@ -106,23 +92,32 @@ const appliesHere = (a = {}, site, reach = 0) => {
 // wrong setting or place, or no reach at this scale) are left out: they aren't gaps.
 // inside: the person asked to screen inside the area only, so every count looks inside (reach 0).
 // skill: the skill the run is for; a check for named skills only (used_by) is left out of every other run.
-// reachOf: the run's own reach for a check (the developable area's buffers), so sources are chosen for that reach.
-export function planChecks(catalogue, site, scale, { inside = false, skill = "screen", reachOf = null } = {}) {
+// reaches: each check's reach for this run (js/reach.js resolveReaches: the check's default, the asset's extension,
+// the person's distances, a skill's own reach), so sources are chosen for that reach. Without it, the scale's default.
+// reachOf: a skill's own reach for a check, by id (the developable area's buffers), when reaches isn't given.
+export function planChecks(catalogue, site, scale, { inside = false, skill = "screen", reachOf = null, reaches = null } = {}) {
   const out = [];
   for (const c of catalogue?.checks || []) {
     if (c.used_by && !c.used_by.includes(skill)) continue;
-    let reach = null;
+    let reach = null, info = null;
     if (c.answer !== "value_at_site") {
-      const r = c.reach_km?.[scale];
-      if (r == null) continue;
-      reach = inside ? 0 : (reachOf?.(c.id) ?? r);
+      if (reaches) {
+        info = reaches.get(c.id);
+        if (!info) continue;
+        reach = info.km;
+      } else {
+        const r = c.reach_km?.[scale];
+        if (r == null) continue;
+        reach = inside ? 0 : (reachOf?.(c.id) ?? r);
+      }
     }
     if (!appliesHere(c.applies, site, reach)) continue;
     const box = growBox(site.bbox, reach || 0);
     const sources = (c.sources || []).filter((s) => sourceFits(s, site, box, reach));
     // A tool check (boundaries, values) has one source; the first that covers the site, as before.
     const tool = sources.find((s) => s.tool);
-    out.push({ check: c, sources: tool ? [tool] : sources, source: tool || sources.find((s) => !s.pending) || sources[0] || null, reach_km: reach, scale });
+    out.push({ check: c, sources: tool ? [tool] : sources, source: tool || sources.find((s) => !s.pending) || sources[0] || null, reach_km: reach, scale,
+      ...(info && info.from !== "check" ? { reach_from: info.from, reach_default_km: info.default_km, reach_note: info.why } : {}) });
   }
   return out;
 }
@@ -139,7 +134,9 @@ export const topicLabel = (catalogue, id) => (catalogue?.topics || []).find((t) 
 const base = (plan) => {
   const c = plan.check;
   return { id: c.id, topic: c.topic, label: c.label, must: !!c.must, answer: c.answer, scale: plan.scale,
-    ...(c.answer !== "value_at_site" ? { reach_km: plan.reach_km } : {}), ...(c.reach_why ? { why_reach: c.reach_why } : {}), ...(c.caveat ? { caveat: c.caveat } : {}) };
+    ...(c.answer !== "value_at_site" ? { reach_km: plan.reach_km } : {}), ...(c.reach_why ? { why_reach: c.reach_why } : {}), ...(c.caveat ? { caveat: c.caveat } : {}),
+    // Where the reach came from when it isn't the check's own default: the asset (with its reason) or the person.
+    ...(plan.reach_from ? { reach_from: plan.reach_from, reach_default_km: plan.reach_default_km, ...(plan.reach_note ? { reach_note: plan.reach_note } : {}) } : {}) };
 };
 const srcOf = (plan, extra = {}, s = plan.source || {}) => {
   return { region: s.region || null, ...(s.atlas_id ? { atlas_id: s.atlas_id } : {}), ...(s.tool ? { tool: s.tool } : {}),
@@ -163,7 +160,7 @@ export function notChecked(plan, why, extra = {}) {
 
 // A count or inside check from the features the tool returned (each { name, distance_km, around_site }).
 // meta: { dataset, publisher, licence, checked_at, capped, fetched_km }.
-export function fromFeatures(plan, features, edges = [], meta = {}) {
+export function fromFeatures(plan, features, edges = LADDER, meta = {}) {
   // The tools fetch at most 50 km from the edge: a longer reach is cut to what was fetched, and says so.
   const capped = meta.fetched_km != null && meta.fetched_km < plan.reach_km;
   const reach = capped ? meta.fetched_km : plan.reach_km;
@@ -227,7 +224,7 @@ const shortWhy = (a) => (a.source.pending ? "isn't in Tobler's data yet" : /lice
 // "none found" when another source answered.
 // opts.sameShape(geometryA, geometryB): whether two features are the same feature (js/siterole.js sameShape), checked
 // only after their boxes nearly match; leave it out (the Settings switch) and shapes aren't compared at all.
-export function fromSources(plan, answers = [], edges = [], opts = {}) {
+export function fromSources(plan, answers = [], edges = LADDER, opts = {}) {
   const ok = answers.filter((a) => !a.not_checked && !a.source.pending);
   const missing = answers.filter((a) => a.not_checked || a.source.pending);
   const sources = answers.map((a) => ({ ...srcOf(plan, a.meta || {}, a.source), state: a.not_checked || a.source.pending ? "not_checked" : "answered",

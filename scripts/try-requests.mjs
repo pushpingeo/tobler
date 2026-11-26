@@ -49,7 +49,7 @@ const epsgCall = async ({ path, query }) => {
 };
 // The conversation doesn't load the NTR method itself: screen_site runs it as a sealed run (as in the page).
 const convSkills = [skill, crs];
-const distTable = JSON.parse(readFileSync("catalogue/distances.json", "utf8"));
+const assetTable = JSON.parse(readFileSync("catalogue/assets.json", "utf8"));
 let spend = { input: 0, output: 0 };
 
 async function callClaude({ system, messages, tools, maxTokens }) {
@@ -102,14 +102,14 @@ for (const conv of convs) {
   };
   const said = [];
   host.screening = createScreening({
-    host, table: distTable, skill: ntr, skillFor: (n) => allSkills.find((x) => x.name === n), callClaude, model: "claude-haiku-5-5",
+    host, table: assetTable, skill: ntr, skillFor: (n) => allSkills.find((x) => x.name === n), callClaude, model: "claude-haiku-5-5",
     onEvent: (ev) => {
       if (ev.type === "round") console.log(`     [screen round ${ev.round + 1}: ${(ev.ms / 1000).toFixed(1)} s, ${ev.input_tokens} in / ${ev.output_tokens} out, ${ev.tools} tool calls]`);
       if (ev.type === "tool") { const o = ev.output || {}; console.log(`     · screen ${ev.name} (${(ev.ms / 1000).toFixed(1)} s) ${JSON.stringify(ev.input).slice(0, 140)} → ${ev.error ? `ERROR ${ev.error}` : ev.name === "get_data" ? (o.not_checked ? `NOT CHECKED ${String(o.not_checked).slice(0, 120)}` : `${o.dataset}: ${o.within_distance} within ${o.within_km} km`) : ev.name === "find_data" ? (o.datasets || []).map((d) => `${d.id} ${d.title} (${d.publisher})`).join("; ").slice(0, 300) : ev.name === "find_features_near" ? `${o.found} found` : JSON.stringify(o).slice(0, 160)}`); }
     },
     onRun: (rec) => {
       const r = rec.tobler_run;
-      console.log(`   [RUN CARD ${r.id}: ${r.site.name}; ${r.site.asset_label}${r.site.asset_assumed ? " (assumed)" : ""}; ${r.site.footprint}; ${r.distances.near}/${r.distances.close}/${r.distances.wider} km (${r.distances.reasons[0]})]`);
+      console.log(`   [RUN CARD ${r.id}: ${r.site.name}; ${r.site.asset_label}${r.site.asset_assumed ? " (assumed)" : ""}; ${r.site.footprint}; ${r.reach ? `${r.reach.scale}: ${r.reach.range}; furthest ${r.reach.furthest_km} km${r.reach.changes?.length ? `; changed: ${r.reach.changes.map((c) => c.line).join("; ")}` : ""}${r.reach.not_used?.length ? `; not used: ${r.reach.not_used.map((n) => n.line).join("; ")}` : ""}` : "old distances"}]`);
       if (r.replaces) console.log(`     REPLACES ${r.replaces.run}: ${r.replaces.why}`);
       if (r.sea) console.log(`     SEA ${JSON.stringify(r.sea).slice(0, 900)}`);
       console.log(`     DECISION: ${r.decision ? `${r.decision.value} (${r.decision.why})` : "none given"}`);

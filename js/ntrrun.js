@@ -7,7 +7,7 @@ import { FENCE_RULE } from "./fence.js";
 import { createPlaceTools } from "./placetools.js";
 import { fileOriginText } from "./fileimport.js";
 import { serviceOriginText } from "./servicesite.js";
-import { bandFor, distancesLine, chooseDistances, ASSET_TYPES, MAX_KM } from "./distances.js";
+import { LADDER, ASSET_TYPES, MAX_KM, chooseAsset, readDistances, distancesFromInputs, resolveReaches, changeLines, reachRecord, reachLine, changesLine, runBand, runDistancesLine, runFurthest, isLegacy, ladderBand, kmText } from "./reach.js";
 import { nearestBoundaries } from "./boundaries.js";
 import { DISCLAIMER } from "./disclaimer.js";
 // The caveat for a screen of something the profile isn't built for, when the profile doesn't give its own words.
@@ -32,7 +32,8 @@ import { placeRole, coverageIn, whereText, applySearchArea, reword, sameShape, S
 // The band for a piece of evidence: a wide area the site lies within is "around the site", not "on site".
 export const AROUND = "around the site";
 // Inside a search area (a stand-in for an outline nobody found), distance 0 is "in the search area", not "on site".
-const bandOf = (p, d) => (p.surrounds ? AROUND : p.in_search_area && !(p.distance_km > 0) ? SEARCH_BAND : bandFor(p.distance_km, d));
+// run: the run record's tobler_run (or anything with its reach, or an old run's distances).
+const bandOf = (p, run) => (p.surrounds ? AROUND : p.in_search_area && !(p.distance_km > 0) ? SEARCH_BAND : runBand(p.distance_km, run));
 
 // tobler-run/2 (23 Nov): adds the checks. Old share links (tobler-run/1, no checks) still open.
 export const RUN_SCHEMA = "tobler-run/2";
@@ -64,11 +65,12 @@ export const findingId = (i) => `F-${String(i + 1).padStart(2, "0")}`;
 const round = (v, d = 2) => (v == null || !Number.isFinite(+v) ? null : Math.round(+v * 10 ** d) / 10 ** d);
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
-// The site as screened: a point gets a footprint circle (radius from the distance table); lines and areas as they are.
-export function footprintOf(feature, d) {
+// The site as screened: a point gets a footprint circle (radius from the asset table: the footprint's own width, which
+// belongs to the place); lines and areas as they are. asset: { footprint_km, label }.
+export function footprintOf(feature, asset) {
   if (feature.geometry.type !== "Point") return { feature, note: null };
-  const f = turf.circle(feature.geometry.coordinates, d.footprint_km, { units: "kilometers", steps: 48 });
-  return { feature: { type: "Feature", properties: {}, geometry: f.geometry }, note: `a point, screened as a ${d.footprint_km} km footprint round it (default for a ${d.asset_label})` };
+  const f = turf.circle(feature.geometry.coordinates, asset.footprint_km, { units: "kilometers", steps: 48 });
+  return { feature: { type: "Feature", properties: {}, geometry: f.geometry }, note: `a point, screened as a ${asset.footprint_km} km footprint round it (default for ${/^(a|an) /.test(asset.label) ? asset.label : `a ${asset.label}`})` };
 }
 
 // The constraints screen, sealed (plan item 1, 26 Nov): one judgement of the checks, with no tools. What the checks
@@ -85,7 +87,7 @@ export function systemForScreen(skill) {
 - Name features and datasets as the checks name them.
 - A flag's evidence is a list of ids, never retyped names or distances: an evidence id (E7) from the checks' lines, or a check's id in square brackets ([heritage.listed-buildings]) when the check found something. The run fills in names, distances, sources and licences from the ids. Something you can't cite by id can't support a flag: put it in data_gaps.
 - What the checks couldn't answer, and evidence that matters for this site that no check covers, goes in data_gaps. Name up to three of those that a published map layer could answer in look_for, with two or three short words that would be in such a layer's title. Tobler searches for them after the run and asks the person before bringing anything in.
-- Your reply is the result: the short summary, then the JSON block, exactly as the method's Output section says. Use the distances given (not the skill's table) in "distances_km".
+- Your reply is the result: the short summary, then the JSON block, exactly as the method's Output section says.
 - Keep the result compact so it fits in one reply: summary under 300 words; at most 8 flags, each next_step one short line; at most 4 evidence items per flag (the nearest or strongest, and say in "why" how many more there are); "data_gaps" at most 12 short lines; leave "checked" as an empty list, because the run records what was checked itself. Keep your thinking before the result short: the reply limit (16,000 tokens) includes it.
 
 <method skill="${skill.name}" version="${skill.version}">
@@ -105,8 +107,19 @@ export function readLookFor(v) {
 
 export const isArea = (feature) => /Polygon/.test(feature?.geometry?.type || "");
 
-export function firstMessage({ siteName, describe, inputs, distances, footprintNote, origin, baseline = null, inside = false, searchArea = null }) {
-  const reach = inside ? 0 : distances.wider;
+// The search distances in the analyst's words: each check's reach is on its line; this says where they came from.
+function reachLines(reach) {
+  return [
+    `Search distances: ${reachLine(reach)}. The furthest any check looked is ${kmText(reach.furthest_km)}. Each check's line gives its own reach.`,
+    reach.asset?.note || null,
+    reach.extended?.length ? `Extended for ${reach.asset.label}: ${reach.extended.map((e) => `${e.label} to ${kmText(e.to_km)}`).join("; ")} (${[...new Set(reach.extended.map((e) => e.why))].join("; ")}).` : null,
+    changesLine(reach) || null,
+    reach.not_used?.length ? `Not used: ${reach.not_used.map((n) => n.line).join("; ")}.` : null,
+  ].filter(Boolean).join(" ");
+}
+
+export function firstMessage({ siteName, describe, inputs, reach: rr, footprintNote, origin, baseline = null, inside = false, searchArea = null }) {
+  const reach = inside ? 0 : rr.furthest_km;
   const lines = [
     `Screen ${siteName}.`,
     `Site: ${R.summaryLine(describe)}${footprintNote ? `; ${footprintNote}` : ""}.`,
@@ -119,10 +132,10 @@ export function firstMessage({ siteName, describe, inputs, distances, footprintN
     inputs.tip_height_m ? `Turbine tip height: ${inputs.tip_height_m} m.` : null,
     inside
       ? "Scope: inside the area only, as the person asked. The run fetched only what lies inside the area or touches its edge (distance 0, band \"on site\"); the surroundings were not screened. Assess only what is inside, and put one line in data_gaps saying the surroundings weren't screened."
-      : `Distances from the footprint edge: ${distancesLine(distances)}. Why: ${distances.reasons.join("; ")}.`,
+      : reachLines(rr),
     inputs.focus ? `The person asked especially about: ${inputs.focus}.` : null,
     describe.offshore && describe.coast_km != null && describe.coast_km > reach
-      ? `No land ${inside ? "inside the area" : "within the wider band"} (the coast is about ${Math.round(describe.coast_km)} km away): settlements, schools, clinics, roads and other onshore receptors are out of reach. Don't list them as gaps; coastal communities matter only as spill reach beyond the bands.` : null,
+      ? `No land ${inside ? "inside the area" : "within any check's reach"} (the coast is about ${Math.round(describe.coast_km)} km away): settlements, schools, clinics, roads and other onshore receptors are out of reach. Don't list them as gaps; coastal communities matter only as spill reach beyond the checks' reach.` : null,
     baseline ? `The checks, by topic: your evidence. Each check is found, none found, or not checked with the reason; "must" marks a check its topic can't be called clear without. Not-checked lines are already on the card as gaps, so don't repeat them in data_gaps unless you have something to add:\n${baseline}` : null,
   ];
   return lines.filter(Boolean).join("\n");
@@ -166,7 +179,7 @@ function resolveRef(e, byFid, byCheck, d, sea) {
   if (c && c.state === "found") {
     const km = checkKm(c, sea);
     const srcs = (c.sources?.length ? c.sources : c.source ? [c.source] : []).filter((x) => x?.dataset && x.state !== "not_checked");
-    return { ref: c.id, check: c.id, ...(FROM_VALUES[c.id] ? { from_values: FROM_VALUES[c.id] } : {}), name: `${c.label}: ${K.checkLine(c)}`.slice(0, 200), distance_km: km, band: km == null ? null : km === 0 ? (c.search_area ? SEARCH_BAND : "on site") : bandFor(km, d),
+    return { ref: c.id, check: c.id, ...(FROM_VALUES[c.id] ? { from_values: FROM_VALUES[c.id] } : {}), name: `${c.label}: ${K.checkLine(c)}`.slice(0, 200), distance_km: km, band: km == null ? null : km === 0 ? (c.search_area ? SEARCH_BAND : "on site") : runBand(km, d),
       dataset: srcs.map((x) => x.dataset).join("; "), publisher: [...new Set(srcs.map((x) => x.publisher).filter(Boolean))].join("; "),
       licence: [...new Set(srcs.map((x) => x.licence).filter(Boolean))].join("; "), checked: srcs[0]?.checked_at || null, traced: true };
   }
@@ -241,13 +254,13 @@ ${skill.body}
 </method>`;
 }
 
-export function studyMessage({ siteName, describe, origin, distances, baseline, searchArea = null, study }) {
+export function studyMessage({ siteName, describe, origin, reach, baseline, searchArea = null, study }) {
   return [
     `${study.label} for ${siteName}.`,
     `Site: ${R.summaryLine(describe)}.`,
     origin ? `How the site was found: ${origin}.` : null,
     searchArea ? `This is a search area, not the site's outline: ${searchArea}. Nothing is "on site": a record at distance 0 is "in the search area". Put one line in data_gaps saying the outline wasn't found.` : null,
-    `Distances from the site's edge: ${distancesLine(distances)}.`,
+    reachLines(reach),
     `The checks, by topic (found, none found, or not checked with the reason). The card groups them as ${study.groups.map((g) => g.label.toLowerCase()).join(", ")}:\n${baseline}`,
     study.full_study_adds?.length ? `Not in open records here (the card already lists these as what a full desk study would add, so don't repeat them in data_gaps): ${study.full_study_adds.join("; ")}.` : null,
   ].filter(Boolean).join("\n");
@@ -285,13 +298,14 @@ const roomy = (callClaude) => (args) => callClaude({ ...args, maxTokens: SCREEN_
 // broughtIn: layers the person brought in after an earlier run on this place (js/bringin.js), each { atlas_id, dataset,
 // publisher, licence, topic, for }. A re-run fetches them again, out to its own reach, as evidence the analyst can cite,
 // listed apart from the standard checks (Rob, 26 Nov: explore first, then re-run to have them judged).
-export async function runScreening({ host, site, inputs, distances, skill, study = null, callClaude: call, model = "", runId = "R1", onEvent = () => {}, now = () => new Date().toISOString(), broughtIn = [] }) {
+// asset: the asset for this run (js/reach.js chooseAsset; a study or a budget makes its own). said: the person's
+// distances, read (js/reach.js readDistances): { search, protection, not_used }.
+export async function runScreening({ host, site, inputs, asset, said = { search: [], protection: [], not_used: [] }, skill, study = null, callClaude: call, model = "", runId = "R1", onEvent = () => {}, now = () => new Date().toISOString(), broughtIn = [] }) {
   const callClaude = roomy(call);
   const started = now();
-  const fp = footprintOf(site.feature, distances);
-  // Inside only (areas, when the person asks): fetch only what's inside or touching; otherwise out to the wider band.
+  const fp = footprintOf(site.feature, asset);
+  // Inside only (areas, when the person asks): fetch only what's inside or touching; otherwise each check to its reach.
   const inside = inputs.extent === "inside" && isArea(site.feature);
-  const reach = inside ? 0 : distances.wider;
   const screenPlace = { name: site.name, feature: fp.feature, origin: site.origin, status: "accepted", edits: [] };
   const evidence = [];
   const seen = new Map();
@@ -299,7 +313,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
   // What the site is: a point is screened on a default footprint, which stands in for an outline nobody has, so it's a
   // search area too; an area is whatever make_place recorded (js/siterole.js).
   const role = site.feature.geometry.type === "Point"
-    ? { role: "search_area", why: `a default ${distances.footprint_km} km footprint round a point` }
+    ? { role: "search_area", why: `a default ${asset.footprint_km} km footprint round a point` }
     : placeRole(site.origin, site.feature.geometry);
   const searchArea = role.role === "search_area" && isArea(fp.feature);
   const searchNote = searchArea ? SEARCH_NOTE(siteKm2, role.why) : null;
@@ -324,7 +338,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
       }
       evidence.push({ type: "Feature", geometry: c.geometry, properties: {
         role: "evidence", fid, run: runId, name: c.name || c.type || "Unnamed feature", type: c.type || "", theme: meta.theme || "context",
-        distance_km: round(c.distance_km, 2), band: around ? AROUND : where ? SEARCH_BAND : bandFor(c.distance_km, distances), area_km2: c.area_km2 ?? (around ? Math.round(around) : null),
+        distance_km: round(c.distance_km, 2), band: around ? AROUND : where ? SEARCH_BAND : ladderBand(c.distance_km, reach || MAX_KM), area_km2: c.area_km2 ?? (around ? Math.round(around) : null),
         ...(where ? { in_search_area: true, ...(where.coverage != null ? { coverage: Math.round(where.coverage * 1000) / 1000 } : {}), ...(where.side ? { side: where.side } : {}) } : {}),
         ...(around ? { surrounds: true } : {}),
         dataset, publisher: meta.publisher || c.source?.publisher || "", licence: c.source?.licence || "",
@@ -350,8 +364,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
   const exec = async (name, input, meta = {}) => {
     if (!SCREEN_TOOLS.includes(name)) throw new Error(`${name} isn't available in a screening run.`);
     const i = { ...input };
-    // Fetch once, out to the wider band, so the card's slider can work inside it without new queries.
-    // The checks step can keep a layer to its own reach (meta.ownReach: class layers, dense layers); otherwise out to the wider band.
+    // The checks step keeps a layer to its own reach (meta.ownReach); anything else goes out to the run's furthest reach.
     if (name === "get_data") { i.place = site.name; i.within_km = inside ? 0 : meta.ownReach ? Math.min(MAX_KM, Math.max(0, +i.within_km || 0)) : Math.min(MAX_KM, Math.max(+i.within_km || 0, reach)); }
     if (name === "find_features_near") { i.anchor = /^C\d+$/i.test(String(i.anchor || "")) ? i.anchor : site.name; i.radius_km = inside ? 0 : Math.min(MAX_KM, Math.max(+i.radius_km || 0, reach)); }
     const t0 = Date.now();
@@ -374,21 +387,32 @@ export async function runScreening({ host, site, inputs, distances, skill, study
   // Checks, in code, before the analyst starts (catalogue/checks.json; js/checks.js): every check that applies to
   // this site, at this scale, comes back found, none found or not checked with the reason, so the essentials never
   // depend on a lucky catalogue search and a topic with no data shows as a gap, never as silence.
-  const sea = offshore || (describe.coast_km != null && describe.coast_km <= reach);
-  const catalogue = host.checks || { checks: [], topics: [], scales: {} };
+  const catalogue = host.checks || { checks: [], topics: [] };
   // An area budget (the developable area, 25 Nov) is always at site scale, and each of its checks looks out only as
   // far as its largest buffer: a feature further out can't touch the site.
   const budget = study?.budget || null;
-  const scale = budget ? "local" : K.screenScale(distances, siteKm2);
-  const edges = catalogue.scales?.[scale] || [];
+  const scale = asset.scale || "local";
+  const edges = LADDER; // every check reports on the one ladder (js/reach.js)
   const sb = turf.bbox(fp.feature);
   const studyChecks = study ? new Set(study.groups.flatMap((g) => g.checks)) : null;
   const budgetReach = budget ? reachByCheck(budget.deductions) : null;
+  // Each check's reach (package A, 26 Nov): its own default, extended by the asset, overridden by the person; the
+  // developable area's buffers win in a budget. The only search distance.
+  const reachOpts = { scale, asset, inside, override: budgetReach ? (id) => budgetReach.get(id) : null };
+  const reaches = resolveReaches(catalogue, { ...reachOpts, search: said.search || [] });
+  const defaults = resolveReaches(catalogue, reachOpts);
+  const inScope = (id) => !studyChecks || studyChecks.has(id);
+  const reachMax = Math.max(0, ...[...reaches].filter(([id]) => inScope(id)).map(([, r]) => r.km));
+  const sea = offshore || (describe.coast_km != null && describe.coast_km <= reachMax);
   // UK nations and councils, on their real outlines (invariant 2), out to the furthest reach any check could use.
-  const ukAreas = await ukAreasNear(host.ref, fp.feature, describe, catalogue, scale);
+  const ukAreas = await ukAreasNear(host.ref, fp.feature, describe, reachMax);
   const plans = K.planChecks(catalogue, { bbox: sb, countries: describe.countries || [], offshore, sea, coast_km: describe.coast_km ?? null, areas: ukAreas }, scale,
-    { inside, skill: study?.id || "screen", reachOf: budgetReach ? (id) => budgetReach.get(id) : null })
-    .filter((p) => !studyChecks || studyChecks.has(p.check.id));
+    { inside, skill: study?.id || "screen", reaches })
+    .filter((p) => inScope(p.check.id));
+  const reachRec = reachRecord({ asset, scale, plans, reaches, changes: changeLines(said.search || [], plans, defaults), protection: said.protection || [], notUsed: said.not_used || [], inside, budget: !!budget });
+  // The furthest any check in this run looks: what's fetched for brought-in layers, the rings and the slider.
+  const reach = inside ? 0 : reachRec.furthest_km;
+  const runLike = { reach: reachRec };
   const results = new Map();
   const featsOf = new Map(); // check id → the evidence properties it counted, for the analyst's nearest names
   for (const p of plans) {
@@ -399,7 +423,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     const region = p.sources.length === 1 ? p.sources[0].region : null;
     checked.push({ evidence: p.check.topic, dataset: `${p.check.label}${region ? ` (${region})` : ""}`, result: "not checked", why: u.why, check: p.check.id });
   }
-  const fetchKm = (p) => Math.min(MAX_KM, Math.max(p.reach_km || 0, reach));
+  const fetchKm = (p) => Math.min(MAX_KM, Math.max(0, p.reach_km || 0));
   const asFeats = (list) => list.map((x) => ({ name: x.name, distance_km: x.distance_km, around_site: !!(x.surrounds || x.around_site) }));
   const toolPlan = (tool) => plans.find((p) => p.source?.tool === tool && !results.has(p.check.id));
   let boundaryFids = [];
@@ -438,9 +462,9 @@ export async function runScreening({ host, site, inputs, distances, skill, study
   for (const p of layerPlans) for (const x of p.sources.filter((y) => y.osm)) osmWants.set(x.osm, Math.max(osmWants.get(x.osm) || 0, Math.min(MAX_KM, Math.max(0, p.reach_km || 0))));
   for (const p of layerPlans) for (const x of p.sources.filter((y) => y.atlas_id)) {
     const l = layerFetch.get(x.atlas_id) || { source: x, km: 0, fields: new Set(), name_field: x.name_field || null, coverage: false };
-    // Every check layer fetches only to its own reach, up to 500 features (24 Nov): fetched out to the wider band, a
-    // busy layer filled its limit with features far away and undercounted the ones in reach (15+ scheduled monuments
-    // round Linlithgow). Layers the person brought in still go to the wider band, for the slider.
+    // Every check layer fetches only to its own reach, up to 500 features (24 Nov): fetched further, a busy layer filled
+    // its limit with features far away and undercounted the ones in reach (15+ scheduled monuments round Linlithgow).
+    // Layers the person brought in go to the run's furthest reach.
     l.km = Math.max(l.km, Math.min(MAX_KM, Math.max(0, p.reach_km || 0)));
     if (p.check.answer === "classes") l.coverage = true;
     for (const f of [x.code_field, x.filter?.field, x.class_field, ...(x.keep_fields || [])].filter(Boolean)) l.fields.add(f);
@@ -448,13 +472,14 @@ export async function runScreening({ host, site, inputs, distances, skill, study
   }
   const layers = [...layerFetch.values()];
   // Values read off rasters (catalogue/trusted.json "values"): elevation over the footprint on every site on land,
-  // water depth offshore, and AIS vessel traffic when the sea is within the close band. In parallel with the layers.
+  // water depth offshore, and AIS vessel traffic when the sea is within the traffic check's read_km. In parallel.
   const vals = host.trusted?.values || {};
   const elevSources = vals.elevation || [];
   const depthPlan = toolPlan("depth"), elevPlan = toolPlan("elevation"), trafficPlan = toolPlan("traffic");
   const wantDepth = !!depthPlan && offshore && elevSources.length > 0;
   const wantElev = !!elevPlan && !offshore && elevSources.length > 0;
-  const wantTraffic = !!trafficPlan && !inside && !!vals.traffic && (offshore || (describe.coast_km != null && describe.coast_km <= distances.close));
+  const trafficKm = trafficPlan?.check.read_km?.[scale] ?? 5;
+  const wantTraffic = !!trafficPlan && !inside && !!vals.traffic && (offshore || (describe.coast_km != null && describe.coast_km <= trafficKm));
   const fetchFn = host.fetchFn || globalThis.fetch;
   const seaVals = {};
   let elevation = null, elevSig = null;
@@ -470,7 +495,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     const [d, e, t] = await Promise.all([
       wantDepth ? waterDepth({ site: fp.feature, sources: elevSources, fetchFn, now }) : null,
       wantElev ? elevationFrom(elevSources, { feature: fp.feature, fetchFn, now, setting: "land" }) : null,
-      wantTraffic ? vesselTraffic({ site: fp.feature, closeKm: distances.close, source: vals.traffic, fetchFn, now }) : null,
+      wantTraffic ? vesselTraffic({ site: fp.feature, closeKm: trafficKm, source: vals.traffic, fetchFn, now }) : null,
     ]);
     if (d) { checked.push({ ...d.checked, check: depthPlan.check.id }); if (d.depth) seaVals.depth = d.depth; if (d.elevation) elevation = d.elevation; }
     if (e) { checked.push({ ...e.checked, check: elevPlan.check.id }); if (e.elevation) { elevation = e.elevation; elevSig = elevationSignificance(elevation); } }
@@ -576,7 +601,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
   const seaRes = seaJob ? await seaJob.catch((e) => ({ lines: [], notChecked: [`elevation, water depth and vessel traffic: not checked (${String(e.message || e).slice(0, 120)})`] })) : null;
   if (seaRes && seaJob) for (const p of [depthPlan, elevPlan, trafficPlan]) if (p && !results.has(p.check.id) && ((p === depthPlan && wantDepth) || (p === elevPlan && wantElev) || (p === trafficPlan && wantTraffic))) results.set(p.check.id, K.notChecked(p, seaRes.notChecked[0] || "no reading"));
   // In plan order (the catalogue's order), only checks that ran or were found wanting: a value check that didn't
-  // apply here (no sea in the close band, inside only) is left out, as checks that don't apply are.
+  // apply here (no sea within reach, inside only) is left out, as checks that don't apply are.
   const checkResults = plans.map((p) => results.get(p.check.id)).filter(Boolean);
   // A search area is never "on site": the checks say "in the search area" (js/siterole.js).
   if (searchArea) for (const r of checkResults) {
@@ -608,7 +633,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
   const nameOf = (f) => `${f.fid ? `${f.fid} ` : ""}${plainName(f)}`;
   // The same feature from two sources (NatureScot's and JNCC's SAC) is listed once, under the first one's id.
   const onceEach = (fs) => { const seenName = new Set(); return fs.filter((f) => { const k = plainName(f); if (seenName.has(k)) return false; seenName.add(k); return true; }); };
-  const baselineLines = [`Scale of this screen: ${scale} (bands ${edges.join(", ")} km; each check looks out to its own reach).`];
+  const baselineLines = [`Scale of this screen: ${scale}. Each check looks out to its own reach and reports on one ladder of bands (within the site, 0–100 m, 100–250 m, 250–500 m, 500 m–1 km, 1–2, 2–5, 5–10, 10–20, 20–30, 30–50 km); bands are for reporting, not risk.`];
   for (const g of K.byTopic(catalogue, checkResults)) {
     baselineLines.push(`${g.label}:`);
     for (const r of g.results) {
@@ -645,9 +670,9 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     : "drawn on the map by the person";
   // An area budget asks no model: the rules are the skill's, the geometry is the area_budget tool's.
   const budgetOut = budget ? budgetFrom({ budget, plans, results, layerAnswers, keyOf, catalogue, site: fp.feature }) : null;
-  const screenMessage = () => firstMessage({ siteName: site.name, describe, inputs, distances, footprintNote: fp.note, origin, baseline: baselineLines.join("\n") || null, inside, searchArea: searchNote });
+  const screenMessage = () => firstMessage({ siteName: site.name, describe, inputs, reach: reachRec, footprintNote: fp.note, origin, baseline: baselineLines.join("\n") || null, inside, searchArea: searchNote });
   const res = budget ? { text: "", usage: { input_tokens: 0, output_tokens: 0 }, history: [], stopReason: null }
-    : study ? await studyTurn({ skill, study, callClaude, message: studyMessage({ siteName: site.name, describe, origin, distances, baseline: baselineLines.join("\n"), searchArea: searchNote, study }), onEvent })
+    : study ? await studyTurn({ skill, study, callClaude, message: studyMessage({ siteName: site.name, describe, origin, reach: reachRec, baseline: baselineLines.join("\n"), searchArea: searchNote, study }), onEvent })
     : await studyTurn({ skill, callClaude, message: screenMessage(), onEvent, system: systemForScreen(skill) });
   let parsed = budgetOut ? { json: { flags: [], data_gaps: [], checked: [] }, summary: budgetSummary(budgetOut.budget) } : parseResult(res.text);
   const usage = { ...res.usage };
@@ -672,7 +697,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     const found = checked.filter((c) => c.result === "features" || c.result === "not checked").map(summarise).join("\n");
     const tail = String(res.text || "").slice(-3000);
     const attempts = [
-      { how: "summary", messages: [{ role: "user", content: `${firstMessage({ siteName: site.name, describe, inputs, distances, footprintNote: fp.note, origin, baseline: null, inside, searchArea: searchNote })}\n\nWhat the tools found (everything is on the map and in the run):\n${found || "- nothing returned"}\n\n${tail ? `Your write-up was cut off before its JSON block. Its last part:\n${tail}\n\n` : ""}${ASK}` }] },
+      { how: "summary", messages: [{ role: "user", content: `${firstMessage({ siteName: site.name, describe, inputs, reach: reachRec, footprintNote: fp.note, origin, baseline: null, inside, searchArea: searchNote })}\n\nWhat the tools found (everything is on the map and in the run):\n${found || "- nothing returned"}\n\n${tail ? `Your write-up was cut off before its JSON block. Its last part:\n${tail}\n\n` : ""}${ASK}` }] },
       { how: "history", messages: [...history, { role: "user", content: `Your result was cut off or had no JSON block. ${ASK}` }] },
     ];
     debug.repairs = [];
@@ -691,7 +716,7 @@ export async function runScreening({ host, site, inputs, distances, skill, study
     }
     debug.raw_tail = String(res.text || "").slice(-1500);
   }
-  const traced = traceResult(parsed.json?.flags, evidence, distances, { checks: checkResults, sea: seaVals });
+  const traced = traceResult(parsed.json?.flags, evidence, runLike, { checks: checkResults, sea: seaVals });
   let flags = traced.flags;
   if (searchArea) {
     flags = applySearchArea(flags, new Map(evidence.map((f) => [f.properties.fid, f.properties])));
@@ -721,12 +746,12 @@ export async function runScreening({ host, site, inputs, distances, skill, study
       },
       ...(Object.keys(seaVals).length ? { sea: seaVals } : {}),
       ...(elevation ? { elevation: { ...elevation, ...(elevSig ? { significance: elevSig } : {}) } } : {}),
-      extent: inside ? "inside" : "around", distances, fetched_to_km: reach, assessed_within_km: reach,
+      extent: inside ? "inside" : "around", reach: reachRec, fetched_to_km: reach, assessed_within_km: reach,
       method: inside
         ? "Inside the area only, at the person's request: features inside the area or touching its edge (distance 0), geodesic on WGS84; the surroundings weren't fetched. Coordinates WGS84 (EPSG:4326)."
         : searchArea
-          ? "The site's outline wasn't found, so it was screened as a search area: features inside it are reported by the share of it they cover (overlay in a Lambert azimuthal equal-area projection centred on it), not as on site; under 10% covered is low confidence, 10% or more isn't capped, and points or lines inside are medium. Distances outside it geodesic on WGS84, measured from its edge; features fetched once out to the wider band. Coordinates WGS84 (EPSG:4326)."
-          : "Distances geodesic on WGS84, measured from the footprint edge (0 = on site); features fetched once out to the wider band. Coordinates WGS84 (EPSG:4326).",
+          ? "The site's outline wasn't found, so it was screened as a search area: features inside it are reported by the share of it they cover (overlay in a Lambert azimuthal equal-area projection centred on it), not as on site; under 10% covered is low confidence, 10% or more isn't capped, and points or lines inside are medium. Distances outside it geodesic on WGS84, measured from its edge; each check fetched once, out to its own reach. Coordinates WGS84 (EPSG:4326)."
+          : "Distances geodesic on WGS84, measured from the footprint edge (0 = on site); each check fetched once, out to its own reach (its default, extended by the asset where there's a stated reason, or as the person set it), and reported on one ladder of bands. Coordinates WGS84 (EPSG:4326).",
       flags, checked, data_gaps: [...(Array.isArray(parsed.json?.data_gaps) ? parsed.json.data_gaps.map(String) : []), ...traced.not_raised.map(notRaisedGap)],
       ...(traced.not_raised.length ? { not_raised: traced.not_raised } : {}),
       ...(brought.length ? { brought_in: brought } : {}),
@@ -831,11 +856,15 @@ export function flagBeyond(flag, km) {
 export async function reassess({ record, km, skill, callClaude: call, now = () => new Date().toISOString() }) {
   const callClaude = roomy(call);
   const run = record.tobler_run;
-  const d = { ...run.distances, wider: km, close: Math.min(run.distances.close, km), near: Math.min(run.distances.near, km), set_by: "person",
-    reasons: [`re-assessed from the stored evidence within ${km} km (fetched to ${run.fetched_to_km} km)`, ...run.distances.reasons] };
+  // An old run (near/close/wider) narrows its bands as before; a new one keeps its ladder, and only the distance the
+  // flags are written for changes.
+  const legacy = isLegacy(run);
+  const d = legacy ? { ...run.distances, wider: km, close: Math.min(run.distances.close, km), near: Math.min(run.distances.near, km), set_by: "person",
+    reasons: [`re-assessed from the stored evidence within ${km} km (fetched to ${run.fetched_to_km} km)`, ...run.distances.reasons] } : null;
+  const bandsBy = legacy ? { distances: d } : run;
   const ev = evidenceWithin(record, km).map((f) => {
     const p = f.properties;
-    return { ref: p.fid, name: p.name, type: p.type, theme: topicOf(p.theme), distance_km: p.distance_km, band: bandOf(p, d), ...(p.in_search_area ? { in_search_area: whereText(p) } : {}), dataset: p.dataset, publisher: p.publisher, licence: p.licence, checked: p.checked_at, ...(p.details ? { details: p.details } : {}) };
+    return { ref: p.fid, name: p.name, type: p.type, theme: topicOf(p.theme), distance_km: p.distance_km, band: bandOf(p, bandsBy), ...(p.in_search_area ? { in_search_area: whereText(p) } : {}), dataset: p.dataset, publisher: p.publisher, licence: p.licence, checked: p.checked_at, ...(p.details ? { details: p.details } : {}) };
   });
   const insideOnly = km === 0 && isArea(record.features.find((f) => f.properties.role === "site"));
   const where = insideOnly ? "inside the area (inside it or touching its edge)" : `within ${km} km of the footprint edge`;
@@ -843,7 +872,7 @@ export async function reassess({ record, km, skill, callClaude: call, now = () =
     `Re-assess the screen of ${run.site.name} for findings ${where}.${insideOnly ? " The person chose to look inside the area only." : ""} No tools: use only the evidence below, which was fetched in the original run.`,
     `Site: ${run.site.summary}; ${run.site.footprint}. Setting: ${run.site.setting}. Asset type: ${run.site.asset_label}. Stage: ${run.site.stage}.`,
     run.site.role === "search_area" ? "The site's outline wasn't found, so this is a search area: evidence marked \"in the search area\" may or may not be on the site. Say \"in the search area\" with the share it covers (coverage), never \"on site\"." : null,
-    `Distances now: ${distancesLine(d)}.`,
+    legacy ? `Distances now: ${runDistancesLine({ distances: d })}.` : `Distances now: findings within ${kmText(km)} of the site's edge. In the original run ${reachLine(run.reach)}; the checks below keep those reaches.`,
     `Evidence ${insideOnly ? "inside the area" : `within ${km} km`} (${ev.length} features):\n${JSON.stringify(ev)}`,
     run.checks?.length ? `The checks (cite one that found something by its id in square brackets):\n${run.checks.map((c) => `- [${c.id}] ${c.label}: ${K.checkLine(c)}`).join("\n")}` : null,
     `What the original run checked:\n${JSON.stringify(run.checked.map((c) => ({ dataset: c.dataset, publisher: c.publisher, result: c.result, ...(c.why ? { why: c.why } : {}) })))}`,
@@ -856,8 +885,8 @@ export async function reassess({ record, km, skill, callClaude: call, now = () =
   const text = (resp.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
   const parsed = parseResult(text);
   if (!parsed.json) throw new Error("The re-assessment came back without a readable result. The earlier flags are unchanged.");
-  run.assessments.push({ at: now(), within_km: run.assessed_within_km, flags: run.flags, decision: run.decision ?? null, summary: run.summary, distances: run.distances });
-  const traced = traceResult(parsed.json.flags, evidenceOf(record), d, { checks: run.checks || [], sea: run.sea || null });
+  run.assessments.push({ at: now(), within_km: run.assessed_within_km, flags: run.flags, decision: run.decision ?? null, summary: run.summary, ...(legacy ? { distances: run.distances } : {}) });
+  const traced = traceResult(parsed.json.flags, evidenceOf(record), bandsBy, { checks: run.checks || [], sea: run.sea || null });
   run.flags = traced.flags;
   const searchArea = run.site.role === "search_area";
   if (searchArea) run.flags = applySearchArea(run.flags, new Map(evidenceOf(record).map((f) => [f.properties.fid, f.properties])));
@@ -865,9 +894,9 @@ export async function reassess({ record, km, skill, callClaude: call, now = () =
   run.data_gaps = [...(Array.isArray(parsed.json.data_gaps) ? parsed.json.data_gaps.map(String) : run.data_gaps.filter((g) => !/^Not raised as a flag/.test(g))), ...traced.not_raised.map(notRaisedGap)];
   if (traced.not_raised.length) run.not_raised = traced.not_raised; else delete run.not_raised;
   run.summary = searchArea ? reword(parsed.summary) : parsed.summary;
-  run.distances = d;
+  if (legacy) run.distances = d;
   run.assessed_within_km = km;
-  for (const f of evidenceOf(record)) f.properties.band = bandOf(f.properties, d);
+  for (const f of evidenceOf(record)) f.properties.band = bandOf(f.properties, bandsBy);
   run.usage = { input_tokens: (run.usage?.input_tokens || 0) + (resp.usage?.input_tokens || 0), output_tokens: (run.usage?.output_tokens || 0) + (resp.usage?.output_tokens || 0) };
   return record;
 }
@@ -880,7 +909,7 @@ export function headline(record) {
   r.flags.forEach((f) => { byConf[f.confidence]++; });
   const notChecked = r.checked.filter((c) => c.result === "not checked");
   return {
-    run: r.id, site: r.site.name, scope: r.extent === "inside" ? "inside the area only" : "the site and its surroundings", distances: r.extent === "inside" ? "none (inside the area only)" : distancesLine(r.distances), asset: `${r.site.asset_label}${r.site.asset_assumed ? " (assumed)" : ""}`, stage: r.site.stage,
+    run: r.id, site: r.site.name, scope: r.extent === "inside" ? "inside the area only" : "the site and its surroundings", distances: r.extent === "inside" ? "none (inside the area only)" : runDistancesLine(r), ...(r.reach?.changes?.length ? { your_changes: r.reach.changes.map((c) => c.line) } : {}), ...(r.reach?.not_used?.length ? { not_used: r.reach.not_used.map((n) => n.line) } : {}), asset: `${r.site.asset_label}${r.site.asset_assumed ? " (assumed)" : ""}`, stage: r.site.stage,
     ...(r.decision ? { decision: r.decision.value } : {}),
     flags: r.flags.length, by_confidence: byConf,
     top_flags: r.flags.slice(0, 5).map((f) => ({ id: f.id, risk: f.risk, ...(f.severity ? { severity: f.severity } : {}), confidence: f.confidence, theme: f.theme, nearest_km: f.nearest_km })),
@@ -907,7 +936,7 @@ export function budgetHeadline(record) {
   };
 }
 
-// The screening service the conversation's screen_site and get_run tools call. table: catalogue/distances.json;
+// The screening service the conversation's screen_site and get_run tools call. table: catalogue/assets.json;
 // skill: the parsed NTR skill. onRun(record, place) shows the card; onEvent reports progress.
 // skillFor(name): another parsed skill, for studies (the profile's skills_offered names each study's skill).
 export function createScreening({ host, table, skill, skillFor = () => null, callClaude, model = "", onRun = () => {}, onEvent = () => {}, now }) {
@@ -952,7 +981,7 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
   return {
     runs,
     offer,
-    // An asset type's label ("solar farm"), from the distance table.
+    // An asset type's label ("solar farm"), from the asset table.
     assetLabel(id) { const tb = typeof table === "function" ? table() : table; return tb?.assets?.[id]?.label || null; },
     // A run saved in this browser (js/projectstore.js), put back on reload: the analyst can read it again, and new
     // runs carry on numbering after it (R3 after R1 and R2), so ids never repeat in a project.
@@ -966,22 +995,23 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
     async screen(i, place) {
       const sk = typeof skill === "function" ? skill() : skill;
       const tb = typeof table === "function" ? table() : table;
-      if (!sk?.body || !tb?.assets) throw new Error("The screening method or the distance table hasn't loaded yet; try again in a moment.");
+      if (!sk?.body || !tb?.assets) throw new Error("The screening method or the asset table hasn't loaded yet; try again in a moment.");
       const d0 = await R.describe(host.ref, place.feature);
-      const asset = ASSET_TYPES.includes(i.asset_type) && i.asset_type !== "other" ? i.asset_type : null;
+      const assetId = ASSET_TYPES.includes(i.asset_type) && i.asset_type !== "other" ? i.asset_type : null;
       // Something the profile isn't built for (housing, a warehouse): screened at once as a general screen, and the
       // caveat travels with the run so the card and report say it, not only the chat (Rob, 22 Nov).
-      const planned = !asset && typeof i.planned === "string" && i.planned.trim() ? i.planned.replace(/\s+/g, " ").trim().slice(0, 60) : null;
+      const planned = !assetId && typeof i.planned === "string" && i.planned.trim() ? i.planned.replace(/\s+/g, " ").trim().slice(0, 60) : null;
       const num = (v) => (Number.isFinite(+v) && +v > 0 ? +v : null);
-      const site = { asset_type: asset, offshore: !!d0.offshore, capacity_mw: num(i.capacity_mw), tip_height_m: num(i.tip_height_m), area_km2: d0.area_km2 ?? null };
-      const distances = chooseDistances(tb, site, i.distances || {});
+      const site = { asset_type: assetId, offshore: !!d0.offshore, capacity_mw: num(i.capacity_mw), tip_height_m: num(i.tip_height_m), area_km2: d0.area_km2 ?? null };
+      const asset = chooseAsset(tb, { ...site, planned });
+      const said = readDistances(distancesFromInputs(i), { catalogue: host.checks || {} });
       const id = `R${++n}`;
       // For the page's progress line: what's being screened, so it can say roughly how long it takes.
       onEvent({ type: "screen_start", run: id, site: place.name, setting: site.offshore ? "offshore" : "onshore",
-        inside: i.extent === "inside" && /Polygon/.test(place.feature.geometry.type), wider_km: distances.wider });
+        inside: i.extent === "inside" && /Polygon/.test(place.feature.geometry.type), wider_km: furthestFor(host.checks, asset, said) });
       const record = await runScreening({
-        host, site: { name: place.name, feature: place.feature, origin: place.origin }, distances, skill: sk, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}), broughtIn: carried(place, "ntr-screen"),
-        inputs: { asset_type: asset || "other", asset_label: asset ? tb.assets[asset].label : planned || "site of unknown type", asset_assumed: asset ? !!i.assumed : !planned,
+        host, site: { name: place.name, feature: place.feature, origin: place.origin }, asset, said, skill: sk, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}), broughtIn: carried(place, "ntr-screen"),
+        inputs: { asset_type: assetId || "other", asset_label: assetId ? tb.assets[assetId].label : planned || "site of unknown type", asset_assumed: assetId ? !!i.assumed : !planned,
           ...(planned ? { outside_profile: host.profile?.()?.wording?.outside || OUTSIDE_PROFILE } : {}),
           stage: i.stage || "", capacity_mw: site.capacity_mw, tip_height_m: site.tip_height_m, focus: i.focus || "", extent: i.extent === "inside" ? "inside" : "around" },
       });
@@ -989,8 +1019,8 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       record.tobler_run.place_id = place.id ?? null;
       record.tobler_run.place_geometry_at_run = JSON.stringify(place.feature.geometry);
       // What was asked, so the run can be repeated as it was once the site is edited (js/outofdate.js).
-      record.tobler_run.inputs = { asset_type: asset || "other", assumed: asset ? !!i.assumed : !planned, ...(planned ? { planned } : {}), stage: i.stage || "", focus: i.focus || "",
-        ...(i.distances && Object.keys(i.distances).length ? { distances: i.distances } : {}) };
+      record.tobler_run.inputs = { asset_type: assetId || "other", assumed: assetId ? !!i.assumed : !planned, ...(planned ? { planned } : {}), stage: i.stage || "", focus: i.focus || "",
+        ...(distancesFromInputs(i).length ? { distances: distancesFromInputs(i) } : {}) };
       // A re-run after the site was edited: which run it replaces, and why. From the card's re-run button (replaces),
       // or found here when the analyst screens a place again whose latest run is out of date.
       linkPrevious(record, place, i, "ntr-screen");
@@ -1007,16 +1037,20 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       if (entry.kind === "budget") return this.budget(entry, sk, place, i);
       const d0 = await R.describe(host.ref, place.feature);
       if (entry.setting === "land" && d0.offshore) return { not_available: `The ${entry.label.toLowerCase()} is for sites on land, and ${place.name} is offshore. A constraints screen works at sea.` };
-      const distances = { ...entry.distances, footprint_km: 0.1, set_by: "skill", asset_label: entry.label.toLowerCase(), setting: "onshore", reasons: [`the ${entry.label.toLowerCase()}'s own distances: records on and close to the site matter most`], table_version: null };
+      // A study has no asset: it runs at its own scale (site scale for the desk study: records on and close to the site
+      // matter most), each check to its own reach, with the person's distances if they gave any.
+      const asset = { id: null, label: entry.label.toLowerCase(), row: false, setting: "onshore", scale: entry.scale || "local", footprint_km: 0.1, extends: [],
+        scale_why: `the ${entry.label.toLowerCase()} looks at records on and close to the site, so each check uses its site-scale reach` };
+      const said = readDistances(distancesFromInputs(i), { catalogue: host.checks || {} });
       const id = `R${++n}`;
-      onEvent({ type: "screen_start", run: id, site: place.name, setting: "onshore", inside: false, wider_km: distances.wider, study: entry.id });
+      onEvent({ type: "screen_start", run: id, site: place.name, setting: "onshore", inside: false, wider_km: furthestFor(host.checks, asset, said, entry), study: entry.id });
       const record = await runScreening({
-        host, site: { name: place.name, feature: place.feature, origin: place.origin }, distances, skill: sk, study: entry, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}), broughtIn: carried(place, entry.id),
+        host, site: { name: place.name, feature: place.feature, origin: place.origin }, asset, said, skill: sk, study: entry, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}), broughtIn: carried(place, entry.id),
         inputs: { asset_type: "other", asset_label: entry.label.toLowerCase(), asset_assumed: false, stage: i.stage || "", focus: i.focus || "", extent: "around" },
       });
       record.tobler_run.place_id = place.id ?? null;
       record.tobler_run.place_geometry_at_run = JSON.stringify(place.feature.geometry);
-      record.tobler_run.inputs = { study: entry.id, focus: i.focus || "" };
+      record.tobler_run.inputs = { study: entry.id, focus: i.focus || "", ...(distancesFromInputs(i).length ? { distances: distancesFromInputs(i) } : {}) };
       linkPrevious(record, place, i, entry.id);
       await offer(record);
       runs.set(id, record);
@@ -1033,23 +1067,26 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       const d0 = await R.describe(host.ref, place.feature);
       if (d0.offshore) return { not_available: `The ${label} is for sites on land, and ${place.name} is offshore.` };
       const rules = budgetRules(sk);
-      const plan = resolveDeductions(rules, i);
+      // The person's distances here are protection distances: a deduction's buffer, never how far anything looks.
+      const said = readDistances(distancesFromInputs(i), { catalogue: host.checks || {}, deductions: rules.deductions, budget: true });
+      const plan = resolveDeductions(rules, { ...i, buffers: said.protection.map((p) => ({ id: p.id, buffer_m: p.buffer_m })) });
+      for (const p of said.protection) { const d = plan.deductions.find((x) => x.id === p.id); p.line = d?.changed ? `${p.label}: ${d.changed}` : `${p.label}: ${p.buffer_m} m (doesn't apply to a ${plan.asset_label})`; }
       const reachKm = Math.max(0.05, ...[...reachByCheck(plan.deductions).values()]);
-      const distances = { near: Math.min(0.05, reachKm), close: reachKm, wider: reachKm, footprint_km: 0.1, set_by: "skill", asset_label: plan.asset_label, setting: "onshore",
-        reasons: [`each check looks only as far as its largest buffer for a ${plan.asset_label}: a feature further out can't touch the site`], table_version: null };
+      const asset = { id: plan.asset_type, label: plan.asset_label, row: true, setting: "onshore", scale: "local", footprint_km: 0.1, extends: [],
+        scale_why: `each check looks only as far as its largest buffer for ${/^general/.test(plan.asset_label) ? "a general site" : `a ${plan.asset_label}`}: a feature further out can't touch the site` };
       const KIND_LABEL = { hard: "Can't build", buffer: "Keep clear", avoid: "Avoided by default", soft: "Soft constraints" };
       const groups = Object.entries(KIND_LABEL).map(([k, l]) => ({ id: k, label: l, checks: [...new Set(plan.deductions.filter((d) => d.kind === k).flatMap((d) => d.checks))] })).filter((g) => g.checks.length);
       const studyEntry = { ...entry, groups, budget: plan, full_study_adds: [] };
       const id = `R${++n}`;
       onEvent({ type: "screen_start", run: id, site: place.name, setting: "onshore", inside: false, wider_km: reachKm, study: entry.id });
       const record = await runScreening({
-        host, site: { name: place.name, feature: place.feature, origin: place.origin }, distances, skill: sk, study: studyEntry, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}),
+        host, site: { name: place.name, feature: place.feature, origin: place.origin }, asset, said, skill: sk, study: studyEntry, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}),
         inputs: { asset_type: plan.asset_type, asset_label: plan.asset_label, asset_assumed: plan.asset_assumed, stage: "", extent: "around" },
       });
       record.tobler_run.place_id = place.id ?? null;
       record.tobler_run.place_geometry_at_run = JSON.stringify(place.feature.geometry);
       const keep = (v) => (Array.isArray(v) && v.length ? v : undefined);
-      record.tobler_run.inputs = JSON.parse(JSON.stringify({ study: entry.id, asset_type: plan.asset_type, buffers: keep(i.buffers), leave_out: keep(i.leave_out), as_soft: keep(i.as_soft) }));
+      record.tobler_run.inputs = JSON.parse(JSON.stringify({ study: entry.id, asset_type: plan.asset_type, distances: keep(distancesFromInputs(i)), leave_out: keep(i.leave_out), as_soft: keep(i.as_soft) }));
       linkPrevious(record, place, i, entry.id);
       runs.set(id, record);
       onRun(record, place);
@@ -1062,7 +1099,7 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       if (r.budget) return { ...budgetHeadline(rec), rows: [...r.budget.rows, ...r.budget.soft].map((x) => ({ label: x.label, kind: x.kind, state: x.state, ha: x.ha, buffer_m: x.buffer_m, reason: x.reason, ...(x.why ? { why: x.why } : {}) })),
         ...(r.replaced_by ? { replaced_by: `${r.replaced_by} (this run is out of date: the site was edited after it)` } : {}) };
       return {
-        run: r.id, site: r.site.name, scope: r.extent === "inside" ? "inside the area only" : "the site and its surroundings", asset: r.site.asset_label, stage: r.site.stage, distances: distancesLine(r.distances), assessed_within_km: r.assessed_within_km,
+        run: r.id, site: r.site.name, scope: r.extent === "inside" ? "inside the area only" : "the site and its surroundings", asset: r.site.asset_label, stage: r.site.stage, distances: runDistancesLine(r), ...(r.reach?.changes?.length ? { your_changes: r.reach.changes.map((c) => c.line) } : {}), assessed_within_km: r.assessed_within_km,
         ...(r.replaces ? { replaces: r.replaces } : {}), ...(r.replaced_by ? { replaced_by: `${r.replaced_by} (this run is out of date: the site was edited after it)` } : {}),
         ...(r.decision ? { decision: r.decision } : {}),
         flags: r.flags.map((f) => ({ id: f.id, risk: f.risk, theme: topicOf(f.theme), ...(f.severity ? { severity: f.severity } : {}), confidence: f.confidence, why: f.why, ...(f.next_step ? { next_step: f.next_step } : {}),
@@ -1081,11 +1118,10 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
 }
 
 // UK nations and councils near the site, on their real outlines (js/ukareas.js), out to the furthest reach any check
-// could use at this scale. Only near the UK (a loose box narrows it; the outlines decide). {} far from the UK; null if
-// the outlines couldn't be loaded, and then every nation's layers are asked (js/checks.js touches).
+// could use in this run (reachMax). Only near the UK (a loose box narrows it; the outlines decide). {} far from the
+// UK; null if the outlines couldn't be loaded, and then every nation's layers are asked (js/checks.js touches).
 const UK_WINDOW = [-14, 49, 3.5, 61.5];
-async function ukAreasNear(ref, feature, describe, catalogue, scale) {
-  const reachMax = Math.max(0, ...(catalogue.checks || []).map((c) => +c.reach_km?.[scale] || 0));
+async function ukAreasNear(ref, feature, describe, reachMax) {
   const sb = turf.bbox(feature);
   const g = K.growBox(sb, reachMax);
   const near = !(g[2] < UK_WINDOW[0] || g[0] > UK_WINDOW[2] || g[3] < UK_WINDOW[1] || g[1] > UK_WINDOW[3]);
@@ -1094,4 +1130,11 @@ async function ukAreasNear(ref, feature, describe, catalogue, scale) {
     const fc = await ref.get("uk-areas");
     return areasNear(fc, feature, reachMax, { onLand: !describe.offshore && (describe.countries || []).includes("United Kingdom") });
   } catch { return null; }
+}
+
+// The furthest any check could look in a run, before it's planned: for the page's progress line.
+function furthestFor(catalogue, asset, said, study = null) {
+  const only = study ? new Set(study.groups.flatMap((g) => g.checks)) : null;
+  const m = resolveReaches(catalogue || {}, { scale: asset.scale, asset, search: said?.search || [] });
+  return Math.min(MAX_KM, Math.max(0, ...[...m].filter(([id]) => !only || only.has(id)).map(([, r]) => r.km)));
 }

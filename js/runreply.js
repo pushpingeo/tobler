@@ -5,6 +5,7 @@
 import { budgetSummary } from "./developable.js";
 import { searchHeadline } from "./siterole.js";
 import { offerLines, bringInReply } from "./bringin.js";
+import { reachLine as reachWords, changesLine, legacyDistancesLine } from "./reach.js";
 
 const MAX_FLAGS = 3;
 const MAX_GAPS = 4;
@@ -13,12 +14,16 @@ const km = (v) => (v == null ? null : v === 0 ? "on the site" : v < 1 ? `${Math.
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const list = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 const an = (w) => (/^[aeiou]/i.test(w) ? `an ${w}` : `a ${w}`);
-// "looking out to 20 km (bands at 1, 5 and 20 km, the default for a solar farm onshore)"
-function reachLine(d) {
-  const where = /onshore|offshore/i.test(d.asset_label) ? "" : d.setting === "offshore" ? " at sea" : d.setting === "onshore" ? " on land" : "";
-  const why = d.set_by === "person" ? "as you set them" : d.set_by === "skill" ? "the study's own distances" : `the default for ${an(d.asset_label)}${where}`;
-  return `looking out to ${d.wider} km (bands at ${d.near}, ${d.close} and ${d.wider} km, ${why})`;
+// "each check looks out its own distance from the site's edge: 250 m to 5 km, by check (…)", then what the person
+// changed and anything they said that wasn't used. An old run (near/close/wider) keeps its old line.
+function reachLine(r) {
+  if (!r.reach) {
+    const d = r.distances || {};
+    return `looking out to ${d.wider} km (${legacyDistancesLine(d)})`;
+  }
+  return reachWords(r.reach);
 }
+const changes = (r) => [changesLine(r.reach), r.reach?.not_used?.length ? `Not used: ${r.reach.not_used.map((n) => n.line).join("; ")}.` : ""].filter(Boolean);
 const sentence = (s) => { const t = String(s || "").trim(); return t ? (/[.!?]$/.test(t) ? t : `${t}.`) : ""; };
 
 // Where the nearest traced evidence is, in the words the card uses.
@@ -76,7 +81,8 @@ export function screenReply(record, { replaced = null } = {}) {
   const paras = [];
   paras.push([header(r, "Constraints screen"), ...decisionLines(r)].join(" "));
   const context = [
-    `Screened for ${an(asset)}, ${r.extent === "inside" ? "inside the area only" : reachLine(r.distances)}.`,
+    r.extent === "inside" ? `Screened for ${an(asset)}, inside the area only.` : `Screened for ${an(asset)}; ${reachLine(r)}.`,
+    ...changes(r),
     r.site.outside_profile || null,
     r.site.role === "search_area" ? searchHeadline(r.site) : null,
     r.note_scope || null,
@@ -98,7 +104,8 @@ export function studyReply(record, { replaced = null } = {}) {
   const paras = [];
   paras.push([header(r, label), ...decisionLines(r)].join(" "));
   const context = [
-    `Checked the open records on the site and ${reachLine(r.distances).replace(/^looking out to (\S+ km)/, "out to $1 from its edge")}.`,
+    r.reach ? `Checked the open records on the site and round it: each check out to its own distance from the site's edge, ${r.reach.range}.` : `Checked the open records on the site and out to ${r.distances?.wider} km from its edge.`,
+    ...changes(r),
     r.site.role === "search_area" ? searchHeadline(r.site) : null,
   ].filter(Boolean);
   paras.push(context.join(" "));
@@ -117,6 +124,7 @@ export function budgetReply(record, { replaced = null } = {}) {
   const r = record.tobler_run;
   const paras = [`**Developable area of ${r.site.name} (${r.id})**`, budgetSummary(r.budget)];
   if (r.budget.unknown?.length) paras.push(`These weren't deductions Tobler measures, so they were left out: ${r.budget.unknown.join(", ")}.`);
+  if (r.reach?.not_used?.length) paras.push(`Not used: ${r.reach.not_used.map((n) => n.line).join("; ")}.`);
   if (replaced) paras.push(replaced);
   paras.push("The card below has each deduction with its reason and source, and the map shows what's left. Tell me to change a buffer, leave something out or treat it as usable at a cost, and I'll run it again.");
   return paras.join("\n\n");

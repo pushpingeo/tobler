@@ -17,9 +17,10 @@ isn't built.
 - **Skills judge.** Which checks matter, the decision, the write-up (`skills/*/SKILL.md`). The model's severity
   rating is due to go (plan).
 - **The asset says what's proposed; the profile says who's asking.** A number that depends on what's being built
-  (a reach, a protection distance) belongs in a shared asset table (*not built*), never the profile. Until it's
-  built, both live in `catalogue/industries/` and `catalogue/distances.json`. The project holds the place, the
-  proposal and the person's overrides (*not built*).
+  (a reach, a protection distance) belongs in the shared asset table (`catalogue/assets.json`, read by
+  `js/reach.js`), never the profile. Reach extensions live there now; protection distances are still the
+  developable area skill's until package D's rows are reviewed. The project holds the place, the proposal and the
+  person's overrides (*not built*).
 - **Three kinds of distance, kept apart:** search (the check's reach), protection (a skill's deduction), impact
   pathway (not a number). A shape someone drew, above all a published zone, beats a buffer Tobler computes.
 - **The record is metric; units are for display.** Code converts, with exact factors (`js/units.js`); the model

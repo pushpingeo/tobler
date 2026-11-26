@@ -2,6 +2,64 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 26 Nov 2026 (night): package A, reach, ladder and the asset table (plan item 1)
+- **One search distance.** Each check's reach is the only search distance (`js/reach.js` `resolveReaches`): the
+  check's default for the scale, extended by the asset where `catalogue/assets.json` has a stated reason, overridden
+  by the person. The run's near/close/wider, `catalogue/distances.json`, `js/distances.js`, the screening skill's
+  1/5/20 table and the desk study's 0.25/0.5/2 are gone. Each layer still fetches to its own check's reach;
+  brought-in layers, the rings and the slider go to the furthest any check looked (capped at 50 km). The run record
+  has `reach` (scale and why, the asset, the range, the furthest, the ladder, extensions, changes, what wasn't used)
+  in place of `distances`; each check result says `reach_from` and `reach_default_km` when its reach isn't its own.
+- **The scale** still picks which of a check's three reaches applies. It now comes from the asset table: each row's
+  scale and size rules are distances.json's draft-1 values carried over unchanged (the old wider band mapped through
+  the old thresholds: up to 10 km local, up to 25 km regional, beyond that global), marked as first-cut defaults
+  awaiting package D. One change: an asset row with no entry for the setting (solar at sea) now uses the general
+  defaults for its size, as an asset with no row does. A site of 100 km² or more is global, as before.
+- **The asset table's extensions, each with a source** (claude/research-reach-evidence.md; Rob's EIA review):
+  onshore wind's National Parks, National Landscapes, wild land and wind turbines (cumulative) to 45 km, or by
+  NatureScot's tip-height table when the height is given; its scheduled monuments, parks and gardens, battlefields
+  and World Heritage Sites to 10 km; its SPAs to 20 km. Judgement calls: listed buildings stay at their own reach
+  (towns have hundreds, and the fetch limit would undercount them); local landscape designations aren't extended
+  (the sources speak of designated landscapes); offshore wind gets no extension yet (the 45 km source is onshore).
+  An extension never shortens a check. Effects (sight, flight) are recorded for wind with sources; nothing reads
+  them yet.
+- **An asset with no row** (housing, a warehouse, nothing said) runs on the general defaults for its size, and the
+  card, the report and the analyst's brief say "No distances are set for housing yet, so the checks use the general
+  defaults for a site of this size."
+- **One ladder** (`LADDER` in `js/reach.js`): within the site, 0–100 m, 100–250 m, 250–500 m, 500 m–1 km, 1–2, 2–5,
+  5–10, 10–20, 20–30, 30–50 km, closed at a check's reach (a 45 km reach ends 30–45 km). `checks.json`'s per-scale
+  band sets are gone (version 8). The map's rings are the ladder's steps up to the furthest reach; the card's
+  slider steps along it (an index, so 0, 100 m, 250 m, …). The map's emphasis (strong near, fainter out) is by
+  distance alone, for display.
+- **Distances in words**, one input for all three skills: `distances: [{what, value, unit}]` on `screen_site` and
+  `run_study`, the number and unit as said. `what` is `all`, a topic, a check, or a developable-area deduction;
+  exact names first, then words ("heritage" is the topic, not World Heritage Sites; "homes" is Nearest homes in a
+  screen and the homes deduction in a budget). "All" sets every count check (cutting as well as stretching), never a
+  zone (inside) or class check; a check named outright can take a class check with a reach. In the developable area
+  every distance is a protection distance, and a search distance there is said as not used. Metres and kilometres
+  only (`toKm` in `js/units.js`); anything else comes back as "not used: only metres and kilometres are read for
+  now" until package C. The old `buffers` and near/close/wider inputs are still read (held runs, re-runs of old runs:
+  an old `wider` becomes "all").
+- **Changes on the card:** "You changed: every check to 5 km (was 250 m to 5 km, by check)", and anything not used,
+  on the card's distance line, in the reply, the report and the rerun comparison. The record keeps what was said and
+  the metric value.
+- **Reached by** (`reached_by` in checks.json) on 38 checks where it's clear: water, sight, flight, ground, road.
+  Left out where it isn't clear (air permits, most nature sites, homes' noise: there's no "sound" in the list yet).
+- **Vessel traffic** read "out to the close band"; it now has its own `read_km` (2, 5, 10 km by scale, the old close
+  bands), which "look out to" doesn't change.
+- **A check whose own reach is past 50 km** (boundaries at global scale, 100 km) keeps it; the fetch is cut to 50 km
+  and its line says so, as before.
+- **Skill wording:** ntr-screening 4.2-draft drops the distances table and `distances_km`, and restates its
+  confidence and receptor rules that named near/close/wider bands in the old defaults' kilometres (high within about
+  1 km, 2 km at sea; transboundary high within 5 km, 10 km at sea). developable-area 0.3-draft names the new input.
+- **Old runs** in people's browsers keep `distances` and open as they were (`isLegacy`, `runBand`,
+  `legacyDistancesLine`); re-assessing one narrows its bands as before.
+- **Barnston:** the brief's test said Barnston reports to 2 km. At site scale aerodrome safeguarding looks out 5 km,
+  so the rings stop at 5 km; nature and heritage at 2 km; no 10 km ring. The tests say that.
+- **Tested:** `npm test` (new `test/reach.test.mjs`; ntrrun end to end: Barnston on the general defaults, "look out
+  to 5 km" from the conversation, "keep 80 m from homes" in the developable area); all 13 browser checks, desktop and
+  phone. **Not tested:** ring labels (the test basemap has no glyphs), a live replay (next).
+
 ## 26 Nov 2026 (afternoon, later): sea checks on land need the sea within reach; named projects ask the atlas (plan item 1)
 - **Sea checks on a coastal land site:** a check for the sea (`setting: "sea"`) now applies on land only when the
   coast is within the check's own reach, plus 1 km for the coastline's accuracy (Natural Earth, about a kilometre).

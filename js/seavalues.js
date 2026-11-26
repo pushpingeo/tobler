@@ -1,7 +1,7 @@
 // Values read off rasters at sea, done in code as part of a screen's baseline (not left to the analyst's searches):
 // - water depth over the site: the shared elevation tool (js/elevation.js) shown as depth (depth = -elevation).
 // - vessel traffic from AIS, from EMODnet Human Activities' vessel density (hours per km² a month, 1 km cells, EU waters
-//   and neighbours), read with WMS GetFeatureInfo: at the site, and on two rings out to the close band, so a lane
+//   and neighbours), read with WMS GetFeatureInfo: at the site, and on two rings out to the traffic check's read_km (catalogue/checks.json), so a lane
 //   just off the site still shows. 2023 is asked for explicitly: EMODnet's default year, 2024, lost satellite AIS data
 //   from June (its own note).
 // Both services send CORS headers, so the page calls them directly. Sources, licences and URLs: catalogue/trusted.json
@@ -65,7 +65,7 @@ export async function vesselTraffic({ site, closeKm = 10, source, fetchFn = glob
   const centre = turf.pointOnFeature(site).geometry.coordinates;
   const ring = [];
   // Rings out from the site's edge (roughly: the centre's distance to the nearest side of its bounding box), at half the
-  // close band and the close band, so every ring point is within the close band of the edge.
+  // read distance and the read distance, so every ring point is within it of the edge.
   const [w, s, e, n] = turf.bbox(site);
   const reach = Math.min(50, ...[[w, centre[1]], [e, centre[1]], [centre[0], s], [centre[0], n]].map((c) => turf.distance(centre, c)));
   const edge = site.geometry.type === "Point" ? 0 : reach;

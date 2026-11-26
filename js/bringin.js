@@ -4,7 +4,7 @@
 // licence and date, and is held to the run's distances. No DOM, so the page, the replay script and the tests share it.
 import * as turf from "./vendor/turf.js";
 import { classifyLicence, licenceBlock } from "./licence.js";
-import { bandFor } from "./distances.js";
+import { runBand, runFurthest } from "./reach.js";
 import { geometryDistanceKm } from "./datatools.js";
 import { pickName, tidyName } from "./atlasfeatures.js";
 
@@ -124,7 +124,7 @@ const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeou
 // { at, searched: [{ label, words }], items: [{ id: "L1", gap, label, topic, why, dataset }], nothing: [labels],
 //   failed: [labels], state: "open" | "none" }. atlas(tool, args) is the page's atlas call.
 // The search is over the site itself (a small margin round it): a layer is offered only if it covers the site,
-// whatever the run's wider band.
+// however far the run's checks looked.
 export async function offerFor(record, { atlas, catalogue = {}, allow = {}, trusted = null, now = () => new Date().toISOString(), timeoutMs = SEARCH_TIMEOUT_MS } = {}) {
   const r = record.tobler_run;
   const gaps = gapsToSearch(r, catalogue);
@@ -149,7 +149,7 @@ export async function offerFor(record, { atlas, catalogue = {}, allow = {}, trus
   // features out to the run's reach, measured from the site, counted, nearest first. Nothing is put on the map or kept;
   // only a layer with something in reach is offered, and one with nothing is said. This also catches an atlas extent
   // that's too big (a Surrey council's layers came up for Linlithgow).
-  const reach = r.extent === "inside" ? 0 : Math.min(50, r.assessed_within_km ?? r.distances?.wider ?? 0);
+  const reach = r.extent === "inside" ? 0 : Math.min(50, r.assessed_within_km ?? runFurthest(r));
   const around = turf.bbox(turf.buffer(site, Math.max(reach, 0.05), { units: "kilometers", steps: 8 })).map((v) => Math.round(v * 1e5) / 1e5);
   const preview = async (d) => {
     let got;
@@ -209,7 +209,7 @@ export function offerLines(r) {
   const out = [];
   const open = o.items.filter((x) => x.state === "offered");
   if (open.length) {
-    const reach = r.extent === "inside" ? "inside the area" : `out to ${r.distances.wider} km`;
+    const reach = r.extent === "inside" ? "inside the area" : `out to ${runFurthest(r)} km`;
     const holds = (x) => { const p = x.preview; if (!p) return ""; const n = p.nearest?.[0]; return `: ${p.count}${p.capped ? "+" : ""} within ${p.within_km} km${n ? `, nearest ${n.name}, ${where(n.distance_km)}` : ""}`; };
     out.push([`The atlas has ${open.length === 1 ? "a layer" : "layers"} with something in reach for ${open.length === 1 ? "a gap" : "some of these gaps"}:`,
       ...open.map((x) => `- **${x.dataset.title}** (${x.dataset.publisher || "publisher not stated"}; ${licWords(x.dataset)}), for ${lower(x.label)}${holds(x)}`)].join("\n"));
@@ -218,7 +218,7 @@ export function offerLines(r) {
   const empty = o.empty || [];
   if (empty.length) {
     // By gap, so three empty pipeline layers read as one line.
-    const scope = r.extent === "inside" ? "inside the area" : `within ${r.assessed_within_km ?? r.distances.wider} km`;
+    const scope = r.extent === "inside" ? "inside the area" : `within ${r.assessed_within_km ?? runFurthest(r)} km`;
     const byGap = new Map();
     for (const e of empty) byGap.set(e.label, [...(byGap.get(e.label) || []), e]);
     for (const [label, es] of byGap) {
@@ -257,8 +257,8 @@ export async function bringIn(record, ids, { get, keep, placeName, placeIsPoint 
   if (!chosen.length) return { run: r.id, not_available: unknown.length ? `${list(unknown)} ${unknown.length === 1 ? "isn't" : "aren't"} on offer for ${r.id}.` : `What was offered for ${r.id} has already been brought in or declined.` };
   // Held to the run's distances, as the card now assesses them (a re-assessment narrows them): inside only stays inside;
   // a point's distances are from the point, so its footprint is added.
-  const reach = r.extent === "inside" ? 0 : (r.assessed_within_km ?? r.distances.wider);
-  const within = r.extent === "inside" ? 0 : Math.min(50, reach + (placeIsPoint && reach > 0 ? r.distances.footprint_km || 0 : 0));
+  const reach = r.extent === "inside" ? 0 : (r.assessed_within_km ?? runFurthest(r));
+  const within = r.extent === "inside" ? 0 : Math.min(50, reach + (placeIsPoint && reach > 0 ? (r.reach?.footprint_km ?? r.distances?.footprint_km) || 0 : 0));
   let k = record.features.filter((f) => f.properties?.role === "added").length;
   const added = await Promise.all(chosen.map(async (x) => {
     const id = keep({ id: x.dataset.atlas_id, title: x.dataset.title, publisher: x.dataset.publisher, licence: x.dataset.licence, capabilities: x.dataset.capabilities.length ? x.dataset.capabilities : ["query"], concepts: x.dataset.concepts || [] });
@@ -268,7 +268,7 @@ export async function bringIn(record, ids, { get, keep, placeName, placeIsPoint 
     const collect = (list, meta) => {
       for (const c of list.slice(0, MAX_KEPT)) record.features.push({ type: "Feature", geometry: c.geometry, properties: {
         role: "added", fid: `A${++k}`, run: r.id, offer: x.id, name: c.name || c.type || "Unnamed feature", theme: x.topic, distance_km: c.distance_km,
-        band: c.around_site ? "around the site" : bandFor(c.distance_km, r.distances), ...(c.around_site ? { surrounds: true } : {}),
+        band: c.around_site ? "around the site" : runBand(c.distance_km, r), ...(c.around_site ? { surrounds: true } : {}),
         dataset: meta.dataset, publisher: meta.publisher, licence: meta.licence, checked_at: meta.checked_at, ...(c.extra && Object.keys(c.extra).length ? { details: c.extra } : {}) } });
     };
     try { out = await get({ dataset: id, place: placeName, within_km: within, theme: x.topic, limit: 500, collect }); }

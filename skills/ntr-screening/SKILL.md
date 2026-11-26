@@ -1,6 +1,6 @@
 ---
 name: ntr-screening
-version: 4.1-draft
+version: 4.2-draft
 description: Screen a site, onshore or offshore, for non-technical risk (NTR) from published spatial data. Flags anything that could become a risk, concern or delay (land and livelihoods, biodiversity, Indigenous Peoples, cultural heritage, community health and safety, and the operating context), with traced evidence and what wasn't checked. Use when someone asks what risks, sensitivities or constraints a site, block, field, route or area might raise.
 ---
 
@@ -17,21 +17,12 @@ It is a screen, not an impact assessment. The themes follow IFC's Performance St
 - **Onshore or offshore:** from the site itself (the place's details say whether it's offshore). A coastal site screens both ways.
 - **Footprint:** when the screen runs as its own run, the run gives the footprint (a point becomes a circle of a radius set by the asset type) and says so; use it. Otherwise, if there's only a point, use a footprint radius and say so: thermal, substation or terminal 0.5 km; solar 1 km; oil and gas plant or platform 1 km; wind 3 km; mine 3 km; hydro 5 km (the reservoir and the dried-out reach run along the river); oil and gas field 5 km. Screen linear assets along the whole line.
 
-## Distances (defaults; the person can change any of them)
-Distances are measured from the footprint edge. When the screen runs as its own run, the run gives the distances, chosen from the asset type and size (or set by the person), with the reason: use those and quote the reason. Otherwise use the table below unless the person gives others; when they do, use theirs, say so, and keep them for the rest of the conversation.
-
-| Band | Onshore | Offshore | Why |
-|---|---|---|---|
-| On site | 0 km | 0 km | Direct take, direct impact |
-| Near | up to 1 km | up to 2 km | Construction, safety zones (500 m around installations), anchor spreads |
-| Close | 1–5 km | 2–10 km | Noise, dust or discharges, traffic and vessel movements, influx of workers |
-| Wider | 5–20 km | 10–50 km | Context: protected sites, communities, fisheries and spill reach are named, not flagged as direct |
-
-State the distances used at the top of the result, and offer to change them.
+## Search distances
+Distances are measured from the footprint edge. **Each check looks out its own distance:** the check's default for the screen's scale, extended by the asset type where there's a stated reason (onshore wind's landscape, visual and cumulative checks to 45 km), or as the person set it. The run gives each check's reach on its line, says where the distances came from, and lists what the person changed. Use them as given: there is no separate table of bands, and a distance decides whether to look, not how much a feature matters. A feature's sensitivity and importance, and how an effect could reach it, decide that. Bands (within the site, 0–100 m, 100–250 m, … 30–50 km) are for reporting, never risk.
 
 ## Steps
 0. **Start from the checks.** The run has carried out the standard checks before you start, grouped by topic: each is found, none found, or not checked with the reason, and "must" marks a check its topic can't be called clear without. They are your evidence. At sea the checks include the water depth over the site and, in European waters, AIS vessel traffic at and around it; on land, the elevation. Judge whether a value matters (low-lying land is a flooding hazard; deep water rules out fixed foundations); the check only measures it. Layers the person brought in after an earlier run are listed apart from the checks: they asked for them, so judge them like any evidence, citing their ids.
-1. **Confirm the site:** location, onshore/offshore, asset type, stage, footprint and distances used.
+1. **Confirm the site:** location, onshore/offshore, asset type, stage and footprint.
 2. **Plan the evidence.** For each theme below, decide which kinds of evidence apply to this site (onshore, offshore or both).
 3. **Raise flags** (below) from the checks, one per distinct risk, most serious first.
 4. **State the gaps:** every kind of evidence that applies here but wasn't checked, failed, or was left out for licence reasons, in data_gaps. Not-checked checks are already on the card, so add them only with something to say.
@@ -62,16 +53,16 @@ Search words are starting points; adapt them to the place and language (e.g. "Na
 - Large earthworks or sea-bed works in areas with long settlement history: flag the need for a heritage survey and a chance-finds procedure.
 
 **Community health, safety and security (PS4)**
-- Onshore: schools, hospitals and clinics within the near band or by the likely access road; settlements in the close band; no main road within 10 km (new access needed).
+- Onshore: schools, hospitals and clinics within about 1 km or by the likely access road; settlements within about 5 km; no main road within 10 km (new access needed).
 - Offshore: vessel traffic from AIS (density by vessel type: the run reads it in European waters; elsewhere name it in look_for); shipping lanes, traffic separation schemes and fairways; ports and anchorages; other installations, pipelines and cables (simultaneous operations); military practice areas; unexploded ordnance; coastal communities in the wider band (spill reach).
 - Both: existing industry nearby (cumulative effects); **thermal hotspots and gas flaring** from satellite detections as a sign of existing operations and emissions. *Search words:* shipping, AIS, vessel density, traffic separation, fairway, shipping lane, port, platform, pipeline, cable, military, ordnance, thermal, flaring.
 
-**Cross-border (transboundary; context).** A land border, a maritime boundary or another country's coast within the wider band is a flag.
+**Cross-border (transboundary; context).** A land border, a maritime boundary or another country's coast within the check's reach is a flag.
 - Why it matters: effects can cross it (spills, emissions, noise, sediment, river flows, migratory species); a second government and regulator may be involved; the neighbouring country may need to be notified or consulted (the Espoo Convention in Europe and North America, UNCLOS duties at sea); IFC Performance Standard 1 expects cross-border impacts to be considered.
-- Confidence: high within the close band, medium in the wider band. A disputed, unsettled or joint-regime boundary is at least medium anywhere in range.
+- Confidence: high within 5 km of the site (10 km at sea), medium further out. A disputed, unsettled or joint-regime boundary is at least medium anywhere in range.
 - Always add: boundaries are indicative and have no legal standing.
 
-**Vessel traffic (offshore; PS4).** Busy traffic on the site or in the close band is a flag: collision risk, simultaneous operations, and the site's safety zones pushing ships into new routes. Confidence from distance and the source, as for any mapped feature. Say what the figure is: hours vessels spend per km² a month, sampled at a few points (not the busiest cell nearby), from AIS, which misses small vessels without transponders (many fishing boats). Light traffic is a line in the summary, not a flag.
+**Vessel traffic (offshore; PS4).** Busy traffic on the site or round it, as far as the check reads, is a flag: collision risk, simultaneous operations, and the site's safety zones pushing ships into new routes. Confidence from distance and the source, as for any mapped feature. Say what the figure is: hours vessels spend per km² a month, sampled at a few points (not the busiest cell nearby), from AIS, which misses small vessels without transponders (many fishing boats). Light traffic is a line in the summary, not a flag.
 
 **Water depth (offshore; context).** Depth decides what's possible and what it costs, so say what the depth over the site means for this asset. Rough guides (rules of thumb, say so): fixed-bottom offshore wind to about 60 m, floating beyond; jack-up rigs to about 120–150 m, floating rigs beyond; diver work to about 50 m, remotely operated vehicles beyond; deepwater (over about 500 m) and ultra-deep (over about 1,500 m) change the whole development. Raise a context flag only where the depth makes the asset as described impractical or unusually costly; otherwise give the depth in one line of the summary. Depth from a global grid is approximate (cells of a few hundred metres): say so on steep slopes or for very small footprints.
 
@@ -86,7 +77,7 @@ Severity and confidence are separate: severity is how much it would matter if th
 
 The next step is one short line: the check that would confirm or clear the flag (for example "walkover survey for nesting birds", "ask the regulator whether consent is needed", "check title and land use with the landowner"). Name the kind of check, not a firm or a cost.
 
-Confidence: **high** = a mapped feature on site or in the near band, from a trusted or national source; **medium** = mapped but in the close or wider band, or several weak signals, or a source of unknown licence or quality; **low** = regional knowledge, or a gap in a place where the risk is common.
+Confidence: **high** = a mapped feature on site or within about 1 km (2 km at sea), from a trusted or national source; **medium** = mapped but further out within the check's reach, or several weak signals, or a source of unknown licence or quality; **low** = regional knowledge, or a gap in a place where the risk is common.
 
 - **Industrial use on or near site is not a reason to lower the risk on its own.** Today's data may show the planned project itself, or a neighbour of the same kind, already built. *Hindsight is everywhere in screening data: say so when it matters.*
 - **Weak evidence.** A feature with no name and no attributes, or a layer that scores whole seas or regions (a fishing-protection level, a sensitivity index), is weak evidence. Read its score before flagging, never flag from its presence alone, and keep it at low confidence unless the score itself shows the risk.
@@ -108,12 +99,11 @@ Confidence: **high** = a mapped feature on site or in the near band, from a trus
 - **Licences as returned.** A licence the publisher didn't state is "not stated"; one that's stated but not a standard open licence is quoted and isn't confirmed for commercial use. Say which when you use the data.
 
 ## Output
-A short summary for the person, no more than 400 words: the decision and why (one line), the site and distances used (one line), then the flags, most serious first, then the gaps. Then one JSON block:
+A short summary for the person, no more than 400 words: the decision and why (one line), the site (one line), then the flags, most serious first, then the gaps. Then one JSON block:
 
 ```json
 {
   "site": {"place": "", "onshore_offshore": "onshore|offshore|both", "asset_type": "", "stage": "", "footprint": ""},
-  "distances_km": {"near": 1, "close": 5, "wider": 20, "set_by": "default|person"},
   "decision": "progress|progress with targeted investigation|major issue|insufficient evidence",
   "decision_why": "",
   "flags": [{"risk": "", "topic": "biodiversity|landscape-visual|water|ground-soil|land-use|hazards|air-climate|heritage|community-health|indigenous|material-assets|topography|context", "severity": "high|medium|low", "confidence": "high|medium|low",

@@ -4,7 +4,7 @@ import * as turf from "./vendor/turf.js";
 import * as U from "./units.js";
 import { topicOf, topicInfo, colourExpression } from "./findings.js";
 import { decodeRun } from "./share.js";
-import { distancesLine } from "./distances.js";
+import { runDistancesLine, runRings, changesLine } from "./reach.js";
 import { DISCLAIMER } from "./disclaimer.js";
 import { seaLines, seaMatters } from "./seavalues.js";
 import { whereText, searchHeadline, SEARCH_BAND } from "./siterole.js";
@@ -98,15 +98,20 @@ function render(record) {
   fact("Site", U.localise(s.summary));
   fact("How it was found", s.how_found);
   if (!r.study) fact("Planned", `${s.asset_label}${s.asset_assumed ? " (assumed)" : ""}; stage ${s.stage}${s.outside_profile ? `. ${s.outside_profile}` : ""}`);
-  fact("Screened", r.extent === "inside" ? "Inside the area only (the surroundings weren't screened)." : U.localise(`${s.footprint}; distances from the site's edge: ${distancesLine(r.distances)}.`));
-  fact("Why these distances", (r.distances?.reasons || []).slice(0, 3).join("; "));
+  fact("Screened", r.extent === "inside" ? "Inside the area only (the surroundings weren't screened)." : U.localise(`${s.footprint}; ${runDistancesLine(r)}.`));
+  // Where the distances came from: the scale and why, an asset with no row, the asset's extensions, the person's changes.
+  fact("Why these distances", r.reach
+    ? U.localise([`Screened at ${r.reach.scale} scale: ${r.reach.scale_why}.`, r.reach.asset?.note || "",
+      r.reach.extended?.length ? `Extended for ${r.reach.asset.label}: ${r.reach.extended.map((e) => `${e.label} from ${e.from_km} km to ${e.to_km} km`).join("; ")} (${[...new Set(r.reach.extended.map((e) => `${e.why}; source: ${e.source}`))].join(". ")}).` : "",
+      changesLine(r.reach), r.reach.not_used?.length ? `Not used: ${r.reach.not_used.map((n) => n.line).join("; ")}.` : ""].filter(Boolean).join(" "))
+    : (r.distances?.reasons || []).slice(0, 3).join("; "));
   if (seaMatters(r)) fact("At sea", U.localise(seaLines(r.sea).join(" ")));
   if (r.elevation?.significance) fact("Elevation", U.localise(elevationLine(r.elevation, r.elevation.significance)));
   fact("Data as of", when(r.finished_at));
   siteSec.append(facts);
   const siteFig = figure("site-map", searchArea
-    ? "The search area and the distances screened. The site's outline wasn't found, so the dashed outline is where it probably is, not its boundary; dashed rings are the near, close and wider bands."
-    : "The site and the distances screened. The site is outlined; dashed rings are the near, close and wider bands.",
+    ? `The search area and the distances screened. The site's outline wasn't found, so the dashed outline is where it probably is, not its boundary; dashed rings are ${r.reach ? "the reporting bands, out to the furthest any check looked" : "the near, close and wider bands"}.`
+    : `The site and the distances screened. The site is outlined; dashed rings are ${r.reach ? "the reporting bands, out to the furthest any check looked" : "the near, close and wider bands"}.`,
     [["site", searchArea ? "The search area" : "The site"], ["ring", "Distance bands"]]);
   siteSec.append(siteFig.fig);
 
@@ -236,7 +241,7 @@ function render(record) {
   main.replaceChildren(...head, ...(oldNote ? [oldNote] : []), decision, ...(replNote ? [replNote] : []), ...(searchNote ? [searchNote] : []), summary, siteSec, findSec, ...(ckSec ? [ckSec] : []), evSec, meth, src, foot);
   const site = record.features.find((f) => f.properties.role === "site");
   const evid = record.features.filter((f) => f.properties.role === "evidence");
-  pending.push(drawMap(siteFig, { site, rings: r.extent === "inside" ? [] : [r.distances.near, r.distances.close, r.distances.wider], evidence: [], labels: null, searchArea }));
+  pending.push(drawMap(siteFig, { site, rings: runRings(r), evidence: [], labels: null, searchArea }));
   if (budgetFig) pending.push(drawMap(budgetFig, { site, rings: [], evidence: [], labels: null, budget: record.features.filter((f) => f.properties.role === "budget") }));
   else pending.push(drawMap(findFig, { site, rings: [], evidence: evid, labels: findingLabels(record), searchArea }));
   Promise.allSettled(pending).then(() => { window.__report.ready = true; });

@@ -1,6 +1,6 @@
 ---
 name: developable-area
-version: 0.2-draft
+version: 0.3-draft
 description: How much of a site could actually be built on. Starts from the gross area, takes off what can't be used and what should be kept clear, each with its reason and source, and shows what's left on the map, with soft constraints (usable at a cost) measured but not taken off. Use when someone asks for the developable area, net area, usable area, area discounting or "how many hectares can I really use", or picks the developable area.
 ---
 
@@ -17,7 +17,7 @@ It answers the early site-finding question: "the field is 40 ha, but how much is
 - **The person's own rules, if they give them.** "Keep 100 m from homes", "leave out the buildings, they're coming down", "count flood zone 3 as usable". These override the defaults and the card says what changed.
 
 ## How to read the conversation into the run
-- Map the person's words to the rule ids below. A buffer change goes in `buffers` (`{"id": "homes", "buffer_m": 100}`); a deduction they want ignored goes in `leave_out`; one they'd treat as usable at a cost goes in `as_soft`.
+- Map the person's words to the rule ids below. A buffer change goes in `distances`, with the number and unit as the person said them (`{"what": "homes", "value": 100, "unit": "m"}`); Tobler converts the unit; a deduction they want ignored goes in `leave_out`; one they'd treat as usable at a cost goes in `as_soft`.
 - Only use what they actually said. Never add a rule of your own to the person's list.
 - If they ask for something no rule covers (a 30 m stand-off from a hedge), say it isn't one of the deductions Tobler can measure yet.
 

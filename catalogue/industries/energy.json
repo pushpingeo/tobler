@@ -1,16 +1,16 @@
 {
-  "about": "The Environment and Energy profile (20 Nov 2026; renamed from Energy on 22 Nov): the first and only full one. Framed as an environmental consultant screening a site: renewables, oil and gas, or anything else. What's here was spread across the page and catalogue before; the screening method, distances and checks stay in their own files and are named here. Picks: the buttons shown when someone screens a place without saying what's planned (order matters: the first `first` that suit the setting show as buttons, the rest under More…; each type must be an asset in the distances table; `onshore`/`offshore` give a different type by setting; `only` limits a pick to one setting). Themes are shared across industries and mapped to IFC's Performance Standards where they fit.",
+  "about": "The Environment and Energy profile (20 Nov 2026; renamed from Energy on 22 Nov): the first and only full one. Framed as an environmental consultant screening a site: renewables, oil and gas, or anything else. What's here was spread across the page and catalogue before; the screening method, the asset table and checks stay in their own files and are named here; the profile is only about who's asking (26 Nov: what depends on what's being built is in catalogue/assets.json). Picks: the buttons shown when someone screens a place without saying what's planned (order matters: the first `first` that suit the setting show as buttons, the rest under More…; each type must be an asset in the asset table (catalogue/assets.json); `onshore`/`offshore` give a different type by setting; `only` limits a pick to one setting). Themes are shared across industries and mapped to IFC's Performance Standards where they fit.",
   "id": "energy",
   "label": "Environment and Energy",
   "version": "2",
   "skill": "ntr-screening",
   "skill_file": "skills/ntr-screening/SKILL.md",
-  "skills_offered_about": "The skill chips under the conversation (24 Nov; contracts in claude/skill-contracts.md). 'ready' runs; 'soon' says what it will do and that it isn't built yet, and never pretends to run. A ready skill other than the screen names its skill file, the checks it runs grouped as its report shows them, its distances, its decision words and what a full study would add. 'roles' limits a chip to places of those roles. The screen chip's label is wording.screen_chip.",
+  "skills_offered_about": "The skill chips under the conversation (24 Nov; contracts in claude/skill-contracts.md). 'ready' runs; 'soon' says what it will do and that it isn't built yet, and never pretends to run. A ready skill other than the screen names its skill file, the checks it runs grouped as its report shows them, its scale (each check then looks out its own reach at that scale), its decision words and what a full study would add. 'roles' limits a chip to places of those roles. The screen chip's label is wording.screen_chip.",
   "skills_offered": [
     {"id": "screen", "status": "ready"},
     {"id": "contamination-desk-study", "label": "Contamination desk study", "status": "ready", "skill": "contamination-desk-study", "setting": "land",
      "about": "An early contaminated-land look: the open records on and around the site, set out as sources, pathways and receptors, with what a full desk study would add.",
-     "distances": {"near": 0.25, "close": 0.5, "wider": 2},
+     "scale": "local",
      "groups": [
       {"id": "sources", "label": "Potential sources", "checks": ["ground.landfill", "ground.mining-waste", "ground.council-records", "ground.ni-land-use", "air.permitted-sites", "water.pollution-incidents", "hazards.coal-mining", "ground.us-superfund", "ground.us-cleanup", "air.us-emission-sources", "water.us-discharges"]},
       {"id": "pathways", "label": "Pathways", "checks": ["water.source-protection", "water.flood-zones", "water.surface-water", "ground.peat"]},
@@ -21,7 +21,7 @@
     {"id": "developable-area", "label": "Developable area", "status": "ready", "kind": "budget", "skill": "developable-area", "setting": "land", "roles": ["area", "footprint"],
      "about": "How much of the site could be built on: the gross area, each deduction and its reason, and what's left, on the map."}
   ],
-  "distances": "catalogue/distances.json",
+  "assets": "catalogue/assets.json",
   "checks": {
     "from": "catalogue/checks.json",
     "about": "Every check in checks.json that applies to the site (23 Nov; replaces the baseline layers in trusted.json). Scale bands and per-profile reach come with plan item 3."

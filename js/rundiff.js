@@ -11,8 +11,11 @@ const STATE = { found: "found something", none: "none found", not_checked: "not 
 function askedLines(a, b) {
   const out = [];
   if (a.site.asset_label !== b.site.asset_label) out.push(`asked as ${a.site.asset_label} then, ${b.site.asset_label} now`);
-  const d = (r) => (r.extent === "inside" ? "inside only" : `${r.distances.near}/${r.distances.close}/${r.distances.wider} km`);
-  if (a.distances && b.distances && d(a) !== d(b)) out.push(`distances ${d(a)} then, ${d(b)} now`);
+  // How far the checks looked: an old run's near/close/wider, or a new run's range and the person's changes.
+  const d = (r) => (r.extent === "inside" ? "inside only"
+    : r.reach ? (r.reach.changes?.length ? r.reach.changes.map((c) => c.line).join("; ") : `the defaults (${r.reach.range})`)
+    : r.distances ? `${r.distances.near}/${r.distances.close}/${r.distances.wider} km` : "");
+  if ((a.reach || a.distances) && (b.reach || b.distances) && d(a) !== d(b)) out.push(`distances ${d(a)} then, ${d(b)} now`);
   const inp = (r) => JSON.stringify({ ...(r.inputs || {}), replaces: undefined, distances: undefined });
   if (!out.length && a.inputs && b.inputs && inp(a) !== inp(b)) out.push("asked with different settings");
   return out;

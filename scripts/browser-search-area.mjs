@@ -113,10 +113,10 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   const line = (re) => ck.find((x) => re.test(x.text))?.text || "";
   check(/^Flood zones \(rivers and sea\)\s*must: in the search area: River, medium likelihood \(1 in 200 years\) \(\d+%\)/.test(line(/^Flood zones/)), `${label}: flood zones by share of the search area (${line(/^Flood zones/)})`);
   check(/^Farmland grade: in the search area: Class 5\.3 \(100%\)/.test(line(/^Farmland/)), `${label}: farmland class from Hutton's LCA (${line(/^Farmland/)})`);
-  check(/^National Landscapes, NSAs and AONBs\s*must: 1 within 10 km .*nearest Knapdale/.test(line(/^National Landscapes/)), `${label}: a National Scenic Area counted (${line(/^National Landscapes/)})`);
+  check(/^National Landscapes, NSAs and AONBs\s*must: 1 within 45 km .*nearest Knapdale/.test(line(/^National Landscapes/)), `${label}: a National Scenic Area counted, out to 45 km for a wind farm (NatureScot) (${line(/^National Landscapes/)})`);
   check(/^Peat and carbon-rich soils: not checked: non-commercial licence: off unless switched on in Settings$/.test(line(/^Peat/)), `${label}: peat left out on licence by default (${line(/^Peat/)})`);
   check(!ck.some((x) => /Impact Risk/.test(x.text)), `${label}: no IRZ line in Scotland`);
-  check(/^National Parks\s*must: none found within 10 km$/.test(line(/^National Parks/)) && /^Battlefields: none found/.test(line(/^Battlefields/)), `${label}: Scotland's layers cover all of Scotland: none found, not "no source" (${line(/^National Parks/)})`);
+  check(/^National Parks\s*must: none found within 45 km$/.test(line(/^National Parks/)) && /^Battlefields: none found/.test(line(/^Battlefields/)), `${label}: Scotland's layers cover all of Scotland: none found, not "no source" (${line(/^National Parks/)})`);
   await page.evaluate(() => { document.querySelector(".run .checks").open = innerWidth > 720; });
   const spa = card.flags.find((f) => /Goose/.test(f.risk));
   const mon = card.flags.find((f) => /monument/i.test(f.risk));

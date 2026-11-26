@@ -6,7 +6,7 @@ import * as turf from "../js/vendor/turf.js";
 import * as R from "../js/reference.js";
 import { createPlaceTools } from "../js/placetools.js";
 import { parseSkill } from "../js/converse.js";
-import { chooseDistances, bandFor, distancesLine } from "../js/distances.js";
+import { chooseAsset, readDistances, runBand, runDistancesLine, ladderBand, runRings } from "../js/reach.js";
 import { runScreening, createScreening, evidenceWithin, nearestByTheme, flagBeyond, reassess, parseResult, traceFlags, traceResult, notRaisedGap, footprintOf, headline, RUN_SCHEMA } from "../js/ntrrun.js";
 import * as G from "../js/geometry.js";
 import { siteChange, rerunInput, runLines, outOfDateText } from "../js/outofdate.js";
@@ -20,7 +20,7 @@ const near = (a, b, tol) => assert.ok(Math.abs(a - b) <= tol, `${a} vs ${b} (±$
 let passed = 0;
 const test = async (name, fn) => { await fn(); passed++; console.log("ok", name); };
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
-const table = JSON.parse(read("../catalogue/distances.json"));
+const table = JSON.parse(read("../catalogue/assets.json"));
 const trusted = JSON.parse(read("../catalogue/trusted.json"));
 const checksCat = JSON.parse(read("../catalogue/checks.json"));
 const BASELINE_IDS = new Set(checksCat.checks.flatMap((c) => c.sources.map((s) => s.atlas_id)).filter(Boolean));
@@ -130,54 +130,18 @@ const BROUGHT = [
 ];
 const site = { name: "Area 1", feature: square, origin: { method: "words", words: "Rosebank", confidence: "high", match: "name_and_type", shape: "feature", anchor: { name: "Rosebank", source: { title: "UKCS offshore hydrocarbon fields (WGS84)", publisher: "North Sea Transition Authority", licence: "not stated" } } } };
 
-await test("distances: offshore oil field defaults, with the reason", () => {
-  const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
-  assert.deepEqual([d.near, d.close, d.wider], [2, 10, 50]);
-  assert.equal(d.set_by, "default");
-  assert.match(d.reasons[0], /offshore oil or gas field offshore/);
-  assert.match(distancesLine(d), /near 2 km · close 10 km · wider 50 km \(default for offshore oil or gas field offshore\)/);
+await test("the asset for a run: offshore oil field at global scale, with the reason and its footprint (reach tests: test/reach.test.mjs)", () => {
+  const d = chooseAsset(table, { asset_type: "oil-gas-field", offshore: true });
+  assert.equal(d.scale, "global");
+  assert.equal(d.footprint_km, 5);
+  assert.match(d.scale_why, /offshore oil or gas field offshore/);
+  assert.equal(d.row, true);
 });
 
-await test("distances: a general screen of an area follows its size (Rob's 2.3 ha housing plot, 20 Nov)", () => {
-  const plot = chooseDistances(table, { asset_type: null, area_km2: 0.023 });
-  assert.deepEqual([plot.near, plot.close, plot.wider], [0.25, 1, 5]);
-  assert.match(plot.reasons[0], /small site \(under 10 ha\)/);
-  assert.deepEqual([0.5, 2, 10], (({ near, close, wider }) => [near, close, wider])(chooseDistances(table, { area_km2: 0.4 })));
-  assert.equal(chooseDistances(table, { area_km2: 5 }).wider, 20);
-  assert.equal(chooseDistances(table, {}).wider, 20);
-  assert.equal(chooseDistances(table, { area_km2: 0.5, offshore: true }).wider, 25);
-  // An asset type keeps its own table; the person's own distances still win.
-  assert.equal(chooseDistances(table, { asset_type: "solar", area_km2: 0.023 }).wider, 20);
-  assert.equal(chooseDistances(table, { area_km2: 0.023 }, { wider: 15 }).wider, 15);
-});
-
-await test("distances: scale-aware (small solar, wind tip height, large mine) and the person's own, capped at 50 km", () => {
-  const small = chooseDistances(table, { asset_type: "solar", capacity_mw: 2 });
-  assert.deepEqual([small.near, small.close, small.wider, small.footprint_km], [0.5, 2, 10, 0.3]);
-  const big = chooseDistances(table, { asset_type: "solar", capacity_mw: 300 });
-  assert.equal(big.wider, 25);
-  const wind = chooseDistances(table, { asset_type: "wind-onshore", tip_height_m: 230 });
-  assert.equal(wind.near, 2.3);
-  assert.match(wind.reasons.at(-1), /230 m tip height gives 2.3 km/);
-  const mine = chooseDistances(table, { asset_type: "mine", area_km2: 35 });
-  assert.deepEqual([mine.close, mine.wider], [10, 30]);
-  const mine2 = chooseDistances(table, { asset_type: "mine", area_km2: 5 });
-  assert.equal(mine2.wider, 25);
-  const mine3 = chooseDistances(table, { asset_type: "mine" }, { wider: 80, near: 0.5 });
-  assert.equal(mine3.wider, 50);
-  assert.equal(mine3.near, 0.5);
-  assert.equal(mine3.set_by, "person");
-  assert.match(mine3.reasons.join(" "), /capped at 50 km/);
-  const odd = chooseDistances(table, { asset_type: "solar", offshore: true });
-  assert.deepEqual([odd.near, odd.close, odd.wider], [2, 10, 50]);
-  assert.match(odd.reasons[0], /no offshore default for solar farm/);
-  const unknown = chooseDistances(table, { asset_type: null });
-  assert.deepEqual([unknown.near, unknown.close, unknown.wider], [1, 5, 20]);
-});
-
-await test("bands from the run's distances", () => {
-  const d = { near: 2, close: 10, wider: 50 };
-  assert.deepEqual([0, 1.9, 2, 7, 49, 51].map((k) => bandFor(k, d)), ["on site", "near", "near", "close", "wider", "beyond"]);
+await test("bands: one ladder, and old runs keep theirs", () => {
+  assert.deepEqual([0, 0.05, 1.9, 7, 49, 51].map((k) => ladderBand(k, 50)), ["on site", "0–100 m", "1–2 km", "5–10 km", "30–50 km", "beyond"]);
+  const old = { distances: { near: 2, close: 10, wider: 50 } };
+  assert.deepEqual([0, 1.9, 2, 7, 49, 51].map((k) => runBand(k, old)), ["on site", "near", "near", "close", "wider", "beyond"]);
 });
 
 await test("parseResult takes the last JSON block and keeps the summary above it", () => {
@@ -188,13 +152,13 @@ await test("parseResult takes the last JSON block and keeps the summary above it
 });
 
 let record;
-await test("sealed run: fetches out to the wider band, records evidence with provenance, traces flags, reports what failed", async () => {
+await test("sealed run: each check to its own reach, brought-in layers to the furthest, records evidence with provenance, traces flags, reports what failed", async () => {
   atlasCalls.length = 0;
   const model = standardScript();
-  const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
-  record = await runScreening({ broughtIn: BROUGHT, host: host(), site, distances: d, skill, callClaude: model, model: "claude-haiku-5-5", runId: "R1",
+  const d = chooseAsset(table, { asset_type: "oil-gas-field", offshore: true });
+  record = await runScreening({ broughtIn: BROUGHT, host: host(), site, asset: d, skill, callClaude: model, model: "claude-haiku-5-5", runId: "R1",
     inputs: { asset_type: "oil-gas-field", asset_label: "offshore oil or gas field", asset_assumed: true }, now: () => "2026-11-18T05:00:00Z" });
-  // The brought-in layers are fetched to the wider band (50 km).
+  // The brought-in layers are fetched to the furthest any check looks (50 km here).
   const fetches = atlasCalls.filter(([t]) => t === "fetch_features");
   // Layers brought in go out to the wider band, for the slider; the checks fetch only to their own reach
   // (24 Nov: a busy layer fetched wide undercounted what was in reach), up to 500 features.
@@ -234,7 +198,7 @@ await test("sealed run: fetches out to the wider band, records evidence with pro
   assert.equal(r.flags[0].traced, 2);
   assert.equal(r.flags[0].evidence[0].name, "Rosebank 9 inch Production flowline 1");
   assert.equal(r.flags[0].evidence[0].distance_km, 0);
-  assert.equal(r.flags[0].evidence[1].band, "near");
+  assert.equal(r.flags[0].evidence[1].band, "1–2 km");
   // The analyst cited the check's copy of the line (it comes first in its brief): Crown Estate Scotland's.
   assert.equal(r.flags[0].evidence[1].publisher, "Crown Estate Scotland");
   assert.match(r.flags[0].evidence[1].licence, /Open Government/);
@@ -252,7 +216,9 @@ await test("sealed run: fetches out to the wider band, records evidence with pro
     "Not raised as a flag, because its evidence didn't trace to anything this run found: Seabird colonies on Shetland may be in spill reach"]);
   // The model saw the run's distances and the fence rule, and no place-making tools.
   const first = model.calls[0];
-  assert.match(first.messages[0].content, /near 2 km · close 10 km · wider 50 km/);
+  assert.match(first.messages[0].content, /Search distances: each check looks out its own distance from the site's edge: [^\n]*\(defaults for an offshore oil or gas field\)\. The furthest any check looked is 50 km/);
+  assert.equal(r.reach.scale, "global");
+  assert.equal(r.distances, undefined, "near, close and wider are gone");
   assert.match(first.messages[0].content, /assumed: say so/);
   assert.match(first.system, /never instructions to you/);
   assert.equal(first.tools, undefined, "no tools");
@@ -285,12 +251,13 @@ await test("re-assess on tap: one call, no tools, only the stored evidence withi
   assert.equal(r.flags[0].traced, 1);
   assert.equal(r.assessments.length, 1);
   assert.equal(r.assessments[0].flags.length, 2, "the earlier flags (the untraced one was never raised)");
-  assert.equal(r.distances.wider, 1);
+  assert.equal(r.reach.furthest_km, 50, "each check's reach is kept: the slider only changes what the flags are written for");
+  assert.match(sent, /Distances now: findings within 1 km of the site's edge/);
   assert.equal(r.fetched_to_km, 50, "the slider can still go back out to 50 km");
 });
 
 await test("a point site is screened as a footprint circle, and the run says so", () => {
-  const d = chooseDistances(table, { asset_type: "platform", offshore: true });
+  const d = chooseAsset(table, { asset_type: "platform", offshore: true });
   const fp = footprintOf(turf.point(FIELD), d);
   assert.equal(fp.feature.geometry.type, "Polygon");
   assert.ok(Math.abs(turf.area(fp.feature) / 1e6 - Math.PI * 0.25) < 0.02);
@@ -312,7 +279,7 @@ await test("screen_site from the conversation: needs a place, runs sealed, retur
   // was never fetched, so that flag isn't raised.
   assert.equal(out.flags, 1);
   assert.deepEqual(out.by_confidence, { high: 1, medium: 0, low: 0 });
-  assert.match(out.distances, /wider 50 km/);
+  assert.match(out.distances, /each check looks out its own distance/);
   assert.equal(out.asset, "offshore oil or gas field (assumed)");
   assert.ok(shown[0].tobler_run.not_raised.some((n) => /wreck/i.test(n.risk)));
   assert.ok(!JSON.stringify(out).includes("coordinates"), "no geometry to the conversation");
@@ -379,17 +346,17 @@ await test("out-of-date runs: a re-run records its inputs and replaces the run m
   let model = standardScript(); // a fresh script for each screen
   h.screening = createScreening({ host: h, table, skill, callClaude: (...a) => model(...a), onRun: (rec) => shown.push(rec) });
   const t = createPlaceTools(h);
-  await t.exec("screen_site", { place: "Area 1", asset_type: "oil-gas-field", stage: "appraisal", distances: { near: 2 } });
+  await t.exec("screen_site", { place: "Area 1", asset_type: "oil-gas-field", stage: "appraisal", distances: [{ what: "heritage", value: 2, unit: "km" }] });
   const r1 = shown[0];
   assert.equal(r1.tobler_run.place_id, "p1");
-  assert.deepEqual(r1.tobler_run.inputs, { asset_type: "oil-gas-field", assumed: false, stage: "appraisal", focus: "", distances: { near: 2 } });
+  assert.deepEqual(r1.tobler_run.inputs, { asset_type: "oil-gas-field", assumed: false, stage: "appraisal", focus: "", distances: [{ what: "heritage", value: 2, unit: "km" }] });
   assert.equal(siteChange(r1, p), null, "unchanged site: still current");
   // The person drags the square 2 km north: the run is out of date and says what changed.
   p.feature = G.roundCoords(G.move(square, 2, 0));
   const ch = siteChange(r1, p);
   assert.match(ch.text, /moved 2 km north/);
   const input = rerunInput(r1);
-  assert.deepEqual(input, { asset_type: "oil-gas-field", stage: "appraisal", distances: { near: 2 }, replaces: "R1" });
+  assert.deepEqual(input, { asset_type: "oil-gas-field", stage: "appraisal", distances: [{ what: "heritage", value: 2, unit: "km" }], replaces: "R1" });
   model = standardScript();
   const head = await h.screening.screen(input, p);
   assert.equal(head.run, "R2");
@@ -442,11 +409,11 @@ await test("out-of-date runs: undoing the edit clears it, a deleted site says so
 await test("a sealed run has no tools to call, and a missing JSON block is reported, not hidden", async () => {
   // A model that tries a tool anyway gets nothing run: no tools are offered and none is carried out.
   const model = scriptedModel([toolTurn(use("x", "make_place", { anchor: "Area 1", shape: "circle", radius_km: 5, words: "x", match: "none", reason: "x" })), final("I looked but couldn't finish.")]);
-  const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
+  const d = chooseAsset(table, { asset_type: "oil-gas-field", offshore: true });
   const h = host();
   let added = 0;
   h.addPlace = () => { added++; };
-  const rec = await runScreening({ host: h, site, distances: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
+  const rec = await runScreening({ host: h, site, asset: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
   assert.equal(added, 0);
   assert.ok(model.calls.every((c) => !c.tools), "no call offers tools, the repairs included");
   assert.equal(rec.tobler_run.flags.length, 0);
@@ -479,7 +446,7 @@ await test("evidence by id: code fills in names, distances and sources; a flag w
   assert.equal(flags.length, 2);
   const sac = flags.find((x) => x.risk === "SAC nearby");
   assert.equal(sac.theme, "biodiversity");
-  assert.deepEqual(sac.evidence.map((e) => [e.name, e.distance_km, e.band, e.publisher]), [["Loch Fleet SAC", 3, "close", "NatureScot"]]);
+  assert.deepEqual(sac.evidence.map((e) => [e.name, e.distance_km, e.band, e.publisher]), [["Loch Fleet SAC", 3, "2–5 km", "NatureScot"]]);
   assert.equal(sac.nearest_km, 3, "from traced evidence only: the retyped 0.2 km is gone");
   assert.equal(sac.untraced, 2);
   assert.deepEqual(sac.untraced_refs, ["E99 (not in this run)", "Nowhere (not cited by id)"]);
@@ -508,8 +475,8 @@ await test("findings get IDs in the order shown; severity sorts before confidenc
   assert.equal(readDecision("go for it", "x"), null, "a decision outside the list is dropped, not guessed");
   // No tool rounds, so the only evidence is the checks': the flag cites a SAC the checks found.
   const model = scriptedModel([(req) => final(RESULT(`,{"risk":"SAC to the north-west","theme":"PS6","confidence":"medium","evidence":["${refIn(req, "Wyville Thomson Ridge")}"]}`).replace('"flags":[', '"decision":"major issue","decision_why":"wreck on the route","flags":['))]);
-  const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
-  const rec = await runScreening({ broughtIn: BROUGHT, host: { ...host(), profile: () => ({ id: "energy", decisions: ["progress", "major issue"] }) }, site, distances: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
+  const d = chooseAsset(table, { asset_type: "oil-gas-field", offshore: true });
+  const rec = await runScreening({ broughtIn: BROUGHT, host: { ...host(), profile: () => ({ id: "energy", decisions: ["progress", "major issue"] }) }, site, asset: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
   assert.deepEqual(rec.tobler_run.decision, { value: "major issue", why: "wreck on the route" });
   assert.equal(rec.tobler_run.industry, "energy");
   assert.equal(rec.tobler_run.flags[0].id, "F-01");
@@ -519,8 +486,8 @@ await test("findings get IDs in the order shown; severity sorts before confidenc
 await test("a result cut off at the length cap is asked for again, as JSON only, from a compact summary first", async () => {
   const cut = { stop_reason: "max_tokens", content: [{ type: "thinking", thinking: "long", signature: "sig" }, { type: "text", text: "Long summary…\n\n```json\n{\"flags\":[{\"risk\":\"x" }], usage: { input_tokens: 10, output_tokens: 8000 } };
   const model = scriptedModel([cut, (req) => final(RESULT("", (n) => refIn(req, n)))]);
-  const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
-  const rec = await runScreening({ broughtIn: BROUGHT.slice(1, 2), host: host(), site, distances: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
+  const d = chooseAsset(table, { asset_type: "oil-gas-field", offshore: true });
+  const rec = await runScreening({ broughtIn: BROUGHT.slice(1, 2), host: host(), site, asset: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
   assert.equal(model.calls.length, 2);
   const last = model.calls[1].messages;
   assert.equal(last.length, 1, "one message: the summary, not the whole history");
@@ -551,8 +518,8 @@ await test("if the summary repair fails too, the full history is tried, and both
     { stop_reason: "max_tokens", content: [{ type: "text", text: "{ half" }], usage: { input_tokens: 5, output_tokens: 8000 } },
     (req) => final(RESULT("", (n) => refIn(req, n))),
   ]);
-  const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
-  const rec = await runScreening({ host: host(), site, distances: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
+  const d = chooseAsset(table, { asset_type: "oil-gas-field", offshore: true });
+  const rec = await runScreening({ host: host(), site, asset: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
   const last = model.calls[2].messages;
   assert.equal(last.at(-2).role, "assistant");
   assert.deepEqual(rec.tobler_run.debug.repairs.map((r) => [r.how, r.json]), [["summary", false], ["history", true]]);
@@ -563,8 +530,8 @@ await test("if the summary repair fails too, the full history is tried, and both
 await test("baseline before the analyst: boundaries and the must-check layers, as evidence, in the first message", async () => {
   atlasCalls.length = 0;
   const model = standardScript();
-  const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
-  const rec = await runScreening({ broughtIn: BROUGHT, host: host(), site, distances: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
+  const d = chooseAsset(table, { asset_type: "oil-gas-field", offshore: true });
+  const rec = await runScreening({ broughtIn: BROUGHT, host: host(), site, asset: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
   const r = rec.tobler_run;
   const ev = rec.features.filter((f) => f.properties.role === "evidence");
   const line = ev.find((f) => /Faeroe/.test(f.properties.name));
@@ -589,7 +556,7 @@ await test("baseline before the analyst: boundaries and the must-check layers, a
   assert.match(first, /MARPOL special areas: the site is inside North West European waters \(a wide area it lies within\)/);
   // UK waters: the UK's own layers (NatureScot and JNCC offshore) beside the EU one; the same SAC in two counts once;
   // JNCC's NCMPA isn't a SAC; the same MPA in JNCC and WDPA (no code) counts once.
-  assert.match(first, /Special Areas of Conservation \(must\): 1 within 50 km \(1 at 20–50 km\); nearest E\d+ Wyville Thomson Ridge \d+(\.\d+)? km \[Special Areas of Conservation \(SAC\), Scotland \(NatureScot\); UK offshore Marine Protected Areas \(JNCC\); Natura 2000: Habitats/);
+  assert.match(first, /Special Areas of Conservation \(must\): 1 within 50 km \(1 at 20–30 km\); nearest E\d+ Wyville Thomson Ridge \d+(\.\d+)? km \[Special Areas of Conservation \(SAC\), Scotland \(NatureScot\); UK offshore Marine Protected Areas \(JNCC\); Natura 2000: Habitats/);
   assert.match(first, /Special Protection Areas \(birds\) \(must\): none found within 50 km/);
   assert.match(first, /Marine and coastal protected areas \(must\): 1 within 50 km \(1 at 10–20 km\); nearest E\d+ Faroe-Shetland Sponge Belt/);
   assert.match(first, /- \[bio\.sac\] Special Areas of Conservation/, "each check's line carries its id, for flags to cite");
@@ -605,7 +572,7 @@ await test("baseline before the analyst: boundaries and the must-check layers, a
 await test("offshore baseline also reads water depth and AIS vessel traffic, in the record, the first message and the evidence", async () => {
   atlasCalls.length = 0;
   const model = standardScript();
-  const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
+  const d = chooseAsset(table, { asset_type: "oil-gas-field", offshore: true });
   const asked = [];
   const fetchFn = async (url) => {
     asked.push(url);
@@ -613,7 +580,7 @@ await test("offshore baseline also reads water depth and AIS vessel traffic, in 
     if (/emodnet-humanactivities/.test(url)) { const v = /allavg/.test(url) ? 0.8 : 0.1; const o = { features: [{ properties: { GRAY_INDEX: v } }] }; return { ok: true, text: async () => JSON.stringify(o) }; }
     return { ok: true, json: async () => [] };
   };
-  const rec = await runScreening({ broughtIn: BROUGHT, host: { ...host(), fetchFn }, site, distances: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
+  const rec = await runScreening({ broughtIn: BROUGHT, host: { ...host(), fetchFn }, site, asset: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
   const r = rec.tobler_run;
   assert.equal(r.sea.depth.typical_m, 150);
   assert.equal(r.sea.traffic.at_site, 0.8);
@@ -635,14 +602,15 @@ await test("offshore baseline also reads water depth and AIS vessel traffic, in 
   assert.equal(t[0].evidence[1].from_values, "vessel traffic");
   assert.equal(t[0].evidence[1].distance_km, r.sea.traffic.busiest.distance_km);
   assert.equal(t[0].untraced, 1);
-  assert.ok(r.sea.traffic.busiest.distance_km <= d.close + 0.2, `ring within the close band of the edge (${r.sea.traffic.busiest.distance_km} km)`);
+  const readKm = checksCat.checks.find((c) => c.id === "material.vessel-traffic").read_km.global;
+  assert.ok(r.sea.traffic.busiest.distance_km <= readKm + 0.2, `ring within the traffic check's read_km of the edge (${r.sea.traffic.busiest.distance_km} km)`);
 });
 
 await test("offshore depth and traffic services down: not checked, and the analyst is told", async () => {
   const model = standardScript();
-  const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
+  const d = chooseAsset(table, { asset_type: "oil-gas-field", offshore: true });
   const fetchFn = async (url) => { if (/getSamples|emodnet/.test(url)) throw new Error("network down"); return { ok: true, json: async () => [] }; };
-  const rec = await runScreening({ broughtIn: BROUGHT, host: { ...host(), fetchFn }, site, distances: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
+  const rec = await runScreening({ broughtIn: BROUGHT, host: { ...host(), fetchFn }, site, asset: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
   const r = rec.tobler_run;
   assert.equal(r.sea, undefined);
   assert.equal(r.checked.find((c) => c.evidence === "water depth").result, "not checked");
@@ -653,11 +621,11 @@ await test("offshore depth and traffic services down: not checked, and the analy
 await test("on land, elevation is recorded every time but reported only when it matters (low-lying, high altitude)", async () => {
   // A 2 km square near Baarle (onshore, sea out of reach), as a solar farm.
   const land = { name: "Baarle 4 km²", feature: G.squareAround([4.93, 51.49], 4, 0), origin: { method: "drawn" } };
-  const d = chooseDistances(table, { asset_type: "solar", offshore: false });
+  const d = chooseAsset(table, { asset_type: "solar", offshore: false });
   const run = async (vals) => {
     const model = standardScript();
     const fetchFn = async (url) => (/getSamples/.test(url) ? { ok: true, json: async () => ({ samples: vals.map((v) => ({ value: String(v), resolution: 0.004 })) }) } : { ok: true, json: async () => [] });
-    const rec = await runScreening({ broughtIn: BROUGHT, host: { ...host(), fetchFn }, site: land, distances: d, skill, callClaude: model, inputs: { asset_type: "solar", asset_label: "solar farm" } });
+    const rec = await runScreening({ broughtIn: BROUGHT, host: { ...host(), fetchFn }, site: land, asset: d, skill, callClaude: model, inputs: { asset_type: "solar", asset_label: "solar farm" } });
     return { r: rec.tobler_run, first: model.calls[0].messages[0].content };
   };
   const plain = await run([20, 25, 30]);
@@ -679,7 +647,7 @@ await test("on land, elevation is recorded every time but reported only when it 
   const high = await run([3700, 3800, 3900]);
   assert.equal(high.r.elevation.significance.kind, "very high altitude");
   assert.match(high.first, /very high altitude: much less oxygen/);
-  const down = await (async () => { const model = standardScript(); const fetchFn = async (url) => { if (/getSamples/.test(url)) throw new Error("timed out"); return { ok: true, json: async () => [] }; }; await runScreening({ broughtIn: BROUGHT, host: { ...host(), fetchFn }, site: land, distances: d, skill, callClaude: model, inputs: { asset_type: "solar", asset_label: "solar farm" } }); return model.calls[0].messages[0].content; })();
+  const down = await (async () => { const model = standardScript(); const fetchFn = async (url) => { if (/getSamples/.test(url)) throw new Error("timed out"); return { ok: true, json: async () => [] }; }; await runScreening({ broughtIn: BROUGHT, host: { ...host(), fetchFn }, site: land, asset: d, skill, callClaude: model, inputs: { asset_type: "solar", asset_label: "solar farm" } }); return model.calls[0].messages[0].content; })();
   assert.match(down, /Elevation: not checked: timed out \[DEM Global Mosaic/, "a failed elevation read is said, not hidden");
 });
 
@@ -701,18 +669,18 @@ await test("onshore far from the sea: no maritime call, a neighbouring country i
 await test("a mistyped dataset id isn't reported as a source not checked; offshore far from land says so; baseline is logged", async () => {
   const model = scriptedModel([toolTurn(use("x", "get_data", { dataset: "C1", place: "Area 1" })), final(RESULT())]);
   const events = [];
-  const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
-  const rec = await runScreening({ broughtIn: BROUGHT, host: host(), site, distances: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" }, onEvent: (e) => events.push(e) });
+  const d = chooseAsset(table, { asset_type: "oil-gas-field", offshore: true });
+  const rec = await runScreening({ broughtIn: BROUGHT, host: host(), site, asset: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" }, onEvent: (e) => events.push(e) });
   assert.ok(!rec.tobler_run.checked.some((c) => c.dataset === "C1" || c.dataset === undefined), JSON.stringify(rec.tobler_run.checked.map((c) => c.dataset)));
-  assert.match(model.calls[0].messages[0].content, /No land within the wider band \(the coast is about \d+ km away\)/);
+  assert.match(model.calls[0].messages[0].content, /No land within any check's reach \(the coast is about \d+ km away\)/);
   assert.ok(events.some((e) => e.type === "tool" && e.name === "nearest_boundaries" && e.baseline));
   assert.ok(events.filter((e) => e.type === "tool" && e.name === "get_data" && e.baseline).length >= 8, "the UK and EU layers, each fetched once");
 });
 
 
 await test("non-commercial data (WDPA) is left out by default and shown as not checked, with the reason", async () => {
-  const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
-  const rec = await runScreening({ broughtIn: BROUGHT, host: host(false), site, distances: d, skill, callClaude: standardScript(), inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
+  const d = chooseAsset(table, { asset_type: "oil-gas-field", offshore: true });
+  const rec = await runScreening({ broughtIn: BROUGHT, host: host(false), site, asset: d, skill, callClaude: standardScript(), inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
   const w = rec.tobler_run.checked.find((c) => /World Database on Protected Areas/.test(c.dataset));
   assert.equal(w.result, "not checked");
   assert.match(w.why, /non-commercial/);
@@ -761,8 +729,8 @@ await test("named field search: a national outline and a tracker's points both c
 await test("inside the area only (asked for): fetches only inside, measures nothing outside, records the scope", async () => {
   atlasCalls.length = 0;
   const model = standardScript();
-  const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
-  const rec = await runScreening({ broughtIn: BROUGHT, host: host(), site, distances: d, skill, callClaude: model, runId: "R2",
+  const d = chooseAsset(table, { asset_type: "oil-gas-field", offshore: true });
+  const rec = await runScreening({ broughtIn: BROUGHT, host: host(), site, asset: d, skill, callClaude: model, runId: "R2",
     inputs: { asset_type: "oil-gas-field", asset_label: "offshore oil or gas field", extent: "inside" }, now: () => "2026-11-18T20:00:00Z" });
   // Every data fetch is the site's own box (about 10 km across), not the 50 km band. (The boundary lookup pads its
   // box by 5 km on purpose, then keeps only lines within 0 km.)
@@ -796,8 +764,8 @@ await test("inside only is ignored for a point (screened with its surroundings, 
 });
 
 await test("re-assess inside the area (the card's switch): only inside evidence, worded as inside", async () => {
-  const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
-  const rec = await runScreening({ broughtIn: BROUGHT, host: host(), site, distances: d, skill, callClaude: standardScript(), runId: "R3",
+  const d = chooseAsset(table, { asset_type: "oil-gas-field", offshore: true });
+  const rec = await runScreening({ broughtIn: BROUGHT, host: host(), site, asset: d, skill, callClaude: standardScript(), runId: "R3",
     inputs: { asset_type: "oil-gas-field", asset_label: "offshore oil or gas field" } });
   const model = scriptedModel([(req) => final(`Inside the field, the flowline.\n\n\`\`\`json\n{"flags":[{"risk":"Flowline on site","theme":"PS4","confidence":"high","evidence":["${refIn(req, "Rosebank 9 inch Production flowline 1")}"]}],"data_gaps":[]}\n\`\`\``)]);
   await reassess({ record: rec, km: 0, skill, callClaude: model });
@@ -812,9 +780,9 @@ await test("re-assess inside the area (the card's switch): only inside evidence,
 await test("a search area (no outline found): nothing is 'on site'; findings inside say where, confidence capped, words changed", async () => {
   const { SEARCH_BAND } = await import("../js/siterole.js");
   const model = standardScript();
-  const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
+  const d = chooseAsset(table, { asset_type: "oil-gas-field", offshore: true });
   const searchSite = { ...site, origin: { ...site.origin, match: "type_near_clues", shape: "square", offset: true, anchor: { name: "Shetland" } } };
-  const rec = await runScreening({ broughtIn: BROUGHT, host: host(), site: searchSite, distances: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "offshore oil or gas field" } });
+  const rec = await runScreening({ broughtIn: BROUGHT, host: host(), site: searchSite, asset: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "offshore oil or gas field" } });
   const r = rec.tobler_run;
   assert.equal(r.site.role, "search_area");
   assert.match(r.site.footprint, /search area of .* \(built from clues round Shetland\), standing in for an outline that wasn't found/);
@@ -842,7 +810,7 @@ await test("a search area (no outline found): nothing is 'on site'; findings ins
 });
 
 await test("a published outline stays a site: 'on site' and no cap", async () => {
-  const rec = await runScreening({ broughtIn: BROUGHT, host: host(), site, distances: chooseDistances(table, { asset_type: "oil-gas-field", offshore: true }), skill, callClaude: standardScript(), inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
+  const rec = await runScreening({ broughtIn: BROUGHT, host: host(), site, asset: chooseAsset(table, { asset_type: "oil-gas-field", offshore: true }), skill, callClaude: standardScript(), inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
   assert.equal(rec.tobler_run.site.role, "footprint");
   assert.equal(rec.tobler_run.flags.find((f) => /pipelines/.test(f.risk)).confidence, "high");
 });
@@ -867,8 +835,8 @@ await test("display units: conversions, text in km shown in miles or nautical mi
 });
 
 await test("the run record (tobler-run/2) carries every check with its source, and the decision rule reads them", async () => {
-  const d = chooseDistances(table, { asset_type: "oil-gas-field", offshore: true });
-  const rec = await runScreening({ broughtIn: BROUGHT, host: host(), site, distances: d, skill, callClaude: standardScript(), inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
+  const d = chooseAsset(table, { asset_type: "oil-gas-field", offshore: true });
+  const rec = await runScreening({ broughtIn: BROUGHT, host: host(), site, asset: d, skill, callClaude: standardScript(), inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
   const r = rec.tobler_run;
   assert.equal(r.schema, "tobler-run/2");
   assert.equal(r.checks_scale, "global");
@@ -890,7 +858,7 @@ await test("the run record (tobler-run/2) carries every check with its source, a
   assert.ok(!by["bio.coral-reefs"] && !by["bio.us-critical-habitat"], "checks that don't apply aren't listed");
   assert.ok(r.no_check_topics.includes("heritage") && r.no_check_topics.includes("indigenous"));
   // WDPA switched off: in UK waters the UK's own layers answer, so the marine check still stands (supplementary).
-  const off = (await runScreening({ broughtIn: BROUGHT, host: host(false), site, distances: d, skill, callClaude: standardScript(), inputs: { asset_type: "oil-gas-field", asset_label: "x" } })).tobler_run;
+  const off = (await runScreening({ broughtIn: BROUGHT, host: host(false), site, asset: d, skill, callClaude: standardScript(), inputs: { asset_type: "oil-gas-field", asset_label: "x" } })).tobler_run;
   const m = off.checks.find((c) => c.id === "bio.marine-protected");
   assert.equal(m.state, "found");
   assert.equal(m.partly, undefined, "a supplementary source left out isn't a partly-checked note");
@@ -898,7 +866,7 @@ await test("the run record (tobler-run/2) carries every check with its source, a
   // Every biodiversity must-check failing: insufficient evidence, said on the card.
   const down = async (tool, args) => { if (tool === "fetch_features" && BASELINE_IDS.has(args.id) && args.id !== "751ddc65885f897d") throw new Error("atlas: fetch failed"); return atlas(tool, args); };
   const model = scriptedModel([final('Nothing much.\n```json\n{"decision":"progress","decision_why":"clear","flags":[],"checked":[],"data_gaps":[]}\n```')]);
-  const bad = (await runScreening({ broughtIn: BROUGHT, host: { ...host(), atlas: down }, site, distances: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } })).tobler_run;
+  const bad = (await runScreening({ broughtIn: BROUGHT, host: { ...host(), atlas: down }, site, asset: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } })).tobler_run;
   assert.equal(bad.decision.value, "insufficient evidence");
   assert.match(bad.decision.changed, /none of the must-checks for biodiversity could be checked/);
   assert.equal(bad.checks.find((c) => c.id === "bio.national-sites").reason, "failed");
@@ -929,9 +897,9 @@ await test("the contamination desk study: only its checks, at its own distances,
    "why":"landfill leachate","next_step":"historical maps and a commercial environmental search"}],
  "checked":[],"data_gaps":[]}
 \`\`\``)]);
-  const d = { ...entry.distances, footprint_km: 0.1, set_by: "skill", reasons: ["x"] };
+  const d = { id: null, label: "contamination desk study", row: false, scale: entry.scale, footprint_km: 0.1, extends: [], scale_why: "the study's own scale" };
   const rec = await runScreening({ broughtIn: BROUGHT, host: { ...host(), atlas: ukAtlas, profile: () => profile, fetchFn: async () => ({ ok: true, json: async () => ({ samples: [] }) }) },
-    site: yard, distances: d, skill: desk, study: entry, callClaude: model, inputs: { asset_type: "other", asset_label: "contamination desk study" } });
+    site: yard, asset: d, skill: desk, study: entry, callClaude: model, inputs: { asset_type: "other", asset_label: "contamination desk study" } });
   const r = rec.tobler_run;
   assert.equal(r.kind, "contamination-desk-study");
   assert.equal(r.checks_scale, "local");
@@ -959,7 +927,7 @@ await test("the contamination desk study: only its checks, at its own distances,
   const down = async (tool, args) => { if (tool === "fetch_features") throw new Error("atlas: fetch failed"); return atlas(tool, args); };
   const clean = scriptedModel([final('Nothing.\n```json\n{"decision":"no linkages identified in open records","decision_why":"none","flags":[],"checked":[],"data_gaps":[]}\n```')]);
   const bad = (await runScreening({ broughtIn: BROUGHT, host: { ...host(), atlas: down, profile: () => profile, fetchFn: async () => ({ ok: true, json: async () => ({ samples: [] }) }) },
-    site: yard, distances: d, skill: desk, study: entry, callClaude: clean, inputs: { asset_type: "other", asset_label: "contamination desk study" } })).tobler_run;
+    site: yard, asset: d, skill: desk, study: entry, callClaude: clean, inputs: { asset_type: "other", asset_label: "contamination desk study" } })).tobler_run;
   assert.equal(bad.decision.value, "insufficient evidence");
   assert.match(bad.decision.changed, /none of the source records could be checked/);
 });
@@ -983,10 +951,10 @@ await test("the UK pack on land: flood zones and farmland by share of the site, 
     return { returned: 0, features: [] };
   };
   const profile = JSON.parse(read("../catalogue/industries/energy.json"));
-  const d = chooseDistances(table, { asset_type: "solar", offshore: false, area_km2: 1 });
+  const d = chooseAsset(table, { asset_type: "solar", offshore: false, area_km2: 1 });
   const model = standardScript();
   const rec = await runScreening({ broughtIn: BROUGHT, host: { ...host(), atlas: ukAtlas, irz: irzTable, profile: () => profile, fetchFn: async () => ({ ok: true, json: async () => ({ samples: [] }) }) },
-    site: yard, distances: d, skill, callClaude: model, inputs: { asset_type: "solar", asset_label: "solar farm" } });
+    site: yard, asset: d, skill, callClaude: model, inputs: { asset_type: "solar", asset_label: "solar farm" } });
   const r = rec.tobler_run;
   const by = Object.fromEntries(r.checks.map((c) => [c.id, c]));
   assert.equal(r.checks_scale, "regional");
@@ -995,7 +963,7 @@ await test("the UK pack on land: flood zones and farmland by share of the site, 
   assert.equal(by["bio.sssi-irz"].inside, true);
   assert.deepEqual(by["bio.sssi-irz"].irz.map((z) => [z.key, z.consult]), [["ac", false], ["ws", true]]);
   assert.equal(K.checkLine(by["bio.sssi-irz"]), "inside a risk zone; consult Natural England for: wind and solar");
-  assert.equal(K.checkLine(by["heritage.listed-buildings"]), "2 within 2 km (2 at 0–2 km); nearest Church of St Mary, 100 m", "regional bands: the first is 0–2 km");
+  assert.equal(K.checkLine(by["heritage.listed-buildings"]), "2 within 2 km (1 at 0–100 m, 1 at 1–2 km); nearest Church of St Mary, 100 m", "one ladder: 0–100 m first");
   assert.equal(by["heritage.listed-buildings"].count, 2);
   // Scotland's, Wales's and Northern Ireland's layers aren't in a 2 km reach of York; their pending lines don't appear.
   assert.ok(!by["water.flood-zones"].sources.some((x) => x.region !== "England"), JSON.stringify(by["water.flood-zones"].sources.map((x) => x.region)));
@@ -1031,6 +999,39 @@ await test("the UK pack on land: flood zones and farmland by share of the site, 
   assert.match(pl.sources?.[0]?.dataset || pl.source?.dataset || "", /^OpenStreetMap: power lines/);
   assert.equal(pl.must, false);
   assert.ok(by["community.homes"] && by["hazards.coal-mining"] && by["water.source-protection"], "the new UK and OpenStreetMap checks run on a site in England");
+});
+
+await test("package A end to end: Barnston housing on the general defaults, no 10 km rings; \"look out to 5 km\" from the conversation", async () => {
+  // A 10 ha field by Barnston on the Wirral. Every layer answers empty; OpenStreetMap answers empty.
+  const C = [-3.08, 53.345];
+  const field = { id: "b1", name: "Barnston field", feature: G.squareAround(C, 0.32, 0), origin: { method: "drawn" }, status: "accepted", edits: [] };
+  const quiet = async (tool, args) => (tool === "fetch_features" ? { returned: 0, features: [] } : atlas(tool, args));
+  const fetchFn = async (url) => ({ ok: true, json: async () => (/overpass|interpreter|kumi/i.test(String(url)) ? { elements: [] } : { samples: [] }) });
+  const h = { ...host(), atlas: quiet, fetchFn, osmSnapshot: null };
+  const svc = createScreening({ host: h, table, skill, callClaude: async () => final("Nothing found.\n\n```json\n{\"flags\":[],\"data_gaps\":[],\"checked\":[]}\n```"), onRun: () => {} });
+  await svc.screen({ asset_type: "other", planned: "housing" }, field);
+  const r = [...svc.runs.values()].at(-1).tobler_run;
+  assert.equal(r.reach.scale, "local");
+  assert.equal(r.reach.asset.row, false);
+  assert.match(r.reach.asset.note, /No distances are set for housing yet/);
+  assert.equal(r.fetched_to_km, 5, "the furthest check (aerodromes, 5 km)");
+  const rings = runRings(r);
+  assert.deepEqual(rings, [0.1, 0.25, 0.5, 1, 2, 5]);
+  assert.ok(!rings.some((k) => k > 5), "no 10 km ring");
+  assert.equal(r.checks.find((c) => c.id === "bio.sac").reach_km, 2);
+  assert.ok(r.checks.every((c) => c.reach_km == null || c.reach_km <= 5));
+  assert.equal(r.distances, undefined);
+  // "Look out to 5 km": every count check looks out 5 km, and the record keeps what was said and what it was.
+  await svc.screen({ asset_type: "other", planned: "housing", distances: [{ what: "all", value: 5, unit: "km" }] }, field);
+  const r2 = [...svc.runs.values()].at(-1).tobler_run;
+  for (const c of r2.checks.filter((x) => x.answer === "count_by_band")) assert.equal(c.reach_km, 5, c.id);
+  assert.equal(r2.checks.find((c) => c.id === "community.homes").reach_from, "person");
+  assert.equal(r2.checks.find((c) => c.id === "community.homes").reach_default_km, 0.5);
+  assert.equal(r2.reach.changes[0].said, "5 km");
+  assert.equal(r2.reach.changes[0].line, "every check to 5 km (was 250 m to 5 km, by check)");
+  assert.equal(r2.checks.find((c) => c.id === "water.flood-zones")?.reach_km ?? 0.25, 0.25, "a class check keeps its reach");
+  assert.deepEqual(r2.inputs.distances, [{ what: "all", value: 5, unit: "km" }]);
+  assert.match(r2.replaces.diff.lines.join(" "), /distances the defaults \(250 m to 5 km, by check\) then, every check to 5 km \(was 250 m to 5 km, by check\) now/);
 });
 
 await test("the developable area: the skill's rules for the asset type, the checks within each buffer, one area budget, no model call", async () => {
@@ -1116,6 +1117,17 @@ await test("the developable area: the skill's rules for the asset type, the chec
   assert.ok(row2("homes").ha > row("homes").ha);
   assert.ok(b2.changes.some((c) => /Homes: 100 m, as you asked \(default 50 m\)/.test(c)));
   assert.ok(head2.your_changes.length === 3);
+  // The one input for distances (package A): "keep 80 m from homes" is the homes buffer, and no search changes;
+  // "look out to 5 km" means nothing to an area budget, and says so.
+  await svc.study(entry, field, { asset_type: "solar", distances: [{ what: "homes", value: 80, unit: "m" }, { what: "all", value: 5, unit: "km" }] });
+  const r3 = [...svc.runs.values()].at(-1).tobler_run;
+  const b3 = r3.budget;
+  assert.equal([...b3.rows, ...b3.soft].find((x) => x.id === "homes").buffer_m, 80);
+  assert.equal(r3.checks.find((c) => c.id === "community.homes").reach_km, 0.08, "the homes check looks only as far as its buffer");
+  assert.equal(r3.checks.find((c) => c.id === "bio.national-sites")?.reach_km ?? 0, r.checks.find((c) => c.id === "bio.national-sites")?.reach_km ?? 0, "no other reach moved");
+  assert.match(r3.reach.changes.map((c) => c.line).join(" "), /Homes: 80 m, as you asked \(default 50 m\)/);
+  assert.match(r3.reach.not_used[0].why, /each deduction's buffer/);
+  assert.deepEqual(r3.inputs.distances, [{ what: "homes", value: 80, unit: "m" }, { what: "all", value: 5, unit: "km" }]);
   // A point or a search area is refused politely.
   const pt = await svc.study(entry, { name: "Pin", feature: { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: C } }, origin: { method: "drawn" } }, {});
   assert.match(pt.not_available, /needs an outline/);

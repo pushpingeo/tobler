@@ -14,28 +14,7 @@
     "used_by": "Optional: the skills a check is for (the developable area's buildings and water). Screens leave such a check out; the skills named run it.",
     "reached_by": "How the check's receptor can be reached from a development, where it's clear: water, sight, flight, ground, road (package A, 26 Nov; plain data for now, package E uses it). Left out where it isn't clear.",
     "read_km": "For a value check that reads round the site (vessel traffic): how far it reads, by scale. Not a search distance, and 'look out to X km' doesn't change it.",
-    "bands": "Every count check reports on one ladder (js/reach.js LADDER: within the site, 0–100 m, 100–250 m, 250–500 m, 500 m–1 km, 1–2, 2–5, 5–10, 10–20, 20–30, 30–50 km), up to its own reach, plus the actual nearest distance. Bands are for reporting, never risk. Version 8 (26 Nov, package A): reached_by and read_km added; the per-scale band sets go when the run moves onto the ladder."
-  },
-  "scales": {
-    "about": "Distance bands per scale (agreed 23 Nov; docs/conceptual-model.md). Until plan item 3 puts them in the profile, the run picks the scale from the screening distances already chosen (js/checks.js screenScale).",
-    "local": [
-      0.05,
-      0.25,
-      0.5,
-      2
-    ],
-    "regional": [
-      2,
-      5,
-      10,
-      20
-    ],
-    "global": [
-      10,
-      20,
-      50,
-      100
-    ]
+    "bands": "Every count check reports on one ladder (js/reach.js LADDER: within the site, 0–100 m, 100–250 m, 250–500 m, 500 m–1 km, 1–2, 2–5, 5–10, 10–20, 20–30, 30–50 km), up to its own reach, plus the actual nearest distance. Bands are for reporting, never risk. Version 8 (26 Nov, package A): reached_by and read_km added; the per-scale band sets are gone: reach_km is the only search distance, extended by catalogue/assets.json and overridden by the person."
   },
   "topics": [
     {

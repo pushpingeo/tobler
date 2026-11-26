@@ -2,7 +2,8 @@
 // Names and numbers are made up in the style of the 18–24 Nov logs; nothing here is a real finding.
 const run = (o) => ({ type: "FeatureCollection", features: [], tobler_run: {
   schema: "tobler-run/2", id: "R1", kind: "ntr-screen", flags: [], checked: [], data_gaps: [], checks: [], extent: "around",
-  distances: { near: 1, close: 5, wider: 20, set_by: "table", asset_label: "solar farm", setting: "onshore", reasons: ["default"] },
+  reach: { scale: "local", scale_why: "solar farm onshore: construction and glint near", asset: { id: "solar", label: "solar farm", row: true }, footprint_km: 1, furthest_km: 5,
+    ladder: [0.1, 0.25, 0.5, 1, 2, 5], range: "250 m to 5 km, by check", changes: [], set_by: "default" },
   ...o, site: { setting: "onshore", role: "area", ...(o.site || {}) } } });
 
 const check = (label, state, must = false, extra = {}) => ({ id: label.toLowerCase().replace(/\W+/g, "-"), label, state, must, ...extra });
@@ -27,7 +28,9 @@ export const oracleSolar = run({
 export const kelsoSearchArea = run({
   id: "R2",
   site: { name: "Kelso", asset_label: "onshore wind farm", asset_assumed: false, role: "search_area", role_why: "a default 1 km footprint round a point", area_km2: 3.14 },
-  distances: { near: 2, close: 10, wider: 20, set_by: "table", asset_label: "onshore wind farm", setting: "onshore", reasons: ["default"] },
+  reach: { scale: "regional", scale_why: "onshore wind farm onshore: noise and shadow flicker near", asset: { id: "wind-onshore", label: "onshore wind farm", row: true }, footprint_km: 1, furthest_km: 45,
+    ladder: [0.1, 0.25, 0.5, 1, 2, 5, 10, 20, 30, 45], range: "500 m to 45 km, by check", changes: [], set_by: "default",
+    extended: [{ check: "landscape.national-parks", label: "National Parks", from_km: 10, to_km: 45, why: "landscape, visual and cumulative effects of wind turbines", source: "NatureScot" }] },
   decision: { value: "insufficient evidence", why: "The place is a town point, not a site", changed: "from progress: none of the must-checks for biodiversity could be checked" },
   flags: [{ id: "F-01", risk: "Homes and schools in the search area", severity: "high", confidence: "low", nearest_km: 0, traced: 3, untraced: 0 }],
   checks: [check("Special Areas of Conservation", "not_checked", true, { why: "NatureScot didn't answer" }), check("SSSIs", "not_checked", true, { why: "NatureScot didn't answer" })],
@@ -37,7 +40,10 @@ export const housingOutside = run({
   id: "R3",
   site: { name: "Edge of Linlithgow", asset_label: "housing estate", asset_assumed: false, role: "area", area_km2: 0.05,
     outside_profile: "A general screen: the method wasn't built for this kind of development, so treat it as a first look." },
-  distances: { near: 0.5, close: 2, wider: 10, set_by: "person", asset_label: "site", setting: "onshore", reasons: ["person"] },
+  reach: { scale: "local", scale_why: "a site under 1 km² (100 ha): most effects stay within a few kilometres", asset: { id: null, label: "housing estate", row: false,
+      note: "No distances are set for housing estate yet, so the checks use the general defaults for a site of this size." }, footprint_km: 1, furthest_km: 2,
+    ladder: [0.1, 0.25, 0.5, 1, 2], range: "2 km", set_by: "person",
+    changes: [{ kind: "search", what: "all", said: "2 km", km: 2, ids: [], line: "every check to 2 km (was 250 m to 5 km, by check)" }] },
   decision: { value: "progress", why: "Nothing in the open data checked stands in the way at this stage" },
   flags: [],
   checks: [check("Listed buildings", "none", true)],
@@ -47,7 +53,8 @@ export const stanlowStudy = run({
   id: "R4", kind: "contamination-desk-study",
   study: { id: "contamination-desk-study", label: "Contamination desk study", groups: [], full_study_adds: ["historical maps", "geology", "abstractions", "unexploded ordnance", "a site walkover"] },
   site: { name: "Stanlow Refinery", asset_label: "contamination desk study", role: "area", area_km2: 7.9 },
-  distances: { near: 0.25, close: 0.5, wider: 2, set_by: "skill", asset_label: "contamination desk study", setting: "onshore", reasons: ["skill"] },
+  reach: { scale: "local", scale_why: "the contamination desk study looks at records on and close to the site, so each check uses its site-scale reach", asset: { id: null, label: "contamination desk study", row: false },
+    footprint_km: 0.1, furthest_km: 2, ladder: [0.1, 0.25, 0.5, 1, 2], range: "250 m to 2 km, by check", changes: [], set_by: "default" },
   decision: { value: "possible linkages: investigate", why: "A historic landfill sits upslope of the Mersey estuary and the site is in flood zone 3" },
   flags: [
     { id: "F-01", risk: "Historic landfill 300 m south could reach the Mersey Estuary through flood water", severity: "high", confidence: "medium", nearest_km: 0.3,

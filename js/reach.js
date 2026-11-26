@@ -172,7 +172,9 @@ export function resolveReaches(catalogue, { scale, asset = null, search = [], in
     const o = override?.(c.id);
     if (o != null) r = { ...r, km: o, from: "skill" };
     if (inside) r = { ...r, km: 0 };
-    r.km = r3(Math.min(MAX_KM, r.km));
+    // A check's own default past 50 km (boundaries at global scale: 100 km) is kept: the fetch is cut to 50 km, and the
+    // check's line says so ("of 100 km: the tools fetch to 50 km").
+    r.km = r3(r.km);
     m.set(c.id, r);
   }
   return m;
@@ -180,7 +182,7 @@ export function resolveReaches(catalogue, { scale, asset = null, search = [], in
 
 // "250 m to 10 km, by check", or "500 m" when they're all the same.
 export function rangeText(kms) {
-  const v = kms.filter((x) => x != null && x > 0);
+  const v = kms.filter((x) => x != null && x > 0).map((x) => Math.min(MAX_KM, x));
   if (!v.length) return "on the site only";
   const lo = Math.min(...v), hi = Math.max(...v);
   return lo === hi ? kmText(lo) : `${kmText(lo)} to ${kmText(hi)}, by check`;
@@ -221,7 +223,8 @@ export function reachRecord({ asset, scale, plans, reaches, changes = [], protec
 // 5 km, by check (general defaults for a site of this size)."
 export function reachLine(reach) {
   if (!reach) return "";
-  const why = reach.asset?.row ? `defaults for ${reach.asset.label}` : "general defaults for a site of this size";
+  const an = (w) => (/^[aeiou]/i.test(w) ? `an ${w}` : `a ${w}`);
+  const why = reach.asset?.row ? `defaults for ${an(reach.asset.label)}` : reach.asset?.note || !reach.scale_why ? "general defaults for a site of this size" : reach.scale_why;
   return `each check looks out its own distance from the site's edge: ${reach.range} (${why}${reach.set_by === "person" ? ", with your changes" : ""})`;
 }
 export const changesLine = (reach) => (reach?.changes?.length ? `You changed: ${reach.changes.map((c) => c.line).join("; ")}.` : "");

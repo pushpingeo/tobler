@@ -64,8 +64,12 @@ size and the request. It no longer has bands of its own.
 doesn't stretch a zone check. "Keep X m from homes" changes a deduction and no search. The card has one line saying
 what changed and what it was.
 
-**Not built:** today the run's near/close/wider (`catalogue/distances.json`) and each check's reach disagree. The
-design is in the claude.ai project (`claude/distances-design.md`).
+**Built 26 Nov (package A):** each check's reach is the only search distance (`js/reach.js`), extended by the asset
+table (`catalogue/assets.json`) where there's a stated reason and overridden by the person's own distances; one
+reporting ladder for the checks, the rings and the slider; distances in words for all three skills (`{what, value,
+unit}`, metres and kilometres for now); the card's line of changes; `reached_by` on checks. near/close/wider and
+`catalogue/distances.json` are gone; old runs still open with theirs. **Not built:** how a feature sits against the
+site (package B), units beyond metres and kilometres (package C), researched rows (package D).
 
 ## A drawn shape beats a computed buffer
 
@@ -89,7 +93,7 @@ replace a deduction's buffer in the developable area.
 - The asset comes from the person's words first ("a 200-home scheme", "a distribution warehouse"), matched to the
   asset table.
 - It's confirmed before the run, like the place: "Screening as: housing development, about 10 ha".
-- An asset with no row still runs on the general defaults for its size, and the card says so.
+- An asset with no row still runs on the general defaults for its size, and the card says so (built 26 Nov).
 - Chips are suggestions, not the list. The profile only changes which are suggested first.
 
 ## Units

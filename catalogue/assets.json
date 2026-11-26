@@ -34,7 +34,7 @@
       "effects": []
     },
     "wind-onshore": {
-      "label": "onshore wind", "names": ["wind farm", "onshore wind", "wind turbines", "wind turbine"],
+      "label": "onshore wind farm", "names": ["wind farm", "onshore wind", "wind turbines", "wind turbine"],
       "onshore": { "scale": "regional", "footprint_km": 3, "why": "noise and shadow flicker near, visual and birds close, protected sites wider" },
       "by_size": [
         { "mw": 100, "scale": "global", "why": "a large wind farm (100 MW or more): wider visual and bird context" }
@@ -58,7 +58,7 @@
       ]
     },
     "wind-offshore": {
-      "label": "offshore wind", "names": ["offshore wind", "offshore wind farm"],
+      "label": "offshore wind farm", "names": ["offshore wind", "offshore wind farm"],
       "offshore": { "scale": "global", "footprint_km": 5, "why": "construction noise and safety zones near, fishing and shipping close, seabirds and protected sites wider" },
       "extends": [], "effects": []
     },

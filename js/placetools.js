@@ -14,7 +14,7 @@ import { DATA_TOOL_DEFS, createDataTools, geometryDistanceKm } from "./datatools
 import { EPSG_TOOL_DEFS, createEpsgTools } from "./epsgtools.js";
 import { elevationFrom, elevationSignificance } from "./elevation.js";
 import { themeFor, TOPIC_IDS } from "./findings.js";
-import { ASSET_TYPES } from "./distances.js";
+import { ASSET_TYPES } from "./reach.js";
 import { searchAnchors, searchNominatim, searchNaturalEarth, searchWikidata, findFeaturesNear, featureOutline, FEATURE_TYPES, candidate, settlementNear } from "./gazetteer.js";
 import { parseCoordinates, formatLatLon } from "./coords.js";
 
@@ -199,7 +199,7 @@ export function placeToolDefs(skills) {
     },
     {
       name: "screen_site",
-      description: "Screen a place for environmental constraints and environmental and social (E&S) risk (themes: land and livelihoods, biodiversity, Indigenous Peoples, cultural heritage, community health and safety, operating context). Runs the screening method as its own sealed run with the data tools, then shows a run card (flags first, evidence on the map, the distances used with a slider, gaps) and returns the headline. Use it for any request to screen a site or ask what risks, sensitivities or constraints it raises. The place must already exist (find or build it first). Distances come from the asset type and size unless the person gives their own. Call it as soon as the place is on the map, with everything they asked for, even for a place you built from their words in this turn: Tobler then shows them the place and asks (is it right, or which part of a lake, country, town or road) before anything runs, and keeps what was asked for their yes. Takes 30 to 90 seconds.",
+      description: "Screen a place for environmental constraints and environmental and social (E&S) risk (themes: land and livelihoods, biodiversity, Indigenous Peoples, cultural heritage, community health and safety, operating context). Runs the screening method as its own sealed run with the data tools, then shows a run card (flags first, evidence on the map, the distances used with a slider, gaps) and returns the headline. Use it for any request to screen a site or ask what risks, sensitivities or constraints it raises. The place must already exist (find or build it first). Each check looks out its own distance (from the check, the asset type and size) unless the person gives their own. Call it as soon as the place is on the map, with everything they asked for, even for a place you built from their words in this turn: Tobler then shows them the place and asks (is it right, or which part of a lake, country, town or road) before anything runs, and keeps what was asked for their yes. Takes 30 to 90 seconds.",
       input_schema: {
         type: "object",
         properties: {
@@ -210,10 +210,10 @@ export function placeToolDefs(skills) {
           stage: { type: "string", enum: ["greenfield", "expansion", "existing asset"], description: "Only if the person said; otherwise leave out (greenfield is assumed and said)." },
           capacity_mw: { type: "number", description: "Only if the person gave it" },
           tip_height_m: { type: "number", description: "Wind turbine tip height, only if the person gave it" },
-          distances: { type: "object", description: "Only if the person gave distances: near, close and/or wider in km (wider up to 50).", properties: { near: { type: "number" }, close: { type: "number" }, wider: { type: "number" } } },
+          distances: { type: "array", description: "Only if the person gave distances. One item per thing they said, with the number and unit exactly as they said them; never convert. what: \"all\" for every check (\"look out to 5 km\"), a topic (heritage, water, biodiversity…), a check (\"listed buildings\", \"homes\"). Tobler converts the unit and decides whether it's a search or a protection distance.", items: { type: "object", properties: { what: { type: "string" }, value: { type: "number" }, unit: { type: "string", description: "as said: m, km, metres, miles, feet…" } }, required: ["what", "value", "unit"] } },
           focus: { type: "string", description: "Optional: what the person is most concerned about, in their words" },
           whole: { type: "boolean", description: "Only when the person, asked which part of a place to screen, said to use all of it as it is (the whole lake, the whole country)." },
-          extent: { type: "string", enum: ["around", "inside"], description: "Areas only. around (default): the area and its surroundings out to the wider band. inside: only what lies inside the area or touches its edge; use it only when the person asks to keep the screen within the area (\"only inside the block\", \"just within the boundary\"). An around screen of an area can also be switched to inside-only on the run card, with no new fetching." },
+          extent: { type: "string", enum: ["around", "inside"], description: "Areas only. around (default): the area and its surroundings, each check out to its own distance. inside: only what lies inside the area or touches its edge; use it only when the person asks to keep the screen within the area (\"only inside the block\", \"just within the boundary\"). An around screen of an area can also be switched to inside-only on the run card, with no new fetching." },
         },
         required: ["place", "asset_type"],
       },
@@ -232,7 +232,7 @@ export function placeToolDefs(skills) {
         focus: { type: "string", description: "Optional, desk study: what the person asked about especially" },
         whole: { type: "boolean", description: "Only when the person, asked which part of a place to use, said to use all of it as it is." },
         asset_type: { type: "string", enum: BUDGET_ASSETS, description: "Developable area: what would be built. general if the person hasn't said (the card says it was assumed)." },
-        buffers: { type: "array", description: "Developable area: only buffers the person asked for, in metres, by rule id", items: { type: "object", properties: { id: { type: "string", enum: BUDGET_RULE_IDS }, buffer_m: { type: "number" } }, required: ["id", "buffer_m"] } },
+        distances: { type: "array", description: "Only if the person gave distances. One item per thing they said, with the number and unit exactly as they said them; never convert. what: \"all\" for every check (\"look out to 5 km\"), a topic (heritage, water, biodiversity…), a check (\"listed buildings\", \"homes\"), or for the developable area a deduction to keep that far from (" + BUDGET_RULE_IDS.join(", ") + "). Tobler converts the unit and decides whether it's a search or a protection distance.", items: { type: "object", properties: { what: { type: "string" }, value: { type: "number" }, unit: { type: "string", description: "as said: m, km, metres, miles, feet…" } }, required: ["what", "value", "unit"] } },
         leave_out: { type: "array", items: { type: "string", enum: BUDGET_RULE_IDS }, description: "Developable area: deductions the person asked to ignore (buildings to be cleared)" },
         as_soft: { type: "array", items: { type: "string", enum: BUDGET_RULE_IDS }, description: "Developable area: deductions the person would treat as usable at a cost (flood zone 3 for raised solar panels)" },
       }, required: ["place", "study"] },

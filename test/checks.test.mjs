@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as K from "../js/checks.js";
+import { LADDER } from "../js/reach.js";
 import * as turf from "../js/vendor/turf.js";
 import { areasNear } from "../js/ukareas.js";
 import { settleDecision } from "../js/industry.js";
@@ -24,8 +25,7 @@ await test("the catalogue: twelve topics plus Indigenous Peoples for global work
   assert.equal(topics.filter((t) => t !== "indigenous").length, 12);
   assert.equal(cat.version, "8");
   assert.ok(topics.includes("topography") && topics.includes("hazards"));
-  assert.deepEqual(Object.keys(cat.scales).filter((k) => k !== "about"), ["local", "regional", "global"]);
-  assert.deepEqual(cat.scales.global, [10, 20, 50, 100]);
+  assert.equal(cat.scales, undefined, "one ladder for every check (js/reach.js), not a band set per scale");
   const seen = new Set();
   for (const c of cat.checks) {
     assert.ok(!seen.has(c.id), `${c.id} is unique`); seen.add(c.id);
@@ -43,19 +43,11 @@ await test("the catalogue: twelve topics plus Indigenous Peoples for global work
   }
 });
 
-await test("scale from the screening distances and the site's size", () => {
-  assert.equal(K.screenScale({ wider: 5 }), "local");
-  assert.equal(K.screenScale({ wider: 10 }), "local");
-  assert.equal(K.screenScale({ wider: 20 }), "regional");
-  assert.equal(K.screenScale({ wider: 50 }), "global");
-  assert.equal(K.screenScale({ wider: 20 }, 150), "global", "a big licence is global whatever its distances");
-});
-
 await test("bands inside a reach, and their labels", () => {
-  assert.deepEqual(K.bandsFor(cat.scales.regional, 10), [2, 5, 10]);
-  assert.deepEqual(K.bandsFor(cat.scales.regional, 7), [2, 5, 7]);
-  assert.deepEqual(K.bandsFor(cat.scales.local, 2), [0.05, 0.25, 0.5, 2]);
-  assert.deepEqual(K.bandsFor(cat.scales.local, 0), []);
+  assert.deepEqual(K.bandsFor(LADDER, 10), [0.1, 0.25, 0.5, 1, 2, 5, 10]);
+  assert.deepEqual(K.bandsFor(LADDER, 7), [0.1, 0.25, 0.5, 1, 2, 5, 7]);
+  assert.deepEqual(K.bandsFor(LADDER, 2), [0.1, 0.25, 0.5, 1, 2]);
+  assert.deepEqual(K.bandsFor(LADDER, 0), []);
   assert.equal(K.bandLabel(0, 0.05), "0–50 m");
   assert.equal(K.bandLabel(0.05, 0.25), "50–250 m");
   assert.equal(K.bandLabel(0.5, 2), "500 m–2 km");
@@ -119,20 +111,20 @@ await test("every state: found by band, none found, not checked for each reason"
   const sac = plan("bio.sac");
   const f = K.fromFeatures(sac, [
     { name: "Inside SAC", distance_km: 0 }, { name: "Near SAC", distance_km: 1.5 }, { name: "Mid SAC", distance_km: 6 },
-    { name: "Beyond", distance_km: 15 }, { name: "Wide area", distance_km: 0, around_site: true }], cat.scales.regional,
+    { name: "Beyond", distance_km: 15 }, { name: "Wide area", distance_km: 0, around_site: true }], LADDER,
   { dataset: "Natura", publisher: "EEA", licence: "attribution", checked_at: "2026-11-23", fetched_km: 20 });
   assert.equal(f.state, "found");
   assert.equal(f.count, 4, "beyond the reach isn't counted");
-  assert.deepEqual(f.bands.map((b) => [b.label, b.count]), [["on site", 1], ["0–2 km", 1], ["2–5 km", 0], ["5–10 km", 1]]);
+  assert.deepEqual(f.bands.map((b) => [b.label, b.count]), [["on site", 1], ["0–100 m", 0], ["100–250 m", 0], ["250–500 m", 0], ["500 m–1 km", 0], ["1–2 km", 1], ["2–5 km", 0], ["5–10 km", 1]]);
   assert.equal(f.around, 1);
   assert.equal(f.nearest.name, "Inside SAC");
   assert.equal(f.source.publisher, "EEA");
-  assert.equal(K.checkLine(f), "4 within 10 km (1 on site, 1 at 0–2 km, 1 at 5–10 km, 1 around the site); nearest Inside SAC (on site)");
-  const n = K.fromFeatures(sac, [{ name: "Far", distance_km: 30 }], cat.scales.regional, { fetched_km: 20 });
+  assert.equal(K.checkLine(f), "4 within 10 km (1 on site, 1 at 1–2 km, 1 at 5–10 km, 1 around the site); nearest Inside SAC (on site)");
+  const n = K.fromFeatures(sac, [{ name: "Far", distance_km: 30 }], LADDER, { fetched_km: 20 });
   assert.equal(n.state, "none");
   assert.equal(K.checkLine(n), "none found within 10 km");
   // Reach longer than the tools fetch: cut, and said.
-  const b = K.fromFeatures(plan("context.boundaries", "global"), [{ name: "Belgium", distance_km: 40 }], cat.scales.global, { fetched_km: 50 });
+  const b = K.fromFeatures(plan("context.boundaries", "global"), [{ name: "Belgium", distance_km: 40 }], LADDER, { fetched_km: 50 });
   assert.equal(b.reach_km, 50);
   assert.match(K.checkLine(b), /within 50 km \(of 100 km: the tools fetch to 50 km\)/);
   // Not checked: licence, failure, pending, no source.
@@ -148,7 +140,7 @@ await test("every state: found by band, none found, not checked for each reason"
   assert.equal(K.checkLine(m), "the site is inside North West European waters (a wide area it lies within)");
   assert.equal(K.checkLine(K.fromFeatures(plan("material.marpol-special-areas"), [], [], {})), "the site isn't inside one");
   // A search area is never "on site".
-  assert.equal(K.checkLine({ ...f, search_area: true }), "4 within 10 km (1 in the search area, 1 at 0–2 km, 1 at 5–10 km, 1 around the site); nearest Inside SAC (in the search area)");
+  assert.equal(K.checkLine({ ...f, search_area: true }), "4 within 10 km (1 in the search area, 1 at 1–2 km, 1 at 5–10 km, 1 around the site); nearest Inside SAC (in the search area)");
   // Values.
   const v = K.fromValue(plan("topo.elevation"), { text: "about 25 m", meta: { dataset: "DEM", publisher: "NOAA" } });
   assert.equal(K.checkLine(v), "about 25 m");
@@ -163,7 +155,7 @@ await test("several sources: filtered, counted once by code or name, partly chec
     { source: ne, features: [site("Berwickshire and North Northumberland Coast", 3, { SAC_CODE: "UK0017072" })], meta: meta("NE SAC") },
     { source: ns, features: [site("Berwickshire and North Northumberland Coast", 2.5, { PA_CODE: "UK0017072" }), site("River Tweed", 0, { PA_CODE: "UK0012691" })], meta: meta("NS SAC") },
     { source: jncc, features: [site("Some MCZ", 6, { SITE_CODE: "UKMCZ0001", SITE_STATU: "MCZ - Secretary of State" })], meta: meta("JNCC") },
-  ], cat.scales.regional);
+  ], LADDER);
   assert.equal(r.state, "found");
   assert.equal(r.count, 2, "same code in two nations' layers counts once; the MCZ isn't a SAC");
   assert.equal(r.nearest.name, "River Tweed");
@@ -171,28 +163,28 @@ await test("several sources: filtered, counted once by code or name, partly chec
   assert.equal(r.sources.length, 3);
   // One nation's layer failed: a found result says so; a none-found result becomes not checked (partly).
   const down = { source: ne, not_checked: "The publisher's service didn't answer: 503. Report it as not checked." };
-  const f2 = K.fromSources(sac, [down, { source: ns, features: [site("River Tweed", 0, { PA_CODE: "UK0012691" })], meta: meta("NS SAC") }], cat.scales.regional);
+  const f2 = K.fromSources(sac, [down, { source: ns, features: [site("River Tweed", 0, { PA_CODE: "UK0012691" })], meta: meta("NS SAC") }], LADDER);
   assert.equal(f2.state, "found");
   assert.equal(f2.partly, "Natural England didn't answer");
-  const n2 = K.fromSources(sac, [down, { source: ns, features: [], meta: meta("NS SAC") }], cat.scales.regional);
+  const n2 = K.fromSources(sac, [down, { source: ns, features: [], meta: meta("NS SAC") }], LADDER);
   assert.equal(n2.state, "not_checked");
   assert.equal(n2.reason, "partly");
   assert.equal(K.checkLine(n2), "not checked: Natural England didn't answer (none in the others)");
   // Every source down: not checked, failed; every source licence-blocked: not checked, licence.
-  assert.equal(K.fromSources(sac, [down, { ...down, source: ns }], cat.scales.regional).reason, "failed");
+  assert.equal(K.fromSources(sac, [down, { ...down, source: ns }], LADDER).reason, "failed");
   // WDPA is supplementary: switched off beside the UK's own layers, "none found" stands; alone (French waters), not checked.
   const mp = plan("bio.marine-protected");
   const wdpa = mp.check.sources.find((x) => x.supplementary);
   const lic = { source: wdpa, not_checked: "This dataset's licence is non-commercial (e.g. WDPA)." };
-  const uk = K.fromSources(mp, [{ source: mp.check.sources[0], features: [], meta: meta("NE MCZ") }, lic], cat.scales.regional);
+  const uk = K.fromSources(mp, [{ source: mp.check.sources[0], features: [], meta: meta("NE MCZ") }, lic], LADDER);
   assert.equal(uk.state, "none");
   assert.equal(uk.partly, undefined);
-  const fr = K.fromSources(mp, [lic], cat.scales.regional);
+  const fr = K.fromSources(mp, [lic], LADDER);
   assert.equal(fr.state, "not_checked"); assert.equal(fr.reason, "licence");
   // A source with no code: the same name within half a kilometre counts once.
   const mpJncc = mp.check.sources.find((x) => x.atlas_id === "1d6371b702df0abc");
   const both = K.fromSources(plan("bio.marine-protected", "global"), [{ source: mpJncc, features: [site("Sponge Belt", 20, { SITE_CODE: "X1", SITE_STATU: "NCMPA" })], meta: meta("JNCC") },
-    { source: wdpa, features: [site("Sponge Belt", 20.2)], meta: meta("WDPA") }], cat.scales.global);
+    { source: wdpa, features: [site("Sponge Belt", 20.2)], meta: meta("WDPA") }], LADDER);
   assert.equal(both.count, 1);
   // The card and report list every source.
   assert.equal(K.checksView({ checks: [r], topic_labels: { biodiversity: "Biodiversity" } }).groups[0].items[0].source, "NE SAC (p); NS SAC (p); JNCC (p)");
@@ -221,9 +213,9 @@ await test("the same feature from two layers: a near box first, then the same sh
   const answers = (g2) => [{ source: ne, features: [f("Solway Firth", 3, sq(-3.6, 54.8, -3.0, 55.0))], meta },
     { source: ns, features: [f("Solway Firth SAC", 3.1, g2), f("Solway Firth SAC (part)", 3.1, sq(-3.6, 54.8, -3.0, 55.0))], meta }];
   const on = { sameShape };
-  assert.equal(K.fromSources(sac, answers(sq(-3.6, 54.8, -3.0, 55.0)), cat.scales.regional, on).count, 1, "the same shape twice in NatureScot's layer and once in England's: counted once");
-  assert.equal(K.fromSources(sac, answers(diamond), cat.scales.regional, on).count, 2, "a diamond in the same box isn't the same site");
-  assert.equal(K.fromSources(sac, answers(sq(-3.6, 54.8, -3.0, 55.0)), cat.scales.regional, {}).count, 3, "switched off: each copy counts");
+  assert.equal(K.fromSources(sac, answers(sq(-3.6, 54.8, -3.0, 55.0)), LADDER, on).count, 1, "the same shape twice in NatureScot's layer and once in England's: counted once");
+  assert.equal(K.fromSources(sac, answers(diamond), LADDER, on).count, 2, "a diamond in the same box isn't the same site");
+  assert.equal(K.fromSources(sac, answers(sq(-3.6, 54.8, -3.0, 55.0)), LADDER, {}).count, 3, "switched off: each copy counts");
 });
 
 await test("class answers: flood zones and farmland by class, with the share of the site; edge-touching isn't on site", () => {
@@ -233,27 +225,27 @@ await test("class answers: flood zones and farmland by class, with the share of 
   const r = K.fromSources(fz, [{ source: ea, features: [
     { name: "a", distance_km: 0, coverage: 0.3, extra: { flood_zone: "FZ3" } }, { name: "b", distance_km: 0, coverage: 0.2, extra: { flood_zone: "FZ2" } },
     { name: "c", distance_km: 0, coverage: 0.001, extra: { flood_zone: "FZ3" } }, { name: "d", distance_km: 0.3, extra: { flood_zone: "FZ2" } },
-    { name: "e", distance_km: 0, coverage: 0.1, extra: { flood_zone: "??" } }], meta: { fetched_km: 0.5 } }], cat.scales.regional);
+    { name: "e", distance_km: 0, coverage: 0.1, extra: { flood_zone: "??" } }], meta: { fetched_km: 0.5 } }], LADDER);
   assert.equal(r.state, "found");
   assert.deepEqual(r.classes.map((c) => [c.label, c.on_site, c.coverage]), [["Flood Zone 3", true, 0.3], ["Flood Zone 2", true, 0.2]], "a sliver touching the edge (0.1%) is not on the site");
   assert.equal(K.checkLine(r), "on the site: Flood Zone 3 (30%), Flood Zone 2 (20%)");
-  const near = K.fromSources(fz, [{ source: sepa, features: [{ name: "x", distance_km: 0.2, extra: {} }, { name: "y", distance_km: 0, coverage: 0.002, extra: {} }], meta: {} }], cat.scales.regional);
+  const near = K.fromSources(fz, [{ source: sepa, features: [{ name: "x", distance_km: 0.2, extra: {} }, { name: "y", distance_km: 0, coverage: 0.002, extra: {} }], meta: {} }], LADDER);
   assert.equal(K.checkLine(near), "none on the site; nearby: River, medium likelihood (1 in 200 years) at the edge", "a sliver touching the edge is nearest, not on the site");
-  const near2 = K.fromSources(fz, [{ source: sepa, features: [{ name: "x", distance_km: 0.2, extra: {} }], meta: {} }], cat.scales.regional);
+  const near2 = K.fromSources(fz, [{ source: sepa, features: [{ name: "x", distance_km: 0.2, extra: {} }], meta: {} }], LADDER);
   assert.equal(K.checkLine(near2), "none on the site; nearby: River, medium likelihood (1 in 200 years) at 200 m");
-  assert.equal(K.checkLine(K.fromSources(fz, [{ source: sepa, features: [], meta: {} }], cat.scales.regional)), "none within 500 m");
+  assert.equal(K.checkLine(K.fromSources(fz, [{ source: sepa, features: [], meta: {} }], LADDER)), "none within 500 m");
   // Farmland: England's detailed survey and the provisional map side by side; Hutton by prefix; Wales mapped.
   const fg = plan("land.farmland-grade");
   const src = (re) => fg.check.sources.find((x) => re.test(x.record?.title || ""));
   const g = K.fromSources(fg, [
     { source: src(/post-1988/), features: [{ name: "s", distance_km: 0, coverage: 0.6, extra: { ALC_GRADE: "Grade 3a" } }, { name: "t", distance_km: 0, coverage: 0.4, extra: { ALC_GRADE: "Grade 3b" } }], meta: {} },
-    { source: src(/Provisional/), features: [{ name: "u", distance_km: 0, coverage: 1, extra: { ALC_GRADE: "Grade 3" } }, { name: "v", distance_km: 0, coverage: 0.2, extra: { ALC_GRADE: "Exclusion" } }], meta: {} }], cat.scales.local);
+    { source: src(/Provisional/), features: [{ name: "u", distance_km: 0, coverage: 1, extra: { ALC_GRADE: "Grade 3" } }, { name: "v", distance_km: 0, coverage: 0.2, extra: { ALC_GRADE: "Exclusion" } }], meta: {} }], LADDER);
   assert.equal(K.checkLine(g), "on the site: Grade 3a (60%), Grade 3 (provisional map) (100%), Grade 3b (40%)");
   assert.equal(K.classOf(src(/Land Capability/), { extra: { LCCODE: "3.1" } }), "Class 3.1");
   assert.equal(K.classOf(src(/Predictive/), { extra: { predictive: "3a" } }), "Grade 3a (predictive map)");
   // Peat is non-commercial: switched off, not checked, licence.
   const pt = plan("ground.peat");
-  const peat = K.fromSources(pt, [{ source: pt.check.sources[0], not_checked: "This dataset's licence is non-commercial (e.g. WDPA). Tobler leaves it out." }], cat.scales.local);
+  const peat = K.fromSources(pt, [{ source: pt.check.sources[0], not_checked: "This dataset's licence is non-commercial (e.g. WDPA). Tobler leaves it out." }], LADDER);
   assert.equal(peat.reason, "licence");
   assert.equal(K.checkLine(peat), "not checked: non-commercial licence: off unless switched on in Settings");
 });
@@ -303,7 +295,7 @@ await test("the UK pack: where each check applies, and Northern Ireland's listed
   // Belfast: listed buildings from DfC, with only listed grades counted.
   const lb = plan("heritage.listed-buildings");
   const dfc = lb.check.sources.find((x) => x.region === "Northern Ireland");
-  const r = K.fromSources(lb, [{ source: dfc, features: [{ name: "A house", distance_km: 1, extra: { CurrentGra: "B+" } }, { name: "Record only", distance_km: 1.2, extra: { CurrentGra: "Record Only" } }], meta: {} }], cat.scales.regional);
+  const r = K.fromSources(lb, [{ source: dfc, features: [{ name: "A house", distance_km: 1, extra: { CurrentGra: "B+" } }, { name: "Record only", distance_km: 1.2, extra: { CurrentGra: "Record Only" } }], meta: {} }], LADDER);
   assert.equal(r.count, 1);
   assert.ok(lb.check.sources.every((x) => x.dense), "listed buildings fetched only to their own reach");
 });
@@ -312,7 +304,7 @@ await test("World Heritage Sites and their buffer zones apart; names tidied, not
   const whs = plan("heritage.world-heritage");
   const hes = whs.check.sources.find((x) => x.region === "Scotland");
   const feats = [{ name: "Antonine Wall World Heritage Site Buffer Zone", distance_km: 2.1, extra: {} }, { name: "Frontiers of the Roman Empire: Antonine Wall", distance_km: 4, extra: {} }];
-  const r = K.fromSources(whs, [{ source: hes, features: feats, meta: {} }], cat.scales.regional);
+  const r = K.fromSources(whs, [{ source: hes, features: feats, meta: {} }], LADDER);
   assert.equal(r.count, 1);
   assert.equal(r.nearest.name, "Frontiers of the Roman Empire: Antonine Wall");
   const bz = plan("heritage.whs-buffer", "regional");
@@ -327,13 +319,13 @@ await test("World Heritage Sites and their buffer zones apart; names tidied, not
   // A row's detail: the grade with its word.
   const lb = plan("heritage.listed-buildings");
   const hesLb = lb.check.sources.find((x) => x.region === "Scotland");
-  const rows = K.fromSources(lb, [{ source: hesLb, features: [{ name: "Linlithgow Palace", distance_km: 0.4, extra: { CATEGORY: "A" } }], meta: { dataset: "HES LB" } }], cat.scales.regional).members;
+  const rows = K.fromSources(lb, [{ source: hesLb, features: [{ name: "Linlithgow Palace", distance_km: 0.4, extra: { CATEGORY: "A" } }], meta: { dataset: "HES LB" } }], LADDER).members;
   assert.equal(rows[0].detail, "Category A");
   assert.equal(rows[0].publisher, "Historic Environment Scotland");
 });
 
 await test("topics with no check, the summary lines, and grouping by topic", () => {
-  const rs = [K.fromFeatures(plan("bio.sac"), [], cat.scales.regional, {}), K.fromValue(plan("topo.elevation"), { text: "x" })];
+  const rs = [K.fromFeatures(plan("bio.sac"), [], LADDER, {}), K.fromValue(plan("topo.elevation"), { text: "x" })];
   const left = K.uncheckedTopics(cat, rs, "regional");
   assert.ok(!left.includes("biodiversity") && !left.includes("topography") && !left.includes("indigenous"));
   assert.ok(K.uncheckedTopics(cat, rs, "global").includes("indigenous"), "Indigenous Peoples for global work");
@@ -345,7 +337,7 @@ await test("topics with no check, the summary lines, and grouping by topic", () 
 
 await test("the decision rule: insufficient evidence when every must-check for a topic was not checked", () => {
   const nc = (id) => K.notChecked(plan(id), "down");
-  const none = (id) => K.fromFeatures(plan(id), [], cat.scales.regional, {});
+  const none = (id) => K.fromFeatures(plan(id), [], LADDER, {});
   const all = [nc("bio.sac"), nc("bio.spa"), nc("bio.national-sites"), none("context.boundaries")];
   assert.deepEqual(K.topicsShort(all), ["biodiversity"]);
   const d = settleDecision({ value: "progress", why: "" }, { checks: all, topicLabel: (t) => K.topicLabel(cat, t) });
@@ -367,8 +359,8 @@ await test("the decision rule: insufficient evidence when every must-check for a
 });
 
 await test("a re-run says which checks changed", () => {
-  const a = [K.fromFeatures(plan("bio.sac"), [], cat.scales.regional, {}), K.notChecked(plan("bio.spa"), "down")];
-  const b = [K.fromFeatures(plan("bio.sac"), [{ name: "X SAC", distance_km: 3 }], cat.scales.regional, {}), K.notChecked(plan("bio.spa"), "down"), K.fromValue(plan("topo.elevation"), { text: "about 5 m" })];
+  const a = [K.fromFeatures(plan("bio.sac"), [], LADDER, {}), K.notChecked(plan("bio.spa"), "down")];
+  const b = [K.fromFeatures(plan("bio.sac"), [{ name: "X SAC", distance_km: 3 }], LADDER, {}), K.notChecked(plan("bio.spa"), "down"), K.fromValue(plan("topo.elevation"), { text: "about 5 m" })];
   assert.deepEqual(K.checksChanged(a, b), [
     "Special Areas of Conservation: none found within 10 km → 1 within 10 km (1 at 2–5 km); nearest X SAC, 3 km",
     "Elevation: new check, about 5 m",
@@ -380,17 +372,17 @@ await test("partial sources (council registers, EPA brownfields): silence is nev
   const p = plan("ground.council-records");
   const derby = p.check.sources.find((x) => x.region === "Derby");
   const meta = { dataset: "Potentially Contaminated Sites, Derby", publisher: "Derby City Council", licence: "not stated", checked_at: "2026-11-24", fetched_km: 0.5 };
-  const none = K.fromSources(p, [{ source: derby, features: [], meta }], cat.scales.regional);
+  const none = K.fromSources(p, [{ source: derby, features: [], meta }], LADDER);
   assert.equal(none.state, "none");
   assert.equal(none.only_partial, true);
   assert.match(K.checkLine(none), /^none found within 500 m in the records read \(Derby City Council's potentially contaminated sites\); the records are partial, so this isn't a clear answer$/);
-  const found = K.fromSources(p, [{ source: derby, features: [{ name: "Old gasworks", distance_km: 0.2, extra: {} }], meta }], cat.scales.regional);
+  const found = K.fromSources(p, [{ source: derby, features: [{ name: "Old gasworks", distance_km: 0.2, extra: {} }], meta }], LADDER);
   assert.equal(found.state, "found");
   // A complete source beside a partial one: none is a plain none, noting the partial records.
   const us = plan("ground.us-cleanup");
   const [tsd, brown] = us.check.sources;
   const m2 = (d) => ({ dataset: d, publisher: "EPA", licence: "Public domain", checked_at: "2026-11-24", fetched_km: 1 });
-  const mixed = K.fromSources(us, [{ source: tsd, features: [], meta: m2("TSD") }, { source: brown, features: [], meta: m2("Brownfields") }], cat.scales.regional);
+  const mixed = K.fromSources(us, [{ source: tsd, features: [], meta: m2("TSD") }, { source: brown, features: [], meta: m2("Brownfields") }], LADDER);
   assert.ok(!mixed.only_partial);
   assert.match(K.checkLine(mixed), /^none found within 1 km \(partial records: EPA-funded brownfields only\)$/);
   // Every contamination check carries the caveat; landfill and permitted sites are never must-checks.

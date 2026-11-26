@@ -291,11 +291,12 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   const copied = await page.evaluate(async () => ({ note: document.querySelector(".run .share-note").textContent, clip: await navigator.clipboard.readText().catch(() => "") }));
   check(/^Link copied/.test(copied.note) && /\/report\.html#v1\./.test(copied.clip), `${label}: Copy share link copies the report's link (${copied.note.slice(0, 40)})`);
   check(s.out === "50 km" && s.onMap === 4, `${label}: slider at 50 km, 3 findings (two pipelines from the check, the UK SAC) and the wide area on the map (${s.out}, ${s.onMap})`);
-  check(/near 2 km · close 10 km · wider 50 km/.test(s.dists), `${label}: distances and reason shown`);
+  check(/^Each check looks out its own distance from the site's edge: 10 km to 50 km, by check \(defaults for an offshore oil or gas field\)/.test(s.dists), `${label}: each check's own distance and where it came from (${s.dists.slice(0, 90)})`);
   check(s.sea === "Water depth about 120 m, 110–130 m across the site (NOAA). Vessel traffic: light on the site (0.3 h/km² a month) (AIS 2023, EMODnet).", `${label}: water depth and vessel traffic on the card (${s.sea.slice(0, 80)})`);
   await page.$eval(".run", (e) => e.scrollIntoView({ block: "start" }));
   await page.screenshot({ path: `/tmp/run-card-${label}-1.png` });
-  await page.$eval(".run input[type=range]", (el) => { el.value = "1"; el.dispatchEvent(new Event("input", { bubbles: true })); });
+  // The slider steps along the ladder (on site, 100 m, 250 m, 500 m, 1 km, …): index 4 is 1 km.
+  await page.$eval(".run input[type=range]", (el) => { el.value = "4"; el.dispatchEvent(new Event("input", { bubbles: true })); });
   s = await st();
   check(s.onMap === 2 && s.out === "1 km", `${label}: slider to 1 km leaves 1 finding and the wide area on the map (${s.onMap})`);
   check(s.stale && s.beyond === 1, `${label}: re-assess offered, wreck flag dimmed as beyond (${s.beyond})`);
@@ -382,7 +383,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await page.waitForFunction(() => document.querySelectorAll(".run .flag").length === 1, null, { timeout: 10000 });
   s = await st();
   check(!s.stale && s.flags.length === 1, `${label}: re-assessed at 1 km: one flag, offer gone`);
-  await page.$eval(".run input[type=range]", (el) => { el.value = "50"; el.dispatchEvent(new Event("input", { bubbles: true })); });
+  await page.$eval(".run input[type=range]", (el) => { el.value = el.max; el.dispatchEvent(new Event("input", { bubbles: true })); });
   s = await st();
   check(s.onMap === 6 && s.stale, `${label}: slider back to 50 km shows all 6 again (with the 2 wrecks brought in), offers re-assess (no refetch)`);
   await page.click(".run .flag summary");

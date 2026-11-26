@@ -16,7 +16,7 @@ await test("screen: decision, why, distances, at most three flags most serious f
   clean(t);
   assert.match(t, /^\*\*Constraints screen of Oracle campus, Linlithgow \(R1\)\*\*: \*\*progress with targeted investigation\*\*\./);
   assert.match(t, /Heritage assets sit at the site's edge/);
-  assert.match(t, /Screened for a solar farm, looking out to 20 km \(bands at 1, 5 and 20 km, the default for a solar farm on land\)\./);
+  assert.match(t, /Screened for a solar farm; each check looks out its own distance from the site's edge: 250 m to 5 km, by check \(defaults for a solar farm\)\./);
   assert.match(t, /The 3 most serious of 4 flags/);
   assert.match(t, /- F-01 Listed buildings and a scheduled monument at the site's edge: high severity, high confidence; 40 m away/);
   assert.match(t, /- F-02 .*: medium severity, medium confidence; on the site/);
@@ -37,7 +37,7 @@ await test("screen on a search area, with a decision changed in code", () => {
 await test("screen outside the profile, distances the person set, no flags", () => {
   const t = runReply(F.housingOutside);
   clean(t);
-  assert.match(t, /Screened for a housing estate, looking out to 10 km \(bands at 0\.5, 2 and 10 km, as you set them\)\. A general screen/);
+  assert.match(t, /Screened for a housing estate; each check looks out its own distance from the site's edge: 2 km \(general defaults for a site of this size, with your changes\)\. You changed: every check to 2 km \(was 250 m to 5 km, by check\)\. A general screen/);
   assert.match(t, /No flags raised\./);
   assert.ok(!/Not checked/.test(t));
 });
@@ -46,7 +46,7 @@ await test("desk study: linkages, the study's own distances, what a full study a
   const t = studyReply(F.stanlowStudy);
   clean(t);
   assert.match(t, /^\*\*Contamination desk study of Stanlow Refinery \(R4\)\*\*: \*\*possible linkages: investigate\*\*\./);
-  assert.match(t, /Checked the open records on the site and out to 2 km from its edge \(bands at 0\.25, 0\.5 and 2 km, the study's own distances\)\./);
+  assert.match(t, /Checked the open records on the site and round it: each check out to its own distance from the site's edge, 250 m to 2 km, by check\./);
   assert.match(t, /2 possible linkages/);
   assert.match(t, /- F-01 Historic landfill .* \(possible linkage\): high severity, medium confidence; 300 m away/);
   assert.match(t, /the 5 things a full desk study would add/);
