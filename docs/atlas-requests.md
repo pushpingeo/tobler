@@ -4,6 +4,17 @@ Tobler and the atlas are worked on in separate chats (decided 17 Nov). Tobler do
 What Tobler can rely on is written down in the atlas repo's `docs/mcp-tools.md`. When Tobler needs something
 new from the atlas, add it here (newest first), tell Rob, and he passes it to the atlas chat.
 
+- **26 Nov (night): two things for "bring in a layer" (plan item 1).** (1) **Look a service address up.** When someone
+  pastes a public ArcGIS REST address (MapServer or FeatureServer, service or layer) to bring their site in, Tobler
+  would like the atlas's record for it, if it has one: licence, publisher, trust signals and last health check, so the
+  site's record says more than "licence unknown". Something like `find_datasets({ url })` or a `get_dataset` that takes
+  an address, matching on the service's address with or without the layer number. Only public addresses are sent:
+  Tobler never sends a secured one. (2) **Extents that are too big.** After a screen, Tobler searches `find_datasets`
+  over the site itself (a box of the site plus 500 m) for what wasn't checked. For the Oracle campus in Linlithgow
+  (about -3.60, 55.97) it got Runnymede Borough Council's Brownfield Register and Air Quality Management Areas (Surrey),
+  not marked `extent_may_be_overstated`. Tobler now asks a council's layer for one feature at the site before
+  offering it, but the record's extent looks wrong. Worth checking how many local-government layers have a UK-wide or
+  world extent.
 - **24 Nov (late night): past land use, for the contamination desk study.** The study's biggest gap is past land
   use: today only Northern Ireland's database and four councils' contaminated-land records cover it. Please look for
   open layers of past or potentially contaminative land use, or of features derived from old maps (old gasworks,
