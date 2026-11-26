@@ -1028,10 +1028,10 @@ await test("package A end to end: Barnston housing on the general defaults, no 1
   assert.equal(r2.checks.find((c) => c.id === "community.homes").reach_from, "person");
   assert.equal(r2.checks.find((c) => c.id === "community.homes").reach_default_km, 0.5);
   assert.equal(r2.reach.changes[0].said, "5 km");
-  assert.equal(r2.reach.changes[0].line, "every check to 5 km (was 250 m to 5 km, by check)");
+  assert.equal(r2.reach.changes[0].line, "every count check to 5 km (was 250 m to 5 km, by check)");
   assert.equal(r2.checks.find((c) => c.id === "water.flood-zones")?.reach_km ?? 0.25, 0.25, "a class check keeps its reach");
   assert.deepEqual(r2.inputs.distances, [{ what: "all", value: 5, unit: "km" }]);
-  assert.match(r2.replaces.diff.lines.join(" "), /distances the defaults \(250 m to 5 km, by check\) then, every check to 5 km \(was 250 m to 5 km, by check\) now/);
+  assert.match(r2.replaces.diff.lines.join(" "), /distances the defaults \(250 m to 5 km, by check\) then, every count check to 5 km \(was 250 m to 5 km, by check\) now/);
 });
 
 await test("the developable area: the skill's rules for the asset type, the checks within each buffer, one area budget, no model call", async () => {

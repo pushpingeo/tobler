@@ -53,7 +53,7 @@ Judgement calls made while building, newest first. Bigger product decisions live
   only (`toKm` in `js/units.js`); anything else comes back as "not used: only metres and kilometres are read for
   now" until package C. The old `buffers` and near/close/wider inputs are still read (held runs, re-runs of old runs:
   an old `wider` becomes "all").
-- **Changes on the card:** "You changed: every check to 5 km (was 250 m to 5 km, by check)", and anything not used,
+- **Changes on the card:** "You changed: every count check to 5 km (was 250 m to 5 km, by check)", and anything not used,
   on the card's distance line, in the reply, the report and the rerun comparison. The record keeps what was said and
   the metric value.
 - **Reached by** (`reached_by` in checks.json) on 38 checks where it's clear: water, sight, flight, ground, road.
@@ -71,7 +71,11 @@ Judgement calls made while building, newest first. Bigger product decisions live
   so the rings stop at 5 km; nature and heritage at 2 km; no 10 km ring. The tests say that.
 - **Tested:** `npm test` (new `test/reach.test.mjs`; ntrrun end to end: Barnston on the general defaults, "look out
   to 5 km" from the conversation, "keep 80 m from homes" in the developable area); all 13 browser checks, desktop and
-  phone. **Not tested:** ring labels (the test basemap has no glyphs), a live replay (next).
+  phone. Live replay on main (run 45881070635): Whitelee for 200 m turbines (regional, 500 m to 45 km, the
+  landscape checks to 45 km); Barnston housing with "look out to 5 km" (the change on the card and in the reply); the
+  developable area on Whitelee keeping 80 m from homes (homes buffer 80 m, no search moved). The replay showed
+  "every check to 5 km" beside a range that still started at 250 m (flood zones keep their reach), so the line says
+  "every count check". **Not tested:** ring labels (the test basemap has no glyphs).
 
 ## 26 Nov 2026 (afternoon, later): sea checks on land need the sea within reach; named projects ask the atlas (plan item 1)
 - **Sea checks on a coastal land site:** a check for the sea (`setting: "sea"`) now applies on land only when the

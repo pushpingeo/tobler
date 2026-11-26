@@ -37,7 +37,7 @@ await test("screen on a search area, with a decision changed in code", () => {
 await test("screen outside the profile, distances the person set, no flags", () => {
   const t = runReply(F.housingOutside);
   clean(t);
-  assert.match(t, /Screened for a housing estate; each check looks out its own distance from the site's edge: 2 km \(general defaults for a site of this size, with your changes\)\. You changed: every check to 2 km \(was 250 m to 5 km, by check\)\. A general screen/);
+  assert.match(t, /Screened for a housing estate; each check looks out its own distance from the site's edge: 2 km \(general defaults for a site of this size, with your changes\)\. You changed: every count check to 2 km \(was 250 m to 5 km, by check\)\. A general screen/);
   assert.match(t, /No flags raised\./);
   assert.ok(!/Not checked/.test(t));
 });

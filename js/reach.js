@@ -115,7 +115,7 @@ export function readDistances(list, { catalogue = {}, deductions = null, budget 
       else out.not_used.push({ what, said, why: "the developable area looks only as far as each deduction's buffer; name the deduction" });
       continue;
     }
-    if (ALL.test(what)) { out.search.push({ what: "all", said, km: Math.min(MAX_KM, km), scope: "all", ids: null, label: "every check", ...(km > MAX_KM ? { capped: true } : {}) }); continue; }
+    if (ALL.test(what)) { out.search.push({ what: "all", said, km: Math.min(MAX_KM, km), scope: "all", ids: null, label: "every count check", ...(km > MAX_KM ? { capped: true } : {}) }); continue; }
     const topics = catalogue.topics || [], checks = catalogue.checks || [];
     const screenChecks = checks.filter((c) => !c.used_by);
     // Exact names first (a check, then a topic), then words: "heritage" is the topic, not World Heritage Sites.

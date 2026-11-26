@@ -147,8 +147,8 @@ await test("\"look out to 5 km\": every count check looks out exactly 5 km, cutt
   assert.equal(p.reaches.get("landscape.national-parks").from, "person");
   assert.equal(p.reach.set_by, "person");
   assert.equal(p.reach.changes.length, 1);
-  assert.match(p.reach.changes[0].line, /^every check to 5 km \(was 1 km to 45 km, by check\)$/);
-  assert.match(D.changesLine(p.reach), /^You changed: every check to 5 km/);
+  assert.match(p.reach.changes[0].line, /^every count check to 5 km \(was 1 km to 45 km, by check\)$/);
+  assert.match(D.changesLine(p.reach), /^You changed: every count check to 5 km/);
   // Metres too, and the record keeps what was said.
   const m = planFor(BARNSTON, { planned: "housing", distances: [{ what: "everything", value: 500, unit: "m" }] });
   assert.equal(m.by("bio.sac").reach_km, 0.5);

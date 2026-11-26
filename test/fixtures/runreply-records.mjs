@@ -43,7 +43,7 @@ export const housingOutside = run({
   reach: { scale: "local", scale_why: "a site under 1 km² (100 ha): most effects stay within a few kilometres", asset: { id: null, label: "housing estate", row: false,
       note: "No distances are set for housing estate yet, so the checks use the general defaults for a site of this size." }, footprint_km: 1, furthest_km: 2,
     ladder: [0.1, 0.25, 0.5, 1, 2], range: "2 km", set_by: "person",
-    changes: [{ kind: "search", what: "all", said: "2 km", km: 2, ids: [], line: "every check to 2 km (was 250 m to 5 km, by check)" }] },
+    changes: [{ kind: "search", what: "all", said: "2 km", km: 2, ids: [], line: "every count check to 2 km (was 250 m to 5 km, by check)" }] },
   decision: { value: "progress", why: "Nothing in the open data checked stands in the way at this stage" },
   flags: [],
   checks: [check("Listed buildings", "none", true)],
