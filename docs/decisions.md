@@ -2,6 +2,35 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 26 Nov 2026 (evening, later): how a feature sits against the site, as a tool (package B, first half)
+- **What:** `js/relation.js`, new and not yet wired in. `relationOf(site, feature)` says **within**, **crosses**,
+  **covers**, **adjacent** (off the site, within 50 m of its edge: `ADJACENT_KM`) or **outside**, with the distance;
+  for an area, the overlap in km² and its share of the site (holes taken off) and of the feature; for a line, its
+  length inside; for a multi-part feature, how many parts are on the site. `zonesAtSite(site, zones)` is the zone
+  answer: the zones the site touches, largest share first, the share of the site they cover together (each piece
+  counted once), whether the site is wholly inside, and the nearest zone off the site. 21 tests in
+  `test/relation.test.mjs`, now in `npm test`.
+- **Judgement calls (Rob to confirm):**
+  - **A fifth relation, "covers":** the site lies wholly inside the feature (a flood zone, a national park). The
+    package named four; calling that "crosses the edge" or "within" would be wrong. Close to what `around_site`
+    already does for very wide areas, which stays as it is.
+  - **A multi-part feature with one part on the site and one off is "crosses"**, with `parts_on_site`, even though
+    no edge is crossed. The words for it ("partly on the site") are package E's.
+  - **Touching from outside is adjacent at 0 m**, not on the site: a field that shares a hedge with the site isn't on
+    it. A point on the edge is on the site (a point has no other way to touch).
+  - **An overlap under 1 m² is a touch**, not a crossing (the same sliver rule as the area budget).
+  - A check may pass its own adjacent distance (`adjacentKm`); none does, and the default stays 50 m.
+- **How it measures (invariant 2):** distances from `js/nearness.js` (geodesic); overlays and areas in the
+  equal-area plane centred on the site (`laea`); lengths inside are each segment's geodesic length times the share
+  of it inside. The overlay runs only for features that touch the site. Before it, the site is trimmed to the
+  feature's box (a hand-written rectangle clip; the vendored Turf has no `bboxClip`): on a 4,688-vertex outline the
+  overlay took about 60 ms a feature untrimmed and under 1 ms trimmed. A test checks 60 shapes on a concave site
+  with a hole against the untrimmed overlay (same to the square metre).
+- **Not done yet (waits for package A on main):** wiring into the count checks, the card, the report, the map's tap
+  details and the code-written replies. The point-site fault (brought-in layers measured from the point) is tied to
+  `distances.wider` in `js/bringin.js`, which A rewrites, so it's left for the wiring.
+- **Tested:** `npm test`. Nothing in the page uses it yet, so no browser check applies.
+
 ## 26 Nov 2026 (afternoon, later): sea checks on land need the sea within reach; named projects ask the atlas (plan item 1)
 - **Sea checks on a coastal land site:** a check for the sea (`setting: "sea"`) now applies on land only when the
   coast is within the check's own reach, plus 1 km for the coastline's accuracy (Natural Earth, about a kilometre).
