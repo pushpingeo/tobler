@@ -1899,3 +1899,19 @@ have no topic at all, though landscape, peat and farmland quality decided most o
   GitHub.
 - **Rob's go, 25 Nov:** the Worker now allows `https://asktobler.ai`, so the lab agent at asktobler.ai/ntr-lab/ runs
   through it, under the same per-visitor limits as Tobler.
+
+## 26 Nov 2026 (morning, later still): hazards and air and climate get their own colours
+- **Rob's ask:** four topics shared ochre in the legend. Hazards now take a warning yellow (`#d4b000`) and air and
+  climate a teal (`#0f9e9e`); ground and soil and land use keep ochre. Eight map colours, up from six; the cap in
+  `test/data.test.mjs` moves to eight with his say-so.
+- **Why these:** red belongs to the person's site, and an orange or brown sat too close to it for red-blind readers
+  (ΔE 1–4). Yellow is about as far from ochre as a warm colour can get here (ΔE 11 normal, 9.7 deuteranope), so the
+  two are cousins and the legend name still does the work. Yellow is pale on white (2.1:1): fine for fills and 2 px
+  outlines with labels, weak as a thin line alone. Teal clears blue and green by ΔE 15+; it's close to heritage's
+  magenta only for deuteranopes (ΔE 5.2).
+- **No public standard to copy:** INSPIRE gives each data theme its own portrayal rules, and agencies style their own
+  layers (flood maps in blues, designated sites in greens), but there's no cross-topic palette for a constraints map.
+  Consultants' maps vary by firm. Tobler's choices follow the common conventions where they exist (water blue,
+  nature green, hazard yellow).
+- **Not done (in the plan):** topic headings changeable in settings. It overlaps frameworks (topics to report
+  headings, per job), so it waits for that design rather than adding a second way to rename topics.

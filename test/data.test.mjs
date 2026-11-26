@@ -317,8 +317,9 @@ await test("topics: names match the checks catalogue; old themes and PS codes re
   assert.equal(colourOf("community"), F.TOPICS["community-health"].colour);
   assert.equal(colourOf("land"), F.TOPICS["land-use"].colour);
   assert.equal(colourOf("nonsense"), F.TOPICS.context.colour);
-  // Six map colours at most (the dataviz all-pairs limit is the reason; the legend names the topic).
-  assert.ok(new Set(Object.values(F.TOPICS).map((t) => t.colour)).size <= 6);
+  // Eight map colours at most (six until 26 Nov, when Rob split hazards and air and climate from ochre). Past eight,
+  // pairs stop being tellable apart even with full colour vision; the legend names the topic.
+  assert.ok(new Set(Object.values(F.TOPICS).map((t) => t.colour)).size <= 8);
   // Red is the site's colour, never a topic's.
   assert.ok(!Object.values(F.TOPICS).some((t) => /^#(e3|eb|d9)[0-9a-f]{4}$/i.test(t.colour)));
 });

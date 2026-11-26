@@ -1,11 +1,14 @@
 // How findings are drawn: by topic (the neutral topics in catalogue/checks.json), with distance as emphasis, big
 // areas kept quiet underneath, and labels only where they help. No DOM, so it's testable; the page draws with it.
 //
-// Colours (24 Nov): a map puts every colour beside every other, and no set of more than three hues passes the dataviz
-// validator's all-pairs checks. So the thirteen topics share six map colours, the same five hues as before plus grey,
-// and the legend, labels and tap details carry the topic name. Related topics share a colour. Red is not used: it
-// belongs to the person's own site. Worst all-pairs: blue and violet (CVD ΔE 4.5, normal 10.5), as before.
-const GREEN = "#008300", BLUE = "#2a78d6", OCHRE = "#c98500", MAGENTA = "#d55181", VIOLET = "#6250d6", GREY = "#5f6b73";
+// Colours (24 Nov, revised 26 Nov): a map puts every colour beside every other, and no set of more than three hues
+// passes the dataviz validator's all-pairs checks. So the thirteen topics share eight map colours, and the legend,
+// labels and tap details carry the topic name. Related topics share a colour. Red is not used: it belongs to the
+// person's own site. 26 Nov (Rob): hazards and air and climate no longer share ochre with ground and land use.
+// Hazards get a warning yellow (#d4b000: ΔE 11 from ochre, 2.1:1 on white, so labels carry it on a pale basemap);
+// air and climate get teal (clears blue and green by ΔE 15+). Worst all-pairs: grey and magenta (CVD ΔE 2.5), as
+// before; teal and magenta are close only for deuteranopes (ΔE 5.2, normal 27.6).
+const GREEN = "#008300", BLUE = "#2a78d6", OCHRE = "#c98500", YELLOW = "#d4b000", TEAL = "#0f9e9e", MAGENTA = "#d55181", VIOLET = "#6250d6", GREY = "#5f6b73";
 
 // Labels match catalogue/checks.json (a test keeps them in step); short names are for the run card's flags.
 export const TOPICS = {
@@ -14,8 +17,8 @@ export const TOPICS = {
   water: { label: "Water", short: "Water", colour: BLUE },
   "ground-soil": { label: "Ground and soil", short: "Ground", colour: OCHRE },
   "land-use": { label: "Land use", short: "Land use", colour: OCHRE },
-  hazards: { label: "Hazards", short: "Hazards", colour: OCHRE },
-  "air-climate": { label: "Air and climate", short: "Air", colour: OCHRE },
+  hazards: { label: "Hazards", short: "Hazards", colour: YELLOW },
+  "air-climate": { label: "Air and climate", short: "Air", colour: TEAL },
   heritage: { label: "Heritage", short: "Heritage", colour: MAGENTA },
   "community-health": { label: "Community and health", short: "Community", colour: VIOLET },
   indigenous: { label: "Indigenous Peoples", short: "Indigenous Peoples", colour: VIOLET },
