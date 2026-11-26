@@ -17,7 +17,7 @@ const [E, N] = [300000, 677000];
 const PARCEL = { attributes: { OBJECTID: 41, PARCEL_NAME: "Field 7" }, geometry: { rings: [[[E, N], [E, N + 100], [E + 100, N + 100], [E + 100, N], [E, N]]] } };
 const WELL = { attributes: { OBJECTID: 7, WELL_NAME: "Well W-3" }, geometry: { x: E + 400, y: N + 400 } };
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
-let modelCalls = 0, serviceCalls = [], modelBodies = [];
+let modelCalls = 0, serviceCalls = [], modelBodies = [], proxied = [];
 const reply = (route, body, headers = {}) => route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*", ...headers }, body: JSON.stringify(body) });
 
 async function arcgis(route, { secure = false } = {}) {
@@ -58,6 +58,13 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await page.route(/tobler-api.*\/atlas/, (r) => r.fulfill({ status: 200, contentType: "application/json", body: '{"jsonrpc":"2.0","id":1,"result":{"structuredContent":{"results":[]}}}' }));
   await page.route(/gis\.example-council\.gov\.uk/, (r) => arcgis(r));
   await page.route(/gis\.corp\.example/, (r) => arcgis(r, { secure: true }));
+  // A public service that doesn't let web pages read it (no CORS headers): the browser refuses it; Tobler's server reads it.
+  await page.route(/gis\.nocors\.example/, (r) => r.abort("failed"));
+  await page.route(/tobler-api.*\/arcgis\?/, (r) => {
+    const target = new URL(r.request().url()).searchParams.get("url");
+    proxied.push(target);
+    return arcgis({ request: () => ({ url: () => target.replace("gis.nocors.example", "gis.example-council.gov.uk"), headers: () => ({}) }), fulfill: (o) => r.fulfill(o) });
+  });
   await page.goto("http://localhost:8000/index.html");
   await page.waitForFunction(() => window.__ws?.draw, null, { timeout: 40000 });
   await page.evaluate(() => window.__ws.map.jumpTo({ center: [-3.598, 55.981], zoom: 15 }));
@@ -134,6 +141,23 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   const toModel = modelBodies.join("\n");
   check(/Well W-3/.test(toModel) && /your organisation's secured service, layer Wells/.test(toModel) && !/corp\.example|TOK|\[\s*-?\d+\.\d{4,}\s*,/.test(toModel) && /the layer Parcels on gis\.example-council\.gov\.uk/.test(toModel) && !/rest\/services/.test(toModel),
     `${label}: the model sees the sites' names and layers (a public service's host, not a secured one's), never an address, the token or an outline (${(toModel.match(/Well W-3[^"\\]{0,160}/) || [""])[0]})`);
+  // 3. A public service that blocks web pages: offered through Tobler's server, used only once asked.
+  proxied.length = 0;
+  await page.fill("#say", "https://gis.nocors.example/arcgis/rest/services/Planning/Parcels/MapServer/0");
+  await page.click("#ask button[type=submit]");
+  await page.waitForSelector('[data-op="svc-proxy"]:not([hidden])', { timeout: 20000 });
+  check(proxied.length === 0, `${label}: blocked: Tobler's server isn't used until the person asks`);
+  await page.click('[data-op="svc-proxy"]');
+  await page.waitForFunction(() => /Click a feature/.test(document.querySelector(".svc-status")?.textContent || ""), null, { timeout: 15000 })
+    .catch(async (e) => { console.log("DEBUG", await page.evaluate(() => [document.querySelector(".svc-status")?.textContent, document.querySelector(".svc-why")?.textContent, document.getElementById("svc-panel").hidden])); throw e; });
+  const box3 = await page.locator("#svc-map").boundingBox();
+  await page.mouse.click(box3.x + box3.width / 2, box3.y + box3.height / 2);
+  await page.waitForFunction(() => /Picked: Field 7/.test(document.querySelector(".svc-list")?.textContent || ""), null, { timeout: 10000 });
+  await page.click('[data-op="svc-use"]');
+  await page.waitForFunction(() => [...window.__ws.places.values()].some((p) => p.origin?.service?.read_through), null, { timeout: 15000 });
+  const via = await page.evaluate(() => [...window.__ws.places.values()].find((p) => p.origin?.service?.read_through).origin.service);
+  check(proxied.length > 0 && proxied.every((u) => !/token=/.test(u)) && /Tobler's server/.test(via.read_through || "") && via.secured === false,
+    `${label}: read through Tobler's server, public, and the record says so (${proxied.length} requests)`);
   check(errors.length === 0, `${label}: no page errors${errors.length ? `: ${errors.slice(0, 3).join(" | ")}` : ""}`);
   await ctx.close();
 }

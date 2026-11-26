@@ -46,6 +46,19 @@ await test("signing in: plain first; a sign-in error tries the browser's own log
   await assert.rejects(SV.serviceJson("https://x.example/arcgis/rest/services/A/MapServer", {}, { token: "old" }, { fetchFn: refused }), (e) => e.needsSignIn && /refused/.test(e.message));
 });
 
+await test("through Tobler's server, once agreed: public only, never with a token or the login", async () => {
+  const asked = [];
+  const proxy = async (url, init) => { asked.push([url, init.credentials]); return { ok: true, status: 200, json: async () => ({ name: "Parcels" }) }; };
+  const st = { proxy: "https://tobler-api.example" };
+  await SV.serviceJson("https://gis.example.gov.uk/arcgis/rest/services/P/MapServer/0", { f: "json" }, st, { fetchFn: proxy });
+  assert.equal(asked[0][0], `https://tobler-api.example/arcgis?url=${encodeURIComponent("https://gis.example.gov.uk/arcgis/rest/services/P/MapServer/0?f=json")}`);
+  assert.equal(asked[0][1], "omit");
+  assert.equal(st.secured, false);
+  await assert.rejects(SV.serviceJson("https://x/arcgis/rest/services/P/MapServer", {}, { proxy: "https://t", token: "T" }, { fetchFn: proxy }), /isn't read through Tobler's server/);
+  const signIn = async () => ({ ok: true, status: 200, json: async () => ({ error: { code: 499 } }) });
+  await assert.rejects(SV.serviceJson("https://x/arcgis/rest/services/P/MapServer", {}, { proxy: "https://t" }, { fetchFn: signIn }), (e) => e.needsSignIn && /isn't public/.test(e.message));
+});
+
 await test("Esri geometry: clockwise rings are outer, anticlockwise holes; lines and points", () => {
   const outer = [[0, 0], [0, 10], [10, 10], [10, 0], [0, 0]]; // clockwise (y up)
   const hole = [[2, 2], [4, 2], [4, 4], [2, 4], [2, 2]]; // anticlockwise

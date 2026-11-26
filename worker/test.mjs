@@ -16,7 +16,7 @@ const mf = new Miniflare({
     ALLOWED_ORIGINS: "https://asktobler.com,https://pushpingeo.github.io,http://localhost:8000",
     // Small limits so they can be reached in a test.
     PER_VISITOR_DAILY: "5", TOTAL_DAILY: "8", ATLAS_PER_VISITOR_DAILY: "25",
-    ANTHROPIC_API_KEY: "sk-test", ATLAS_MCP_KEY: "atlas-test", FIRMS_MAP_KEY: "firmskey123", FIRMS_PER_VISITOR_DAILY: "3", EPSG_PER_VISITOR_DAILY: "6",
+    ANTHROPIC_API_KEY: "sk-test", ATLAS_MCP_KEY: "atlas-test", FIRMS_MAP_KEY: "firmskey123", FIRMS_PER_VISITOR_DAILY: "3", EPSG_PER_VISITOR_DAILY: "6", ARCGIS_PER_VISITOR_DAILY: "6",
     LOGS_ENABLED: "yes", LOGS_PER_VISITOR_DAILY: "4", LOG_RETENTION_DAYS: "90",
   },
   // Fake atlas, behind the service binding.
@@ -35,6 +35,13 @@ const mf = new Miniflare({
       if (req.url.includes("/Transformation/999999/")) return new Response("", { status: 404 });
       if (req.url.includes("/export/")) return new Response('GEOGCRS["OSGB36"]', { status: 200 });
       return new Response(JSON.stringify({ Code: 1314, Accuracy: 2 }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (req.url.includes("/rest/services/")) {
+      upstreamCalls.arcgis = [...(upstreamCalls.arcgis || []), { url: req.url, cookie: req.headers.get("cookie"), auth: req.headers.get("authorization") }];
+      if (req.url.includes("/Redirect/")) return new Response("", { status: 302, headers: { location: "https://login.example.com/" } });
+      if (req.url.includes("/export")) return new Response(new Uint8Array([137, 80, 78, 71]), { headers: { "content-type": "image/png" } });
+      if (req.url.includes("/Html/")) return new Response("<html>", { headers: { "content-type": "text/html" } });
+      return new Response(JSON.stringify({ layers: [{ id: 0, name: "Parcels" }] }), { headers: { "content-type": "application/json; charset=utf-8" } });
     }
     if (req.url.includes("firms")) {
       upstreamCalls.firms = [...(upstreamCalls.firms || []), req.url];
@@ -181,6 +188,32 @@ try {
   const today = new Date().toISOString().slice(0, 10);
   const getLogs = (q, key = readKey) => mf.dispatchFetch(`https://tobler-api.example/logs?${q}`, { headers: key ? { authorization: `Bearer ${key}` } : {} });
   const turn = (seq, extra = {}) => ({ session: "abc12345-0001", seq, page: "/", log: { user: `turn ${seq}`, events: [] }, ...extra });
+
+  await t("ArcGIS: public map and feature services only, no token, no cookies passed on, images and JSON, own limit (6)", async () => {
+    const get = (target, { origin = ORIGIN, ip = "7.7.7.1", cookie = null } = {}) => mf.dispatchFetch(`https://tobler-api.example/arcgis?url=${encodeURIComponent(target)}`, {
+      headers: { ...(origin ? { Origin: origin } : {}), "CF-Connecting-IP": ip, ...(cookie ? { cookie } : {}) } });
+    const base = "https://gis.example-council.gov.uk/arcgis/rest/services/Planning/Parcels/MapServer";
+    const ok = await get(`${base}?f=json`, { cookie: "sso=yes" });
+    assert.equal(ok.status, 200);
+    assert.equal(ok.headers.get("access-control-allow-origin"), ORIGIN);
+    assert.equal((await ok.json()).layers[0].name, "Parcels");
+    assert.equal(upstreamCalls.arcgis.at(-1).cookie, null, "the visitor's cookies aren't passed on");
+    const img = await get(`${base}/export?bbox=0,0,1,1&bboxSR=3857&imageSR=3857&size=512,512&format=png32&transparent=true&f=image&layers=show:0`);
+    assert.equal(img.headers.get("content-type"), "image/png");
+    assert.equal((await img.arrayBuffer()).byteLength, 4);
+    assert.equal((await get(`${base}/0/query?f=json&token=abc`)).status, 400, "a token is refused");
+    assert.equal((await get(`${base}/0/applyEdits?f=json`)).status, 400, "only service, layer, query and export");
+    assert.equal((await get(`${base}/0/query?f=json&callback=x`)).status, 400, "unknown parameters refused");
+    assert.equal((await get("https://10.0.0.5/arcgis/rest/services/A/MapServer?f=json")).status, 400, "no IP addresses");
+    assert.equal((await get("https://gis.corp/arcgis/rest/services/A/MapServer?f=json")).status, 400, "no local names");
+    assert.equal((await get("http://gis.example.com/arcgis/rest/services/A/MapServer?f=json")).status, 400, "https only");
+    assert.equal((await get(`${base}?f=json`, { origin: "https://evil.example" })).status, 403);
+    assert.equal((await get("https://gis.example.com/arcgis/rest/services/Redirect/MapServer?f=json")).status, 502, "a redirect (a sign-in page) isn't followed");
+    assert.equal((await get("https://gis.example.com/arcgis/rest/services/Html/MapServer?f=json")).status, 502, "only map data passed on");
+    const statuses = [];
+    for (let i = 0; i < 8; i++) statuses.push((await get(`${base}?f=json`, { ip: "7.7.7.9" })).status);
+    assert.deepEqual(statuses, [200, 200, 200, 200, 200, 200, 429, 429]);
+  });
 
   await t("EPSG: allowed paths only, query sorted, 404 passed on, own limit (6)", async () => {
     const ok = await post("/epsg", { path: "Transformation/crs", query: { targetCRSCode: 4326, sourceCRSCode: 4277 } }, { ip: "9.9.9.1" });

@@ -2,6 +2,23 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 26 Nov 2026 (morning): Rob's answers on item 1, and Tobler's server reads public services that block browsers
+- **Rob:** a run isn't re-judged when layers are brought in; the person explores them first. Prompting a re-run is
+  wanted, but a re-run doesn't yet take the brought-in layers, so the prompt waits for his yes on building that.
+- **Invariant 5** now names `origin.method` as words, drawn, file or service (Rob's yes).
+- **`GET /arcgis` on tobler-api (Rob's go for the `worker/` change).** A public ArcGIS REST service that doesn't let web
+  pages read it (no CORS headers) can be read through Tobler's server, but only when the person presses "Read it
+  through Tobler's server (public services only)" in the panel: a blocked service may be a company's internal one, and
+  its address shouldn't leave the browser unasked. The Worker passes on only service, layer, query and export
+  requests, only the parameters the page uses, only https and public hostnames (no IP addresses, no local names), no
+  token (refused), no cookies or login, no redirects (a sign-in page), JSON or PNG/JPEG only, at most 5 MB; its own
+  daily limit per visitor (3,000); nothing logged or stored. Through it, the panel's tiles and clicks go the same way.
+  The place's record says it was read through Tobler's server.
+- **Tested:** `npm test` in `worker/` (new test: allowed and refused requests, no cookies passed on, images, the
+  limit); `npm test`; `browser-service` (44: a third case, a public service the browser refuses, read through the
+  Worker only after the button), `browser-sitefile`, `browser-run-card`, `browser-ux`. **Not tested:** the deployed
+  Worker against a real public service that blocks browsers.
+
 ## 26 Nov 2026 (night): a site from a map or feature service (plan item 1, second half; Rob's spec of 26 Nov, `claude/site-from-service-spec.md`)
 - **Pasting an ArcGIS REST address opens a panel; it doesn't go to the analyst.** `js/servicesite.js` finds a
   MapServer or FeatureServer address (service or layer) in what the person types; the page shows their message, opens

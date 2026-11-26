@@ -42,7 +42,7 @@ test's `KNOWN` list or loosen a check without his say-so. Explaining it afterwar
 4. **Honest about gaps.** A source that failed or wasn't checked is reported as "not checked", never "none found".
    A licence that isn't stated stays "unknown". *Tested in `data.test.mjs` and `ntrrun.test.mjs` (not checked,
    licence classes, non-commercial and Esri data left out by default).*
-5. **Provenance travels.** Every place records how it was made (`origin.method`: words, drawn or file), and every
+5. **Provenance travels.** Every place records how it was made (`origin.method`: words, drawn, file or service), and every
    run feature carries its source, licence and date. Known gaps in tracing are listed in the plan's small fixes;
    don't add new ones.
 6. **No CDN at run time** (*tested*). Pages load only vendored files.

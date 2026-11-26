@@ -17,6 +17,8 @@ ATLAS_PER_VISITOR_DAILY = "2000"
 FIRMS_PER_VISITOR_DAILY = "300"
 # EPSG registry lookups (open, read-only, cached a week; one transformation search is ~10 calls).
 EPSG_PER_VISITOR_DAILY = "1000"
+# Public ArcGIS REST services read for the page when they block browsers (GET /arcgis; a panel's tiles and clicks).
+ARCGIS_PER_VISITOR_DAILY = "3000"
 # Session logs (POST /logs): "no" stops storing at once; the page keeps working either way.
 LOGS_ENABLED = "yes"
 LOGS_PER_VISITOR_DAILY = "300"

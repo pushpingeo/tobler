@@ -55,7 +55,7 @@
   "./js/rundiff.js": "./js/rundiff.js?v=129d28e5",
   "./js/runreply.js": "./js/runreply.js?v=7aa1ee5b",
   "./js/seavalues.js": "./js/seavalues.js?v=a6bb8879",
-  "./js/servicesite.js": "./js/servicesite.js?v=2337a013",
+  "./js/servicesite.js": "./js/servicesite.js?v=e0b687b9",
   "./js/share.js": "./js/share.js?v=cd01f743",
   "./js/sharelog.js": "./js/sharelog.js?v=c41ca9c5",
   "./js/siterole.js": "./js/siterole.js?v=f9df2b66",
@@ -66,7 +66,7 @@
   "./js/vendor/fileread.js": "./js/vendor/fileread.js?v=c6e0d988",
   "./js/vendor/flatgeobuf.js": "./js/vendor/flatgeobuf.js?v=5d6365ac",
   "./js/vendor/turf.js": "./js/vendor/turf.js?v=555787c6",
-  "./js/workspace.js": "./js/workspace.js?v=c3f39b79",
+  "./js/workspace.js": "./js/workspace.js?v=4b96aef9",
   "@turf/turf": "./js/vendor/turf.js?v=555787c6",
   "osmtogeojson": "./js/vendor/osmtogeojson.js?v=75ffea00"
  }
@@ -274,6 +274,7 @@
   <p class="svc-status quiet" aria-live="polite"></p>
   <div class="svc-signin" hidden>
     <p class="svc-why"></p>
+    <button type="button" data-op="svc-proxy" hidden>Read it through Tobler's server (public services only)</button>
     <label>Token <input type="password" autocomplete="off" spellcheck="false" placeholder="Paste a token for this service"></label>
     <button type="button" data-op="svc-token">Try again</button>
     <p class="quiet">The token stays in this browser tab: it isn't saved, logged or sent to the AI. Or export the feature from ArcGIS as GeoJSON or a shapefile and <button type="button" class="link" data-op="svc-file">drop the file here</button> instead.</p>
@@ -375,6 +376,6 @@
   </article>
 </template>
 
-<script type="module" src="js/workspace.js?v=c3f39b79"></script>
+<script type="module" src="js/workspace.js?v=4b96aef9"></script>
 </body>
 </html>

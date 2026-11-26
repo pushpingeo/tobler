@@ -34,8 +34,23 @@ export class ServiceError extends Error {
 // A JSON request to the service. Tries a plain request first; when the service wants a sign-in, tries again sending
 // the browser's own login (a company network's single sign-on), then with the person's token if they gave one.
 // state: { token, credentialed } (kept by the caller, in memory only); it records what worked.
+// state.proxy: Tobler's Worker address, once the person has agreed to read a public service through it (it doesn't let
+// web pages read it). Then every request goes there, and never with a token or the browser's login.
+export const proxied = (proxy, target) => `${proxy.replace(/\/+$/, "")}/arcgis?url=${encodeURIComponent(target)}`;
 export async function serviceJson(url, params, state, { fetchFn = globalThis.fetch, timeoutMs = 20000 } = {}) {
   const q = new URLSearchParams({ ...params, f: params.f || "json" });
+  if (state.proxy) {
+    if (state.token) throw new ServiceError("A secured service isn't read through Tobler's server.");
+    let r;
+    try { r = await fetchFn(proxied(state.proxy, `${url}?${q}`), { credentials: "omit" }); }
+    catch { throw new ServiceError("Tobler's server couldn't be reached."); }
+    let body = null;
+    try { body = await r.json(); } catch { /* below */ }
+    if (!r.ok) throw new ServiceError(body?.message || `Tobler's server couldn't read it (HTTP ${r.status}).`);
+    if (body?.error) throw new ServiceError(TOKEN_ERRORS.has(+body.error.code) ? "The service needs a sign-in, so it isn't public: Tobler's server can't read it. Paste a token instead, or drop an exported file." : `The service said: ${String(body.error.message || "an error").slice(0, 160)}.`, { needsSignIn: TOKEN_ERRORS.has(+body.error.code) });
+    state.secured = false;
+    return body;
+  }
   const tries = [];
   if (state.token) tries.push({ token: true });
   else { tries.push({}); tries.push({ credentials: true }); }
@@ -177,6 +192,7 @@ export function serviceOrigin(fileOrigin, meta) {
       url: meta.url, host: meta.host, layer: meta.layer, layer_id: meta.layerId, kind: meta.kind, feature_ids: meta.ids,
       retrieved_at: meta.at, native_wkid: meta.wkid || null, secured, licence: secured ? "your own or your organisation's data" : meta.licence || "unknown",
       ...(meta.serverConverted ? { converted_by: "the publisher's server (Tobler couldn't convert its own coordinates)" } : {}),
+      ...(meta.via ? { read_through: meta.via } : {}),
     },
     file: undefined,
     role_why: fileOrigin.role === "footprint" ? `the outline from ${secured ? "your organisation's" : "the"} service layer ${meta.layer}` : fileOrigin.role_why.replace(/from your file$/, `from the service layer ${meta.layer}`),

@@ -1256,7 +1256,7 @@ const svcLabel = (a, layer, id) => { const k = Object.keys(a || {}).find((x) => 
 async function openServicePanel(svc) {
   closeServicePanel();
   const panel = $("svc-panel");
-  const state = { token: svc.token || null, credentialed: false, secured: false };
+  const state = { token: svc.token || null, credentialed: false, secured: false, proxy: svc.viaProxy ? CONFIG.proxyUrl : null };
   const S = { svc, state, info: null, layer: null, picked: new Map(), buffer: null, map: null, shown: null };
   svcOpen = S;
   panel.hidden = false;
@@ -1270,7 +1270,9 @@ async function openServicePanel(svc) {
   const plain = { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#eef2f1" } }] };
   S.map = new maplibregl.Map({ container: "svc-map", style: fellBack ? plain : BASEMAP, center: [c.lng, c.lat], zoom: Math.max(map.getZoom(), 2), attributionControl: false,
     // The browser's own login, or the token, on the service's tiles; nothing for anyone else's.
-    transformRequest: (url) => (url.startsWith(svc.base) ? { url: state.token && !/[?&]token=/.test(url) ? `${url}&token=${encodeURIComponent(state.token)}` : url, credentials: state.credentialed ? "include" : "omit" } : undefined) });
+    transformRequest: (url) => (!url.startsWith(svc.base) ? undefined
+      : state.proxy ? { url: SV.proxied(state.proxy, url), credentials: "omit" }
+      : { url: state.token && !/[?&]token=/.test(url) ? `${url}&token=${encodeURIComponent(state.token)}` : url, credentials: state.credentialed ? "include" : "omit" }) });
   S.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
   let styled = false;
   const ready = new Promise((ok) => S.map.once("style.load", () => { styled = true; ok(); }));
@@ -1362,6 +1364,10 @@ function showSignIn(S, err) {
   svcEl(".svc-status").textContent = "";
   const box = svcEl(".svc-signin");
   box.hidden = false;
+  // A service that doesn't let web pages read it: Tobler's server can, if it's public, and only if the person says so
+  // (the address then goes to Tobler's server; no login or token ever does).
+  const via = svcEl('[data-op="svc-proxy"]');
+  via.hidden = !(err.blocked && CONFIG.proxyUrl && !S.svc.token && !S.svc.viaProxy);
   svcEl(".svc-why").textContent = err.needsSignIn
     ? `${err.message} If it's on your organisation's network, it should use your login when you're signed in to its portal; otherwise paste a token for it below.`
     : err.message;
@@ -1382,7 +1388,7 @@ async function useServicePicks() {
   btn.disabled = true;
   svcEl(".svc-status").textContent = "Bringing it in…";
   const meta = { url: S.svc.url, host: S.svc.host, kind: S.svc.kind, layer: S.layer.name, layerId: S.layer.id, ids: picks.map((p) => p.id), at: new Date().toISOString(),
-    wkid: picks[0].wkid || S.layer.wkid || null, secured: !!S.state.secured, licence: "unknown" };
+    wkid: picks[0].wkid || S.layer.wkid || null, secured: !!S.state.secured, licence: "unknown", ...(S.state.proxy ? { via: "Tobler's server, because the service doesn't let web pages read it" } : {}) };
   // The service's own coordinates through the file pipeline; if Tobler can't convert them, the server's WGS84 copy.
   const asGeo = picks.map((p) => ({ attributes: { ...p.attributes, _label: p.label }, geojson: SV.esriToGeoJSON(p.esri) })).filter((p) => p.geojson);
   let file = null;
@@ -1423,6 +1429,7 @@ svcEl('[data-op="svc-token"]').addEventListener("click", () => {
   openServicePanel(svc);
 });
 svcEl('[data-op="svc-file"]').addEventListener("click", () => { closeServicePanel(); $("site-file").click(); });
+svcEl('[data-op="svc-proxy"]').addEventListener("click", () => { const S = svcOpen; if (S) openServicePanel({ ...S.svc, token: null, viaProxy: true }); });
 
 setupFileDrop({ overlay: $("drop-overlay"), input: $("site-file"), onFiles: openSiteFile, onError: (e) => note(`The files couldn't be read: ${e.message || e}`) });
 document.querySelector('.tools [data-action="file"]').addEventListener("click", () => $("site-file").click());
@@ -2187,6 +2194,7 @@ function paintOrigin(p, card = p.card) {
     const body = box.querySelector("div");
     body.append(el("p", `Features: ${o.features.map((f) => f.label).join(", ")}${o.buffer_m ? `, with ${o.buffer_m} m round ${o.features.length > 1 ? "them" : "it"}` : ""}.`));
     body.append(el("p", `Coordinates: ${o.crs?.how || "as given"}${sv.native_wkid ? ` (the service's own: EPSG:${sv.native_wkid})` : ""}.${sv.converted_by ? ` Converted by ${sv.converted_by}.` : ""}`, o.crs?.warning || sv.converted_by ? "warn" : "quiet"));
+    if (sv.read_through) body.append(el("p", `Read through ${sv.read_through}.`, "quiet"));
     body.append(el("p", `Source: ${sv.host}, layer ${sv.layer}${sv.feature_ids?.length ? `, feature ${sv.feature_ids.length > 1 ? "ids" : "id"} ${sv.feature_ids.join(", ")}` : ""}; fetched ${String(sv.retrieved_at || "").slice(0, 16).replace("T", " ")}. Licence: ${sv.licence}.`, "quiet"));
     if (o.steps?.length) body.append(el("p", `Built: ${o.steps.join(", then ")}.`, "quiet"));
     body.append(el("p", "The outline was copied into this project; the service isn't kept or asked again.", "quiet"));

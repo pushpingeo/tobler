@@ -34,6 +34,29 @@ const EPSG_PATHS = [
 ];
 const EPSG_QUERY = new Set(["keywords", "page", "pageSize", "includeDeprecated", "includeWorld", "sourceCRSCode", "targetCRSCode", "format", "formatVersion"]);
 const EPSG_MAX_BYTES = 3_000_000;
+// Public ArcGIS REST services that don't let a web page read them (no CORS headers): Tobler's page asks here instead
+// (26 Nov, a site from a service; Rob's go). Public only: no token, no cookies, no login is ever passed on. Only
+// service, layer, query and export requests, only the parameters the page uses, only hostnames (no IP addresses or
+// local names), and a size cap. Nothing is logged or stored.
+const ARCGIS_PATH = /^\/(?:[^/?#]+\/)*rest\/services\/(?:[^/?#]+\/)+(MapServer|FeatureServer)(?:\/\d+)?(?:\/(query|export))?\/?$/i;
+const ARCGIS_QUERY = new Set(["f", "geometry", "geometryType", "inSR", "spatialRel", "distance", "units", "outFields", "returnGeometry", "resultRecordCount",
+  "objectIds", "outSR", "maxAllowableOffset", "bbox", "bboxSR", "imageSR", "size", "dpi", "format", "transparent", "layers", "where"]);
+const ARCGIS_MAX_BYTES = 5_000_000;
+export function arcgisTarget(raw) {
+  let u;
+  try { u = new URL(String(raw || "")); } catch { return { error: "That isn't an address." }; }
+  if (u.protocol !== "https:" || u.username || u.password || u.port) return { error: "Only plain https addresses." };
+  const h = u.hostname.toLowerCase();
+  if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(h) || /(^|\.)(localhost|local|internal|lan|home|corp|intranet)$/.test(h)) return { error: "Only public hostnames." };
+  if (!ARCGIS_PATH.test(u.pathname)) return { error: "Only ArcGIS REST map and feature services." };
+  for (const k of u.searchParams.keys()) {
+    if (/^token$/i.test(k)) return { error: "Secured services aren't fetched through Tobler's server." };
+    if (!ARCGIS_QUERY.has(k)) return { error: `Unknown parameter: ${k}` };
+  }
+  const v = [...u.searchParams.values()];
+  if (v.some((x) => x.length > 2000 || /[\r\n]/.test(x))) return { error: "Bad parameter value." };
+  return { url: u.toString() };
+}
 
 // FIRMS CSV → GeoJSON points. Numbers stay numbers; acq_date + acq_time become one ISO time.
 export function firmsCsvToGeoJSON(csv) {
@@ -127,7 +150,7 @@ export default {
     const okOrigin = allowed.includes(origin);
     const cors = {
       "Access-Control-Allow-Origin": okOrigin ? origin : allowed[0] || "",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "content-type",
       "Access-Control-Max-Age": "86400",
       Vary: "Origin",
@@ -149,6 +172,25 @@ export default {
       const limit = Math.min(500, Math.max(1, Math.floor(+url.searchParams.get("limit") || 200)));
       const entries = await env.LOGS.get(env.LOGS.idFromName(`logs:${day}`)).list(after, limit);
       return reply(200, { day, entries, more: entries.length === limit });
+    }
+
+    if (request.method === "GET" && url.pathname === "/arcgis") {
+      if (!okOrigin) return reply(403, { message: "This endpoint only serves Tobler." });
+      const target = arcgisTarget(url.searchParams.get("url"));
+      if (target.error) return reply(400, { message: target.error });
+      const day = new Date().toISOString().slice(0, 10);
+      const used = await counter(env, `${day}:${await visitorId(request)}`).hit("arcgis", +env.ARCGIS_PER_VISITOR_DAILY || 3000);
+      if (!used.ok) return reply(429, { message: "You've reached today's limit for reading map services through Tobler." });
+      let r;
+      try { r = await fetch(target.url, { headers: { accept: "application/json, image/png, */*" }, redirect: "manual", cf: { cacheTtl: 300 } }); }
+      catch (err) { return reply(502, { message: `The service didn't answer Tobler's server either: ${String(err.message || err).slice(0, 120)}` }); }
+      if (r.status >= 300 && r.status < 400) return reply(502, { message: "The service redirected (often to a sign-in page), so it isn't a public service Tobler can read." });
+      const type = r.headers.get("content-type") || "";
+      const image = /^image\/(png|jpeg)/i.test(type);
+      if (!image && !/json|javascript|text\/plain/i.test(type)) return reply(502, { message: `The service answered with ${type.split(";")[0] || "something"} that isn't map data.` });
+      const bytes = await r.arrayBuffer();
+      if (bytes.byteLength > ARCGIS_MAX_BYTES) return reply(502, { message: "The service's answer was too large to pass on." });
+      return new Response(bytes, { status: r.ok ? 200 : 502, headers: { ...cors, "content-type": image ? type : "application/json", "x-tobler-via": "tobler-api" } });
     }
 
     const route = request.method === "POST" && ["/v1/messages", "/atlas", "/firms", "/epsg", "/logs"].includes(url.pathname) ? url.pathname : null;
