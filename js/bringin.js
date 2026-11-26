@@ -20,6 +20,7 @@ const clip = (t, n) => { const s = String(t || "").replace(/\s+/g, " ").trim(); 
 export function licenceLabel(text, cls) {
   const t = String(text || "");
   if (cls === "unknown" || !t.trim()) return "licence not stated";
+  if (/^\s*https?:\/\/\S+\s*$/i.test(t)) return "licence given as a link";
   const m = t.match(/\bCC[- ]?BY(?:[- ](?:SA|NC|ND))*(?:[- ]\d\.\d)?\b|\bCC0\b|Open Government Licen[cs]e(?: v(?:ersion)? ?\d(?:\.\d)?)?|\bOGL(?: v?\d(?:\.\d)?)?\b|\bODbL\b|Open Database Licen[cs]e|public domain|Licence Ouverte(?: v?\d\.\d)?|Environment Agency Conditional Licence|Esri Master Licen[cs]e Agreement/i);
   if (m) return m[0].replace(/^cc[- ]?by/i, "CC BY").replace(/^cc0$/i, "CC0").replace(/creative commons /i, "");
   return clip(t, 60);
@@ -88,15 +89,35 @@ const STAND_IN = /centroid|label|annotation|\bpoints? of\b|index map|footprint g
 
 // Which result to offer for one gap, or null. Fetchable only; licences the person hasn't switched on are left out;
 // a layer the run already used isn't offered again; then trusted and national publishers, open licences.
-export function pickLayer(results, { words, used = new Set(), allow = {}, trusted = null }) {
-  const ok = latestEditions((results || []).filter((d) => !d.extent_may_be_overstated && (d.capabilities || []).includes("query") && inTitle(d.title, words) && !STAND_IN.test(d.title || "")
+// The analyst's own look-fors are looser than a check's curated words ("surface water" also finds water-quality
+// layers), so for those most of what it named must be in the title too: 60% of its words, by stem, leaving out the
+// nations' names.
+const STOP = new Set(["and", "or", "the", "of", "for", "to", "in", "on", "near", "site", "sites", "area", "areas", "layer", "data", "map", "england", "scotland", "wales", "northern", "ireland", "uk", "britain"]);
+const stems = (t) => [...new Set(String(t || "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !STOP.has(w)).map((w) => w.replace(/(ing|ed|es|s)$/, "")))];
+export function namesEnough(title, what) {
+  const want = stems(what);
+  if (!want.length) return true;
+  const have = stems(title);
+  // A word counts if the title has it, or a word inside it or around it ("shipwrecks" and "wreck").
+  const hit = (w) => have.some((h) => h === w || (h.length >= 4 && w.length >= 4 && (h.includes(w) || w.includes(h))));
+  return want.filter(hit).length >= Math.ceil(want.length * 0.6);
+}
+
+export function rankLayers(results, { words, what = null, used = new Set(), allow = {}, trusted = null }) {
+  const ok = latestEditions((results || []).filter((d) => !d.extent_may_be_overstated && (d.capabilities || []).includes("query") && inTitle(d.title, words) && !STAND_IN.test(d.title || "") && (!what || namesEnough(d.title, what))
     && !used.has(String(d.id)) && !used.has(`${d.title}|${d.publisher}`.toLowerCase())
     && !licenceBlock(classifyLicence(d.licence).class, allow)));
   const rank = (d) => (trusted && trusted.test(d.publisher || "") ? 0 : 2)
     + (/central-gov|regional-gov|public-body|intergov|national|regulator|mapping-agency/i.test(d.publisher_type || "") ? 0 : 1)
     + ({ open: 0, stated: 1, unknown: 2 }[classifyLicence(d.licence).class] ?? 3);
-  return ok.map((d, i) => ({ d, i })).sort((a, b) => rank(a.d) - rank(b.d) || a.i - b.i)[0]?.d || null;
+  return ok.map((d, i) => ({ d, i })).sort((a, b) => rank(a.d) - rank(b.d) || a.i - b.i).map((x) => x.d);
 }
+export const pickLayer = (results, opts) => rankLayers(results, opts)[0] || null;
+
+// A council's or an unknown publisher's layer is offered only if it has something at the site: the atlas can
+// overstate where such layers reach (a Surrey council's layers came up for Linlithgow, 26 Nov). One feature, asked
+// for and not kept.
+const LOCAL = (d) => !d.publisher_type || /local|unknown|city|municipal|community/i.test(d.publisher_type);
 
 const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error(`no answer in ${Math.round(ms / 1000)} s`)), ms))]);
 
@@ -126,8 +147,17 @@ export async function offerFor(record, { atlas, catalogue = {}, allow = {}, trus
     return { g, results: got.filter((x) => x.status === "fulfilled").flatMap((x) => x.value?.results || []), ...(bad ? { failed: String(bad.reason?.message || bad.reason).slice(0, 120) } : {}) };
   }));
   const taken = new Set();
+  const probe = async (d) => {
+    try { const got = await withTimeout(atlas("fetch_features", { id: d.id, bbox, limit: 1 }), timeoutMs); return (got?.returned ?? got?.features?.length ?? 0) > 0; }
+    catch { return false; }
+  };
   for (const a of answers) {
-    const d = offer.items.length < MAX_OFFER ? pickLayer(a.results, { words: a.g.words, used: new Set([...used, ...taken]), allow, trusted }) : null;
+    let d = null;
+    if (offer.items.length < MAX_OFFER) {
+      for (const c of rankLayers(a.results, { words: a.g.words, what: a.g.key.startsWith("look:") ? a.g.label : null, used: new Set([...used, ...taken]), allow, trusted }).slice(0, 3)) {
+        if (!LOCAL(c) || await probe(c)) { d = c; break; }
+      }
+    }
     // Nothing to offer: "found nothing" only when every wording was searched; if one failed, the search failed.
     if (!d && a.failed) { offer.failed.push(a.g.label); offer.why_failed = a.failed; continue; }
     if (!d) { if (offer.items.length < MAX_OFFER) offer.nothing.push(a.g.label); continue; }

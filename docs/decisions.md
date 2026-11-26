@@ -2,6 +2,52 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 26 Nov 2026 (night): bring in a layer, after a run (plan item 1, first half; Rob: "it would be great if you could do 1")
+- **The screen judges its checks with no tools.** The constraints screen is now one sealed judgement, like the desk
+  study (`systemForScreen`, one call, no tools). Before, the analyst searched and fetched catalogue layers itself, out
+  to the wider band, and brought in layers nobody asked for (Welsh layers at Stanlow, the digest of 18–24 Nov). Its
+  searches are off in the product; `runScreening({ analystSearches: true })` keeps them for the tests of the evidence
+  pipeline and for the lab. Not deleted: that's Rob's call.
+- **ntr-screening 4.0-draft.** Steps: start from the checks, plan, flag, list the gaps, and name up to three things to
+  look for (`look_for`: what, two or three title words, topic). The theme sections stay: they say what evidence
+  matters, so the analyst can say what's missing. Tool-only rules went or were reworded.
+- **After the run, code looks in the atlas for the gaps** (`js/bringin.js`, `offerFor`). In order: must-checks not
+  checked, the analyst's look-fors, other checks not checked, topics with no check (where the topic has search words);
+  at most 6, two wordings each, 12 s each. Left out: values read over the site (depth, elevation, traffic), the
+  boundaries, OpenStreetMap kinds, and sources held for a licence decision (Natural Resources Wales). Searched over
+  the site itself plus 500 m, not the wider band, so a layer is offered only if it covers the site. One layer per gap:
+  its words in the title, fetchable, not a stand-in (centroids, labels), licences the person hasn't switched on left
+  out (Esri, non-commercial), not a layer the run already read, the newest edition of a series (by the year in the
+  title), then trusted and national publishers and open licences first. At most 4 offered. A search with a failed
+  wording that found nothing is "didn't answer", not "found nothing".
+- **The offer is in the reply code writes**, after the run's own lines: the layers with publisher and licence, then
+  "Nothing is added unless you say so", then what the atlas had nothing for and what didn't answer. Buttons under the
+  reply: one per layer, All of them, No thanks; a tap runs `bring_in_layers` with no model call. In words, the analyst
+  calls the same tool (the project summary lists what's on offer, L1, L2…), and code writes the reply.
+- **On a yes:** each layer is fetched with `get_data` for the run's place, held to the run's distances as the card now
+  assesses them (inside only stays inside; a point adds its footprint). Features go on the record as role `added`
+  (fid A1…, up to 200 a layer, nearest first) with dataset, publisher, licence and date, and show on the map with the
+  run, marked "brought in after the run; not part of its judgement". The run card lists them apart. The decision and
+  flags aren't re-judged: the reply says so. **For Rob:** whether a yes should also re-judge (a re-run that takes the
+  added layers as checks) is the next choice here.
+- **Search words in `catalogue/checks.json`** (`search`, 35 checks and 4 topics); without them the label is used.
+- **Licences in a line:** the licence's own name where it's a known one (CC BY 4.0, Open Government Licence),
+  otherwise the publisher's words cut to 60 characters. Display only: the class and the full text are unchanged.
+- **Tested:** `npm test` (new `test/bringin.test.mjs`, 6; a sealed screen end to end in `ntrrun.test.mjs`); all 12
+  browser checks on desktop and phone (`browser-run-card` now checks the screen's call has no tools, the offer's
+  buttons sit under the reply, nothing is fetched before the yes, the button makes no model call, and the card lists
+  what came in; `browser-search-area` and `browser-outofdate` take their evidence from the checks' own layers now).
+  Live replays on the branch (runs 45731685148 and later): Oracle campus solar, Stanlow desk study, Rosebank.
+- **Seen in the replays:** the Stanlow desk study was offered the Environment Agency's serious pollution incidents
+  layer (the gap the atlas request is about; licence "Environment Agency Conditional Licence", classed stated). The
+  Oracle campus (on land, 3 km from the Forth) was offered subsea pipelines: the sea checks on a coastal land site,
+  plan item 2. "Surface water bodies failing good ecological status" was offered for surface water flooding; the
+  search words are now "flooding from surface water" and "surface water flood".
+- **Approximations:** title words decide relevance (a layer with the right words can still be the wrong thing: the
+  person sees its title and publisher before saying yes); the newest edition is read from the year in the title;
+  distances from a point site are from the point plus the footprint, not the footprint's edge. None of these changes
+  the run's own answer; they change what's offered.
+
 ## 26 Nov 2026 (overnight): the handover sweep: tool results are data (plan item 1, first part; Rob: "Handover sweep")
 - **What must always happen is in code.** The button tools (`offer_skills`, `ask_asset_type`, `offer_choices`) now end
   the turn through `runTurn`'s `finish` hook, so nothing runs or gets built until the person picks. They used to say

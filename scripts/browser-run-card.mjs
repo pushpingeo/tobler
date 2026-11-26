@@ -213,7 +213,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   check(offer.buttons.join("|") === "Worldwide wreck locations (UK Hydrographic Office)|No thanks" && /EMODnet Human Activities · CC BY 4\.0 · for shipwrecks/.test(offer.title),
     `${label}: one button per layer offered, and No thanks (${offer.buttons.join("|")})`);
   check(offer.afterReply && /Bring it in\? Use the buttons below/.test(offer.replyText) && /Nothing is added unless you say so/.test(offer.replyText), `${label}: the offer sits under the reply that asks (${offer.replyText.slice(-120)})`);
-  check(!atlasLog.slice(log0).some((a) => a.tool === "fetch_features" && a.args.id === "wreck"), `${label}: the wreck layer wasn't fetched before a yes`);
+  check(!atlasLog.slice(log0).some((a) => a.tool === "fetch_features" && a.args.id === "wreck" && a.args.limit > 1), `${label}: the wreck layer wasn't fetched before a yes`);
   const nConv = calls.conversation.length;
   await page.click(".layer-offer button");
   await page.waitForFunction(() => /Brought in for R1/.test(document.querySelector("#conversation .msg.analyst:last-of-type")?.textContent || "") || [...document.querySelectorAll("#conversation .msg.analyst")].some((m) => /Brought in for R1/.test(m.textContent)), null, { timeout: 20000 });
@@ -225,7 +225,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   check(/Worldwide wreck locations \(UK Hydrographic Office\) \(EMODnet Human Activities; CC BY 4\.0; checked \d{4}-\d\d-\d\d\): 2 features within/.test(got.reply) && /made without this layer/.test(got.reply),
     `${label}: the reply after the button is code's, with source, licence and date (${got.reply.slice(0, 400)})`);
   check(calls.conversation.length === nConv, `${label}: no model call for the button (${calls.conversation.length - nConv})`);
-  check(atlasLog.slice(log0).some((a) => a.tool === "fetch_features" && a.args.id === "wreck"), `${label}: the wreck layer was fetched on the yes`);
+  check(atlasLog.slice(log0).some((a) => a.tool === "fetch_features" && a.args.id === "wreck" && a.args.limit > 1), `${label}: the wreck layer was fetched on the yes`);
   check(/^Brought in after the run \(1\)/.test(got.added) && /made without these/.test(got.added) && got.done, `${label}: the run card lists what came in, apart from the run's own evidence; the offer is closed (${got.added.slice(0, 80)})`);
   await page.screenshot({ path: `/tmp/ux-${label}-bring-in.png` });
   check(/^Next step: Agree crossing/.test(s.next), `${label}: a flag shows its next step (${s.next.slice(0, 40)})`);

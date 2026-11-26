@@ -1194,7 +1194,7 @@ await test("the sealed screen (26 Nov): one judgement with no tools, then the at
   assert.ok(item, JSON.stringify(r.offer));
   assert.equal(item.dataset.atlas_id, "wreck");
   assert.equal(item.state, "offered");
-  assert.ok(!atlasCalls.some(([tool, a]) => tool === "fetch_features" && a.id === "wreck"), "nothing fetched before a yes");
+  assert.ok(!atlasCalls.some(([tool, a]) => tool === "fetch_features" && a.id === "wreck" && a.limit > 1), "nothing fetched before a yes (a publisher with no type is probed for one feature)");
   // The reply after the run, written in code, offers it and says nothing comes in unasked.
   const reply = finishTurn(h.screening)("screen_site", {}, out);
   assert.match(reply, /\*\*Worldwide wreck locations \(UK Hydrographic Office\)\*\* \(EMODnet Human Activities; CC BY 4\.0\), for shipwrecks/);
@@ -1204,7 +1204,7 @@ await test("the sealed screen (26 Nov): one judgement with no tools, then the at
   assert.equal(g.offered_after_run.find((x) => x.for === "Shipwrecks").dataset, "Worldwide wreck locations (UK Hydrographic Office)");
   // A yes: fetched out to the run's wider band, kept with its source, on the record; the reply is code's.
   const got = await t.exec("bring_in_layers", { run: "R1", layers: [item.id] });
-  const fetched = atlasCalls.filter(([tool, a]) => tool === "fetch_features" && a.id === "wreck");
+  const fetched = atlasCalls.filter(([tool, a]) => tool === "fetch_features" && a.id === "wreck" && a.limit > 1);
   assert.equal(fetched.length, 1);
   assert.equal(got.added[0].within_km, 50);
   assert.equal(got.added[0].count, 2);
