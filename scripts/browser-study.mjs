@@ -49,7 +49,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/Failed to load resource|tiles|openfreemap/i.test(m.text())) errors.push(m.text()); });
-  await page.route(/openfreemap|nominatim|wikidata|overpass|environment\.data\.gov|arcgis|usgs|noaa/, (r) => r.abort());
+  await page.route(/^https:\/\/.*(?:openfreemap|nominatim|wikidata|overpass|environment\.data\.gov|arcgis|usgs|noaa)/, (r) => r.abort());
   await page.route(/tobler-api.*\/v1\/messages/, (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(model(JSON.parse(r.request().postData()))) }));
   await page.route(/tobler-api.*\/atlas/, async (r) => { const b = JSON.parse(r.request().postData()); r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ result: { structuredContent: atlas(b.params.name, b.params.arguments) } }) }); });
   await page.route(/tobler-api.*\/logs/, (r) => r.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}' }));

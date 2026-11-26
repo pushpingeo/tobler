@@ -7,7 +7,7 @@
     "reach_km": "how far the check looks at each scale, from the footprint edge. null means the check doesn't apply at that scale. Value checks have no reach (they read the site). Reach values are a first cut from research-reach-evidence.md, defaults to tune on the example sites.",
     "applies": "setting: any, land (onshore), offshore, sea (offshore or the coast within reach), or land_or_coast (onshore, or offshore with the coast within the check's own reach: heritage and landscape seen from the sea). where: a [west, south, east, north] box the site must overlap for the check to apply at all (e.g. tropical coral reefs); without it, the check applies everywhere in that setting. countries: on land, the site must be in one of these (UK-only checks); at sea the box decides.",
     "must": "a check whose topic can't be called clear without it; drives the decision rule (js/industry.js settleDecision)",
-    "sources": "Per region. Every source that covers what the check's reach can touch is used, and the results are merged (a site near a border needs both nations' layers). countries (onshore: the site must be in one), not_countries, and where (a box the site's box, grown by the reach, must overlap; offshore sites match on the box). atlas_id: an AI Living World Atlas record; record holds its title, publisher and licence as the atlas gave them on as_of (the atlas contract has no record-by-id lookup). name_field: the attribute holding the feature's name. code_field: a site code, so the same site in two layers counts once. filter: keep only features whose field has one of these values (JNCC's offshore layer holds several designations). supplementary: its absence doesn't stop a 'none found' when another source answered. tool: a Tobler tool instead of an atlas layer (boundaries, elevation, depth, traffic). setting: as for applies, for one source (JNCC's offshore layer only at sea). pending: a layer we know exists but can't use yet. If no source covers the site, the answer is not checked: no source for this region. class_field and classes: the field that holds a class, and its values mapped to labels (values not mapped are left out); class_prefix instead of a map; class: a layer that is one class. keep_fields: more attributes to keep on each feature (a grade). dense: a layer with many features (listed buildings), fetched only to the check's own reach so the 100-feature limit doesn't cut the count; class and inside checks always fetch only to their own reach. where_any: several boxes, any of which will do (the rough nation outlines in regions). name_filter: include or exclude features whose name matches (case-insensitive), e.g. buffer zones. detail_prefix: put before a kept field in the card's list (Grade, Category). osm: an OpenStreetMap kind (js/osmchecks.js OSM_KINDS), fetched in one Overpass query per run; completeness varies, so never a must-check. partial: this source covers only part of what it's about (a few councils, EPA-funded brownfields); its silence never reads as a clear none, and the line says which records were read.",
+    "sources": "Per region. Every source that covers what the check's reach can touch is used, and the results are merged (a site near a border needs both nations' layers). countries (onshore: the site must be in one), not_countries, and where (a box the site's box, grown by the reach, must overlap; offshore sites match on the box). atlas_id: an AI Living World Atlas record; record holds its title, publisher and licence as the atlas gave them on as_of (the atlas contract has no record-by-id lookup). name_field: the attribute holding the feature's name. code_field: a site code, so the same site in two layers counts once. filter: keep only features whose field has one of these values (JNCC's offshore layer holds several designations). supplementary: its absence doesn't stop a 'none found' when another source answered. tool: a Tobler tool instead of an atlas layer (boundaries, elevation, depth, traffic). setting: as for applies, for one source (JNCC's offshore layer only at sea). pending: a layer we know exists but can't use yet. If no source covers the site, the answer is not checked: no source for this region. class_field and classes: the field that holds a class, and its values mapped to labels (values not mapped are left out); class_prefix instead of a map; class: a layer that is one class. keep_fields: more attributes to keep on each feature (a grade). dense: a layer with many features (listed buildings), fetched only to the check's own reach so the 100-feature limit doesn't cut the count; class and inside checks always fetch only to their own reach. where_any: several boxes, any of which will do (outside the UK only). in: UK nations or councils, matched on their real outlines (see areas at the end); extent: the box of such a source's own data, used only at sea. name_filter: include or exclude features whose name matches (case-insensitive), e.g. buffer zones. detail_prefix: put before a kept field in the card's list (Grade, Category). osm: an OpenStreetMap kind (js/osmchecks.js OSM_KINDS), fetched in one Overpass query per run; completeness varies, so never a must-check. partial: this source covers only part of what it's about (a few councils, EPA-funded brownfields); its silence never reads as a clear none, and the line says which records were read.",
     "decode": "irz: an inside check whose zones are read for the development (catalogue/sssi_irz_codes.json; the profile's irz_categories by asset type)",
     "class_order": "classes, most significant first (a label starting with one of these)",
     "caveat": "A line shown once on the card and in the report whenever this check runs (the contamination checks: an early screen of open records, not a contaminated land report).",
@@ -128,44 +128,8 @@
           },
           "name_field": "SAC_NAME",
           "code_field": "SAC_CODE",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -7.13,
-              49.82,
-              3.61,
-              55.85
-            ]
-          ]
+          "in": ["England"],
+          "extent": [-7.13, 49.82, 3.61, 55.85]
         },
         {
           "region": "Scotland",
@@ -178,20 +142,8 @@
           },
           "name_field": "NAME",
           "code_field": "PA_CODE",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -20.19,
-              53.66,
-              1.71,
-              60.77
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-20.19, 53.66, 1.71, 60.77]
         },
         {
           "region": "Wales",
@@ -204,20 +156,8 @@
           },
           "name_field": "SAC_name",
           "code_field": "Site_code",
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -5.95,
-              50.24,
-              -2.36,
-              53.92
-            ]
-          ]
+          "in": ["Wales"],
+          "extent": [-5.95, 50.24, -2.36, 53.92]
         },
         {
           "region": "Northern Ireland",
@@ -230,20 +170,8 @@
           },
           "name_field": "name",
           "code_field": "reference",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ],
-            [
-              -8.25,
-              53.95,
-              -5.3,
-              55.45
-            ]
-          ]
+          "in": ["Northern Ireland"],
+          "extent": [-8.25, 53.95, -5.3, 55.45]
         },
         {
           "region": "UK offshore, beyond 12 nm",
@@ -325,44 +253,8 @@
           },
           "name_field": "SPA_NAME",
           "code_field": "SPA_CODE",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -7.09,
-              49.85,
-              2.63,
-              55.67
-            ]
-          ]
+          "in": ["England"],
+          "extent": [-7.09, 49.85, 2.63, 55.67]
         },
         {
           "region": "Scotland",
@@ -375,20 +267,8 @@
           },
           "name_field": "NAME",
           "code_field": "PA_CODE",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -9.61,
-              54.38,
-              -0.72,
-              60.88
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-9.61, 54.38, -0.72, 60.88]
         },
         {
           "region": "Wales",
@@ -401,20 +281,8 @@
           },
           "name_field": "SPA_Name",
           "code_field": "SPA_code",
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -6.07,
-              51.16,
-              -2.38,
-              54.01
-            ]
-          ]
+          "in": ["Wales"],
+          "extent": [-6.07, 51.16, -2.38, 54.01]
         },
         {
           "region": "Northern Ireland",
@@ -427,20 +295,8 @@
           },
           "name_field": "name",
           "code_field": "reference",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ],
-            [
-              -8.25,
-              53.95,
-              -5.3,
-              55.45
-            ]
-          ]
+          "in": ["Northern Ireland"],
+          "extent": [-8.25, 53.95, -5.3, 55.45]
         },
         {
           "region": "UK offshore, beyond 12 nm",
@@ -525,44 +381,8 @@
           },
           "name_field": "NAME",
           "code_field": "CODE",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -7.05,
-              49.86,
-              2.0,
-              55.69
-            ]
-          ]
+          "in": ["England"],
+          "extent": [-7.05, 49.86, 2.0, 55.69]
         },
         {
           "region": "Scotland",
@@ -575,20 +395,8 @@
           },
           "name_field": "NAME",
           "code_field": "PA_CODE",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -8.03,
-              54.69,
-              -1.34,
-              60.59
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-8.03, 54.69, -1.34, 60.59]
         },
         {
           "region": "Wales",
@@ -601,20 +409,8 @@
           },
           "name_field": "RAM_name",
           "code_field": "RAM_code",
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -4.55,
-              51.16,
-              -2.38,
-              53.39
-            ]
-          ]
+          "in": ["Wales"],
+          "extent": [-4.55, 51.16, -2.38, 53.39]
         },
         {
           "region": "Northern Ireland",
@@ -627,20 +423,8 @@
           },
           "name_field": "name",
           "code_field": "reference",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ],
-            [
-              -8.25,
-              53.95,
-              -5.3,
-              55.45
-            ]
-          ]
+          "in": ["Northern Ireland"],
+          "extent": [-8.25, 53.95, -5.3, 55.45]
         }
       ]
     },
@@ -672,44 +456,8 @@
           },
           "name_field": "NAME",
           "code_field": "REF_CODE",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -7.05,
-              49.86,
-              2.06,
-              55.74
-            ]
-          ]
+          "in": ["England"],
+          "extent": [-7.05, 49.86, 2.06, 55.74]
         },
         {
           "region": "Scotland",
@@ -722,20 +470,8 @@
           },
           "name_field": "NAME",
           "code_field": "PA_CODE",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -14.64,
-              54.19,
-              -0.76,
-              60.86
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-14.64, 54.19, -0.76, 60.86]
         },
         {
           "region": "Wales",
@@ -748,20 +484,8 @@
           },
           "name_field": "SSSI_Name",
           "code_field": "SSSI_Code",
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -5.81,
-              51.32,
-              -2.64,
-              53.45
-            ]
-          ]
+          "in": ["Wales"],
+          "extent": [-5.81, 51.32, -2.64, 53.45]
         },
         {
           "region": "Northern Ireland",
@@ -774,20 +498,8 @@
           },
           "name_field": "name",
           "code_field": "reference",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ],
-            [
-              -8.25,
-              53.95,
-              -5.3,
-              55.45
-            ]
-          ]
+          "in": ["Northern Ireland"],
+          "extent": [-8.25, 53.95, -5.3, 55.45]
         },
         {
           "region": "Europe outside the UK (CDDA)",
@@ -838,44 +550,8 @@
           },
           "name_field": "MCZ_NAME",
           "code_field": "MCZ_CODE",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -11.39,
-              48.15,
-              3.24,
-              56.58
-            ]
-          ]
+          "in": ["England"],
+          "extent": [-11.39, 48.15, 3.24, 56.58]
         },
         {
           "region": "Scotland",
@@ -888,20 +564,8 @@
           },
           "name_field": "NAME",
           "code_field": "PA_CODE",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -19.15,
-              54.3,
-              2.62,
-              63.82
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-19.15, 54.3, 2.62, 63.82]
         },
         {
           "region": "Wales",
@@ -914,20 +578,8 @@
           },
           "name_field": "MNR_Name",
           "code_field": "MNR_Code",
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -5.32,
-              51.72,
-              -5.22,
-              51.75
-            ]
-          ]
+          "in": ["Wales"],
+          "extent": [-5.32, 51.72, -5.22, 51.75]
         },
         {
           "region": "Northern Ireland",
@@ -940,20 +592,8 @@
           },
           "name_field": "NAME",
           "code_field": "Site_Code",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ],
-            [
-              -7.26,
-              53.74,
-              -4.87,
-              55.38
-            ]
-          ]
+          "in": ["Northern Ireland"],
+          "extent": [-7.26, 53.74, -4.87, 55.38]
         },
         {
           "region": "UK offshore, beyond 12 nm",
@@ -1039,44 +679,8 @@
             "as_of": "2026-11-22"
           },
           "name_field": "NAME",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -6.05,
-              50.03,
-              2.04,
-              55.71
-            ]
-          ]
+          "in": ["England"],
+          "extent": [-6.05, 50.03, 2.04, 55.71]
         },
         {
           "region": "Scotland",
@@ -1088,20 +692,8 @@
             "as_of": "2026-11-22"
           },
           "name_field": "SITE_NAME",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -6.79,
-              54.64,
-              -1.82,
-              58.65
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-6.79, 54.64, -1.82, 58.65]
         },
         {
           "region": "Wales",
@@ -1113,32 +705,13 @@
             "as_of": "2026-11-22"
           },
           "name_field": "CATEGORY_NAME",
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -5.32,
-              51.35,
-              -2.64,
-              53.44
-            ]
-          ]
+          "in": ["Wales"],
+          "extent": [-5.32, 51.35, -2.64, 53.44]
         },
         {
           "region": "Northern Ireland",
           "pending": "no Northern Ireland ancient woodland layer in Tobler's data",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ]
-          ]
+          "in": ["Northern Ireland"]
         }
       ]
     },
@@ -1164,38 +737,7 @@
         "countries": [
           "United Kingdom"
         ],
-        "where_any": [
-          [
-            -6.5,
-            49.85,
-            1.8,
-            51.38
-          ],
-          [
-            -2.72,
-            51.38,
-            1.8,
-            54.58
-          ],
-          [
-            -3.65,
-            53.3,
-            -2.72,
-            54.58
-          ],
-          [
-            -3.25,
-            51.6,
-            -2.72,
-            53.3
-          ],
-          [
-            -3.1,
-            54.58,
-            -1.45,
-            55.81
-          ]
-        ]
+        "in": ["England"]
       },
       "must": false,
       "sources": [
@@ -1209,44 +751,8 @@
             "as_of": "2026-11-23"
           },
           "code_field": "IRZURL",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -7.22,
-              49.77,
-              2.24,
-              55.83
-            ]
-          ]
+          "in": ["England"],
+          "extent": [-7.22, 49.77, 2.24, 55.83]
         }
       ],
       "decode": "irz"
@@ -1547,74 +1053,22 @@
               "Radioactive Substances"
             ]
           },
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ]
-          ]
+          "in": ["Scotland"]
         },
         {
           "region": "England",
           "pending": "the Environment Agency publishes permits only as downloads, not as a service",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ]
-          ]
+          "in": ["England"]
         },
         {
           "region": "Wales",
           "pending": "Natural Resources Wales doesn't grant re-use of its full data (a redacted copy under its own licence): not used until Rob decides",
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ]
-          ]
+          "in": ["Wales"]
         },
         {
           "region": "Northern Ireland",
           "pending": "no permitted-sites layer for Northern Ireland in Tobler's data (trade discharge consents aren't used yet)",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ]
-          ]
+          "in": ["Northern Ireland"]
         }
       ]
     },
@@ -1724,62 +1178,12 @@
             "licence": "Open Government Licence",
             "as_of": "2026-11-24"
           },
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ]
-          ]
+          "in": ["England", "Wales", "Scotland"]
         },
         {
           "region": "Northern Ireland",
           "pending": "no coal mining risk layer for Northern Ireland in Tobler's data (abandoned mines: GSNI)",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ]
-          ]
+          "in": ["Northern Ireland"]
         }
       ]
     },
@@ -2573,44 +1977,8 @@
           },
           "name_field": "Name",
           "code_field": "ListEntry",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -7.03,
-              49.87,
-              2.02,
-              55.72
-            ]
-          ]
+          "in": ["England"],
+          "extent": [-7.03, 49.87, 2.02, 55.72]
         },
         {
           "region": "Scotland",
@@ -2623,20 +1991,8 @@
           },
           "name_field": "DES_TITLE",
           "code_field": "DES_REF",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -8.06,
-              54.52,
-              -0.76,
-              60.83
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-8.06, 54.52, -0.76, 60.83]
         },
         {
           "region": "Wales",
@@ -2649,20 +2005,8 @@
           },
           "name_field": "Name",
           "code_field": "SAMNumber",
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -5.67,
-              51.37,
-              -2.65,
-              53.44
-            ]
-          ]
+          "in": ["Wales"],
+          "extent": [-5.67, 51.37, -2.65, 53.44]
         },
         {
           "region": "Northern Ireland",
@@ -2675,20 +2019,8 @@
           },
           "name_field": "TOWNLAND",
           "code_field": "SMNO",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ],
-            [
-              -8.12,
-              54.01,
-              -5.41,
-              55.32
-            ]
-          ]
+          "in": ["Northern Ireland"],
+          "extent": [-8.12, 54.01, -5.41, 55.32]
         }
       ]
     },
@@ -2733,44 +2065,8 @@
             "Grade"
           ],
           "dense": true,
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -7.08,
-              49.87,
-              2.06,
-              55.72
-            ]
-          ],
+          "in": ["England"],
+          "extent": [-7.08, 49.87, 2.06, 55.72],
           "detail_prefix": "Grade "
         },
         {
@@ -2788,20 +2084,8 @@
             "CATEGORY"
           ],
           "dense": true,
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -7.34,
-              54.55,
-              -0.71,
-              60.85
-            ]
-          ],
+          "in": ["Scotland"],
+          "extent": [-7.34, 54.55, -0.71, 60.85],
           "detail_prefix": "Category "
         },
         {
@@ -2819,20 +2103,8 @@
             "Grade"
           ],
           "dense": true,
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -5.67,
-              51.37,
-              -2.65,
-              53.44
-            ]
-          ],
+          "in": ["Wales"],
+          "extent": [-5.67, 51.37, -2.65, 53.44],
           "detail_prefix": "Grade "
         },
         {
@@ -2860,20 +2132,8 @@
             ]
           },
           "dense": true,
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ],
-            [
-              -8.14,
-              54.01,
-              -5.39,
-              55.32
-            ]
-          ],
+          "in": ["Northern Ireland"],
+          "extent": [-8.14, 54.01, -5.39, 55.32],
           "detail_prefix": "Grade "
         }
       ]
@@ -2915,44 +2175,8 @@
           },
           "name_field": "Name",
           "code_field": "ListEntry",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -6.15,
-              50.08,
-              1.38,
-              55.03
-            ]
-          ],
+          "in": ["England"],
+          "extent": [-6.15, 50.08, 1.38, 55.03],
           "name_filter": {
             "exclude": "buffer zone"
           }
@@ -2968,20 +2192,8 @@
           },
           "name_field": "DES_TITLE",
           "code_field": "DES_REF",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -8.31,
-              55.49,
-              -3.14,
-              59.09
-            ]
-          ],
+          "in": ["Scotland"],
+          "extent": [-8.31, 55.49, -3.14, 59.09],
           "name_filter": {
             "exclude": "buffer zone"
           }
@@ -2997,20 +2209,8 @@
           },
           "name_field": "Name",
           "code_field": "UNESCO_Ref",
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -5.67,
-              51.37,
-              -2.65,
-              53.44
-            ]
-          ],
+          "in": ["Wales"],
+          "extent": [-5.67, 51.37, -2.65, 53.44],
           "name_filter": {
             "exclude": "buffer zone"
           }
@@ -3026,20 +2226,8 @@
           },
           "name_field": "name_whs",
           "code_field": "site_code",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ],
-            [
-              -6.53,
-              55.23,
-              -6.48,
-              55.25
-            ]
-          ],
+          "in": ["Northern Ireland"],
+          "extent": [-6.53, 55.23, -6.48, 55.25],
           "name_filter": {
             "exclude": "buffer zone"
           }
@@ -3082,44 +2270,8 @@
           },
           "name_field": "Name",
           "code_field": "ListEntry",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -6.15,
-              50.08,
-              1.38,
-              55.03
-            ]
-          ],
+          "in": ["England"],
+          "extent": [-6.15, 50.08, 1.38, 55.03],
           "name_filter": {
             "include": "buffer zone"
           }
@@ -3135,20 +2287,8 @@
           },
           "name_field": "DES_TITLE",
           "code_field": "DES_REF",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -8.31,
-              55.49,
-              -3.14,
-              59.09
-            ]
-          ],
+          "in": ["Scotland"],
+          "extent": [-8.31, 55.49, -3.14, 59.09],
           "name_filter": {
             "include": "buffer zone"
           }
@@ -3164,20 +2304,8 @@
           },
           "name_field": "Name",
           "code_field": "UNESCO_Ref",
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -5.67,
-              51.37,
-              -2.65,
-              53.44
-            ]
-          ],
+          "in": ["Wales"],
+          "extent": [-5.67, 51.37, -2.65, 53.44],
           "name_filter": {
             "include": "buffer zone"
           }
@@ -3193,20 +2321,8 @@
           },
           "name_field": "name_whs",
           "code_field": "site_code",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ],
-            [
-              -6.53,
-              55.23,
-              -6.48,
-              55.25
-            ]
-          ],
+          "in": ["Northern Ireland"],
+          "extent": [-6.53, 55.23, -6.48, 55.25],
           "name_filter": {
             "include": "buffer zone"
           }
@@ -3253,44 +2369,8 @@
           "keep_fields": [
             "Grade"
           ],
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -6.94,
-              49.94,
-              2.05,
-              55.62
-            ]
-          ],
+          "in": ["England"],
+          "extent": [-6.94, 49.94, 2.05, 55.62],
           "detail_prefix": "Grade "
         },
         {
@@ -3304,20 +2384,8 @@
           },
           "name_field": "DES_TITLE",
           "code_field": "DES_REF",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -6.28,
-              54.69,
-              -0.93,
-              60.69
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-6.28, 54.69, -0.93, 60.69]
         },
         {
           "region": "Wales",
@@ -3333,20 +2401,8 @@
           "keep_fields": [
             "grade_gradd"
           ],
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -5.67,
-              51.37,
-              -2.65,
-              53.44
-            ]
-          ],
+          "in": ["Wales"],
+          "extent": [-5.67, 51.37, -2.65, 53.44],
           "detail_prefix": "Grade "
         },
         {
@@ -3363,20 +2419,8 @@
           "keep_fields": [
             "Grade"
           ],
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ],
-            [
-              -8.0,
-              54.05,
-              -5.43,
-              55.31
-            ]
-          ],
+          "in": ["Northern Ireland"],
+          "extent": [-8.0, 54.05, -5.43, 55.31],
           "detail_prefix": "Grade "
         }
       ]
@@ -3418,44 +2462,8 @@
           },
           "name_field": "Name",
           "code_field": "ListEntry",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -5.03,
-              50.36,
-              0.99,
-              55.77
-            ]
-          ]
+          "in": ["England"],
+          "extent": [-5.03, 50.36, 0.99, 55.77]
         },
         {
           "region": "Scotland",
@@ -3468,20 +2476,8 @@
           },
           "name_field": "DES_TITLE",
           "code_field": "DES_REF",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -5.15,
-              54.94,
-              -2.32,
-              57.95
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-5.15, 54.94, -2.32, 57.95]
         },
         {
           "region": "Northern Ireland",
@@ -3494,32 +2490,13 @@
           },
           "name_field": "BATTLE",
           "code_field": "MAIN_REF",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ],
-            [
-              -8.11,
-              54.03,
-              -5.46,
-              55.31
-            ]
-          ]
+          "in": ["Northern Ireland"],
+          "extent": [-8.11, 54.03, -5.46, 55.31]
         },
         {
           "region": "Wales",
           "pending": "no layer of Cadw's battlefields found",
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ]
-          ]
+          "in": ["Wales"]
         }
       ]
     },
@@ -3560,44 +2537,8 @@
           },
           "name_field": "NAME",
           "code_field": "CODE",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -4.43,
-              50.35,
-              2.0,
-              55.57
-            ]
-          ]
+          "in": ["England"],
+          "extent": [-4.43, 50.35, 2.0, 55.57]
         },
         {
           "region": "Scotland",
@@ -3608,20 +2549,8 @@
             "licence": "Open Government Licence v3.0",
             "as_of": "2026-11-23"
           },
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -4.48,
-              56.74,
-              -2.8,
-              57.41
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-4.48, 56.74, -2.8, 57.41]
         },
         {
           "region": "Scotland",
@@ -3632,20 +2561,8 @@
             "licence": "Open Government Licence v3.0",
             "as_of": "2026-11-23"
           },
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -5.1,
-              55.98,
-              -4.08,
-              56.48
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-5.1, 55.98, -4.08, 56.48]
         },
         {
           "region": "Wales",
@@ -3658,20 +2575,8 @@
           },
           "name_field": "NP_NAME",
           "code_field": "ISIS_ID",
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -5.67,
-              51.6,
-              -2.95,
-              53.29
-            ]
-          ]
+          "in": ["Wales"],
+          "extent": [-5.67, 51.6, -2.95, 53.29]
         }
       ]
     },
@@ -3712,44 +2617,8 @@
           },
           "name_field": "NAME",
           "code_field": "CODE",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -7.09,
-              49.85,
-              2.04,
-              55.68
-            ]
-          ]
+          "in": ["England"],
+          "extent": [-7.09, 49.85, 2.04, 55.68]
         },
         {
           "region": "Scotland",
@@ -3762,20 +2631,8 @@
           },
           "name_field": "nsaname",
           "code_field": "nsacode",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -8.66,
-              54.8,
-              -0.83,
-              60.86
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-8.66, 54.8, -0.83, 60.86]
         },
         {
           "region": "Wales",
@@ -3788,20 +2645,8 @@
           },
           "name_field": "AONB_NAME",
           "code_field": "ISIS_ID",
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -4.8,
-              51.53,
-              -2.53,
-              53.44
-            ]
-          ]
+          "in": ["Wales"],
+          "extent": [-4.8, 51.53, -2.53, 53.44]
         },
         {
           "region": "Northern Ireland",
@@ -3814,20 +2659,8 @@
           },
           "name_field": "name",
           "code_field": "id_ref",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ],
-            [
-              -7.45,
-              54.04,
-              -5.39,
-              55.3
-            ]
-          ]
+          "in": ["Northern Ireland"],
+          "extent": [-7.45, 54.04, -5.39, 55.3]
         }
       ]
     },
@@ -3868,20 +2701,8 @@
           },
           "name_field": "NAME",
           "code_field": "ID",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -7.88,
-              55.0,
-              -1.36,
-              60.6
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-7.88, 55.0, -1.36, 60.6]
         }
       ]
     },
@@ -3921,20 +2742,8 @@
             "as_of": "2026-11-23"
           },
           "name_field": "SLA_Name",
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -4.71,
-              51.37,
-              -2.73,
-              53.41
-            ]
-          ]
+          "in": ["Wales"],
+          "extent": [-4.71, 51.37, -2.73, 53.41]
         },
         {
           "region": "Wales",
@@ -3947,80 +2756,23 @@
           },
           "name_field": "Name",
           "code_field": "RecordNumber",
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -5.67,
-              51.37,
-              -2.65,
-              53.44
-            ]
-          ]
+          "in": ["Wales"],
+          "extent": [-5.67, 51.37, -2.65, 53.44]
         },
         {
           "region": "Scotland",
           "pending": "Scotland's Local Landscape Areas aren't in Tobler's data (on the Spatial Hub)",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ]
-          ]
+          "in": ["Scotland"]
         },
         {
           "region": "England",
           "pending": "England's local landscape designations are council by council, not in Tobler's data",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ]
-          ]
+          "in": ["England"]
         },
         {
           "region": "Northern Ireland",
           "pending": "no Northern Ireland local landscape layer in Tobler's data",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ]
-          ]
+          "in": ["Northern Ireland"]
         }
       ]
     },
@@ -4066,44 +2818,8 @@
             "Flood Zone 2": "Flood Zone 2",
             "Flood Zone 3": "Flood Zone 3"
           },
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -6.42,
-              49.86,
-              1.76,
-              55.81
-            ]
-          ]
+          "in": ["England"],
+          "extent": [-6.42, 49.86, 1.76, 55.81]
         },
         {
           "region": "Wales",
@@ -4121,20 +2837,8 @@
             "Flood Zone 2": "Flood Zone 2 (rivers)",
             "Flood Zone 3": "Flood Zone 3 (rivers)"
           },
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -5.67,
-              51.37,
-              -2.65,
-              53.44
-            ]
-          ]
+          "in": ["Wales"],
+          "extent": [-5.67, 51.37, -2.65, 53.44]
         },
         {
           "region": "Wales",
@@ -4152,20 +2856,8 @@
             "Flood Zone 2": "Flood Zone 2 (sea)",
             "Flood Zone 3": "Flood Zone 3 (sea)"
           },
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -5.67,
-              51.37,
-              -2.65,
-              53.44
-            ]
-          ]
+          "in": ["Wales"],
+          "extent": [-5.67, 51.37, -2.65, 53.44]
         },
         {
           "region": "Scotland",
@@ -4177,20 +2869,8 @@
             "as_of": "2026-11-23"
           },
           "class": "River, medium likelihood (1 in 200 years)",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -7.53,
-              54.66,
-              -0.78,
-              60.83
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-7.53, 54.66, -0.78, 60.83]
         },
         {
           "region": "Scotland",
@@ -4202,20 +2882,8 @@
             "as_of": "2026-11-23"
           },
           "class": "River, low likelihood (1 in 1,000 years)",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -7.53,
-              54.66,
-              -0.78,
-              60.83
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-7.53, 54.66, -0.78, 60.83]
         },
         {
           "region": "Scotland",
@@ -4227,20 +2895,8 @@
             "as_of": "2026-11-23"
           },
           "class": "Coastal, medium likelihood (1 in 200 years)",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -7.73,
-              54.63,
-              -0.72,
-              60.87
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-7.73, 54.63, -0.72, 60.87]
         },
         {
           "region": "Scotland",
@@ -4252,32 +2908,13 @@
             "as_of": "2026-11-23"
           },
           "class": "Coastal, low likelihood (1 in 1,000 years)",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -7.73,
-              54.63,
-              -0.72,
-              60.87
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-7.73, 54.63, -0.72, 60.87]
         },
         {
           "region": "Northern Ireland",
           "pending": "no Northern Ireland flood map in Tobler's data",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ]
-          ]
+          "in": ["Northern Ireland"]
         }
       ],
       "class_order": [
@@ -4325,20 +2962,8 @@
             "as_of": "2026-11-23"
           },
           "class": "Surface water, medium likelihood (1 in 200 years)",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -7.73,
-              54.63,
-              -0.72,
-              60.87
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-7.73, 54.63, -0.72, 60.87]
         },
         {
           "region": "Wales",
@@ -4356,68 +2981,18 @@
             "Flood Zone 2": "Flood Zone 2 (surface water)",
             "Flood Zone 3": "Flood Zone 3 (surface water)"
           },
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -5.67,
-              51.37,
-              -2.65,
-              53.44
-            ]
-          ]
+          "in": ["Wales"],
+          "extent": [-5.67, 51.37, -2.65, 53.44]
         },
         {
           "region": "England",
           "pending": "England's surface water map isn't in Tobler's data yet",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ]
-          ]
+          "in": ["England"]
         },
         {
           "region": "Northern Ireland",
           "pending": "no Northern Ireland flood map in Tobler's data",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ]
-          ]
+          "in": ["Northern Ireland"]
         }
       ],
       "class_order": [
@@ -4533,38 +3108,7 @@
             "3c": "Zone 3c (total catchment, subsurface activity only)",
             "4": "Zone of special interest"
           },
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ]
-          ]
+          "in": ["England"]
         },
         {
           "region": "Wales",
@@ -4581,38 +3125,17 @@
             "2": "Zone 2 (outer)",
             "3": "Zone 3 (total catchment)"
           },
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ]
-          ]
+          "in": ["Wales"]
         },
         {
           "region": "Scotland",
           "pending": "Scotland has no equivalent zones in Tobler's data (SEPA protects drinking water protected areas instead)",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ]
-          ]
+          "in": ["Scotland"]
         },
         {
           "region": "Northern Ireland",
           "pending": "no Northern Ireland source protection zones in Tobler's data",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ]
-          ]
+          "in": ["Northern Ireland"]
         }
       ]
     },
@@ -4656,74 +3179,22 @@
           "keep_fields": [
             "totals"
           ],
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ]
-          ]
+          "in": ["Northern Ireland"]
         },
         {
           "region": "England",
           "pending": "the Environment Agency publishes incidents only as downloads",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ]
-          ]
+          "in": ["England"]
         },
         {
           "region": "Wales",
           "pending": "Natural Resources Wales publishes incidents only as a download",
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ]
-          ]
+          "in": ["Wales"]
         },
         {
           "region": "Scotland",
           "pending": "no pollution incident layer for Scotland",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ]
-          ]
+          "in": ["Scotland"]
         }
       ]
     },
@@ -4825,44 +3296,8 @@
             "Non Agricultural": "Non Agricultural",
             "Urban": "Urban"
           },
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -6.2,
-              50.0,
-              2.05,
-              55.74
-            ]
-          ],
+          "in": ["England"],
+          "extent": [-6.2, 50.0, 2.05, 55.74],
           "detail_prefix": "Grade "
         },
         {
@@ -4889,44 +3324,8 @@
             "Non Agricultural": "Non Agricultural (provisional map)",
             "Urban": "Urban (provisional map)"
           },
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -6.98,
-              49.88,
-              2.08,
-              55.74
-            ]
-          ],
+          "in": ["England"],
+          "extent": [-6.98, 49.88, 2.08, 55.74],
           "detail_prefix": "Grade "
         },
         {
@@ -4952,20 +3351,8 @@
             "NA": "Non Agricultural (predictive map)",
             "U": "Urban (predictive map)"
           },
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ],
-            [
-              -5.67,
-              51.37,
-              -2.65,
-              53.44
-            ]
-          ],
+          "in": ["Wales"],
+          "extent": [-5.67, 51.37, -2.65, 53.44],
           "detail_prefix": "Grade "
         },
         {
@@ -4979,32 +3366,13 @@
           },
           "class_field": "LCCODE",
           "class_prefix": "Class ",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -7.72,
-              54.63,
-              -0.72,
-              60.86
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-7.72, 54.63, -0.72, 60.86]
         },
         {
           "region": "Northern Ireland",
           "pending": "no Northern Ireland farmland classification in Tobler's data",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ]
-          ]
+          "in": ["Northern Ireland"]
         }
       ],
       "class_order": [
@@ -5061,74 +3429,18 @@
             "3": "Class 3 (wet and acidic soils, occasional peat)",
             "5": "Class 5 (peat soil without peatland vegetation)"
           },
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ],
-            [
-              -8.34,
-              54.55,
-              -0.72,
-              60.85
-            ]
-          ]
+          "in": ["Scotland"],
+          "extent": [-8.34, 54.55, -0.72, 60.85]
         },
         {
           "region": "England and Wales",
           "pending": "England's and Wales's peat maps aren't in Tobler's data yet",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ],
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ]
-          ]
+          "in": ["England", "Wales"]
         },
         {
           "region": "Northern Ireland",
           "pending": "no Northern Ireland peat map in Tobler's data",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ]
-          ]
+          "in": ["Northern Ireland"]
         }
       ],
       "class_order": [
@@ -5176,38 +3488,7 @@
           },
           "name_field": "site_name",
           "code_field": "hld_ref",
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ]
-          ]
+          "in": ["England"]
         },
         {
           "region": "England",
@@ -5223,74 +3504,22 @@
           "keep_fields": [
             "status"
           ],
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ]
-          ]
+          "in": ["England"]
         },
         {
           "region": "Wales",
           "pending": "Natural Resources Wales doesn't grant re-use of its full data (a redacted copy under its own licence): not used until Rob decides",
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ]
-          ]
+          "in": ["Wales"]
         },
         {
           "region": "Scotland",
           "pending": "Scotland has no national landfill layer (SEPA's permits are under permitted sites)",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ]
-          ]
+          "in": ["Scotland"]
         },
         {
           "region": "Northern Ireland",
           "pending": "no national landfill layer for Northern Ireland (see historical land use)",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ]
-          ]
+          "in": ["Northern Ireland"]
         }
       ]
     },
@@ -5335,38 +3564,7 @@
           "keep_fields": [
             "mine_type"
           ],
-          "where_any": [
-            [
-              -6.5,
-              49.85,
-              1.8,
-              51.38
-            ],
-            [
-              -2.72,
-              51.38,
-              1.8,
-              54.58
-            ],
-            [
-              -3.65,
-              53.3,
-              -2.72,
-              54.58
-            ],
-            [
-              -3.25,
-              51.6,
-              -2.72,
-              53.3
-            ],
-            [
-              -3.1,
-              54.58,
-              -1.45,
-              55.81
-            ]
-          ]
+          "in": ["England"]
         },
         {
           "region": "Wales",
@@ -5382,38 +3580,17 @@
           "keep_fields": [
             "MINE_TYPE"
           ],
-          "where_any": [
-            [
-              -5.7,
-              51.38,
-              -2.72,
-              53.45
-            ]
-          ]
+          "in": ["Wales"]
         },
         {
           "region": "Scotland",
           "pending": "no closed mining waste inventory for Scotland in Tobler's data",
-          "where_any": [
-            [
-              -9.0,
-              54.6,
-              -0.6,
-              61.0
-            ]
-          ]
+          "in": ["Scotland"]
         },
         {
           "region": "Northern Ireland",
           "pending": "no closed mining waste inventory for Northern Ireland in Tobler's data",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ]
-          ]
+          "in": ["Northern Ireland"]
         }
       ]
     },
@@ -5431,38 +3608,7 @@
       "reach_why": "Councils' own records of possibly contaminated land. Only a few councils publish them, so the check applies only inside those councils (elsewhere the caveat's next step, a full environmental search, covers it), and inside them silence isn't a clear answer.",
       "applies": {
         "setting": "land",
-        "where_any": [
-          [
-            -1.56,
-            52.86,
-            -1.39,
-            52.97
-          ],
-          [
-            -0.155,
-            51.41,
-            -0.075,
-            51.51
-          ],
-          [
-            -0.155,
-            51.41,
-            -0.075,
-            51.51
-          ],
-          [
-            -1.8,
-            53.3,
-            -1.32,
-            53.5
-          ],
-          [
-            -3.92,
-            56.05,
-            -3.58,
-            56.2
-          ]
-        ],
+        "in": ["Clackmannanshire", "Derby", "Lambeth", "Sheffield"],
         "countries": [
           "United Kingdom"
         ]
@@ -5472,12 +3618,7 @@
       "sources": [
         {
           "region": "Derby",
-          "where": [
-            -1.56,
-            52.86,
-            -1.39,
-            52.97
-          ],
+          "in": ["Derby"],
           "atlas_id": "5ef41092de2010de",
           "record": {
             "title": "Potentially Contaminated Sites, Derby (Derby City Council)",
@@ -5492,12 +3633,7 @@
         },
         {
           "region": "Lambeth",
-          "where": [
-            -0.155,
-            51.41,
-            -0.075,
-            51.51
-          ],
+          "in": ["Lambeth"],
           "atlas_id": "164c454dced356b7",
           "record": {
             "title": "Contaminated Land (Possible), Lambeth (London Borough of Lambeth)",
@@ -5513,12 +3649,7 @@
         },
         {
           "region": "Lambeth",
-          "where": [
-            -0.155,
-            51.41,
-            -0.075,
-            51.51
-          ],
+          "in": ["Lambeth"],
           "atlas_id": "ac1475ee668c32b4",
           "record": {
             "title": "Historic Landfill Sites, Lambeth (London Borough of Lambeth)",
@@ -5530,12 +3661,7 @@
         },
         {
           "region": "Sheffield",
-          "where": [
-            -1.8,
-            53.3,
-            -1.32,
-            53.5
-          ],
+          "in": ["Sheffield"],
           "atlas_id": "8d25d1f7b39def53",
           "record": {
             "title": "Contaminated Land register, Sheffield (Sheffield City Council)",
@@ -5548,12 +3674,7 @@
         },
         {
           "region": "Clackmannanshire",
-          "where": [
-            -3.92,
-            56.05,
-            -3.58,
-            56.2
-          ],
+          "in": ["Clackmannanshire"],
           "atlas_id": "e310e4158da08197",
           "record": {
             "title": "Potentially Contaminated Land, Clackmannanshire (Clackmannanshire Council)",
@@ -5602,14 +3723,7 @@
           },
           "name_field": "Descriptio",
           "code_field": "Site_ID",
-          "where_any": [
-            [
-              -8.2,
-              54.0,
-              -5.4,
-              55.4
-            ]
-          ]
+          "in": ["Northern Ireland"]
         }
       ]
     },
@@ -5800,63 +3914,7 @@
       ]
     }
   ],
-  "regions": {
-    "about": "Rough nation outlines as boxes. A nation's layers cover the whole nation (an empty answer there means none), so they're matched on the nation's outline and on their data's own extent (inshore marine sites at sea). England-only gaps use England's alone. They follow the borders to within a few kilometres; a site right on the border may count as both. England's border strip from the Wirral to Herefordshire (west of 2.72°W, below 53.3°N) was missing until 24 Nov: Stanlow, Chester and Ellesmere Port read only Wales's layers.",
-    "England": [
-      [
-        -6.5,
-        49.85,
-        1.8,
-        51.38
-      ],
-      [
-        -2.72,
-        51.38,
-        1.8,
-        54.58
-      ],
-      [
-        -3.65,
-        53.3,
-        -2.72,
-        54.58
-      ],
-      [
-        -3.25,
-        51.6,
-        -2.72,
-        53.3
-      ],
-      [
-        -3.1,
-        54.58,
-        -1.45,
-        55.81
-      ]
-    ],
-    "Wales": [
-      [
-        -5.7,
-        51.38,
-        -2.72,
-        53.45
-      ]
-    ],
-    "Scotland": [
-      [
-        -9.0,
-        54.6,
-        -0.6,
-        61.0
-      ]
-    ],
-    "Northern Ireland": [
-      [
-        -8.2,
-        54.0,
-        -5.4,
-        55.4
-      ]
-    ]
+  "areas": {
+    "about": "Which nation's or council's layers a site gets is decided on real outlines (invariant 2): data/ref/uk-areas.json, the ONS's Countries (December 2025) and Local Authority Districts (May 2025), generalised and simplified to within 100 m, Open Government Licence v3.0, built by scripts/build-uk-areas.mjs. in: the areas a source covers; it's used when the site's footprint, grown by the check's reach, touches one of them (measured in code, js/ukareas.js). extent: the box of the source's own data, used only at sea, so an inshore marine site gets a nation's layers that reach its waters. applies.in: the check applies only where the site itself touches one of the areas. Until 26 Nov these were boxes, which missed England's border strip at Stanlow (24 Nov) and let Welsh layers answer for English sites."
   }
 }

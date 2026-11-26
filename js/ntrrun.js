@@ -19,6 +19,7 @@ import { waterDepth, vesselTraffic, seaLines } from "./seavalues.js";
 import { elevationFrom, elevationSignificance, elevationLine, elevationShort } from "./elevation.js";
 import { readDecision, settleDecision } from "./industry.js";
 import * as K from "./checks.js";
+import { areasNear } from "./ukareas.js";
 import { topicOf, TOPIC_IDS } from "./findings.js";
 import { osmAnswers } from "./osmchecks.js";
 import { overpassQuery } from "./gazetteer.js";
@@ -383,9 +384,11 @@ export async function runScreening({ host, site, inputs, distances, skill, study
   const sb = turf.bbox(fp.feature);
   const studyChecks = study ? new Set(study.groups.flatMap((g) => g.checks)) : null;
   const budgetReach = budget ? reachByCheck(budget.deductions) : null;
-  const plans = K.planChecks(catalogue, { bbox: sb, countries: describe.countries || [], offshore, sea, coast_km: describe.coast_km ?? null }, scale, { inside, skill: study?.id || "screen" })
+  // UK nations and councils, on their real outlines (invariant 2), out to the furthest reach any check could use.
+  const ukAreas = await ukAreasNear(host.ref, fp.feature, describe, catalogue, scale);
+  const plans = K.planChecks(catalogue, { bbox: sb, countries: describe.countries || [], offshore, sea, coast_km: describe.coast_km ?? null, areas: ukAreas }, scale,
+    { inside, skill: study?.id || "screen", reachOf: budgetReach ? (id) => budgetReach.get(id) : null })
     .filter((p) => !studyChecks || studyChecks.has(p.check.id));
-  if (budgetReach) for (const p of plans) if (budgetReach.has(p.check.id)) p.reach_km = budgetReach.get(p.check.id);
   const results = new Map();
   const featsOf = new Map(); // check id → the evidence properties it counted, for the analyst's nearest names
   for (const p of plans) {
@@ -1075,4 +1078,20 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       };
     },
   };
+}
+
+// UK nations and councils near the site, on their real outlines (js/ukareas.js), out to the furthest reach any check
+// could use at this scale. Only near the UK (a loose box narrows it; the outlines decide). {} far from the UK; null if
+// the outlines couldn't be loaded, and then every nation's layers are asked (js/checks.js touches).
+const UK_WINDOW = [-14, 49, 3.5, 61.5];
+async function ukAreasNear(ref, feature, describe, catalogue, scale) {
+  const reachMax = Math.max(0, ...(catalogue.checks || []).map((c) => +c.reach_km?.[scale] || 0));
+  const sb = turf.bbox(feature);
+  const g = K.growBox(sb, reachMax);
+  const near = !(g[2] < UK_WINDOW[0] || g[0] > UK_WINDOW[2] || g[3] < UK_WINDOW[1] || g[1] > UK_WINDOW[3]);
+  if (!near) return {};
+  try {
+    const fc = await ref.get("uk-areas");
+    return areasNear(fc, feature, reachMax, { onLand: !describe.offshore && (describe.countries || []).includes("United Kingdom") });
+  } catch { return null; }
 }

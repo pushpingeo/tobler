@@ -58,11 +58,28 @@ export function growBox([w, so, e, n], km = 0) {
   const dLon = km / (111.32 * Math.cos((mid * Math.PI) / 180));
   return [w - dLon, so - dLat, e + dLon, n + dLat];
 }
-// where_any: several boxes, any of which will do (England, drawn round Wales and Scotland).
+// where_any: several boxes, any of which will do (Native Land's two mapped continents).
 const inAny = (boxes, box) => !boxes || boxes.some((b) => overlaps(b, box));
-function sourceFits(src, site, box) {
+
+// UK nations and councils (in: [areas]) are matched on their real outlines, not boxes (invariant 2): site.areas holds
+// the distance in km from the site's footprint to each area near it (js/ukareas.js areasNear). The outlines are
+// simplified to within 100 m, so a site within that of an area counts as touching it. site.areas null: the outlines
+// couldn't be loaded, and every area counts (more layers asked, never fewer).
+export const SLACK_KM = 0.1;
+export function touches(names = [], areas, reachKm = 0) {
+  if (!areas) return true;
+  return names.some((n) => areas[n] != null && areas[n] <= (reachKm || 0) + SLACK_KM);
+}
+// A source for UK areas: on land, it covers the site when the site grown by the reach touches one of its areas. At sea,
+// also when the box of its own data (extent) overlaps the site grown by the reach (inshore marine layers).
+function areasFit(src, site, reach, box) {
+  if (touches(src.in, site.areas, reach)) return true;
+  return !!site.offshore && !!src.extent && overlaps(src.extent, box);
+}
+function sourceFits(src, site, box, reach = 0) {
   if (src.setting && !settingFits(src.setting, site)) return false;
   if (!inAny(src.where_any, box)) return false;
+  if (src.in && !areasFit(src, site, reach, box)) return false;
   const countries = site.countries || [];
   if (src.not_countries?.some((c) => countries.includes(c))) return false;
   if (!site.offshore && src.countries?.length && countries.length) return src.countries.some((c) => countries.includes(c));
@@ -75,6 +92,8 @@ const appliesHere = (a = {}, site, reach = 0) => {
   if (!inAny(a.where_any, site.bbox)) return false;
   // On land, a check for some countries only (the UK pack) applies only there; at sea the box decides.
   if (a.countries?.length && !site.offshore && site.countries?.length && !a.countries.some((c) => site.countries.includes(c))) return false;
+  // For some UK areas only (England's Impact Risk Zones, the councils that publish records): the site itself must touch one.
+  if (a.in && !touches(a.in, site.areas, 0)) return false;
   return true;
 };
 
@@ -83,7 +102,8 @@ const appliesHere = (a = {}, site, reach = 0) => {
 // wrong setting or place, or no reach at this scale) are left out: they aren't gaps.
 // inside: the person asked to screen inside the area only, so every count looks inside (reach 0).
 // skill: the skill the run is for; a check for named skills only (used_by) is left out of every other run.
-export function planChecks(catalogue, site, scale, { inside = false, skill = "screen" } = {}) {
+// reachOf: the run's own reach for a check (the developable area's buffers), so sources are chosen for that reach.
+export function planChecks(catalogue, site, scale, { inside = false, skill = "screen", reachOf = null } = {}) {
   const out = [];
   for (const c of catalogue?.checks || []) {
     if (c.used_by && !c.used_by.includes(skill)) continue;
@@ -91,11 +111,11 @@ export function planChecks(catalogue, site, scale, { inside = false, skill = "sc
     if (c.answer !== "value_at_site") {
       const r = c.reach_km?.[scale];
       if (r == null) continue;
-      reach = inside ? 0 : r;
+      reach = inside ? 0 : (reachOf?.(c.id) ?? r);
     }
     if (!appliesHere(c.applies, site, reach)) continue;
     const box = growBox(site.bbox, reach || 0);
-    const sources = (c.sources || []).filter((s) => sourceFits(s, site, box));
+    const sources = (c.sources || []).filter((s) => sourceFits(s, site, box, reach || 0));
     // A tool check (boundaries, values) has one source; the first that covers the site, as before.
     const tool = sources.find((s) => s.tool);
     out.push({ check: c, sources: tool ? [tool] : sources, source: tool || sources.find((s) => !s.pending) || sources[0] || null, reach_km: reach, scale });

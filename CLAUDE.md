@@ -34,8 +34,8 @@ test's `KNOWN` list or loosen a check without his say-so. Explaining it afterwar
    latitude. Distances and areas are geodesic (turf) or worked out in a local equal-area projection, never in raw
    degrees. Web Mercator is for display only. Which country or region a place is in, and what it overlaps, are
    decided with real outlines, never boxes or centre points; a box may only narrow a search before the real test.
-   *Checked by review and the place tests.* Known breach: the nation and council boxes in `catalogue/checks.json`
-   (they missed England's border strip at Stanlow, 24 Nov); replacing them is first in the plan.
+   *Checked by review and the place tests.* UK nations and councils are matched on ONS outlines
+   (`data/ref/uk-areas.json`, `js/ukareas.js`) since 26 Nov; the boxes that missed England's border strip are gone.
 3. **The model never does geometry** (*tested*: tool inputs and the summaries it reads). The analyst sees names,
    sizes and at most a centre, never coordinate lists. All geometry is done by tools in code. The one exception is `transform.points`: numbers the
    person typed, copied as given.

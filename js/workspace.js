@@ -65,7 +65,7 @@ const BASEMAP = "https://tiles.openfreemap.org/styles/positron";
 
 // ---- reference data -------------------------------------------------------------
 const ref = R.createReference(async (name) => {
-  activity(`Loading ${name === "places" ? "towns and cities" : name}…`, true);
+  activity(`Loading ${name === "places" ? "towns and cities" : name === "uk-areas" ? "UK nation and council outlines" : name}…`, true);
   const r = await fetch(asset(`data/ref/${name}.json`));
   if (!r.ok) throw new Error(`Couldn't load the ${name} layer (${r.status}).`);
   return r.json();

@@ -3,6 +3,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as K from "../js/checks.js";
+import * as turf from "../js/vendor/turf.js";
+import { areasNear } from "../js/ukareas.js";
 import { settleDecision } from "../js/industry.js";
 
 let passed = 0;
@@ -10,6 +12,11 @@ const test = async (name, fn) => { await fn(); passed++; console.log("ok", name)
 import { OSM_KINDS } from "../js/osmchecks.js";
 const cat = JSON.parse(readFileSync(new URL("../catalogue/checks.json", import.meta.url), "utf8"));
 const box = (lon, lat, d = 0.05) => [lon - d, lat - d, lon + d, lat + d];
+// UK nations and councils on their real outlines (data/ref/uk-areas.json), as the run measures them.
+const UK = JSON.parse(readFileSync(new URL("../data/ref/uk-areas.json", import.meta.url), "utf8"));
+const withAreas = (site) => ("areas" in site ? site : { ...site,
+  areas: areasNear(UK, turf.bboxPolygon(site.bbox), 60, { onLand: !site.offshore && (site.countries || []).includes("United Kingdom") }) });
+const P = (site, scale, opts) => K.planChecks(cat, withAreas(site), scale, opts);
 const ids = (plans) => plans.map((p) => p.check.id);
 
 await test("the catalogue: twelve topics plus Indigenous Peoples for global work; every check sound", () => {
@@ -57,7 +64,7 @@ await test("bands inside a reach, and their labels", () => {
 
 await test("selection by setting, region and scale; sources by country and box", () => {
   // Onshore in the Netherlands, regional: the EU Natura layers, CDDA, US habitat and sea checks left out.
-  const nl = K.planChecks(cat, { bbox: box(4.93, 51.49), countries: ["Netherlands"], offshore: false, sea: false }, "regional");
+  const nl = P({ bbox: box(4.93, 51.49), countries: ["Netherlands"], offshore: false, sea: false }, "regional");
   // Since the coverage drive (24 Nov), OpenStreetMap's infrastructure and receptors and the global active faults
   // apply everywhere on land; Indigenous territories only where Native Land Digital maps them (not Europe).
   assert.deepEqual(ids(nl), ["bio.sac", "bio.spa", "bio.national-sites", "community.homes", "community.schools", "community.health-care", "hazards.active-faults",
@@ -67,40 +74,40 @@ await test("selection by setting, region and scale; sources by country and box",
   assert.equal(nl[0].reach_km, 10);
   const regions = (plans, id) => plans.find((p) => p.check.id === id).sources.map((x) => x.region);
   // Linlithgow, local: Scotland's layers only (England's are out of a 2 km reach; JNCC is for the sea; EU not in the UK).
-  const sc = K.planChecks(cat, { bbox: box(-3.6, 55.97), countries: ["United Kingdom"], offshore: false, sea: false }, "local");
+  const sc = P({ bbox: box(-3.6, 55.97), countries: ["United Kingdom"], offshore: false, sea: false }, "local");
   assert.deepEqual(regions(sc, "bio.sac"), ["Scotland"]);
   assert.deepEqual(regions(sc, "bio.national-sites"), ["Scotland"]);
   assert.deepEqual(regions(sc, "bio.ancient-woodland"), ["Scotland"]);
   assert.ok(ids(sc).includes("bio.ramsar"));
   // Berwick, regional (10 km): both nations, because the reach crosses the border.
-  const bw = K.planChecks(cat, { bbox: box(-2.0, 55.77, 0.01), countries: ["United Kingdom"], offshore: false, sea: true }, "regional");
+  const bw = P({ bbox: box(-2.0, 55.77, 0.01), countries: ["United Kingdom"], offshore: false, sea: true }, "regional");
   assert.deepEqual(regions(bw, "bio.sac"), ["England", "Scotland", "UK offshore, beyond 12 nm"]);
   // Belfast: Northern Ireland; ancient woodland there has no layer (pending), so the check says so.
-  const bf = K.planChecks(cat, { bbox: box(-5.93, 54.6), countries: ["United Kingdom"], offshore: false, sea: false }, "local");
+  const bf = P({ bbox: box(-5.93, 54.6), countries: ["United Kingdom"], offshore: false, sea: false }, "local");
   assert.ok(regions(bf, "bio.sac").includes("Northern Ireland"));
   const awNI = bf.find((p) => p.check.id === "bio.ancient-woodland");
   assert.equal(K.unsourced({ ...awNI, sources: awNI.sources.filter((x) => x.region === "Northern Ireland") }).reason, "pending");
   // Northern France, inside the UK's boxes: the country decides on land (EU layer, no UK-only checks).
-  const fr = K.planChecks(cat, { bbox: box(1.85, 50.9), countries: ["France"], offshore: false, sea: true }, "regional");
+  const fr = P({ bbox: box(1.85, 50.9), countries: ["France"], offshore: false, sea: true }, "regional");
   assert.ok(fr.find((p) => p.check.id === "bio.sac").sources.some((x) => x.atlas_id === "2764f9d94e700980"));
   assert.ok(!ids(fr).includes("bio.ramsar") && !ids(fr).includes("bio.ancient-woodland"));
   // Dogger Bank, global: JNCC's offshore layer and the EU's (the Dutch Doggersbank), and England's in its box.
-  const ns = K.planChecks(cat, { bbox: box(1.9, 54.8, 0.3), countries: [], offshore: true, sea: true }, "global");
+  const ns = P({ bbox: box(1.9, 54.8, 0.3), countries: [], offshore: true, sea: true }, "global");
   const sac = regions(ns, "bio.sac");
   assert.ok(sac.includes("UK offshore, beyond 12 nm") && sac.includes("EU (not UK since 2021)"), sac.join());
   assert.ok(ids(ns).includes("topo.water-depth") && !ids(ns).includes("topo.elevation") && !ids(ns).includes("bio.ancient-woodland"));
   // Kenya onshore: Natura doesn't apply at all; national sites apply but have no source here.
-  const ke = K.planChecks(cat, { bbox: box(36.8, -1.3), countries: ["Kenya"], offshore: false, sea: false }, "regional");
+  const ke = P({ bbox: box(36.8, -1.3), countries: ["Kenya"], offshore: false, sea: false }, "regional");
   assert.ok(!ids(ke).includes("bio.sac"));
   const nat = ke.find((p) => p.check.id === "bio.national-sites");
   assert.equal(nat.source, null);
   assert.equal(K.unsourced(nat).reason, "no_source");
   // Tropical sea: coral reefs apply; marine mammal areas have no reach at local scale.
-  const tr = K.planChecks(cat, { bbox: box(39.5, -4), countries: [], offshore: true, sea: true }, "local");
+  const tr = P({ bbox: box(39.5, -4), countries: [], offshore: true, sea: true }, "local");
   assert.ok(!ids(tr).includes("bio.marine-mammal-areas") && !ids(tr).includes("bio.coral-reefs"), "no local reach");
-  assert.ok(ids(K.planChecks(cat, { bbox: box(39.5, -4), countries: [], offshore: true, sea: true }, "regional")).includes("bio.coral-reefs"));
+  assert.ok(ids(P({ bbox: box(39.5, -4), countries: [], offshore: true, sea: true }, "regional")).includes("bio.coral-reefs"));
   // Inside only: every count looks inside.
-  assert.ok(K.planChecks(cat, { bbox: box(4.93, 51.49), countries: ["Netherlands"], offshore: false, sea: false }, "regional", { inside: true }).filter((p) => p.reach_km != null).every((p) => p.reach_km === 0));
+  assert.ok(P({ bbox: box(4.93, 51.49), countries: ["Netherlands"], offshore: false, sea: false }, "regional", { inside: true }).filter((p) => p.reach_km != null).every((p) => p.reach_km === 0));
 });
 
 const plan = (id, scale = "regional", reach) => {
@@ -269,15 +276,15 @@ await test("SSSI Impact Risk Zones: the code read for the development, in Natura
 
 await test("the UK pack: where each check applies, and Northern Ireland's listed buildings filtered", () => {
   // Linlithgow, local: heritage, landscape, flood, farmland and peat all apply; the IRZ (England only) doesn't.
-  const sc = K.planChecks(cat, { bbox: box(-3.6, 55.97), countries: ["United Kingdom"], offshore: false, sea: false, coast_km: 3 }, "local");
+  const sc = P({ bbox: box(-3.6, 55.97), countries: ["United Kingdom"], offshore: false, sea: false, coast_km: 3 }, "local");
   for (const id of ["heritage.listed-buildings", "landscape.national-landscapes", "water.flood-zones", "land.farmland-grade", "ground.peat", "landscape.wild-land"]) assert.ok(ids(sc).includes(id), id);
   assert.ok(!ids(sc).includes("bio.sssi-irz"));
   assert.ok(sc.find((p) => p.check.id === "land.farmland-grade").sources.some((x) => /Hutton/.test(x.record?.licence || "")));
   // Leeds: the IRZ applies; Wild Land doesn't.
-  const ld = K.planChecks(cat, { bbox: box(-1.55, 53.8), countries: ["United Kingdom"], offshore: false, sea: false, coast_km: 80 }, "local");
+  const ld = P({ bbox: box(-1.55, 53.8), countries: ["United Kingdom"], offshore: false, sea: false, coast_km: 80 }, "local");
   assert.ok(ids(ld).includes("bio.sssi-irz") && !ids(ld).includes("landscape.wild-land"));
   // England-only: the IRZ, and England's missing layers as gaps, by the nation boxes (Kintyre is south of 55.8°N but Scottish).
-  const at = (lon, lat) => K.planChecks(cat, { bbox: box(lon, lat, 0.01), countries: ["United Kingdom"], offshore: false, sea: false, coast_km: 5 }, "local");
+  const at = (lon, lat) => P({ bbox: box(lon, lat, 0.01), countries: ["United Kingdom"], offshore: false, sea: false, coast_km: 5 }, "local");
   assert.ok(!ids(at(-5.6, 55.5)).includes("bio.sssi-irz"), "Kintyre");
   assert.ok(!ids(at(-3.18, 51.48)).includes("bio.sssi-irz"), "Cardiff");
   assert.ok(ids(at(-2.93, 54.89)).includes("bio.sssi-irz"), "Carlisle");
@@ -285,13 +292,13 @@ await test("the UK pack: where each check applies, and Northern Ireland's listed
   assert.ok(ids(at(-6.3, 49.92)).includes("bio.sssi-irz"), "Isles of Scilly");
   assert.ok(!at(-5.6, 55.5).find((p) => p.check.id === "water.surface-water").sources.some((x) => x.region === "England"), "no England gap in Kintyre");
   // A nation's layer covers the whole nation, not just its data's extent: Kintyre has no National Park, which is "none found".
-  const np = K.planChecks(cat, { bbox: box(-5.6, 55.5, 0.01), countries: ["United Kingdom"], offshore: false, sea: false, coast_km: 5 }, "regional").find((p) => p.check.id === "landscape.national-parks");
+  const np = P({ bbox: box(-5.6, 55.5, 0.01), countries: ["United Kingdom"], offshore: false, sea: false, coast_km: 5 }, "regional").find((p) => p.check.id === "landscape.national-parks");
   assert.ok(np.sources.length && np.sources.every((x) => x.region === "Scotland"), JSON.stringify(np.sources.map((x) => x.region)));
   assert.equal(K.unsourced(np), null);
   // Offshore: heritage and landscape only when the coast is within their reach.
-  const far = K.planChecks(cat, { bbox: box(-3.95, 60.98, 0.1), countries: [], offshore: true, sea: true, coast_km: 139 }, "global");
+  const far = P({ bbox: box(-3.95, 60.98, 0.1), countries: [], offshore: true, sea: true, coast_km: 139 }, "global");
   assert.ok(!far.some((p) => /^(heritage|landscape)\./.test(p.check.id)) && !ids(far).includes("water.flood-zones"));
-  const near = K.planChecks(cat, { bbox: box(-3.2, 53.5, 0.05), countries: [], offshore: true, sea: true, coast_km: 12 }, "global");
+  const near = P({ bbox: box(-3.2, 53.5, 0.05), countries: [], offshore: true, sea: true, coast_km: 12 }, "global");
   assert.ok(ids(near).includes("landscape.national-landscapes") && ids(near).includes("heritage.world-heritage"), "coast within 20 km");
   // Belfast: listed buildings from DfC, with only listed grades counted.
   const lb = plan("heritage.listed-buildings");
@@ -396,15 +403,51 @@ await test("partial sources (council registers, EPA brownfields): silence is nev
 
 await test("England's border strip: Stanlow, Chester and Hereford read England's layers, not only Wales's (Rob's Stanlow log, 24 Nov)", () => {
   for (const [name, lon, lat] of [["Stanlow", -2.84, 53.27], ["Chester", -2.89, 53.19], ["Hereford", -2.72, 52.06], ["Oswestry", -3.05, 52.86]]) {
-    const plan = K.planChecks(cat, { bbox: box(lon, lat, 0.01), countries: ["United Kingdom"], offshore: false, sea: false }, "local");
+    const plan = P({ bbox: box(lon, lat, 0.01), countries: ["United Kingdom"], offshore: false, sea: false }, "local");
     for (const id of ["ground.landfill", "water.source-protection", "ground.mining-waste"]) {
       const p = plan.find((x) => x.check.id === id);
       assert.ok(p?.sources.some((s) => s.region === "England" && s.atlas_id), `${name}: ${id} asks England's layer (${p?.sources.map((s) => s.region).join(", ")})`);
     }
   }
   // Deep in Wales, England's layers aren't asked.
-  const plan = K.planChecks(cat, { bbox: box(-3.8, 52.4, 0.01), countries: ["United Kingdom"], offshore: false, sea: false }, "local");
+  const plan = P({ bbox: box(-3.8, 52.4, 0.01), countries: ["United Kingdom"], offshore: false, sea: false }, "local");
   assert.ok(!plan.find((x) => x.check.id === "ground.landfill").sources.some((s) => s.region === "England"));
+});
+
+await test("real nation and council outlines (26 Nov): Stanlow and Barnston get England's layers alone; councils and England-only checks by outline", () => {
+  const regionsOf = (plan, id) => (plan.find((x) => x.check.id === id)?.sources || []).map((s) => s.region);
+  // Stanlow (8.5 km from Wales) and Barnston (7.9 km across the Dee): at site scale no Welsh layer is asked, so Wales's
+  // pending sources can't turn a clean English answer into "partly checked", as the boxes did.
+  for (const [name, lon, lat] of [["Stanlow", -2.84, 53.27], ["Barnston", -3.08, 53.345]]) {
+    const site = withAreas({ bbox: box(lon, lat, 0.004), countries: ["United Kingdom"], offshore: false, sea: false });
+    assert.equal(site.areas.England, 0, name);
+    assert.ok(site.areas.Wales > 7 && site.areas.Wales < 10, `${name}: ${site.areas.Wales} km from Wales`);
+    const local = P(site, "local");
+    for (const id of ["ground.landfill", "water.source-protection", "ground.mining-waste", "bio.sac"]) {
+      const r = regionsOf(local, id);
+      assert.ok(r.includes("England") && !r.includes("Wales"), `${name} ${id}: ${r.join(", ")}`);
+    }
+    // At regional scale the 10 km reach really does cross into Wales, so Wales's SACs are asked too.
+    assert.ok(regionsOf(P(site, "regional"), "bio.sac").includes("Wales"), name);
+  }
+  // England's SSSI Impact Risk Zones: England only, on the outline.
+  const irz = (lon, lat) => P({ bbox: box(lon, lat, 0.004), countries: ["United Kingdom"], offshore: false, sea: false }, "local").some((x) => x.check.id === "bio.sssi-irz");
+  assert.ok(irz(-2.84, 53.27) && !irz(-3.6, 55.97) && !irz(-3.8, 52.4), "Stanlow yes; Linlithgow and mid-Wales no");
+  // Councils' own records: inside Derby, Derby's; 5 km outside, the check doesn't apply.
+  assert.deepEqual(regionsOf(P({ bbox: box(-1.476, 52.922, 0.003), countries: ["United Kingdom"], offshore: false, sea: false }, "local"), "ground.council-records"), ["Derby"]);
+  assert.ok(!P({ bbox: box(-1.476, 52.86, 0.003), countries: ["United Kingdom"], offshore: false, sea: false }, "local").some((x) => x.check.id === "ground.council-records"));
+  // An island the simplified outlines dropped (under 0.5 km²) gets its nearest nation.
+  const rock = areasNear({ type: "FeatureCollection", features: [{ type: "Feature", properties: { name: "Scotland", kind: "nation" }, geometry: turf.bboxPolygon(box(-3, 56, 0.1)).geometry }] },
+    turf.bboxPolygon(box(-3, 56.13, 0.002)), 2, { onLand: true });
+  assert.equal(rock.Scotland, 0);
+  // Outlines that couldn't load: every nation's layers are asked (more, never fewer).
+  assert.deepEqual(regionsOf(P({ bbox: box(-3.6, 55.97, 0.004), countries: ["United Kingdom"], offshore: false, sea: false, areas: null }, "local"), "bio.sac"), ["England", "Scotland", "Wales", "Northern Ireland"]);
+  // At sea in Liverpool Bay, Wales's and England's inshore layers answer through their data's own extent.
+  const bay = P({ bbox: box(-3.6, 53.6, 0.01), countries: [], offshore: true, sea: true }, "local");
+  assert.ok(["England", "Wales"].every((n) => regionsOf(bay, "bio.sac").includes(n)), regionsOf(bay, "bio.sac").join());
+  // No box is left for a UK nation or council in the catalogue.
+  for (const c of cat.checks) for (const s of c.sources) if (s.in) assert.ok(!s.where_any && !s.where, `${c.id}: ${s.region} is matched on outlines`);
+  assert.ok(!cat.regions);
 });
 
 console.log(`${passed} checks tests passed`);

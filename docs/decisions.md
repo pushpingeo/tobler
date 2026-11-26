@@ -2,6 +2,39 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 26 Nov 2026 (afternoon): real nation and council outlines in place of boxes (plan item 1, first part)
+- **What:** which UK nation's or council's layers a site gets is now decided on real outlines, not boxes
+  (invariant 2's known breach, now closed). `data/ref/uk-areas.json`: the ONS's Countries (December 2025) and Local
+  Authority Districts (May 2025) for the four councils that publish records (Clackmannanshire, Derby, Lambeth,
+  Sheffield), generalised outlines clipped to the coastline, simplified to within 100 m, islands under 0.5 km² left
+  out; 0.8 MB (about 240 KB compressed), loaded only for a site near the UK. Open Government Licence v3.0 (Rob's yes,
+  26 Nov). Built by `scripts/build-uk-areas.mjs`.
+- **How:** `js/ukareas.js` `areasNear` measures the distance from the site's footprint to each nation and named
+  council (`js/nearness.js`, exact on the edges; a box only narrows which outlines are measured). In
+  `catalogue/checks.json` a UK source now says `in: ["England"]` (Great Britain: three nations; England and Wales:
+  two) instead of copying the boxes; it's used when the site grown by the check's reach touches one of them.
+  `extent` keeps the box of a source's own data, used only at sea (inshore marine layers). `applies.in`: England's
+  SSSI Impact Risk Zones and the councils' records apply only where the site itself touches the area. The
+  `regions` boxes are gone. The developable area's own buffers now choose the sources too (`reachOf`), not the
+  wider scale reach.
+- **Judgement calls:** 100 m of slack, the simplification's own tolerance, so a site within 100 m of a border gets
+  both nations' layers (more asked, never fewer). A site on land in the UK that falls in no nation (an island or
+  sliver the simplification lost) gets its nearest nation within 5 km. If the outlines can't load, every nation's
+  layers are asked, so a pending source elsewhere can only make an answer "partly checked", never hide a find. The
+  ONS portal serves WGS84 with its own OSGB36 shift (a few metres, well under the 100 m simplification), so nothing
+  picks or applies a datum transformation (invariant 1).
+- **What changes:** Stanlow (9 km from Wales) and Barnston (8 km across the Dee) no longer get Wales's layers at
+  site scale: before, the fifth England box overlapped Wales, and Wales's pending landfill and permits turned clean
+  English answers into "partly checked". At regional scale (10 km) the reach really does cross into Wales, so Wales's
+  SACs are asked, rightly. England's layers are no longer asked for sites deep in Wales through their data's extent
+  box (that was for the sea only).
+- **Also fixed:** the browser checks `browser-study`, `browser-budget` and `browser-osmcopy` blocked any address
+  containing "arcgis", which since midday includes Tobler's own `js/arcgisauth.js`, so the page never started. They
+  now block only outside https addresses.
+- **Tested:** `npm test` (a new checks test on real outlines: Stanlow, Barnston, Derby in and out, the IRZ by nation,
+  the island fallback, outlines missing, Liverpool Bay at sea; the old border-strip test passes on outlines); all 13
+  browser checks, desktop and phone. **Not tested:** a live run timing in a real browser (about 0.1–0.3 s in node).
+
 ## 26 Nov 2026 (late morning): Sign in with ArcGIS in the service panel
 - **What:** when a service on ArcGIS Online (`*.arcgis.com`) says it needs a sign-in, the service panel leads with
   "Sign in with ArcGIS". Above it is an optional field for the organisation's address (e.g. `shell.maps.arcgis.com`),

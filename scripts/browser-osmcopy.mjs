@@ -30,7 +30,7 @@ for (const [label, viewport, site, inside] of [["desktop", { width: 1280, height
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/Failed to load resource|tiles|openfreemap/i.test(m.text())) errors.push(m.text()); });
-  await page.route(/openfreemap|nominatim|wikidata|environment\.data\.gov|arcgis|usgs|noaa/, (r) => r.abort());
+  await page.route(/^https:\/\/.*(?:openfreemap|nominatim|wikidata|environment\.data\.gov|arcgis|usgs|noaa)/, (r) => r.abort());
   const copy = { requests: 0, ranges: 0 };
   await page.route(/^https:\/\/data\.asktobler\.com\/osm\//, (r) => {
     copy.requests++;
