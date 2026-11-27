@@ -201,7 +201,8 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   let s = await st();
   // The seabird flag cites regional knowledge, nothing the run found, so it isn't raised (25 Nov): two flags.
   check(s.flags.length === 2 && /pipelines/.test(s.flags[0]), `${label}: two flags, high first; the untraced one isn't raised (${s.flags[0]})`);
-  check(/^Progress with targeted investigation\. Live pipelines/.test(s.decision), `${label}: decision line first on the card (${s.decision.slice(0, 50)})`);
+  // A screen leads with its headline, written in code (package E): no decision word, no rating.
+  check(/^On the site or at its edge: .*\d+ of \d+ checks couldn't be answered|^On the site or at its edge: .*All \d+ checks answered/.test(s.decision) && !/progress|major issue|severity|confidence/i.test(s.decision), `${label}: headline first on the card (${s.decision.slice(0, 120)})`);
   check(/^F-01/.test(s.flags[0]) && /F-02/.test(s.flags[1]), `${label}: findings numbered F-01 to F-02`);
   // Bring in a layer after the run (plan item 1, 26 Nov): the screen's analyst had no tools, the reply offered the wreck
   // layer the analyst named in look_for, and nothing was fetched until the button.
@@ -277,7 +278,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
     flowline: document.body.innerText.split("\n").filter((l) => /flowline/i.test(l)).slice(0, 4),
     crossing: /Rosebank 9 inch Production flowline 1 · crosses the site's edge, 4\.9\d km of it on site/.test(document.body.innerText),
   }));
-  check(!rep.error && rep.h1 === "Constraints screenArea 1" && /^Progress with targeted investigation\./.test(rep.decision), `${label}: report opens from the link with the site and decision (${rep.error || rep.h1}; ${rep.url} chars)`);
+  check(!rep.error && rep.h1 === "Constraints screenArea 1" && /^On the site or at its edge: /.test(rep.decision), `${label}: report opens from the link with the site and headline (${rep.error || rep.h1}; ${rep.url} chars)`);
   check(rep.rows.join(",") === "F-01,F-02" && /^Next step: Agree crossing/.test(rep.next), `${label}: report has one row per finding with its next step (${rep.rows.join(",")})`);
   check(rep.imgs.length === 2 && rep.imgs.every((n) => n > 5000), `${label}: both maps drawn and copied as pictures for print (${rep.imgs.join(", ")})`);
   check(rep.sources > 0 && /Indicative desk screening/.test(rep.disclaimer), `${label}: sources and disclaimer in the report (${rep.sources} sources)`);

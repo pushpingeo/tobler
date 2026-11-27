@@ -10,6 +10,7 @@ import { DISCLAIMER } from "./disclaimer.js";
 import { seaLines, seaMatters } from "./seavalues.js";
 import { whereText, searchHeadline, SEARCH_BAND } from "./siterole.js";
 import { elevationLine } from "./elevation.js";
+import { relevanceLine, isRelevanceRun } from "./relevance.js";
 import { findingLabels, findingRows, evidenceRows, sourcesOf, gapsOf, checksOf, decisionText, summaryBlocks, changeLog } from "./report.js";
 
 const $ = (id) => document.getElementById(id);
@@ -75,6 +76,7 @@ function render(record) {
   const decision = el("p", null, "decision");
   if (r.budget) decision.append(el("b", `Net developable: ${U.hectares(r.budget.net_ha)} of ${U.hectares(r.budget.gross_ha)} (${Math.round(r.budget.net_share * 100)}%).`),
     document.createTextNode(" A measure with stated rules, not a judgement on whether the site is good."));
+  else if (dec?.headline) { decision.append(document.createTextNode(dec.head)); if (dec.why) decision.append(el("b", ` ${dec.why}`)); }
   else if (dec) decision.append(el("b", dec.head), document.createTextNode(dec.why ? ` ${dec.why}` : ""));
   else decision.append(el("span", "No overall decision was recorded for this run.", "none"));
   const searchArea = s.role === "search_area";
@@ -132,7 +134,7 @@ function render(record) {
   if (!rows.length) findSec.append(el("p", "No findings were raised. See what was checked and the gaps below."));
   else {
     const t = el("table", null, "findings");
-    const hr = el("tr"); ["", "Finding", "Rating", "Nearest"].forEach((h) => hr.append(el("th", h)));
+    const hr = el("tr"); ["", "Finding", isRelevanceRun(r) ? "Where" : "Rating", "Nearest"].forEach((h) => hr.append(el("th", h)));
     t.append(el("thead"), el("tbody"));
     t.tHead.append(hr);
     for (const f of rows) {
@@ -159,8 +161,14 @@ function render(record) {
       }
       if (f.next_step) { const nx = el("p", null, "next"); nx.append(el("b", "Next step: "), document.createTextNode(f.next_step)); what.append(nx); }
       const rating = el("td", null, "rating");
-      rating.append(el("span", `Severity ${f.severity}`), el("span", `Confidence ${f.confidence}${f.confidence_capped ? " (capped)" : ""}`));
-      if (f.confidence_capped) rating.title = `Confidence ${f.confidence_capped}`;
+      if (f.relevance) {
+        // The class and why, from code; the source note in place of a confidence (package E).
+        rating.append(el("span", f.relevance_badge), el("span", relevanceLine(f.relevance, U.dist), "rl"));
+        if (f.source_note) what.append(el("p", f.source_note, "srcnote"));
+      } else {
+        rating.append(el("span", `Severity ${f.severity}`), el("span", `Confidence ${f.confidence}${f.confidence_capped ? " (capped)" : ""}`));
+        if (f.confidence_capped) rating.title = `Confidence ${f.confidence_capped}`;
+      }
       tr.append(el("td", f.id, "id"), what, rating, el("td", f.relation === SEARCH_BAND ? "in the search area" : km(f.nearest_km), "dist"));
       t.tBodies[0].append(tr);
     }
@@ -227,7 +235,7 @@ function render(record) {
   const meth = el("section", null, "method");
   meth.append(el("h2", "Method"));
   meth.append(el("p", `Method: ${r.skill?.name} ${r.skill?.version}${r.industry ? ` (${r.industry} profile)` : ""}, run by ${r.model || "the analyst"}. ${r.method}`));
-  meth.append(el("p", r.budget ? "An area budget: each deduction's features come from the checks, within the deduction's buffer; the rules (which deductions, their buffers and why) are the developable area skill's, for the asset type, with any changes the person asked for. Hard constraints, then buffers, then what's avoided by default are taken off in that order, each counted once; soft constraints are measured on what's left and not taken off. No model judged this: it's arithmetic on the data." : r.study ? "Each finding is a possible contaminant linkage (a source, a pathway and a receptor), judged from the checks alone, in the shape of the Environment Agency's LCRM Stage 1 desk study. Severity is how much a linkage would matter if it is real; confidence is how sure the evidence is. Open records only: no walkover, historical maps or commercial search." : "Findings carry a neutral topic (biodiversity, water, heritage and so on); this is a screen, not an EIA or IFC review. Severity is how much a finding would matter if the evidence is right; confidence is how sure the evidence is."));
+  meth.append(el("p", r.budget ? "An area budget: each deduction's features come from the checks, within the deduction's buffer; the rules (which deductions, their buffers and why) are the developable area skill's, for the asset type, with any changes the person asked for. Hard constraints, then buffers, then what's avoided by default are taken off in that order, each counted once; soft constraints are measured on what's left and not taken off. No model judged this: it's arithmetic on the data." : r.study ? "Each finding is a possible contaminant linkage (a source, a pathway and a receptor), judged from the checks alone, in the shape of the Environment Agency's LCRM Stage 1 desk study. Severity is how much a linkage would matter if it is real; confidence is how sure the evidence is. Open records only: no walkover, historical maps or commercial search." : isRelevanceRun(r) ? "Findings carry a neutral topic (biodiversity, water, heritage and so on); this is a screen, not an EIA or IFC review. Each finding's class is set in code from how its evidence sits against the site: on the site or at its edge (within 50 m), within the distance its check looks out to, dependent on a pathway such as water, within a distance the person widened, or beyond the usual range. Findings are listed in that order, then nearest first. Nothing in the order or the headline is the analyst's rating." : "Findings carry a neutral topic (biodiversity, water, heritage and so on); this is a screen, not an EIA or IFC review. Severity is how much a finding would matter if the evidence is right; confidence is how sure the evidence is."));
   const log = changeLog(r);
   if (log.length) meth.append(el("p", `Changes: ${log.map((a) => `${a.at}, written for ${km(a.within_km) || "inside the area"}: ${a.flags} findings${a.decision ? `, ${a.decision}` : ""}`).join("; ")}. This report shows the latest.`));
   if (r.shared) meth.append(el("p", `This link holds ${r.shared.evidence}. The full run (every feature found, ${r.evidence_total ?? "?"} in all) is in the run download from Tobler.`));

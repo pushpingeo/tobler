@@ -20,6 +20,7 @@ import { groupGaps, gapSummary, GAP_GROUPS } from "./gaps.js";
 import { checksView, noCheckGap } from "./checks.js";
 import * as U from "./units.js";
 import { relationPart, whereWords } from "./relation.js";
+import { CLASSES as REL, relevanceLine, sourceNote, headlineText, isRelevanceRun } from "./relevance.js";
 import { pickExamples } from "./examples.js";
 import { chooseIndustry, industryNote } from "./industry.js";
 import { getUserKey, setUserKey } from "./claude.js";
@@ -1975,10 +1976,14 @@ function paintRun(entry) {
   const list = card.querySelector(".flags");
   list.replaceChildren(...r.flags.map((f) => {
     const li = el("li", null, "flag");
-    li.dataset.conf = f.confidence;
+    // A screen's badge is its relevance class, set in code from how the evidence sits against the site (package E,
+    // Rob 27 Nov). Older runs and studies keep severity, with confidence under the flag.
+    const rel = f.relevance || null;
+    if (rel) li.dataset.rel = rel.class;
+    else li.dataset.conf = f.confidence;
     // The badge is severity, with confidence as a word under the flag (Rob, 22 Nov). Runs without a severity keep
     // the confidence badge they had.
-    if (f.severity) li.dataset.sev = f.severity;
+    if (!rel && f.severity) li.dataset.sev = f.severity;
     const d = document.createElement("details");
     const s = document.createElement("summary");
     const sw = el("span", null, "swatch"); sw.style.background = topicInfo(f.theme).colour; sw.title = topicInfo(f.theme).label;
@@ -1988,12 +1993,18 @@ function paintRun(entry) {
     // Under the flag: its topic in words (people think "heritage", not a colour) and, with a severity, the confidence.
     const sub = el("span", null, "sub");
     sub.append(el("span", f.linkage ? `${topicInfo(f.theme).short} · ${f.linkage.rating} linkage` : topicInfo(f.theme).short, "th"));
-    if (f.severity) sub.append(document.createTextNode(" · "), el("span", `${f.confidence} confidence${f.confidence_capped ? " (capped)" : ""}`, "cw"));
+    if (rel) sub.append(document.createTextNode(" · "), el("span", relevanceLine(rel, U.dist), "rl"));
+    else if (f.severity) sub.append(document.createTextNode(" · "), el("span", `${f.confidence} confidence${f.confidence_capped ? " (capped)" : ""}`, "cw"));
     risk.append(sub);
-    s.append(el("span", f.severity || f.confidence, f.severity ? "sev" : "conf"), sw, risk, el("span", f.relation === SEARCH_BAND ? "in search area" : f.nearest_km == null ? "" : fmtKm(f.nearest_km), "dist"));
-    s.title = `${f.severity ? `Severity ${f.severity}, ` : ""}confidence ${f.confidence}`;
+    const badge = rel ? el("span", REL[rel.class]?.badge || rel.class, "rel") : el("span", f.severity || f.confidence, f.severity ? "sev" : "conf");
+    s.append(badge, sw, risk, el("span", f.relation === SEARCH_BAND ? "in search area" : f.nearest_km == null ? "" : fmtKm(f.nearest_km), "dist"));
+    s.title = rel ? `${REL[rel.class]?.badge}: ${REL[rel.class]?.words}` : `${f.severity ? `Severity ${f.severity}, ` : ""}confidence ${f.confidence}`;
     const body = el("div", null, "body");
-    body.append(el("p", `${topicInfo(f.theme).label}.${f.severity ? ` Severity ${f.severity}, confidence ${f.confidence}.` : ""} ${f.why || ""}${f.confidence_capped ? ` (Confidence ${f.confidence_capped}.)` : ""}`, "why"));
+    if (rel) {
+      body.append(el("p", `${topicInfo(f.theme).label}. ${f.why || ""}`, "why"));
+      const src = sourceNote(f);
+      if (src) body.append(el("p", src, "srcnote"));
+    } else body.append(el("p", `${topicInfo(f.theme).label}.${f.severity ? ` Severity ${f.severity}, confidence ${f.confidence}.` : ""} ${f.why || ""}${f.confidence_capped ? ` (Confidence ${f.confidence_capped}.)` : ""}`, "why"));
     // A contaminant linkage (the desk study): source, pathway and receptor, each in the analyst's words.
     if (f.linkage) {
       const lk = el("p", null, "linkage");
@@ -2023,11 +2034,20 @@ function paintRun(entry) {
   else if (!r.flags.length && !r.parse_error) list.replaceChildren(el("li", r.study ? "No contaminant linkages identified in the open records. See what a full desk study would add below." : "No flags raised. See what still needs checking below.", "flag note"));
   // The decision first (from the ESIA read, 20 Nov): what the screen suggests, in the analyst's words, and why.
   const dec = card.querySelector(".decision");
+  // A screen leads with its headline, written in code from the flags' classes; "insufficient evidence" is its only
+  // decision, also set in code (Rob, 27 Nov).
+  if (isRelevanceRun(r)) {
+    dec.hidden = false;
+    dec.replaceChildren(document.createTextNode(headlineText(r.headline)),
+      ...(r.decision ? [el("span", ` ${r.decision.value.charAt(0).toUpperCase()}${r.decision.value.slice(1)}: ${r.decision.why}`, "changed")] : []));
+    dec.title = "Written in code from how each flag's evidence sits against the site. A screen, not a decision to build: see the disclaimer.";
+  } else {
   dec.hidden = !r.decision;
   if (r.decision) {
     dec.replaceChildren(el("b", `${r.decision.value.charAt(0).toUpperCase()}${r.decision.value.slice(1)}.`), document.createTextNode(r.decision.why ? ` ${r.decision.why}` : ""),
       ...(r.decision.changed ? [el("span", ` Set by Tobler's rules, ${r.decision.changed}.`, "changed")] : []));
     dec.title = "The analyst's overall reading of this screen. A screen, not a decision to build: see the disclaimer.";
+  }
   }
   // Distances in one line; the reasons open under it.
   const dists = card.querySelector(".dists");

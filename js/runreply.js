@@ -8,6 +8,7 @@ import { searchHeadline } from "./siterole.js";
 import { offerLines, bringInReply } from "./bringin.js";
 import { reachLine as reachWords, changesLine, legacyDistancesLine } from "./reach.js";
 import * as U from "./units.js";
+import { relevanceLine, headlineText, isRelevanceRun, isDirect } from "./relevance.js";
 
 const MAX_FLAGS = 3;
 const MAX_GAPS = 4;
@@ -50,6 +51,8 @@ function whereOf(f, searchArea) {
 }
 
 function flagLine(f, searchArea) {
+  // A screen's flag says how it sits against the site, in code's words (package E); no rating.
+  if (f.relevance) return `- ${f.id} ${String(f.risk).replace(/[.\s]+$/, "")}: ${relevanceLine(f.relevance, U.dist)}`;
   const rated = [f.severity ? `${f.severity} severity` : null, `${f.confidence} confidence`].filter(Boolean).join(", ");
   const where = whereOf(f, searchArea);
   const linkage = f.linkage ? ` (${f.linkage.rating} linkage)` : "";
@@ -69,12 +72,15 @@ function gapsLine(r) {
 
 // The first line: what ran, on what, and the decision.
 function header(r, what) {
+  // A screen ordered by relevance has no decision word; its headline follows (Rob, 27 Nov).
+  if (isRelevanceRun(r)) return `**${what} of ${r.site.name} (${r.id}).** ${headlineText(r.headline)}`;
   const decision = r.decision?.value ? `: **${r.decision.value}**` : "";
   return `**${what} of ${r.site.name} (${r.id})**${decision}.`;
 }
 
 function decisionLines(r) {
   const out = [];
+  if (isRelevanceRun(r)) return r.decision ? [`**${r.decision.value.charAt(0).toUpperCase()}${r.decision.value.slice(1)}:** ${sentence(r.decision.why).replace(/^./, (c) => c.toLowerCase())}`] : [];
   if (r.decision?.why) out.push(sentence(r.decision.why));
   if (r.decision?.changed) out.push(`Tobler changed the decision ${String(r.decision.changed).replace(": ", ", because ")}.`);
   return out;
@@ -86,6 +92,11 @@ function flagsBlock(r, { noun = "flag", none = "No flags raised." } = {}) {
   const searchArea = r.site.role === "search_area";
   const shown = r.flags.slice(0, MAX_FLAGS);
   const more = r.flags.length - shown.length;
+  if (isRelevanceRun(r)) {
+    const first = r.flags.some((f) => isDirect(f.relevance?.class)) ? (searchArea ? "the search area first" : "on the site first") : "nearest first";
+    return [more ? `The first ${shown.length} of ${plural(r.flags.length, noun)}, ${first}:` : r.flags.length === 1 ? `One ${noun}:` : `${r.flags.length} ${noun}s, ${first}:`,
+      ...shown.map((f) => flagLine(f, searchArea))];
+  }
   return [more ? `The ${shown.length} most serious of ${plural(r.flags.length, noun)}:` : r.flags.length === 1 ? `One ${noun}:` : `${r.flags.length} ${noun}s, most serious first:`,
     ...shown.map((f) => flagLine(f, searchArea))];
 }

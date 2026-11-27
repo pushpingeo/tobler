@@ -357,6 +357,14 @@ a { color: var(--sea); }
 .run .flag[data-sev="high"] .sev { background: var(--ink); color: #fff; }
 .run .flag[data-sev="medium"] .sev { background: #fff; color: var(--ink); }
 .run .flag[data-sev="low"] .sev { border-style: dashed; color: var(--ink-2); border-color: var(--ink-2); }
+/* Relevance classes (package E): direct interaction filled, in range outlined, pathway and extended dashed. */
+.run .rel { min-width: 5.4em; font-size: 11px; font-weight: 600; border-radius: 999px; padding: 1px 7px; border: 1px solid var(--ink); text-align: center; white-space: nowrap; }
+.run .flag[data-rel="on_site"] .rel, .run .flag[data-rel="in_search_area"] .rel { background: var(--ink); color: #fff; }
+.run .flag[data-rel="at_edge"] .rel { background: var(--paper); box-shadow: inset 0 0 0 1px var(--ink); }
+.run .flag[data-rel="pathway"] .rel, .run .flag[data-rel="extended"] .rel { border-style: dashed; }
+.run .flag[data-rel="beyond_range"] .rel { border-style: dotted; color: var(--ink-2); border-color: var(--ink-2); }
+.run .srcnote { font-size: 13px; color: var(--ink-2); }
+.run .flag.beyond .rel { opacity: .5; }
 .run .flag .sub { display: block; font-size: 12px; font-weight: 500; color: var(--ink-2); margin-top: 1px; }
 .run .flag .th { color: var(--ink); }
 .run .flag .swatch { width: 12px; height: 12px; border-radius: 3px; align-self: center; }

@@ -60,11 +60,13 @@ export function slimRun(record, { tol = 0.0002, now = () => new Date().toISOStri
     started_at: r.started_at, finished_at: r.finished_at, decision: r.decision ?? null,
     site: r.site, ...(r.sea ? { sea: r.sea } : {}), ...(r.elevation ? { elevation: r.elevation } : {}),
     extent: r.extent, ...(r.reach ? { reach: r.reach } : { distances: r.distances }), fetched_to_km: r.fetched_to_km, assessed_within_km: r.assessed_within_km, method: r.method,
-    flags: r.flags.map((f) => ({ id: f.id, risk: f.risk, theme: f.theme, severity: f.severity ?? null, confidence: f.confidence, why: f.why, next_step: f.next_step || "",
+    // A screen ordered by relevance (package E) carries each flag's class and its headline; older runs their rating.
+    ...pick(r, ["order", "headline"]),
+    flags: r.flags.map((f) => ({ id: f.id, risk: f.risk, theme: f.theme, ...(f.relevance ? { relevance: f.relevance } : { severity: f.severity ?? null, confidence: f.confidence }), why: f.why, next_step: f.next_step || "",
       nearest_km: f.nearest_km, fids: f.fids || [], ...pick(f, ["relation", "coverage", "confidence_capped", "linkage"]),
       evidence: f.evidence.map((e) => pick(e, ["name", "distance_km", "band", "dataset", "publisher", "licence", "checked", "traced", "fid", "ref", "check", "from_values", "in_search_area", "coverage", "side", "relation", "site_share", "length_inside_km", "parts", "parts_on_site"])) })),
     checked: r.checked.map((c) => ({ ...pick(c, ["evidence", "dataset", "publisher", "licence", "checked_at", "result", "count"]), ...(c.why ? { why: String(c.why).slice(0, 160) } : {}) })),
-    ...(r.checks ? { checks: r.checks.map((c) => ({ ...pick(c, ["id", "topic", "label", "must", "answer", "scale", "reach_km", "reach_wanted_km", "reach_from", "reach_default_km", "reach_note", "state", "reason", "count", "bands", "bands_imperial", "around", "nearest", "inside", "text", "capped", "partly", "search_area", "classes", "irz_codes", "adjacent", "site_share", "zones", "next_to"]),
+    ...(r.checks ? { checks: r.checks.map((c) => ({ ...pick(c, ["id", "topic", "label", "must", "answer", "scale", "reached_by", "reach_km", "reach_wanted_km", "reach_from", "reach_default_km", "reach_note", "state", "reason", "count", "bands", "bands_imperial", "around", "nearest", "inside", "text", "capped", "partly", "search_area", "classes", "irz_codes", "adjacent", "site_share", "zones", "next_to"]),
       ...(c.irz ? { irz: c.irz.map((z) => ({ key: z.key, category: z.category, consult: z.consult })) } : {}),
       // The nearest ten of each check's features travel in a link, by name (the shapes behind the flags travel anyway).
       ...(c.features?.length ? { features: c.features.slice(0, 10).map((f) => pick(f, ["name", "distance_km", "around", "coverage", "detail", "publisher", "relation", "site_share", "length_inside_km", "parts", "parts_on_site"])), features_total: c.features.length } : {}),

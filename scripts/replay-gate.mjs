@@ -84,7 +84,7 @@ async function screenSite(site) {
   const r = record.tobler_run;
   // The same compact screen result the page logs (js/workspace.js), so the digest's checks read it unchanged.
   events.unshift({ tool: "screen_site", input: site.inputs, ms, output: head });
-  events.push({ screen_result: { run: r.id, flags: r.flags.map((f) => ({ risk: f.risk, theme: f.theme, confidence: f.confidence, nearest_km: f.nearest_km, evidence: f.evidence.map((e) => `${e.name} ${e.distance_km} km${e.traced ? "" : " (not traced)"}`) })),
+  events.push({ screen_result: { run: r.id, flags: r.flags.map((f) => ({ risk: f.risk, theme: f.theme, ...(f.relevance ? { relevance: f.relevance.class } : { confidence: f.confidence }), nearest_km: f.nearest_km, evidence: f.evidence.map((e) => `${e.name} ${e.distance_km} km${e.traced ? "" : " (not traced)"}`) })),
     checked: r.checked.map((c) => `${c.dataset}: ${c.result}${c.count ? ` ${c.count}` : ""}${c.why ? ` (${c.why})` : ""}`), gaps: r.data_gaps } });
   return { record, events, ms };
 }

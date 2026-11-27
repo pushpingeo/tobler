@@ -2,6 +2,33 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 27 Nov 2026 (late afternoon): relevance classes replace severity on a screen (package E, step 2)
+Rob approved the samples at 15:49 (page and prototype: `claude/package-e-samples-2026-11-27.md` in the project).
+- **Classes, set in code** (`js/relevance.js`): on site (within, crosses, covers), at edge (within 50 m), in search
+  area, in range (within the check's reach for this asset and size), pathway (in range, off the site, and the check is
+  reached only by water, ground or flight), extended (only beyond the check's default because the person widened it),
+  beyond range. A flag takes the class of its closest traced evidence. A reach the asset sets reads as in range, with
+  its reason (Rob).
+- **Order:** class, then nearest first, then must-checks, then the catalogue's topic order, then the analyst's. F
+  numbers are given after that sort, so they read F-01 down the card (they always were code's; the analyst never
+  numbered flags).
+- **No decision word on a screen** (Rob): the headline is written in code (what's on the site or at its edge, how many
+  more in range, how many checks couldn't be answered). "Insufficient evidence" stays, set in code (`settleScreen`)
+  when every must-check for a topic came back not checked; the analyst's "progress" or "major issue" is no longer
+  asked for or kept.
+- **Confidence goes on a screen** (Rob): a source note from the closest evidence's dataset (with the caveat the dataset
+  carries, such as "completeness varies") takes its place. The search-area confidence cap becomes its own class and a
+  note; the card and report never say "on the site" for a search area.
+- **The skill** (4.3-draft) no longer asks for severity, confidence or a decision; weak evidence is said in "why".
+- **Left as they were:** the contamination desk study keeps severity, confidence and its linkage decisions (it's
+  marked early; not in package E's brief). Old runs and share links keep what they had: the card, reply and report
+  read either. `catalogue/industries/energy.json`'s decision list is no longer used by screens; left in place
+  rather than deleted without Rob's say.
+- **Pathway:** 24 of 62 checks have no `reached_by` (including SSSIs and SACs), so they never show a pathway line.
+  Rob wants to see one on a real run before judging it.
+- **Rerun comparison:** a new screen compared with an older one says the old decision word isn't compared, instead
+  of "was progress, now none".
+
 ## 27 Nov 2026 (afternoon): a site that widens to global keeps its checks; main roads stay A roads
 Rob, 13:51.
 - **Main roads don't include B roads.** The gate's one miss (Lethen's B9007) stays a miss by definition: the check is

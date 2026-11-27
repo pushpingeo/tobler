@@ -99,7 +99,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   const card = await page.evaluate(() => ({
     note: document.querySelector(".run .search-note").hidden ? "" : document.querySelector(".run .search-note").textContent,
     setup: document.querySelector(".run .setup").textContent,
-    flags: [...document.querySelectorAll(".run .flag")].map((li) => ({ risk: li.querySelector(".risk").textContent, conf: li.dataset.conf, sev: li.querySelector(".sev")?.textContent || "", cw: li.querySelector(".cw")?.textContent || "", dist: li.querySelector(".dist").textContent, why: li.querySelector(".why").textContent, ev: li.querySelector(".ev li").textContent })),
+    flags: [...document.querySelectorAll(".run .flag")].map((li) => ({ risk: li.querySelector(".risk").textContent, conf: li.dataset.conf, sev: li.querySelector(".sev")?.textContent || "", cw: li.querySelector(".cw")?.textContent || "", rel: li.dataset.rel || "", badge: li.querySelector(".rel")?.textContent || "", rl: li.querySelector(".rl")?.textContent || "", src: li.querySelector(".srcnote")?.textContent || "", dist: li.querySelector(".dist").textContent, why: li.querySelector(".why").textContent, ev: li.querySelector(".ev li").textContent })),
     sea: document.querySelector(".run .sea").hidden ? "" : document.querySelector(".run .sea").textContent,
     body: document.querySelector(".run").textContent,
   }));
@@ -121,11 +121,11 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   const spa = card.flags.find((f) => /Goose/.test(f.risk));
   const mon = card.flags.find((f) => /monument/i.test(f.risk));
   const peat = card.flags.find((f) => /peat/i.test(f.risk));
-  check(peat && peat.conf === "high" && /in the search area \(covers \d+% of it/.test(peat.ev) && !/Confidence high →/.test(peat.why), `${label}: peat covering a third of it: 10% or more, so high confidence, not capped (${peat?.conf}, ${peat?.ev.slice(0, 60)})`);
-  check(spa && spa.sev === "high" && spa.cw === "low confidence (capped)" && peat?.sev === "medium" && peat?.cw === "high confidence", `${label}: the badge is severity, with confidence as a word under the flag (${spa?.sev} / ${spa?.cw}; ${peat?.sev} / ${peat?.cw})`);
-  check(spa && /in the search area/.test(spa.risk) && spa.dist === "in search area" && spa.conf === "low", `${label}: the roost: worded for a search area, low confidence (a sliver) (${spa?.conf}, ${spa?.dist})`);
-  check(spa && /in the search area \(covers \d+(\.\d)?% of it, on its eastern side\)/.test(spa.ev) && /Confidence high → low/.test(spa.why), `${label}: the roost's evidence says how much it covers and where; the cap is explained (${spa?.ev.slice(0, 80)})`);
-  check(mon && mon.conf === "medium" && /in the search area \(on its/.test(mon.ev), `${label}: the monument point: medium, inside, with where (${mon?.ev.slice(0, 70)})`);
+  check(peat && peat.rel === "in_search_area" && peat.badge === "Search area" && /in the search area \(covers \d+% of it/.test(peat.ev) && !/[Cc]onfidence/.test(peat.why), `${label}: peat in the search area: classed in code, no confidence (${peat?.rel}, ${peat?.ev.slice(0, 60)})`);
+  check(spa && !spa.sev && !spa.cw && spa.badge === "Search area" && /^Special Protection Areas: in the search area, covering \d+% of it\.$/.test(spa.rl) && /search area that stands in for the site's outline/.test(spa.src), `${label}: the badge is the relevance class, with its line under the flag and a source note in place of confidence (${spa?.badge} / ${spa?.rl} / ${spa?.src.slice(0, 60)})`);
+  check(spa && /in the search area/.test(spa.risk) && spa.dist === "in search area" && spa.rel === "in_search_area", `${label}: the roost: worded for a search area (${spa?.rel}, ${spa?.dist})`);
+  check(spa && /in the search area \(covers \d+(\.\d)?% of it, on its eastern side\)/.test(spa.ev), `${label}: the roost's evidence says how much it covers and where (${spa?.ev.slice(0, 80)})`);
+  check(mon && mon.rel === "in_search_area" && /in the search area \(on its/.test(mon.ev), `${label}: the monument point: inside, with where (${mon?.rel}, ${mon?.ev.slice(0, 70)})`);
   check(card.sea === "", `${label}: no "At sea" line for an onshore site`);
   check(/search area/.test(firsts.at(-1) || ""), `${label}: the analyst was told it's a search area`);
   await page.screenshot({ path: `/tmp/search-${label}-card.png` });
@@ -144,7 +144,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   }));
   check(/^Screened a 19\.\d km² search area/.test(rep.note), `${label}: report leads with the search-area line`);
   check(rep.key.includes("The search area") && rep.dash === "[3,2]", `${label}: report draws and keys the search area dashed`);
-  check(rep.nearest.every((t) => t === "in the search area") && /in the search area \(covers/.test(rep.ev) && /capped/.test(rep.rating), `${label}: report rows say "in the search area", with the share, and the capped confidence`);
+  check(rep.nearest.every((t) => t === "in the search area") && /in the search area \(covers/.test(rep.ev) && /^Search area/.test(rep.rating) && !/[Cc]onfidence|[Ss]everity/.test(rep.rating), `${label}: report rows say "in the search area", with the share, and the class in place of a rating (${rep.rating.slice(0, 60)})`);
   check(!rep.atSea, `${label}: report has no "At sea" row for an onshore site`);
   await rp.screenshot({ path: `/tmp/search-${label}-report.png`, fullPage: true });
   await rp.close();

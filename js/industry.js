@@ -18,6 +18,16 @@ export function industryNote(profile, index) {
   return `Industry: ${profile.label} (screening method: ${profile.wording?.method || profile.skill}).${soon.length ? ` Coming soon: ${soon.join("; ")}.` : ""}`;
 }
 
+// A constraints screen's only decision (Rob, 27 Nov: no "major issue", no rating words): insufficient evidence when
+// every must-check for a topic came back not checked, set in code; otherwise none, and the card leads with the
+// headline built from the flags' relevance classes (js/relevance.js).
+export function settleScreen({ checks = [], topicLabel = (t) => t } = {}) {
+  const short = topicsShort(checks);
+  if (!short.length) return null;
+  const names = short.map((t) => topicLabel(t).toLowerCase()).join(" and ");
+  return { value: "insufficient evidence", why: `None of the must-checks for ${names} could be checked, so the screen can't say what's there.`, set_by: "code" };
+}
+
 // The overall decision, kept to the profile's words; anything else is dropped rather than guessed.
 export const DECISIONS = ["progress", "progress with targeted investigation", "major issue", "insufficient evidence"];
 export function readDecision(value, why, allowed = DECISIONS) {

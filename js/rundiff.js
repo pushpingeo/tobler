@@ -56,7 +56,10 @@ export function runDiff(oldRec, newRec, { siteChanged = null } = {}) {
     if (a.budget.net_ha !== b.budget.net_ha) lines.push(`Net area: was ${a.budget.net_ha} ha, now ${b.budget.net_ha} ha.`);
   } else {
     const dv = (r) => r.decision?.value || null;
-    if (dv(a) !== dv(b)) lines.push(`Decision: was ${dv(a) || "none"}, now ${dv(b) || "none"}.`);
+    // A screen from 27 Nov has no decision word (package E): an older run's isn't compared with it, and the reply says why.
+    const byRel = (r) => r.order === "relevance";
+    if (byRel(b) && !byRel(a)) { if (dv(a)) lines.push(`Screens no longer give a decision word, so ${a.id}'s "${dv(a)}" isn't compared: this one leads with what's on the site and in range.`); }
+    else if (dv(a) !== dv(b)) lines.push(`Decision: was ${dv(a) || "none"}, now ${dv(b) || "none"}.`);
     const topics = (r) => new Set((r.flags || []).map((f) => topicOf(f.theme)));
     const label = (t) => (b.topic_labels?.[t] || a.topic_labels?.[t] || t).toLowerCase();
     const ta = topics(a), tb = topics(b);
@@ -65,7 +68,7 @@ export function runDiff(oldRec, newRec, { siteChanged = null } = {}) {
       lines.push(`Flags: was ${a.flags.length}, now ${b.flags.length}${added.length ? `; new on ${list(added)}` : ""}${dropped.length ? `; none now on ${list(dropped, "or")}` : ""}.`);
     }
     // Nothing moved underneath, but the result did: say plainly where the difference comes from.
-    const resultMoved = dv(a) !== dv(b) || added.length || dropped.length || a.flags.length !== b.flags.length;
+    const resultMoved = (byRel(a) === byRel(b) && dv(a) !== dv(b)) || added.length || dropped.length || a.flags.length !== b.flags.length;
     if (resultMoved && !asked.length && !siteChanged && sameChecks && !newly.length) {
       lines.push("The checks came back the same, so the difference is in the analyst's judgement of them, not in the data.");
     }

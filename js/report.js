@@ -2,6 +2,7 @@
 // Layout follows the outline in the plan ("Outputs", PDF), from the ESIA read: decision first, a site map, a map of
 // numbered findings, one row per finding, the evidence and gaps, the method, sources and licences, the disclaimer.
 // No DOM, so it can be tested; js/reportpage.js draws it.
+import { CLASSES, sourceNote, headlineText, isRelevanceRun } from "./relevance.js";
 import { relationPart } from "./relation.js";
 import * as turf from "./vendor/turf.js";
 import { topicInfo } from "./findings.js";
@@ -50,7 +51,9 @@ function labelPoint(f, centre) {
 export function findingRows(run) {
   return run.flags.map((f) => ({
     id: f.id || "", risk: f.risk, theme: themeLabel(f.theme), colour: topicInfo(f.theme).colour,
-    severity: f.severity || "not rated", confidence: f.confidence, nearest_km: f.nearest_km, why: f.why || "", next_step: f.next_step || "",
+    // A screen's finding carries its relevance class and source note, set in code (package E); older runs their rating.
+    ...(f.relevance ? { relevance: f.relevance, relevance_badge: CLASSES[f.relevance.class]?.badge || f.relevance.class, source_note: sourceNote(f) } : { severity: f.severity || "not rated", confidence: f.confidence }),
+    nearest_km: f.nearest_km, why: f.why || "", next_step: f.next_step || "",
     relation: f.relation || null, confidence_capped: f.confidence_capped || null, ...(f.linkage ? { linkage: f.linkage } : {}),
     evidence: (f.evidence || []).map((e) => ({ name: e.name || "Unnamed", distance_km: e.distance_km, band: e.band, ...relationPart(e), dataset: e.dataset || "", publisher: e.publisher || "", checked: e.checked ? String(e.checked).slice(0, 10) : "", traced: !!e.traced,
       ...(e.in_search_area ? { in_search_area: true, coverage: e.coverage ?? null, side: e.side ?? null } : {}) })),
@@ -86,6 +89,8 @@ export const gapsOf = (run) => groupGaps(run.data_gaps || [], run.checked || [],
 export const checksOf = (run, units = "metric") => checksView(run, units);
 
 export function decisionText(run) {
+  // A screen leads with its headline, written in code; "insufficient evidence" is its only decision (Rob, 27 Nov).
+  if (isRelevanceRun(run)) return { head: headlineText(run.headline), why: run.decision ? `${cap(run.decision.value)}: ${run.decision.why}` : "", headline: true };
   return run.decision ? { head: `${cap(run.decision.value)}.`, why: [run.decision.why, run.decision.changed ? `Set by Tobler's rules, ${run.decision.changed}.` : ""].filter(Boolean).join(" ") } : null;
 }
 

@@ -137,7 +137,8 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   check(after.ids.join() === "R1,R2", `${label}: the re-run is a new card, R2, beside R1 (${after.ids.join()})`);
   check(after.r2?.replaces?.run === "R1" && /moved 0\.6 km east/.test(after.r2.replaces.why) && after.r2.stage === "concept" && after.r2.asset === "solar" && after.r2.same, `${label}: R2 replaces R1, same asset and stage, on the edited outline`);
   // The reply is written from the record, as for any run, and says what changed from R1 and why (25 Nov).
-  check(/^Constraints screen of Area 1 \(R2\): progress\./.test(after.reply) && /Compared with R1: The site changed: .*Decision: was progress with targeted investigation, now progress\./.test(after.reply), `${label}: the reply says what changed from R1 (${after.reply.slice(0, 300)})`);
+  // Both runs are screens from after package E: no decision word, so the change is the site and the flags.
+  check(/^Constraints screen of Area 1 \(R2\)\. On the site or at its edge: /.test(after.reply) && /Compared with R1: The site changed: /.test(after.reply) && !/progress|major issue/i.test(after.reply), `${label}: the reply says what changed from R1 (${after.reply.slice(0, 400)})`);
   const line = await page.evaluate(() => document.getElementById("activity")?.textContent || "");
   check(!/Screening/.test(line), `${label}: the activity line is cleared after the re-run (${line.slice(0, 50)})`);
   s = await strip(0);

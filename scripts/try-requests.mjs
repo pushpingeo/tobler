@@ -1,6 +1,7 @@
 // Plays a list of requests through the workspace's analyst (same skill, tools and turn loop as the page),
 // with the atlas on, and prints each conversation. For finding problems by using it, not for scoring.
 // Each line of REQUESTS is one conversation; " >> " separates follow-up turns.
+import { headlineText } from "../js/relevance.js";
 import { readFileSync } from "node:fs";
 import * as turf from "@turf/turf";
 import * as R from "../js/reference.js";
@@ -112,8 +113,8 @@ for (const conv of convs) {
       console.log(`   [RUN CARD ${r.id}: ${r.site.name}; ${r.site.asset_label}${r.site.asset_assumed ? " (assumed)" : ""}; ${r.site.footprint}; ${r.reach ? `${r.reach.scale}: ${r.reach.range}; furthest ${r.reach.furthest_km} km${r.reach.changes?.length ? `; changed: ${r.reach.changes.map((c) => c.line).join("; ")}` : ""}${r.reach.not_used?.length ? `; not used: ${r.reach.not_used.map((n) => n.line).join("; ")}` : ""}` : "old distances"}]`);
       if (r.replaces) console.log(`     REPLACES ${r.replaces.run}: ${r.replaces.why}`);
       if (r.sea) console.log(`     SEA ${JSON.stringify(r.sea).slice(0, 900)}`);
-      console.log(`     DECISION: ${r.decision ? `${r.decision.value} (${r.decision.why})` : "none given"}`);
-      for (const f of r.flags) console.log(`     ${f.id} ${f.severity ? `sev ${f.severity}, ` : ""}${f.confidence.toUpperCase()} [${f.theme}]${f.next_step ? ` next: ${f.next_step} |` : ""} ${f.risk} | nearest ${f.nearest_km} km | evidence ${f.traced} traced, ${f.untraced} not traced: ${f.evidence.map((e) => `${e.name} ${e.distance_km} km${e.traced ? "" : " (untraced)"}`).join("; ").slice(0, 400)}`);
+      console.log(`     DECISION: ${r.decision ? `${r.decision.value} (${r.decision.why})` : "none given"}${r.headline ? ` | HEADLINE: ${headlineText(r.headline)}` : ""}`);
+      for (const f of r.flags) console.log(`     ${f.id} ${f.relevance ? f.relevance.class.toUpperCase() : `${f.severity ? `sev ${f.severity}, ` : ""}${String(f.confidence || "").toUpperCase()}`} [${f.theme}]${f.next_step ? ` next: ${f.next_step} |` : ""} ${f.risk} | nearest ${f.nearest_km} km | evidence ${f.traced} traced, ${f.untraced} not traced: ${f.evidence.map((e) => `${e.name} ${e.distance_km} km${e.traced ? "" : " (untraced)"}`).join("; ").slice(0, 400)}`);
       console.log(`     checked: ${r.checked.map((c) => `${c.dataset} → ${c.result}${c.count ? ` ${c.count}` : ""}`).join("; ").slice(0, 900)}`);
       console.log(`     gaps: ${r.data_gaps.join(" | ").slice(0, 600)}`);
       console.log(`     evidence features: ${evidenceOf(rec).length}; tokens ${r.usage.input_tokens} in / ${r.usage.output_tokens} out${r.parse_error ? `; PROBLEM ${r.parse_error}` : ""}`);

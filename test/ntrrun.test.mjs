@@ -191,9 +191,12 @@ await test("sealed run: each check to its own reach, brought-in layers to the fu
   assert.equal(ev.find((f) => /TROLDFOS/i.test(f.properties.name)).properties.theme, "heritage");
   assert.equal(ev.find((f) => /flowline/.test(f.properties.name)).properties.band, "on site");
   assert.equal(record.features[0].properties.role, "site");
-  // Flags: sorted by confidence; evidence cited by id, filled in from the run's features; the regional-knowledge
-  // flag cites nothing the run holds, so it isn't raised: it's a gap, with what it cited (25 Nov).
-  assert.deepEqual(r.flags.map((f) => f.confidence), ["high", "medium"]);
+  // Flags: ordered by relevance class, set in code (package E): no severity or confidence kept; evidence cited by id,
+  // filled in from the run's features; the regional-knowledge flag cites nothing the run holds, so it isn't raised:
+  // it's a gap, with what it cited (25 Nov).
+  assert.deepEqual(r.flags.map((f) => f.relevance.class), ["on_site", "in_range"]);
+  assert.equal(r.order, "relevance");
+  assert.ok(r.flags.every((f) => f.severity === undefined && f.confidence === undefined && f.relevance));
   assert.equal(r.flags[0].theme, "community-health");
   assert.equal(r.flags[0].traced, 2);
   assert.equal(r.flags[0].evidence[0].name, "Rosebank 9 inch Production flowline 1");
@@ -278,7 +281,9 @@ await test("screen_site from the conversation: needs a place, runs sealed, retur
   // Run from the conversation, with nothing brought in: the pipelines come from their check; the wreck the result cites
   // was never fetched, so that flag isn't raised.
   assert.equal(out.flags, 1);
-  assert.deepEqual(out.by_confidence, { high: 1, medium: 0, low: 0 });
+  assert.equal(out.by_confidence, undefined, "a screen has no confidence counts (package E)");
+  assert.match(out.headline, /^On the site or at its edge: /);
+  assert.equal(out.top_flags[0].relevance, "on_site");
   assert.match(out.distances, /each check looks out its own distance/);
   assert.equal(out.asset, "offshore oil or gas field (assumed)");
   assert.ok(shown[0].tobler_run.not_raised.some((n) => /wreck/i.test(n.risk)));
@@ -288,6 +293,8 @@ await test("screen_site from the conversation: needs a place, runs sealed, retur
   assert.equal(g.run, "R1");
   assert.equal(g.flags[0].evidence[0].traced, true);
   assert.equal(g.flags[0].theme, "community-health", "PS codes from the IFC skill read as topics");
+  assert.equal(g.flags[0].relevance, "on_site");
+  assert.ok(g.flags[0].where && g.flags[0].source && g.flags[0].severity === undefined);
 });
 
 await test("outside the profile (housing): screened at once as a general screen; the caveat is in the run, the analyst's brief and a re-run", async () => {
@@ -461,7 +468,7 @@ await test("evidence by id: code fills in names, distances and sources; a flag w
   assert.equal(notRaisedGap(not_raised[1]), "Not raised as a flag, because its evidence didn't trace to anything this run found: Wind farms nearby");
 });
 
-await test("findings get IDs in the order shown; severity sorts before confidence; next steps and the decision are kept", async () => {
+await test("findings get IDs in the order shown; without relevance (a study, an old run) severity sorts before confidence; a screen drops the decision word", async () => {
   const f = traceFlags([
     { risk: "a", theme: "PS4", confidence: "high", severity: "low", evidence: ["E1"] },
     { risk: "b", theme: "PS6", confidence: "low", severity: "high", next_step: " walkover survey ", evidence: ["E1"] },
@@ -477,10 +484,12 @@ await test("findings get IDs in the order shown; severity sorts before confidenc
   const model = scriptedModel([(req) => final(RESULT(`,{"risk":"SAC to the north-west","theme":"PS6","confidence":"medium","evidence":["${refIn(req, "Wyville Thomson Ridge")}"]}`).replace('"flags":[', '"decision":"major issue","decision_why":"wreck on the route","flags":['))]);
   const d = chooseAsset(table, { asset_type: "oil-gas-field", offshore: true });
   const rec = await runScreening({ broughtIn: BROUGHT, host: { ...host(), profile: () => ({ id: "energy", decisions: ["progress", "major issue"] }) }, site, asset: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
-  assert.deepEqual(rec.tobler_run.decision, { value: "major issue", why: "wreck on the route" });
+  // A screen drops the analyst's decision word (package E, Rob 27 Nov): no "major issue"; its headline is code's.
+  assert.equal(rec.tobler_run.decision, null);
   assert.equal(rec.tobler_run.industry, "energy");
   assert.equal(rec.tobler_run.flags[0].id, "F-01");
-  assert.equal(headline(rec).decision, "major issue");
+  assert.equal(headline(rec).decision, undefined);
+  assert.ok(!/major issue/i.test(JSON.stringify(headline(rec))));
 });
 
 await test("a result cut off at the length cap is asked for again, as JSON only, from a compact summary first", async () => {
@@ -777,7 +786,7 @@ await test("re-assess inside the area (the card's switch): only inside evidence,
   assert.equal(rec.tobler_run.flags[0].traced, 1);
 });
 
-await test("a search area (no outline found): nothing is 'on site'; findings inside say where, confidence capped, words changed", async () => {
+await test("a search area (no outline found): nothing is 'on site'; findings inside say where and are classed in the search area, words changed", async () => {
   const { SEARCH_BAND } = await import("../js/siterole.js");
   const model = standardScript();
   const d = chooseAsset(table, { asset_type: "oil-gas-field", offshore: true });
@@ -793,13 +802,16 @@ await test("a search area (no outline found): nothing is 'on site'; findings ins
   assert.equal(flow.in_search_area, true);
   const pipes = r.flags.find((f) => /pipelines/.test(f.risk));
   assert.equal(pipes.relation, SEARCH_BAND);
-  assert.equal(pipes.confidence, "medium", "high capped to medium inside a search area");
-  assert.match(pipes.confidence_capped, /high → medium/);
+  // In place of the old confidence cap (package E): its own class, and a source note that says what it means.
+  assert.equal(pipes.relevance.class, "in_search_area");
+  const { sourceNote, relevanceLine } = await import("../js/relevance.js");
+  assert.match(sourceNote(pipes), /search area that stands in for the site's outline/);
+  assert.match(relevanceLine(pipes.relevance), /: in the search area/);
   assert.match(pipes.risk, /in and near the search area/, "'on and near site' reworded");
   assert.doesNotMatch(pipes.risk, /on site/);
   assert.equal(pipes.evidence[0].band, SEARCH_BAND);
   const wreck = r.flags.find((f) => /Wreck/.test(f.risk));
-  assert.equal(wreck.confidence, "medium");
+  assert.equal(wreck.relevance.class, "in_range");
   assert.equal(wreck.relation, "outside the search area");
   assert.match(headline(rec).site_is, /search area/);
   // The share link keeps it.
@@ -809,10 +821,10 @@ await test("a search area (no outline found): nothing is 'on site'; findings ins
   assert.equal(slim.tobler_run.flags.find((f) => /pipelines/.test(f.risk)).relation, SEARCH_BAND);
 });
 
-await test("a published outline stays a site: 'on site' and no cap", async () => {
+await test("a published outline stays a site: 'on site'", async () => {
   const rec = await runScreening({ broughtIn: BROUGHT, host: host(), site, asset: chooseAsset(table, { asset_type: "oil-gas-field", offshore: true }), skill, callClaude: standardScript(), inputs: { asset_type: "oil-gas-field", asset_label: "x" } });
   assert.equal(rec.tobler_run.site.role, "footprint");
-  assert.equal(rec.tobler_run.flags.find((f) => /pipelines/.test(f.risk)).confidence, "high");
+  assert.equal(rec.tobler_run.flags.find((f) => /pipelines/.test(f.risk)).relevance.class, "on_site");
 });
 
 await test("how a feature sits against the site (package B): crossing the edge, touching it, and a zone over part of it", async () => {
@@ -913,7 +925,8 @@ await test("the run record (tobler-run/2) carries every check with its source, a
   const model = scriptedModel([final('Nothing much.\n```json\n{"decision":"progress","decision_why":"clear","flags":[],"checked":[],"data_gaps":[]}\n```')]);
   const bad = (await runScreening({ broughtIn: BROUGHT, host: { ...host(), atlas: down }, site, asset: d, skill, callClaude: model, inputs: { asset_type: "oil-gas-field", asset_label: "x" } })).tobler_run;
   assert.equal(bad.decision.value, "insufficient evidence");
-  assert.match(bad.decision.changed, /none of the must-checks for biodiversity could be checked/);
+  assert.match(bad.decision.why, /none of the must-checks for biodiversity could be checked/i);
+  assert.equal(bad.decision.set_by, "code");
   assert.equal(bad.checks.find((c) => c.id === "bio.national-sites").reason, "failed");
 });
 

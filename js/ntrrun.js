@@ -19,7 +19,8 @@ import { siteChange } from "./outofdate.js";
 import { runDiff } from "./rundiff.js";
 import { waterDepth, vesselTraffic, seaLines } from "./seavalues.js";
 import { elevationFrom, elevationSignificance, elevationLine, elevationShort } from "./elevation.js";
-import { readDecision, settleDecision } from "./industry.js";
+import { readDecision, settleDecision, settleScreen } from "./industry.js";
+import { relevanceOf, checkMaps, compareFlags, headlineOf, headlineText, relevanceLine, sourceNote, isRelevanceRun } from "./relevance.js";
 import * as K from "./checks.js";
 import { areasNear } from "./ukareas.js";
 import { topicOf, TOPIC_IDS } from "./findings.js";
@@ -54,7 +55,7 @@ export function summaryFromResult(json) {
   if (json?.decision) lines.push(`Decision: ${String(json.decision).trim()}.${json.decision_why ? ` ${String(json.decision_why).trim()}` : ""}`);
   const flags = Array.isArray(json?.flags) ? json.flags : [];
   if (flags.length) {
-    lines.push("", "Flags, most serious first:");
+    lines.push("", flags.some((f) => f.severity) ? "Flags, most serious first:" : "Flags:");
     const rank = (f) => (SEV_ORDER[f.severity] ?? 3) * 3 + (CONF_ORDER[f.confidence] ?? 2);
     for (const f of [...flags].sort((a, b) => rank(a) - rank(b))) lines.push(`- ${f.risk}${f.next_step ? `. Next step: ${f.next_step}` : ""}`);
   } else lines.push("", "No flags raised.");
@@ -189,7 +190,10 @@ function resolveRef(e, byFid, byCheck, d, sea) {
 }
 
 // Returns { flags, not_raised }. evidence: the run's evidence features; ctx.checks: the run's check results.
-export function traceResult(flags, evidence, d, { checks = [], sea = null } = {}) {
+// relevance: the topic order, for a screen ordered and badged by relevance (package E): the flag's class is set in code
+// from its evidence, and the analyst's severity and confidence, if it sent any, aren't kept. Without it (a study, an
+// old record) the order is severity, then confidence, as before.
+export function traceResult(flags, evidence, d, { checks = [], sea = null, relevance = null } = {}) {
   const byFid = new Map(evidence.map((f) => [String(f.properties.fid).toUpperCase(), f.properties]));
   const byCheck = new Map((checks || []).map((c) => [c.id, c]));
   const all = (flags || []).map((flag) => {
@@ -201,17 +205,19 @@ export function traceResult(flags, evidence, d, { checks = [], sea = null } = {}
       ...(flag.linkage && typeof flag.linkage === "object" ? { linkage: {
         source: String(flag.linkage.source || "").slice(0, 160), pathway: String(flag.linkage.pathway || "").slice(0, 160), receptor: String(flag.linkage.receptor || "").slice(0, 160),
         rating: ["likely", "possible"].includes(flag.linkage.rating) ? flag.linkage.rating : "possible" } } : {}),
-      confidence: CONF_ORDER[flag.confidence] != null ? flag.confidence : "low",
-      severity: SEV_ORDER[flag.severity] != null ? flag.severity : null, why: flag.why || "",
+      ...(relevance ? {} : { confidence: CONF_ORDER[flag.confidence] != null ? flag.confidence : "low",
+        severity: SEV_ORDER[flag.severity] != null ? flag.severity : null }), why: flag.why || "",
       next_step: String(flag.next_step || "").trim(), evidence: traced,
       fids: traced.map((e) => e.fid).filter(Boolean), nearest_km: dists.length ? Math.min(...dists) : null, traced: traced.length, untraced: ev.length - traced.length,
       ...(ev.length > traced.length ? { untraced_refs: ev.filter((e) => !e.traced).map((e) => `${e.ref || "?"} (${e.why})`) } : {}),
     };
   });
+  const maps = relevance ? checkMaps(checks || []) : null;
   const kept = all.filter((f) => f.traced > 0)
-    .sort((a, b) => sevRank(a) - sevRank(b) || CONF_ORDER[a.confidence] - CONF_ORDER[b.confidence] || (a.nearest_km ?? 1e9) - (b.nearest_km ?? 1e9))
+    .map((f, i) => (relevance ? { ...f, relevance: relevanceOf(f.evidence, maps), _i: i } : f))
+    .sort(relevance ? compareFlags(relevance) : (a, b) => sevRank(a) - sevRank(b) || CONF_ORDER[a.confidence] - CONF_ORDER[b.confidence] || (a.nearest_km ?? 1e9) - (b.nearest_km ?? 1e9))
     // Finding IDs follow the order shown, so F-01 is the same on the card, the map, the download and later the PDF.
-    .map((f, i) => ({ id: findingId(i), ...f }));
+    .map(({ _i, ...f }, i) => ({ id: findingId(i), ...f }));
   const not_raised = all.filter((f) => f.traced === 0).map((f) => ({ risk: f.risk, theme: f.theme, refs: f.untraced_refs || [] }));
   return { flags: kept, not_raised };
 }
@@ -709,7 +715,9 @@ export async function runScreening({ host, site, inputs, asset, said = { search:
       return { ...m, content: keep.length ? keep : [{ type: "text", text: "…" }] };
     });
     if (history.at(-1)?.role === "user") history.pop();
-    const ASK = "Reply now with only the JSON block, compact: the decision and its reason in one line; at most 6 flags, each with severity and a short next_step, and at most 3 evidence ids each (E-numbers or check ids, as the lines above give them); data_gaps at most 10 short lines; checked as []. Keep any thinking brief.";
+    const ASK = study
+      ? "Reply now with only the JSON block, compact: the decision and its reason in one line; at most 6 flags, each with severity and a short next_step, and at most 3 evidence ids each (E-numbers or check ids, as the lines above give them); data_gaps at most 10 short lines; checked as []. Keep any thinking brief."
+      : "Reply now with only the JSON block, compact: at most 6 flags, each with a short next_step and at most 3 evidence ids (E-numbers or check ids, as the lines above give them); data_gaps at most 10 short lines; checked as []. Keep any thinking brief.";
     // First from a compact summary of what the tools found, not the whole history (Rob's housing screen, 20 Nov: the
     // full history was ~34k tokens and the write-up hit the cap); then, if that fails, from the full history as before.
     const found = checked.filter((c) => c.result === "features" || c.result === "not checked").map(summarise).join("\n");
@@ -734,7 +742,9 @@ export async function runScreening({ host, site, inputs, asset, said = { search:
     }
     debug.raw_tail = String(res.text || "").slice(-1500);
   }
-  const traced = traceResult(parsed.json?.flags, evidence, runLike, { checks: checkResults, sea: seaVals });
+  // A screen is ordered and badged by relevance, set in code (package E, Rob 27 Nov); a study keeps its own order.
+  const byRelevance = !study && !budget;
+  const traced = traceResult(parsed.json?.flags, evidence, runLike, { checks: checkResults, sea: seaVals, relevance: byRelevance ? (catalogue?.topics || []).map((t) => t.id) : null });
   let flags = traced.flags;
   if (searchArea) {
     flags = applySearchArea(flags, new Map(evidence.map((f) => [f.properties.fid, f.properties])));
@@ -751,7 +761,10 @@ export async function runScreening({ host, site, inputs, asset, said = { search:
       industry: host.profile?.()?.id || null,
       decision: budget ? null : study
         ? settleStudy(readDecision(parsed.json?.decision, searchArea ? reword(parsed.json?.decision_why) : parsed.json?.decision_why, study.decisions), { study, checks: checkResults })
-        : settleDecision(readDecision(parsed.json?.decision, searchArea ? reword(parsed.json?.decision_why) : parsed.json?.decision_why, host.profile?.()?.decisions), { checked, flags, checks: checkResults, topicLabel: (t) => K.topicLabel(catalogue, t) }),
+        // A screen has no decision word (Rob, 27 Nov): only "insufficient evidence", set in code, when a topic's
+        // must-checks all came back not checked. Its headline is built from the flags' classes.
+        : settleScreen({ checks: checkResults, topicLabel: (t) => K.topicLabel(catalogue, t) }),
+      ...(byRelevance ? { order: "relevance", headline: headlineOf(flags, checkResults) } : {}),
       started_at: started, finished_at: now(),
       site: {
         name: site.name, how_found: origin, confidence: site.origin?.method === "words" ? site.origin.confidence : site.origin?.method === "file" ? "from the person's file" : site.origin?.method === "service" ? "from a service the person chose" : "drawn",
@@ -903,12 +916,14 @@ export async function reassess({ record, km, skill, callClaude: call, now = () =
   const text = (resp.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
   const parsed = parseResult(text);
   if (!parsed.json) throw new Error("The re-assessment came back without a readable result. The earlier flags are unchanged.");
-  run.assessments.push({ at: now(), within_km: run.assessed_within_km, flags: run.flags, decision: run.decision ?? null, summary: run.summary, ...(legacy ? { distances: run.distances } : {}) });
-  const traced = traceResult(parsed.json.flags, evidenceOf(record), bandsBy, { checks: run.checks || [], sea: run.sea || null });
+  run.assessments.push({ at: now(), within_km: run.assessed_within_km, flags: run.flags, decision: run.decision ?? null, ...(run.headline ? { headline: run.headline } : {}), summary: run.summary, ...(legacy ? { distances: run.distances } : {}) });
+  const byRelevance = isRelevanceRun(run);
+  const traced = traceResult(parsed.json.flags, evidenceOf(record), bandsBy, { checks: run.checks || [], sea: run.sea || null, relevance: byRelevance ? Object.keys(run.topic_labels || {}) : null });
   run.flags = traced.flags;
   const searchArea = run.site.role === "search_area";
   if (searchArea) run.flags = applySearchArea(run.flags, new Map(evidenceOf(record).map((f) => [f.properties.fid, f.properties])));
-  run.decision = settleDecision(readDecision(parsed.json.decision, searchArea ? reword(parsed.json.decision_why) : parsed.json.decision_why), { checked: run.checked, flags: run.flags, ...(run.checks ? { checks: run.checks } : {}) }); // a decision written for the old distance no longer stands
+  if (byRelevance) { run.decision = settleScreen({ checks: run.checks || [], topicLabel: (t) => run.topic_labels?.[t] || t }); run.headline = headlineOf(run.flags, run.checks || []); }
+  else run.decision = settleDecision(readDecision(parsed.json.decision, searchArea ? reword(parsed.json.decision_why) : parsed.json.decision_why), { checked: run.checked, flags: run.flags, ...(run.checks ? { checks: run.checks } : {}) }); // a decision written for the old distance no longer stands
   run.data_gaps = [...(Array.isArray(parsed.json.data_gaps) ? parsed.json.data_gaps.map(String) : run.data_gaps.filter((g) => !/^Not raised as a flag/.test(g))), ...traced.not_raised.map(notRaisedGap)];
   if (traced.not_raised.length) run.not_raised = traced.not_raised; else delete run.not_raised;
   run.summary = searchArea ? reword(parsed.summary) : parsed.summary;
@@ -923,14 +938,15 @@ export async function reassess({ record, km, skill, callClaude: call, now = () =
 // (js/runreply.js) and ends the turn, so nothing here tells the model what to say (plan item 1, 25 Nov).
 export function headline(record) {
   const r = record.tobler_run;
+  const rel = isRelevanceRun(r);
   const byConf = { high: 0, medium: 0, low: 0 };
-  r.flags.forEach((f) => { byConf[f.confidence]++; });
+  if (!rel) r.flags.forEach((f) => { byConf[f.confidence]++; });
   const notChecked = r.checked.filter((c) => c.result === "not checked");
   return {
     run: r.id, site: r.site.name, scope: r.extent === "inside" ? "inside the area only" : "the site and its surroundings", distances: r.extent === "inside" ? "none (inside the area only)" : runDistancesLine(r), ...(r.reach?.changes?.length ? { your_changes: r.reach.changes.map((c) => c.line) } : {}), ...(r.reach?.not_used?.length ? { not_used: r.reach.not_used.map((n) => n.line) } : {}), asset: `${r.site.asset_label}${r.site.asset_assumed ? " (assumed)" : ""}`, stage: r.site.stage,
     ...(r.decision ? { decision: r.decision.value } : {}),
-    flags: r.flags.length, by_confidence: byConf,
-    top_flags: r.flags.slice(0, 5).map((f) => ({ id: f.id, risk: f.risk, ...(f.severity ? { severity: f.severity } : {}), confidence: f.confidence, theme: f.theme, nearest_km: f.nearest_km })),
+    flags: r.flags.length, ...(rel ? { headline: headlineText(r.headline) } : { by_confidence: byConf }),
+    top_flags: r.flags.slice(0, 5).map((f) => ({ id: f.id, risk: f.risk, ...(rel ? { relevance: f.relevance?.class || null } : { ...(f.severity ? { severity: f.severity } : {}), confidence: f.confidence }), theme: f.theme, nearest_km: f.nearest_km })),
     evidence_features: evidenceOf(record).length, sources_checked: r.checked.length, not_checked: notChecked.map((c) => c.dataset).slice(0, 6), gaps: r.data_gaps.length,
     ...(r.parse_error ? { problem: r.parse_error } : {}),
     ...(r.replaces ? { replaces: { run: r.replaces.run, why: r.replaces.why, ...(r.replaces.diff ? { changed: r.replaces.diff.lines } : {}), ...(r.replaces.checks_changed ? { checks_changed: r.replaces.checks_changed } : {}) } } : {}),
@@ -1119,8 +1135,9 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       return {
         run: r.id, site: r.site.name, scope: r.extent === "inside" ? "inside the area only" : "the site and its surroundings", asset: r.site.asset_label, stage: r.site.stage, distances: runDistancesLine(r), ...(r.reach?.changes?.length ? { your_changes: r.reach.changes.map((c) => c.line) } : {}), assessed_within_km: r.assessed_within_km,
         ...(r.replaces ? { replaces: r.replaces } : {}), ...(r.replaced_by ? { replaced_by: `${r.replaced_by} (this run is out of date: the site was edited after it)` } : {}),
-        ...(r.decision ? { decision: r.decision } : {}),
-        flags: r.flags.map((f) => ({ id: f.id, risk: f.risk, theme: topicOf(f.theme), ...(f.severity ? { severity: f.severity } : {}), confidence: f.confidence, why: f.why, ...(f.next_step ? { next_step: f.next_step } : {}),
+        ...(r.decision ? { decision: r.decision } : {}), ...(isRelevanceRun(r) ? { headline: headlineText(r.headline) } : {}),
+        // A screen's flags carry their class and its line, set in code (package E), in place of a rating.
+        flags: r.flags.map((f) => ({ id: f.id, risk: f.risk, theme: topicOf(f.theme), ...(f.relevance ? { relevance: f.relevance.class, where: relevanceLine(f.relevance, U.dist), source: sourceNote(f) } : { ...(f.severity ? { severity: f.severity } : {}), confidence: f.confidence }), why: f.why, ...(f.next_step ? { next_step: f.next_step } : {}),
           evidence: f.evidence.map((e) => ({ name: e.name, distance_km: e.distance_km, band: e.band, dataset: e.dataset, publisher: e.publisher, traced: e.traced })) })),
         checked: r.checked.map((c) => ({ dataset: c.dataset, publisher: c.publisher, result: c.result, ...(c.count ? { count: c.count } : {}), ...(c.why ? { why: c.why.slice(0, 160) } : {}) })),
         data_gaps: r.data_gaps,

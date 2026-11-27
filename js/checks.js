@@ -137,6 +137,8 @@ const base = (plan) => {
   const c = plan.check;
   return { id: c.id, topic: c.topic, label: c.label, must: !!c.must, answer: c.answer, scale: plan.scale,
     ...(c.answer !== "value_at_site" ? { reach_km: plan.reach_km } : {}), ...(c.reach_why ? { why_reach: c.reach_why } : {}), ...(c.caveat ? { caveat: c.caveat } : {}),
+    // How the check's receptor is reached (water, sight, flight, ground, road), for the relevance class (js/relevance.js).
+    ...(c.reached_by?.length ? { reached_by: c.reached_by } : {}),
     // Where the reach came from when it isn't the check's own default: the asset (with its reason) or the person.
     ...(plan.reach_from ? { reach_from: plan.reach_from, reach_default_km: plan.reach_default_km, ...(plan.reach_note ? { reach_note: plan.reach_note } : {}) } : {}) };
 };
