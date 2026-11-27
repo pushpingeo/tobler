@@ -32,6 +32,11 @@ Rob's answers at 18:00: confirm the asset only when it wasn't said; code's readi
   "screen X" doesn't ("Screen Port Glasgow" stays a place). Three checks said nothing about what's planned and now
   stop at the picks, as designed: they now say it. The choice check expected the model's free text to run; code's
   label now runs, with the model's kept in `asset_from.model`.
+- **The front page's starters** are read too (tested): a project's own name may sit between the words that set it up
+  and what it is ("for the proposed Newlands Hill wind farm", "screen the Reventazón hydropower dam"), up to four
+  capitalised words. A bare "Screen Whitelee wind farm" isn't read, and "next to the proposed … wind farm" or "near a
+  proposed wind farm" is beside the site (the words before the lead-in count too). Named twice, the quote is the
+  "for a"/"as a" phrase.
 
 ## 27 Nov 2026 (late afternoon): relevance classes replace severity on a screen (package E, step 2)
 Rob approved the samples at 15:49 (page and prototype: `claude/package-e-samples-2026-11-27.md` in the project).

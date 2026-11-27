@@ -25,6 +25,18 @@ ok("names with a word that sets them up are read", () => {
   assert.equal(read("Screen Linlithgow Loch for floating solar").asset_type, "solar");
 });
 
+ok("the front page's starters are read, with a project's name in between", () => {
+  assert.equal(read("Screen a 5 ha housing site on the edge of Linlithgow").planned, "housing development");
+  const nh = read("Screen a 10 km² area 6 km south-east of Gifford, East Lothian, for the proposed Newlands Hill wind farm");
+  assert.equal(nh.asset_type, "wind-onshore");
+  assert.equal(nh.words, "the proposed Newlands Hill wind farm");
+  assert.equal(read("Screen the Reventazón hydropower dam in Costa Rica against IFC standards").asset_type, "hydro");
+  assert.equal(read("Screen Whitelee wind farm"), null, "a bare name: could be what's already there");
+  assert.equal(read("Screen my site, it's near the Whitelee wind farm"), null);
+  assert.equal(read("Screen Area 1 next to the proposed Newlands Hill wind farm"), null);
+  assert.equal(read("my site is near a proposed wind farm"), null);
+});
+
 ok("names beside the site, or denied, are not", () => {
   assert.equal(read("Screen Area 1, it's near the wind farm"), null);
   assert.equal(read("keep 50 m from homes"), null);

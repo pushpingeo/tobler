@@ -15,7 +15,12 @@ const LEAD_RE = new RegExp(`${LEAD}${ADJ}${SIZE}${ADJ}$`, "i");
 // Words after a name that make it what's planned ("housing site", "warehouse scheme").
 const TAIL_RE = /^\s*(?:site|location|scheme|development|project|proposal|application|plot|parcel)\b/i;
 // Lead words strong enough to win over a "to" or "near" just before them ("I'd like to screen a warehouse location").
-const SETS_UP_RE = /\b(?:for|as|screen(?:ing)?\s+an?|build|building|develop|developing|site|siting|put|putting|install|installing|locate|locating|construct|constructing|plan|planning)\s/i;
+const SETS_UP_RE = /\b(?:for|as|screen(?:ing)?\s+(?:an?|the)|build|building|develop|developing|site|siting|put|putting|install|installing|locate|locating|construct|constructing|plan|planning)\s/i;
+// A project's own name between the words that set it up and what it is ("for the proposed Newlands Hill wind farm",
+// "screen the Reventazón hydropower dam"): up to four capitalised words, only after these lead words. A bare
+// "Screen Whitelee wind farm" isn't read (the name could be what's already there).
+const PROPER_RE = /(?:[\p{Lu}][\p{L}\p{M}\p{N}'’.&-]*\s+){1,4}$/u;
+const NAMED_LEAD_RE = /(?:\b(?:for|as)\s+(?:the|our|my|this)\s+(?:(?:proposed|planned|new)\s+)?|\bscreen(?:ing)?\s+the\s+(?:(?:proposed|planned|new)\s+)?|\b(?:proposed|planned)\s+)$/i;
 // Words just before that put it beside the site, or deny it.
 const NOT_RE = /\b(?:not|no|isn'?t|aren'?t|rather\s+than|instead\s+of|except|near|nearby|next\s+to|beside|by|from|around|to|existing|operational|neighbou?ring|adjacent\s+to|close\s+to|away\s+from|of\s+the|than)\s+(?:(?:an?|the|any|our|my|this|its|nearest)\s+)?[\w\s,.-]{0,12}$/i;
 // Words after a name that put it beside the site ("a wind farm is next door").
@@ -60,23 +65,33 @@ export function readMessage(text, table, { offshore = false } = {}) {
       const at = m.index, end = at + m[0].length;
       if ([...taken, ...beside].some(([a, b]) => at < b && end > a)) continue;
       const before = t.slice(Math.max(0, at - 80), at);
-      const lead = e.count ? before.match(new RegExp(`${LEAD}${ADJ}$`, "i")) : before.match(LEAD_RE);
+      let lead = e.count ? before.match(new RegExp(`${LEAD}${ADJ}$`, "i")) : before.match(LEAD_RE);
+      if (!lead && !e.count) {
+        const pn = before.match(PROPER_RE);
+        const l2 = pn && before.slice(0, before.length - pn[0].length).match(NAMED_LEAD_RE);
+        if (l2) lead = [l2[0] + pn[0]];
+      }
       const tail = t.slice(end, end + 30).match(TAIL_RE);
       const joined = pass === 2 && taken.some(([, b]) => b <= at && at - b <= 40 && JOIN_RE.test(t.slice(b, at)));
       if (pass === 1 ? !lead && !tail : !joined) continue;
       // Words that put it beside the site, unless what sets it up ("for a", "as a", "screen a") comes after them.
       // A name refused as beside the site takes the shorter names inside it with it ("wind farm", then "wind").
       if (BESIDE_AFTER_RE.test(t.slice(end + (tail ? tail[0].length : 0), end + 60))
-        || (pass === 1 && NOT_RE.test(before) && !(lead && SETS_UP_RE.test(lead[0])))) { beside.push([at, end]); continue; }
+        || (pass === 1 && (NOT_RE.test(before) || (lead && NOT_RE.test(before.slice(0, before.length - lead[0].length))))
+          && !(lead && SETS_UP_RE.test(lead[0])))) { beside.push([at, end]); continue; }
       taken.push([at, end]);
       const from = pass === 1 && lead ? at - lead[0].length : at;
       const words = t.slice(from, end + (tail ? tail[0].length : 0)).replace(/^\s*(?:for|as)\s+/i, "").replace(/\s+/g, " ").trim();
       const what = e.asset_type ? { asset_type: forSetting(table, e.asset_type, offshore) } : { planned: e.planned };
       what.label = what.asset_type ? table.assets[what.asset_type].label : e.label;
-      if (!found.some((f) => f.label === what.label)) found.push({ ...what, words });
+      // Named twice: one reading, quoting the "for a" or "as a" phrase if there is one.
+      const strong = !!(lead && /\b(?:for|as)\s/i.test(lead[0]));
+      const same = found.find((f) => f.label === what.label);
+      if (!same) found.push({ ...what, words, strong });
+      else if (strong && !same.strong) Object.assign(same, { words, strong });
     }
   }
-  return found;
+  return found.map(({ strong, ...f }) => f);
 }
 
 // The person's messages that bear on this run, oldest first: newest wins. Returns one of
