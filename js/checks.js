@@ -233,9 +233,9 @@ export function sameExtent(a, b, { iou = 0.9, pointDeg = 0.0005 } = {}) {
 // A licence reason in the words that fit any dataset (the tool's own wording names WDPA as its example).
 const plainWhy = (t) => (/non-commercial/i.test(t || "") ? "non-commercial licence: off unless switched on in Settings" : /Master License/i.test(t || "") ? "Esri licence: off unless you hold one (Settings)" : t);
 const firstSentence = (t) => String(plainWhy(t) || "").split(/(?<=(?:\w{2}|\))\.)\s+(?=[A-Z])/)[0].slice(0, 200);
-const whoOf = (x) => String(x.source?.record?.publisher || x.source?.region || "a source").replace(/\s*\([^)]*\)\s*$/, "");
+const whoOf = (x) => String(x.source?.label || x.source?.record?.publisher || x.source?.region || "a source").replace(/\s*\([^)]*\)\s*$/, "");
 // What happened to a source that didn't answer, in a few words; the full reason is in the gaps list.
-const shortWhy = (a) => (a.source.pending ? "isn't in Tobler's data yet" : /licen[cs]e|non-commercial|Master License/i.test(a.not_checked || "") ? "is left out (licence)" : "didn't answer");
+const shortWhy = (a) => (a.source.pending || a.not_in_copy ? "isn't in Tobler's data yet" : /licen[cs]e|non-commercial|Master License/i.test(a.not_checked || "") ? "is left out (licence)" : "didn't answer");
 
 // A count or inside check from every source that covers it. answers: one per source,
 // { source, features?: [{ name, distance_km, around_site, extra }], meta?: { dataset, publisher, licence, checked_at,
@@ -253,7 +253,7 @@ export function fromSources(plan, answers = [], edges = LADDER, opts = {}) {
     ...(a.not_checked || a.source.pending ? { why: firstSentence(a.not_checked || a.source.pending) } : {}) }));
   if (!ok.length) {
     const licence = missing.every((a) => /licen[cs]e|non-commercial|Master License/i.test(a.not_checked || ""));
-    const pending = missing.every((a) => a.source.pending);
+    const pending = missing.every((a) => a.source.pending || a.not_in_copy);
     const reason = !missing.length ? "no_source" : licence ? "licence" : pending ? "pending" : "failed";
     const why = missing.length ? [...new Set(missing.map((a) => firstSentence(a.not_checked || a.source.pending)))].join("; ") : REASONS.no_source;
     return { ...base(plan), state: "not_checked", reason, why, sources, source: sources[0] || null };

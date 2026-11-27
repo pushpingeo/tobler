@@ -89,7 +89,8 @@ answer (which data a site gets, a count, a decision) is asked about first, not p
 
 ## How things run
 
-- **Tests:** `npm test`, and `npm test` in `worker/`. In a fresh clone run `npm ci` first.
+- **Tests:** `npm test`, and `npm test` in `worker/`. In a fresh clone run `npm ci` first. Read the exit code: the
+  tests are chained with `&&`, and a thrown assertion stops the chain without printing "fail".
 - **Browser checks** (`scripts/browser-*.mjs`, 14): `node --import ./scripts/route-local.mjs scripts/browser-x.mjs`
   needs no server (a backgrounded `http.server` can be refused by the session's safety check). The model, network
   and ArcGIS are faked, so they prove the page, not the answer. A route that blocks outside services must match only

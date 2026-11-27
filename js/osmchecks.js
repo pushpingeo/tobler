@@ -15,8 +15,9 @@ export const OSM_KINDS = {
   pipeline: { sel: ['way["man_made"="pipeline"]'], match: (t) => t.man_made === "pipeline", name: (t) => `${cap(t.substance || "")} pipeline`.trim(), line: true },
   "main road": { sel: ['way["highway"~"^(motorway|trunk|primary)$"]'], match: (t) => /^(motorway|trunk|primary)$/.test(t.highway || ""), name: (t) => t.ref || `${cap(t.highway)} road`, line: true },
   // B roads (Rob, 27 Nov): UK only, as the main roads check's second source. The UK tags B roads highway=secondary;
-  // a minor B road tagged tertiary is missed, and the copy's tag sets can't match on a ref.
-  "b road": { sel: ['way["highway"="secondary"]'], match: (t) => t.highway === "secondary", name: (t) => t.ref || "B road", line: true },
+  // a minor B road tagged tertiary is missed, and the copy's tag sets can't match on a ref. copyOnly: from Tobler's
+  // copy alone, never public Overpass (the first gate run: Overpass failed on all eight sites).
+  "b road": { sel: ['way["highway"="secondary"]'], match: (t) => t.highway === "secondary", name: (t) => t.ref || "B road", line: true, copyOnly: true },
   railway: { sel: ['way["railway"="rail"]'], match: (t) => t.railway === "rail", name: () => "Railway", line: true },
   aerodrome: { sel: ['nwr["aeroway"="aerodrome"]'], match: (t) => t.aeroway === "aerodrome", name: () => "Aerodrome" },
   "wind turbine": { sel: ['node["power"="generator"]["generator:source"="wind"]'], match: (t) => t.power === "generator" && t["generator:source"] === "wind", name: () => "Wind turbine" },
@@ -92,6 +93,11 @@ export async function osmAnswers({ wants, site, query, snapshot = null, timeoutS
       }
     } catch (e) { snapErr = String(e.message || e); }
   }
+  // A kind kept for the copy alone (copyOnly) never goes to Overpass: until the copy has it, it isn't checked.
+  for (const k of left.filter((x) => OSM_KINDS[x].copyOnly)) {
+    out.set(k, snapErr ? { not_checked: `Tobler's copy of OpenStreetMap couldn't be read (${snapErr.slice(0, 120)})` } : { not_checked: `${cap(PLURAL[k] || k)} aren't in Tobler's copy of OpenStreetMap yet`, not_in_copy: true });
+  }
+  left = left.filter((x) => !OSM_KINDS[x].copyOnly);
   if (left.length) {
     onOverpass();
     try { parts.push({ kinds: left, json: await query(osmQuery(left, boxOf, { timeoutS })), via: "overpass", source: { via: "overpass", ...(snapErr ? { copy_failed: snapErr.slice(0, 160) } : {}) } }); }

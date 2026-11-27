@@ -9,9 +9,15 @@ Rob: "In the UK, we probably should include B roads", chosen over reweighting R1
   reach (500 m local, 2 km regional). Outside the UK nothing changes: secondary roads elsewhere aren't B roads.
 - **Approximation, can change an answer:** a minor B road tagged `tertiary` is missed, and a secondary road with no B
   number is counted. Matching on the `ref` (B123) would be exact, but the copy's tag sets can't match a ref.
-- **Until the atlas rebuilds Tobler's copy of OpenStreetMap with the new kind** (request in `docs/atlas-requests.md`),
-  UK screens ask public Overpass for B roads alone. When Overpass is down, main roads says "only partly checked"
-  (or not checked, if the copy found none), never "none found". The browser check's test copy now lists the kind.
+- **B roads come from Tobler's copy of OpenStreetMap alone, never public Overpass** (`copyOnly` on the kind). The
+  first gate run (`gate-2026-11-27-b-roads`, `679eb99`) asked Overpass for them and it failed on all eight sites, so
+  every UK screen would have waited on Overpass and said main roads was only partly checked. Until the atlas adds the
+  kind to the copy (request in `docs/atlas-requests.md`), main roads says "The B road layer isn't in Tobler's data
+  yet" beside its A roads (or not checked, if there are none), never "none found". Once the copy has them they're
+  counted with no change here. The browser check's test copy lists the kind.
+- **A test failed on `679eb99` and was pushed:** `osmsnapshot.test.mjs` (the new kind's tags written as a list). The
+  check read the output for "fail"; a thrown assertion stops `npm test` without that word. Fixed in the next push;
+  `CLAUDE.md` now says to read the exit code.
 - `scripts/replay-score.mjs` maps a fact of kind "B road" to the main roads check, like "A road".
 - **The hydro row's label** reads "hydropower scheme" (Rob), so the card says "Screened as a hydropower scheme".
 

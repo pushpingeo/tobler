@@ -92,9 +92,7 @@
       "line": true,
       "match": [
         {
-          "highway": [
-            "secondary"
-          ]
+          "highway": "secondary"
         }
       ]
     },

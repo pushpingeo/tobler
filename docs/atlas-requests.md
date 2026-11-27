@@ -7,8 +7,8 @@ new from the atlas, add it here (newest first), tell Rob, and he passes it to th
 - **27 Nov (late night): a new kind in Tobler's copy of OpenStreetMap: `b road`.** Tobler's main roads check now
   counts B roads in the UK (Rob). `catalogue/osm-snapshot.json` has the new kind: group `transport`, ways, kept as
   lines, `highway=secondary`. Please add it to the next UK build, so the manifest's `kind_groups` lists `"b road":
-  "transport"`. Until then Tobler asks public Overpass for B roads alone on every UK screen, which is slower and fails
-  when Overpass is down. Only the UK market needs it for now.
+  "transport"`. Until then the main roads check says B roads aren't in Tobler's data yet (they never go to Overpass). Only
+  the UK market needs it for now.
 - **26 Nov (night): two things for "bring in a layer" (plan item 1).** (1) **Look a service address up.** When someone
   pastes a public ArcGIS REST address (MapServer or FeatureServer, service or layer) to bring their site in, Tobler
   would like the atlas's record for it, if it has one: licence, publisher, trust signals and last health check, so the

@@ -1395,6 +1395,7 @@
         {
           "region": "United Kingdom",
           "in": ["England", "Scotland", "Wales", "Northern Ireland"],
+          "label": "The B road layer (OpenStreetMap)",
           "osm": "b road"
         }
       ]

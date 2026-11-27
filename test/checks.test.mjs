@@ -492,6 +492,15 @@ await test("main roads: B roads too in the UK, never outside it (Rob, 27 Nov)", 
   assert.deepEqual(roads({ bbox: box(-5.93, 54.6), countries: ["United Kingdom"], offshore: false, sea: false }), ["main road", "b road"]);
   assert.deepEqual(roads({ bbox: box(4.93, 51.49), countries: ["Netherlands"], offshore: false, sea: false }), ["main road"]);
   assert.ok(OSM_KINDS["b road"].match({ highway: "secondary", ref: "B9007" }) && !OSM_KINDS["b road"].match({ highway: "tertiary" }));
+  // Until Tobler's copy has B roads, the line says so in plain words: never "none found", never "didn't answer".
+  const plan = P({ bbox: box(-3.6, 55.97), countries: ["United Kingdom"], offshore: false, sea: false }, "local").find((p) => p.check.id === "material.main-roads");
+  const [a, b] = plan.sources;
+  const none = K.fromSources(plan, [{ source: a, features: [], meta: { dataset: "OpenStreetMap: main roads" } }, { source: b, not_checked: "B roads aren't in Tobler's copy of OpenStreetMap yet", not_in_copy: true }]);
+  assert.equal(none.state, "not_checked");
+  assert.match(none.why, /^The B road layer isn't in Tobler's data yet/);
+  const some = K.fromSources(plan, [{ source: a, features: [{ name: "A706", distance_km: 0.2 }], meta: {} }, { source: b, not_checked: "x", not_in_copy: true }]);
+  assert.equal(some.state, "found");
+  assert.equal(some.partly, "The B road layer isn't in Tobler's data yet");
 });
 
 console.log(`${passed} checks tests passed`);

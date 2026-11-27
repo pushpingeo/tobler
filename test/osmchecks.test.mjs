@@ -65,4 +65,24 @@ await test("a line kind keeps its other pieces' shapes with its one row", async 
   assert.equal(1 + (road.parts?.length || 0), pieces);
   for (const p of road.parts || []) assert.ok(p.geometry?.type);
 });
+await test("B roads come from Tobler's copy alone: never Overpass, and 'not checked' until the copy has them", async () => {
+  let asked = [];
+  const query = async (q) => { asked.push(q); return json; };
+  // The copy answers main roads but has no B roads yet.
+  const copy = async () => ({ kinds: ["main road"], elements: [way(9, { highway: "trunk", ref: "A1" }, [[-0.43, 52.68], [-0.43, 52.71]])], data_as_of: "2026-11-24" });
+  let got = await osmAnswers({ wants: new Map([["main road", 2], ["b road", 2]]), site, query, snapshot: copy });
+  assert.equal(asked.length, 0, "Overpass not asked");
+  assert.equal(got.get("main road").features.length, 1);
+  assert.match(got.get("b road").not_checked, /^B roads aren't in Tobler's copy of OpenStreetMap yet$/);
+  assert.equal(got.get("b road").not_in_copy, true);
+  // The copy can't be read: main roads go to Overpass, B roads don't.
+  got = await osmAnswers({ wants: new Map([["main road", 2], ["b road", 2]]), site, query, snapshot: async () => { throw new Error("503"); } });
+  assert.equal(asked.length, 1);
+  assert.doesNotMatch(asked[0], /secondary/);
+  assert.match(got.get("b road").not_checked, /copy of OpenStreetMap couldn't be read/);
+  // Once the copy has them, they're counted.
+  const later = async () => ({ kinds: ["b road"], elements: [way(10, { highway: "secondary", ref: "B9007" }, [[-0.445, 52.70], [-0.445, 52.72]])] });
+  got = await osmAnswers({ wants: new Map([["b road", 2]]), site, query, snapshot: later });
+  assert.deepEqual(got.get("b road").features.map((f) => f.name), ["B9007"]);
+});
 console.log(`${passed} osmchecks tests passed`);
