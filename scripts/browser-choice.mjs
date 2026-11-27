@@ -104,7 +104,8 @@ const ran = await page.evaluate(() => ({ runs: document.querySelectorAll(".run")
   input: window.toblerLog.at(-1).events.find((e) => e.tool === "screen_site")?.input || null }));
 const convAfter = sent.filter((b) => !/sealed/.test(JSON.stringify(b.system || ""))).length;
 check(ran.runs === 1 && convAfter === convBefore, `the card's yes runs the held screen with no conversation call (${ran.runs} run, ${convAfter - convBefore} calls)`);
-check(ran.input?.planned === "a warehouse" && /^Yes, use /.test(ran.user), `what was asked is what ran (${JSON.stringify(ran.input)})`);
+// Code's reading of the person's words wins over the analyst's (package E, Rob 27 Nov); the analyst's is kept.
+check(ran.input?.planned === "warehouse or logistics site" && ran.input?.asset_from?.model?.planned === "a warehouse" && /^Yes, use /.test(ran.user), `what was asked is what ran (${JSON.stringify(ran.input)})`);
 check(/^Constraints screen of .*\(R1\)/.test(ran.reply), `the reply after the run is written from the record (${ran.reply.slice(0, 120)})`);
 
 // Heswall (Rob's log, 26 Nov): three Brimstage Roads, two of them stretches 30 m apart. One choice for those two, named

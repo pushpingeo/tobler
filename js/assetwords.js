@@ -7,13 +7,15 @@
 // wrong read screens the wrong thing, so it errs on missing. Rob, 27 Nov: code's reading wins over the model's.
 
 // Words before a name that make it what's planned.
-const LEAD = String.raw`(?:\b(?:for|as)\s+(?:(?:an?|the|our|my|this|some)\s+)?|\b(?:proposed|planned|new|possible|future|prospective)\s+|\b(?:build|building|develop|developing|site|siting|put|putting|install|installing|locate|locating|construct|constructing|plan|planning)\s+(?:(?:an?|the|our|my|some)\s+)?|\b(?:this|our|my|it'?s|it\s+is|it'?ll\s+be|it\s+will\s+be)\s+(?:(?:an?|the)\s+)?|^\s*(?:(?:an?)\s+)?|\ban?\s+(?=\d))`;
+const LEAD = String.raw`(?:\b(?:for|as)\s+(?:(?:an?|the|our|my|this|some)\s+)?|\b(?:proposed|planned|new|possible|future|prospective)\s+|\bscreen(?:ing)?\s+an?\s+|\b(?:build|building|develop|developing|site|siting|put|putting|install|installing|locate|locating|construct|constructing|plan|planning)\s+(?:(?:an?|the|our|my|some)\s+)?|\b(?:this|our|my|it'?s|it\s+is|it'?ll\s+be|it\s+will\s+be)\s+(?:(?:an?|the)\s+)?|^\s*(?:(?:an?)\s+)?|\ban?\s+(?=\d))`;
 // What can sit between those words and the name: a size, and plain describing words.
 const SIZE = String.raw`(?:\d[\d,.]*\s*(?:-\s*|\s)?(?:mw|megawatts?|gw|ha|hectares?|acres?|km²|km2)?\s*(?:-\s*)?)?`;
-const ADJ = String.raw`(?:(?:proposed|planned|new|small|large|big|onshore|offshore|utility[- ]scale|ground[- ]mounted|solar|wind)\s+)*`;
+const ADJ = String.raw`(?:(?:proposed|planned|new|small|large|big|onshore|offshore|utility[- ]scale|ground[- ]mounted|floating|solar|wind)\s+)*`;
 const LEAD_RE = new RegExp(`${LEAD}${ADJ}${SIZE}${ADJ}$`, "i");
 // Words after a name that make it what's planned ("housing site", "warehouse scheme").
-const TAIL_RE = /^\s*(?:site|scheme|development|project|proposal|application|plot|parcel)\b/i;
+const TAIL_RE = /^\s*(?:site|location|scheme|development|project|proposal|application|plot|parcel)\b/i;
+// Lead words strong enough to win over a "to" or "near" just before them ("I'd like to screen a warehouse location").
+const SETS_UP_RE = /\b(?:for|as|screen(?:ing)?\s+an?|build|building|develop|developing|site|siting|put|putting|install|installing|locate|locating|construct|constructing|plan|planning)\s/i;
 // Words just before that put it beside the site, or deny it.
 const NOT_RE = /\b(?:not|no|isn'?t|aren'?t|rather\s+than|instead\s+of|except|near|nearby|next\s+to|beside|by|from|around|to|existing|operational|neighbou?ring|adjacent\s+to|close\s+to|away\s+from|of\s+the|than)\s+(?:(?:an?|the|any|our|my|this|its|nearest)\s+)?[\w\s,.-]{0,12}$/i;
 // Words after a name that put it beside the site ("a wind farm is next door").
@@ -62,10 +64,10 @@ export function readMessage(text, table, { offshore = false } = {}) {
       const tail = t.slice(end, end + 30).match(TAIL_RE);
       const joined = pass === 2 && taken.some(([, b]) => b <= at && at - b <= 40 && JOIN_RE.test(t.slice(b, at)));
       if (pass === 1 ? !lead && !tail : !joined) continue;
-      // Words that put it beside the site, unless what sets it up ("for a", "as a") comes after them.
+      // Words that put it beside the site, unless what sets it up ("for a", "as a", "screen a") comes after them.
       // A name refused as beside the site takes the shorter names inside it with it ("wind farm", then "wind").
       if (BESIDE_AFTER_RE.test(t.slice(end + (tail ? tail[0].length : 0), end + 60))
-        || (pass === 1 && NOT_RE.test(before) && !(lead && /\b(?:for|as)\s/i.test(lead[0])))) { beside.push([at, end]); continue; }
+        || (pass === 1 && NOT_RE.test(before) && !(lead && SETS_UP_RE.test(lead[0])))) { beside.push([at, end]); continue; }
       taken.push([at, end]);
       const from = pass === 1 && lead ? at - lead[0].length : at;
       const words = t.slice(from, end + (tail ? tail[0].length : 0)).replace(/^\s*(?:for|as)\s+/i, "").replace(/\s+/g, " ").trim();

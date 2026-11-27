@@ -28,6 +28,7 @@ export function rerunInput(record) {
     asset_type: i.asset_type || r.site.asset_type || "other",
     ...(i.assumed || r.site.asset_assumed ? { assumed: true } : {}),
     ...(i.planned ? { planned: i.planned } : {}),
+    ...(i.asset_from ? { asset_from: i.asset_from } : {}),
     ...(i.stage ? { stage: i.stage } : {}),
     ...(r.site.capacity_mw != null ? { capacity_mw: r.site.capacity_mw } : {}),
     ...(r.site.tip_height_m != null ? { tip_height_m: r.site.tip_height_m } : {}),

@@ -92,7 +92,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   check(/search_area/.test(map.solidFilter || "") && map.dashed === "[2.5,2]", `${label}: drawn thin and dashed, not as a ranging pole`);
   const what = await page.evaluate(() => { const c = document.querySelector(".shape .facts"); const dts = [...c.querySelectorAll("dt")].map((e) => e.textContent); return { first: dts[0], text: c.querySelector("dd").textContent }; });
   check(what.first === "What it is" && /^A search area \(built from clues round Bellochantuy\), standing in for an outline that wasn't found/.test(what.text), `${label}: the place card says what it is`);
-  await page.fill("#say", "Screen Cnoc Buidhe for environmental constraints");
+  await page.fill("#say", "Screen Cnoc Buidhe for environmental constraints, for a wind farm");
   await page.click("#ask button[type=submit]");
   await page.waitForSelector(".run .flag", { timeout: 30000 });
   if (label === "phone") await page.evaluate(() => document.getElementById("panel").classList.remove("collapsed"));
@@ -103,6 +103,10 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
     sea: document.querySelector(".run .sea").hidden ? "" : document.querySelector(".run .sea").textContent,
     body: document.querySelector(".run").textContent,
   }));
+  // What's planned came from the person's words (package E): the card quotes them, with Change.
+  { const af = await page.evaluate(() => { const a = document.querySelector(".run .asset-from"); return { hidden: a.hidden, text: a.textContent }; });
+    check(!af.hidden && /^Screened as an onshore wind farm, from your words: “a wind farm”\. Change$/.test(af.text.trim()), `${label}: the card says what was planned came from the person's words (${af.text.trim()})`);
+    if (label === "phone") await page.locator(".run").first().screenshot({ path: "/tmp/search-area-phone-asset-from.png" }); }
   check(/^Screened a 19\.\d km² search area \(built from clues round Bellochantuy\), because the site's outline wasn't found/.test(card.note), `${label}: the card leads with the search-area line`);
   { const m = card.body.replace(/none of them is known to be on the site itself/, "").match(/.{0,60}\bon (the )?site\b.{0,30}/i); check(!m, `${label}: nothing on the card says "on site"${m ? `: …${m[0]}…` : ""}`); }
   // The UK pack's checks on a Scottish search area: flood and farmland by share of it, a landscape designation counted,

@@ -16,7 +16,9 @@ function askedLines(a, b) {
     : r.reach ? (r.reach.changes?.length ? r.reach.changes.map((c) => c.line).join("; ") : `the defaults (${r.reach.range})`)
     : r.distances ? `${r.distances.near}/${r.distances.close}/${r.distances.wider} km` : "");
   if ((a.reach || a.distances) && (b.reach || b.distances) && d(a) !== d(b)) out.push(`distances ${d(a)} then, ${d(b)} now`);
-  const inp = (r) => JSON.stringify({ ...(r.inputs || {}), replaces: undefined, distances: undefined });
+  // How the asset was settled (asset_from: the person's words or a pick) is provenance, not a setting: the asset itself
+  // is compared by its label above.
+  const inp = (r) => JSON.stringify({ ...(r.inputs || {}), replaces: undefined, distances: undefined, asset_from: undefined });
   if (!out.length && a.inputs && b.inputs && inp(a) !== inp(b)) out.push("asked with different settings");
   return out;
 }

@@ -24,9 +24,14 @@ Rob's answers at 18:00: confirm the asset only when it wasn't said; code's readi
   The report's "Planned" line quotes the words. Old runs have no `asset_from` and read as before.
 - **The analyst** is told to call screen_site rather than ask what's planned; ask_asset_type stays for the chip.
 - **Labels with a noun:** "battery energy storage site", not "battery energy storage".
-- **Tested:** `npm test`, with new tests in `assetwords.test.mjs` and `places.test.mjs`. **Not tested:** the 14
-  browser checks, desktop or phone (this session couldn't serve the page locally), a live model run, the replay
-  gate (the sealed screen didn't change; the gate passes assets directly). Not pushed: the session had no push access.
+- **Tested:** `npm test`, with new tests in `assetwords.test.mjs` and `places.test.mjs`; all 14 browser checks at
+  desktop and phone sizes (pushed from the next chat, same evening). Not tested: a live model run.
+- **Found by the browser checks before pushing:** a re-run dropped `asset_from`, so the diff said "asked with
+  different settings" (now carried, and left out of the settings comparison: it's provenance). "I would like to
+  screen a warehouse location in Livingston" wasn't read: "screen a/an X" and "X location" now set it up, but a bare
+  "screen X" doesn't ("Screen Port Glasgow" stays a place). Three checks said nothing about what's planned and now
+  stop at the picks, as designed: they now say it. The choice check expected the model's free text to run; code's
+  label now runs, with the model's kept in `asset_from.model`.
 
 ## 27 Nov 2026 (late afternoon): relevance classes replace severity on a screen (package E, step 2)
 Rob approved the samples at 15:49 (page and prototype: `claude/package-e-samples-2026-11-27.md` in the project).

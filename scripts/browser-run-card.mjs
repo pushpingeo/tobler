@@ -151,7 +151,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await page.waitForTimeout(150);
   c = await card();
   check(!c.adjustOpen && !c.selected, `${label}: Done: controls closed, handles off`);
-  await page.fill("#say", "Screen Area 1 for risks");
+  await page.fill("#say", "Screen Area 1 for risks, as an oil field");
   await page.click("#ask button[type=submit]");
   await page.waitForSelector(".progress", { timeout: 20000 });
   await page.waitForTimeout(1200);
@@ -495,7 +495,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await page.goto("http://localhost:8000/");
   await page.waitForFunction(() => window.__ws?.draw, null, { timeout: 40000 });
   await page.evaluate((f) => window.__ws.host.addPlace({ feature: f, origin: { method: "drawn", at: new Date().toISOString() } }), SQUARE);
-  await page.fill("#say", "Screen Area 1, only inside the area");
+  await page.fill("#say", "Screen Area 1 as an oil field, only inside the area");
   await page.click("#ask button[type=submit]");
   await page.waitForSelector(".run .flag", { timeout: 30000 });
   await page.waitForTimeout(500);

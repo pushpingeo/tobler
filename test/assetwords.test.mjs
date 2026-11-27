@@ -20,6 +20,9 @@ ok("names with a word that sets them up are read", () => {
   assert.equal(read("it's a wind farm, 12 turbines").asset_type, "wind-onshore");
   assert.equal(read("screen this housing site").planned, "housing development");
   assert.equal(read("Screen Lethen for wind").asset_type, "wind-onshore");
+  assert.equal(read("I would like to screen a warehouse location in Livingston").planned, "warehouse or logistics site");
+  assert.equal(read("I would like to screen a warehouse location in Livingston").words, "screen a warehouse location");
+  assert.equal(read("Screen Linlithgow Loch for floating solar").asset_type, "solar");
 });
 
 ok("names beside the site, or denied, are not", () => {
@@ -34,6 +37,8 @@ ok("names beside the site, or denied, are not", () => {
   assert.equal(read("Screen Linlithgow"), null);
   assert.equal(read("A wind farm is next door. Screen my site"), null);
   assert.equal(read("There's a solar farm near the site, screen it"), null);
+  assert.equal(read("screen the site near the wind farm"), null);
+  assert.equal(read("screen Area 1, it's next to a warehouse"), null);
 });
 
 ok("what's planned wins over what's beside it, in one message", () => {
