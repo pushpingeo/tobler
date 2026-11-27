@@ -807,7 +807,7 @@ export async function runScreening({ host, site, inputs, asset, said = { search:
 export function budgetFrom({ budget, plans, results, layerAnswers, keyOf, catalogue, site }) {
   const topicOfCheck = (id) => catalogue.checks?.find((c) => c.id === id)?.topic || null;
   const ded = budget.deductions.map((d) => {
-    const base = { id: d.id, label: d.label, kind: d.kind, buffer_m: d.buffer_m, reason: d.reason, topic: topicOfCheck(d.checks[0]), ...(d.changed ? { changed: d.changed } : {}) };
+    const base = { id: d.id, label: d.label, kind: d.kind, buffer_m: d.buffer_m, reason: d.reason, topic: topicOfCheck(d.checks[0]), ...(d.distance ? { distance: d.distance } : {}), ...(d.changed ? { changed: d.changed } : {}) };
     const ps = plans.filter((p) => d.checks.includes(p.check.id));
     if (!ps.length) return { ...base, state: "not_checked", why: "no data for this place in Tobler yet" };
     const rs = ps.map((p) => results.get(p.check.id)).filter(Boolean);
@@ -848,6 +848,7 @@ export function budgetFrom({ budget, plans, results, layerAnswers, keyOf, catalo
     const d = extra.get(row.id);
     if (d?.centre_only) row.centre_only = d.centre_only;
     if (d?.partly) row.partly = d.partly;
+    if (d?.distance) row.distance = d.distance;
   }
   const feats = [];
   const rowOf = new Map([...b.rows, ...b.soft].map((r) => [r.id, r]));
@@ -858,7 +859,7 @@ export function budgetFrom({ budget, plans, results, layerAnswers, keyOf, catalo
   if (b.shapes.net) feats.push({ type: "Feature", geometry: b.shapes.net, properties: { role: "budget", part: "net", label: "Net developable area", ha: b.net_ha } });
   const { shapes, ...rest } = b;
   return {
-    budget: { asset_type: budget.asset_type, asset_label: budget.asset_label, asset_assumed: !!budget.asset_assumed, changes: budget.changes || [], ...(budget.unknown?.length ? { unknown: budget.unknown } : {}), ...rest },
+    budget: { asset_type: budget.asset_type, asset_label: budget.asset_label, asset_assumed: !!budget.asset_assumed, changes: budget.changes || [], ...(budget.notes?.length ? { notes: budget.notes } : {}), ...(budget.unknown?.length ? { unknown: budget.unknown } : {}), ...rest },
     features: feats,
   };
 }
@@ -1107,7 +1108,11 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       const rules = budgetRules(sk);
       // The person's distances here are protection distances: a deduction's buffer, never how far anything looks.
       const said = readDistances(distancesFromInputs(i), { catalogue: host.checks || {}, deductions: rules.deductions, budget: true });
-      const plan = resolveDeductions(rules, { ...i, buffers: said.protection.map((p) => ({ id: p.id, buffer_m: p.buffer_m })) });
+      // Protection distances from the asset table where a source gives one for this place (package D), by country
+      // and, in the UK, nation on real outlines; otherwise the skill's first cuts. The person's own beat both.
+      const tb = typeof table === "function" ? table() : table;
+      const where = { countries: d0.countries || [], areas: (d0.countries || []).includes("United Kingdom") ? await ukAreasNear(host.ref, place.feature, d0, 0) : {} };
+      const plan = resolveDeductions(rules, { ...i, buffers: said.protection.map((p) => ({ id: p.id, buffer_m: p.buffer_m })) }, { protection: tb?.protection, where });
       for (const p of said.protection) { const d = plan.deductions.find((x) => x.id === p.id); p.line = d?.changed ? `${p.label}: ${d.changed}` : `${p.label}: ${p.buffer_m} m (doesn't apply to a ${plan.asset_label})`; }
       const reachKm = Math.max(0.05, ...[...reachByCheck(plan.deductions).values()]);
       const asset = { id: plan.asset_type, label: plan.asset_label, row: true, setting: "onshore", scale: "local", footprint_km: 0.1, extends: [],

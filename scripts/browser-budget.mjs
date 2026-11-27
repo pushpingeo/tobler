@@ -100,6 +100,9 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   await page.waitForTimeout(400);
   const opened = await page.evaluate(() => ({ why: document.querySelector(".run .brow.minus details .why")?.textContent || "", hl: (window.__ws?.map?.getSource("hl")?._data?.features || []).length }));
   check(/very unlikely to be consented|easement|Already built/.test(opened.why) && opened.hl === 1, `${label}: a row opens into its reason and picks out its area (${opened.why.slice(0, 60)}, ${opened.hl})`);
+  // Where a buffer comes from (package D): the power line's 30 m is a first cut, said under the row.
+  const dist = await page.evaluate(() => [...document.querySelectorAll(".run .brow.minus details")].map((d) => d.querySelector(".bdist")?.textContent || "").filter(Boolean));
+  check(dist.some((t) => /^Distance: A first cut for site finding/.test(t)), `${label}: a buffered row says where its distance comes from (${dist.join(" | ").slice(0, 120)})`);
   await page.screenshot({ path: `/tmp/budget-${label}.png`, fullPage: false });
   await page.locator(".run").screenshot({ path: `/tmp/budget-card-${label}.png` });
   if (label === "desktop") {

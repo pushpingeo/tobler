@@ -1,5 +1,5 @@
 {
-  "about": "The asset table (package A, 26 Nov 2026; replaces catalogue/distances.json): what a kind of development is like, apart from who's asking (the profile). For each asset type: its names as people say them; the screening scale its size picks (local, regional or global: which of each check's reaches in catalogue/checks.json applies); the footprint radius used when the site is only a point; where it extends a check's reach, with the reason and the source; and the effects it sends out. A check owns its default reach; an asset row only extends it, never cuts it; the person's own distances override both. Protection distances (the developable area's buffers) stay in skills/developable-area/SKILL.md until package D's researched rows are reviewed by Rob. Nothing is fetched beyond 50 km. Read by js/reach.js; tested in test/reach.test.mjs.",
+  "about": "The asset table (package A, 26 Nov 2026; replaces catalogue/distances.json): what a kind of development is like, apart from who's asking (the profile). For each asset type: its names as people say them; the screening scale its size picks (local, regional or global: which of each check's reaches in catalogue/checks.json applies); the footprint radius used when the site is only a point; where it extends a check's reach, with the reason and the source; and the effects it sends out. A check owns its default reach; an asset row only extends it, never cuts it; the person's own distances override both. Protection distances (the developable area's buffers) are in protection below where a source gives one (package D, 27 Nov); elsewhere the skill's own first cuts stand. Nothing is fetched beyond 50 km. Read by js/reach.js; tested in test/reach.test.mjs.",
   "version": "1",
   "fields": {
     "names": "how people say it, lower case; read from the person's words in code (js/assetwords.js, package E). general.planned lists what has no row (housing, a warehouse): read the same way, screened on the general defaults with its label. counts: words after a number that also name it (a 200-home scheme)",
@@ -28,6 +28,56 @@
       { "label": "battery energy storage site", "names": ["battery storage", "battery energy storage", "bess", "battery energy storage system"] },
       { "label": "data centre", "names": ["data centre", "data center", "data centres", "data centers"] },
       { "label": "office development", "names": ["offices", "office development", "office block", "office park"] }
+    ]
+  },
+  "protection": {
+    "about": "Protection distances (package D, researched 26 Nov 2026 in claude/research-asset-reaches.md §2, reviewed by Rob 26 and 27 Nov): the developable area's buffers where a rule, guidance or a professional body gives one. A row names the deduction it sets (by the developable area skill's id), the assets it's for (all, or a list), and where it applies: countries by the world outlines' names, and in, UK nations or states, matched on real outlines (invariant 2). A row whose state Tobler can't decide (no outlines for that country yet) isn't applied, and the card says so. Where no row applies, the skill's own buffer stands, marked as a first cut. The person's own distance beats both. Metric in the record; as_published keeps the source's words. basis: reg (law), gov (government guidance), prof (professional body), plan, case; secondary: the figure is from a secondary source until the primary is read. Read by js/developable.js.",
+    "rows": [
+      { "id": "england.ancient-woodland", "deduction": "ancient-woodland", "assets": "all", "countries": ["United Kingdom"], "in": ["England"],
+        "m": 15, "as_published": "a buffer of at least 15 m, more where effects reach further", "basis": "gov",
+        "reason": "Irreplaceable habitat. Natural England and the Forestry Commission's standing advice is a buffer of at least 15 m, more where effects such as air pollution reach further.",
+        "source": { "title": "Ancient woodland, ancient trees and veteran trees: advice for making planning decisions", "publisher": "Natural England and Forestry Commission", "url": "https://www.gov.uk/guidance/ancient-woodland-ancient-trees-and-veteran-trees-advice-for-making-planning-decisions" },
+        "varies": "A 50 m minimum was proposed in 2021 and not adopted; objectors ask for more case by case", "status": "reviewed" },
+      { "id": "england-wales.watercourses", "deduction": "watercourses", "assets": "all", "countries": ["United Kingdom"], "in": ["England", "Wales"],
+        "m": 8, "as_published": "8 m from a main river (16 m if tidal)", "basis": "reg",
+        "reason": "Work within 8 m of a main river (16 m if tidal) needs a flood risk activity permit. OpenStreetMap doesn't say which streams are main rivers or tidal, so every watercourse gets 8 m. A permit trigger, not a ban.",
+        "source": { "title": "Flood risk activities: environmental permits; Environmental Permitting Regulations 2016, Schedule 25", "publisher": "Environment Agency; legislation.gov.uk", "url": "https://www.gov.uk/guidance/flood-risk-activities-environmental-permits" },
+        "status": "reviewed" },
+      { "id": "uk.bess.homes", "deduction": "homes", "assets": ["bess"], "countries": ["United Kingdom"],
+        "m": 30, "as_published": "30 m initial minimum separation to occupied buildings (was 25 m)", "basis": "prof", "secondary": true,
+        "reason": "The fire and rescue services' initial minimum separation between battery units and occupied buildings. It's for fire, not noise: noise is assessed site by site. Residential land, gardens included.",
+        "source": { "title": "Grid scale battery energy storage system planning: guidance for fire and rescue services (as reported)", "publisher": "National Fire Chiefs Council", "url": "https://nfcc.org.uk/our-services/building-safety/grid-scale-energy-storage-system-planning-guidance-for-fire-and-rescue-services/" },
+        "status": "reviewed" },
+      { "id": "nl.pipelines", "deduction": "pipelines", "assets": "all", "countries": ["Netherlands"],
+        "m": 5, "as_published": "5 m either side of the centreline (4 m for gas at 16 to 40 bar)", "basis": "reg",
+        "reason": "The strip either side of a pipeline where building is restricted by law (Bkl §5.1.2.3). The pipeline's own risk distances come on top and aren't measured here.",
+        "source": { "title": "Belemmeringengebied buisleidingen (Besluit kwaliteit leefomgeving §5.1.2.3)", "publisher": "IPLO (Informatiepunt Leefomgeving)", "url": "https://iplo.nl/thema/externe-veiligheid/externe-veiligheid-in-omgevingsplan/belemmeringengebied-buisleidingen/" },
+        "status": "reviewed" },
+      { "id": "victoria.wind.homes", "deduction": "homes", "assets": ["wind-onshore"], "countries": ["Australia"], "in": ["Victoria"],
+        "m": 1000, "as_published": "1 km from a dwelling unless the owner consents in writing", "basis": "reg",
+        "reason": "Victoria's planning rule: no turbine within 1 km of a dwelling without the owner's written consent.",
+        "source": { "title": "Planning guidelines for development of wind energy facilities (clause 52.32)", "publisher": "Victoria Department of Transport and Planning", "url": "https://planning.vic.gov.au/guides-and-resources/guides/all-guides/renewable-energy-facilities/wind-energy-facilities/planning-guidelines-for-development-of-wind-energy-facilities/planning-permit-applications-information-for-applicants" },
+        "status": "reviewed" },
+      { "id": "queensland.wind.homes", "deduction": "homes", "assets": ["wind-onshore"], "countries": ["Australia"], "in": ["Queensland"],
+        "m": 1500, "as_published": "1,500 m from sensitive land uses on non-host lots, or a deed", "basis": "reg",
+        "reason": "Queensland's state code: turbines at least 1,500 m from sensitive land uses on lots not hosting the wind farm, unless there's a deed of agreement.",
+        "source": { "title": "SDAP State code 23: wind farm development, AO10.1", "publisher": "Queensland Government", "url": "https://planning.qld.gov.au/__data/assets/pdf_file/0027/67284/sdap-v3.0-state-code-23-wind-farm-development.pdf" },
+        "status": "reviewed" },
+      { "id": "california.warehouse.homes", "deduction": "homes", "assets": ["warehouse"], "countries": ["United States of America"], "in": ["California"],
+        "m": 304.8, "as_published": "1,000 ft from a distribution centre with more than 100 trucks a day", "basis": "gov",
+        "reason": "California's air quality advice: keep homes, schools and care 1,000 ft from a distribution centre with more than 100 trucks a day (or 40 refrigerated trucks). Advisory, not a rule.",
+        "source": { "title": "Air Quality and Land Use Handbook (2005), Table 1-1", "publisher": "California Air Resources Board", "url": "https://ww2.arb.ca.gov/sites/default/files/2023-05/Land%20Use%20Handbook_0.pdf" },
+        "status": "reviewed" }
+    ],
+    "not_loaded": [
+      { "what": "Homes from wind turbines, United States (county median 2 × tip height) and the Netherlands (2 × tip height)", "why": "needs the tip height, which the developable area doesn't take yet; the Dutch rule isn't in force before 2027" },
+      { "what": "England's strategic roads from wind turbines (tip height + 50 m, or 1.5 × tip height)", "why": "needs the tip height, and the main roads check doesn't tell the strategic road network apart" },
+      { "what": "Roads from wind and solar, United States (county medians)", "why": "the deduction covers roads and railways together; a road setback isn't a railway one" },
+      { "what": "Watercourses from wind turbines, Scotland (50 m)", "why": "its only source is a held-back replay site (Rob, 27 Nov)" },
+      { "what": "BESS vegetation and woodland, NSW (11 m, 20 m)", "why": "one case, and the developable area has no vegetation deduction" },
+      { "what": "UK overhead lines (statutory clearances; 2 m round tower bases)", "why": "clearances, not a strip width: the 30 m first cut stays" },
+      { "what": "Quarries and concrete plants from homes (Victoria 500 m and 100 m; East Ayrshire 500 m)", "why": "no quarry asset in the developable area" },
+      { "what": "Published zones (Dutch magnetic field and dangerous-goods zones, HSE pipeline zones)", "why": "a zone beats a buffer: they come in as zones, not distances" }
     ]
   },
   "assets": {

@@ -1,6 +1,6 @@
 ---
 name: developable-area
-version: 0.3-draft
+version: 0.4-draft
 description: How much of a site could actually be built on. Starts from the gross area, takes off what can't be used and what should be kept clear, each with its reason and source, and shows what's left on the map, with soft constraints (usable at a cost) measured but not taken off. Use when someone asks for the developable area, net area, usable area, area discounting or "how many hectares can I really use", or picks the developable area.
 ---
 
@@ -25,17 +25,17 @@ It answers the early site-finding question: "the field is 40 ha, but how much is
 Deductions are applied in the order below: what can't be built first, then what's kept clear, then what's avoided by default. Each takes only what's still left, so ground under two constraints is counted once, against the first. Soft constraints are measured on the net area, each counted once, and aren't taken off.
 
 ## The defaults and why
-Buffers are first cuts for site finding, to be changed: none of them is a planning rule unless the reason says it is. A buffer of `null` means the deduction doesn't apply to that asset type.
+Where a rule, guidance or a professional body gives a distance for the place, it comes from the asset table's protection rows (`catalogue/assets.json`, package D, reviewed by Rob 26 and 27 Nov), with its words and source on the card: ancient woodland 15 m in England, watercourses 8 m in England and Wales, homes 30 m from battery storage in the UK, pipelines 5 m in the Netherlands, homes from wind turbines 1 km in Victoria and 1,500 m in Queensland, homes 1,000 ft from a warehouse in California. A row for a state Tobler can't place a site in yet (Australia's and the US's) isn't applied, and the card says so. Everywhere else the buffers below are first cuts for site finding, to be changed, and the card says "first cut". A buffer of `null` means the deduction doesn't apply to that asset type.
 
 - **Statutory nature sites** (SAC, SPA, Ramsar, SSSI or ASSI): the designated land itself. Building inside one is very unlikely to be consented.
 - **Scheduled monuments and World Heritage Sites:** the protected land itself. Works need consent and are rarely allowed.
-- **Ancient woodland, with 15 m:** irreplaceable habitat; Natural England and the Forestry Commission's standing advice is a buffer of at least 15 m.
+- **Ancient woodland, with 15 m:** irreplaceable habitat; Natural England and the Forestry Commission's standing advice is a buffer of at least 15 m (England's rule; the same 15 m is a first cut in Scotland and Wales).
 - **Open water:** lakes, ponds and reservoirs on the site.
 - **Existing buildings:** what's already standing. Leave out if they're to be cleared.
 - **Main roads and railways, 15 m from the centre line:** the corridor itself and a margin. Minor roads and tracks aren't in the data.
-- **Watercourses, 8 m:** in England, work within 8 m of a main river needs a flood risk activity permit (16 m if tidal). OpenStreetMap doesn't say which streams are main rivers, so all get 8 m.
+- **Watercourses, 8 m:** in England and Wales, work within 8 m of a main river needs a flood risk activity permit (16 m if tidal). OpenStreetMap doesn't say which streams are main rivers, so all get 8 m. Elsewhere 8 m is a first cut.
 - **Overhead power lines, 30 m; pipelines, 10 m:** a first-cut easement either side. The real distance depends on the voltage or pressure and the operator's rules: ask them.
-- **Homes:** solar 50 m, BESS 100 m, onshore wind 500 m, none for a warehouse or general. Rules of thumb for amenity (noise, glare, outlook, fire risk), not policy distances. Residential land from OpenStreetMap stands in for homes and includes gardens.
+- **Homes:** solar 50 m, BESS 100 m, onshore wind 500 m, none for a warehouse or general. Rules of thumb for amenity (noise, glare, outlook, fire risk), not policy distances. In the UK, battery storage takes the fire services' 30 m instead (Rob, 27 Nov): a fire separation; noise is assessed site by site. Residential land from OpenStreetMap stands in for homes and includes gardens.
 - **Listed buildings:** solar and BESS 50 m, onshore wind 250 m. A rough allowance for setting; setting is a judgement a heritage specialist makes, not a distance.
 - **Flood Zone 3** (and Scotland's medium likelihood, 1 in 200 years): avoided by default. The sequential and exception tests apply. Solar can sometimes go here with raised panels; count it as soft if so.
 - **Soft, measured but not taken off:** Flood Zone 2 (and Scotland's low likelihood); surface water flooding; best and most versatile farmland (grades 1, 2 and 3a; Scotland's classes 1 to 3.1), with unsplit grade 3 apart; peat (Scotland's classes 1, 2 and 5).
@@ -81,7 +81,7 @@ The run reads this block. Kinds: `hard` (can't build), `buffer` (keep clear), `a
     {"id": "power-lines", "label": "Overhead power lines", "kind": "buffer", "checks": ["material.power-lines"], "buffer_m": 30,
      "reason": "A first-cut easement each side; the operator sets the real distance by voltage."},
     {"id": "pipelines", "label": "Pipelines", "kind": "buffer", "checks": ["material.pipelines"], "buffer_m": 10,
-     "reason": "A first-cut easement each side; the operator sets the real distance."},
+     "reason": "A first-cut easement each side; the operator sets the real distance, and HSE's consultation zones round major pipelines aren't open data."},
     {"id": "homes", "label": "Homes", "kind": "buffer", "checks": ["community.homes"], "buffer_m": {"solar": 50, "bess": 100, "wind-onshore": 500, "warehouse": null, "general": null},
      "reason": "A rule of thumb for amenity (noise, glare, outlook, fire risk), not a policy distance. Residential land, gardens included."},
     {"id": "listed-buildings", "label": "Listed buildings", "kind": "buffer", "checks": ["heritage.listed-buildings"], "buffer_m": {"solar": 50, "bess": 50, "wind-onshore": 250, "warehouse": null, "general": null},

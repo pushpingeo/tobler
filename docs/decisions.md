@@ -2,6 +2,34 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 27 Nov 2026 (late night): the developable area's protection distances from package D
+Plan step 1, first half. Rob chose (27 Nov): battery storage 30 m from homes in the UK, sourced, over the 100 m
+first cut; the Scottish 50 m watercourse buffer stays out (its only source is R7, held back); reaches come next, gated.
+- **Where they live:** `catalogue/assets.json`, a new `protection` block: one row per deduction, asset and place, with
+  the source's words (`as_published`), basis, source and status. Only `reviewed` rows load. The skill keeps which
+  deductions exist, their kinds and classes, and its buffers as the **first cuts** where no row applies.
+- **Loaded (7 rows):** ancient woodland 15 m (England, standing advice); watercourses 8 m (England and Wales, the
+  permit rule; every stream, since OpenStreetMap doesn't mark main rivers); homes 30 m from BESS (UK, NFCC, a
+  secondary source); pipelines 5 m (Netherlands, Bkl); homes from wind 1 km (Victoria) and 1,500 m (Queensland);
+  homes 1,000 ft from a warehouse (California, CARB, advisory).
+- **Matched by place, on real outlines (invariant 2):** a row's country from the world outlines, and a UK nation from
+  the ONS outlines (`js/ukareas.js`). Tobler has no state outlines for Australia or the US, so those three rows
+  **aren't applied yet**, and the card says so ("the distance for Victoria … isn't applied, because Tobler can't yet
+  tell which state a site is in there"). If the UK outlines fail to load, a nation's row isn't guessed either.
+- **Across a border:** a site in England and Scotland takes England's row for the whole site, and the card says so.
+  The larger wins if two rows match.
+- **Not loaded, with why** (`protection.not_loaded`): anything that needs the tip height (US and Dutch homes from
+  wind, England's strategic roads); US road setbacks (the deduction is roads and railways together); NSW's BESS
+  vegetation rows (no deduction for it); UK overhead line clearances (not a strip width); quarry rows (no asset);
+  published zones (they come in as zones).
+- **On the card and in the report:** each buffered row says where its distance comes from: the source's words, the
+  publisher and the kind of source, with a link, or "A first cut for site finding, not from a rule or guidance."
+  The person's own distance still beats both, and the change names the sourced default ("default 30 m").
+- **Can change an answer:** UK battery storage sites lose less to homes (30 m, not 100 m). Nothing else moves a
+  number today: the England and Wales rows match the old first cuts, and the rest don't apply yet.
+- Tests: `test/developable.test.mjs` (new, 10), the developable area run in `test/ntrrun.test.mjs`, and
+  `scripts/browser-budget.mjs` (the distance line, desktop and phone).
+
 ## 27 Nov 2026 (late night): B roads in the UK main roads check; "hydropower scheme"
 Rob: "In the UK, we probably should include B roads", chosen over reweighting R1's B9007 on the answer sheet.
 - **The main roads check** keeps motorway, trunk and A roads everywhere and adds a second source for the UK's four

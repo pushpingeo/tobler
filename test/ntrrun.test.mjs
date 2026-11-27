@@ -1155,6 +1155,13 @@ await test("the developable area: the skill's rules for the asset type, the chec
   assert.equal(row("water-bodies").ha, 0);
   // Not for this asset type: no listed-buildings deduction for... (solar has one), and wind's homes buffer isn't used.
   assert.equal(row("homes").buffer_m, 50);
+  // Where each buffer comes from (package D): York is in England, on the nation outlines, so watercourses carry the
+  // permit rule; homes from solar and the power line's easement are first cuts.
+  assert.equal(row("watercourses").distance.basis, "reg");
+  assert.deepEqual(row("homes").distance, { basis: "first cut" });
+  assert.deepEqual(row("power-lines").distance, { basis: "first cut" });
+  assert.equal(row("nature-sites").distance, undefined);
+  assert.ok(!b.notes, "no distance notes in plain England");
   // Each check looked only as far as its buffer: homes 50 m, not a screen's 500 m.
   assert.equal(r.checks.find((c) => c.id === "community.homes").reach_km, 0.05);
   assert.ok(!r.checks.some((c) => c.id === "community.schools"), "only the budget's checks");

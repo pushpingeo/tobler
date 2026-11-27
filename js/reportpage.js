@@ -12,6 +12,7 @@ import { whereText, searchHeadline, SEARCH_BAND } from "./siterole.js";
 import { elevationLine } from "./elevation.js";
 import { relevanceLine, isRelevanceRun } from "./relevance.js";
 import { findingLabels, findingRows, evidenceRows, sourcesOf, gapsOf, checksOf, decisionText, summaryBlocks, changeLog } from "./report.js";
+import { distanceNote } from "./developable.js";
 
 const $ = (id) => document.getElementById(id);
 const BASEMAP = "https://tiles.openfreemap.org/styles/positron";
@@ -277,7 +278,7 @@ function budgetSection(r, sec, searchArea) {
   };
   const src = (x) => (x.source || []).map((y) => y.publisher || y.dataset).filter(Boolean).join("; ");
   row("gross", "Gross site area", U.hectares(b.gross_ha), "100%");
-  for (const x of b.rows.filter((y) => y.state === "found" && y.ha > 0)) row(`minus ${x.kind}`, `− ${x.label}${x.buffer_m ? ` + ${x.buffer_m} m` : ""}`, U.hectares(x.ha), pct(x.share), [x.reason, x.changed ? `Changed: ${x.changed}.` : "", src(x) ? `Source: ${src(x)}.` : ""].filter(Boolean).join(" "), x.topic);
+  for (const x of b.rows.filter((y) => y.state === "found" && y.ha > 0)) row(`minus ${x.kind}`, `− ${x.label}${x.buffer_m ? ` + ${x.buffer_m} m` : ""}`, U.hectares(x.ha), pct(x.share), [x.reason, x.changed ? `Changed: ${x.changed}.` : (x.buffer_m && x.distance ? `Distance: ${distanceNote(x.distance)}` : ""), src(x) ? `Source: ${src(x)}.` : ""].filter(Boolean).join(" "), x.topic);
   row("net", "Net developable", U.hectares(b.net_ha), pct(b.net_share), "What's left. Access, layout and drainage take more off later.");
   const soft = b.soft.filter((y) => y.state === "found" && y.ha > 0);
   if (soft.length) {
@@ -290,6 +291,7 @@ function budgetSection(r, sec, searchArea) {
   const clear = [...b.rows, ...b.soft].filter((x) => x.state === "none" || (x.state === "found" && !(x.ha > 0)));
   if (clear.length) sec.append(el("p", `Checked, nothing taken off: ${clear.map((x) => x.label.toLowerCase()).join(", ")}.`, "made"));
   if (b.changes?.length) sec.append(el("p", `Changes the person asked for: ${b.changes.join("; ")}.`, "made"));
+  if (b.notes?.length) sec.append(el("p", `Distances: ${b.notes.join("; ")}.`, "made"));
   const centre = [...b.rows, ...b.soft].filter((x) => x.centre_only);
   if (centre.length) sec.append(el("p", `Mapped only as a centre point in OpenStreetMap, so their area isn't counted: ${centre.map((x) => `${x.label.toLowerCase()} (${x.centre_only})`).join(", ")}.`, "made"));
   const topics = [...new Set([...b.rows, ...b.soft].filter((x) => x.ha > 0 && x.topic).map((x) => topicOf(x.topic)))];

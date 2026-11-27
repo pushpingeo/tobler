@@ -16,6 +16,7 @@ import { atlasViaWorker, firmsViaWorker, epsgViaWorker } from "./atlasclient.js"
 import { CONFIG } from "./config.js";
 import { TOPICS, topicOf, topicInfo, colourExpression, themeFor, bandOf, BAND_OPACITY, BIG_AREA_KM2, chooseLabels, ringDistances } from "./findings.js";
 import { createScreening, evidenceOf, evidenceWithin, nearestByTheme, flagBeyond, reassess, isArea } from "./ntrrun.js";
+import { distanceNote } from "./developable.js";
 import { groupGaps, gapSummary, GAP_GROUPS } from "./gaps.js";
 import { checksView, noCheckGap } from "./checks.js";
 import * as U from "./units.js";
@@ -2207,6 +2208,12 @@ function paintBudget(entry) {
     if (row.unread) facts.push(`${row.unread} shape${row.unread === 1 ? "" : "s"} couldn't be read.`);
     if (row.partly) facts.push(`Partly checked: ${row.partly}.`);
     if (facts.length) body.append(el("p", facts.join(" "), "facts"));
+    // Where the buffer comes from (package D): a rule or guidance, with its words, or a first cut.
+    if (row.buffer_m && row.distance && !row.changed) {
+      const p = el("p", `Distance: ${distanceNote(row.distance)}`, "bdist");
+      if (row.distance.url) { p.append(" "); const a = el("a", "Source"); a.href = row.distance.url; a.target = "_blank"; a.rel = "noopener"; p.append(a); }
+      body.append(p);
+    }
     const src = (row.source || []).map((x) => `${x.dataset}${x.publisher && !String(x.dataset).includes(x.publisher) ? ` (${x.publisher})` : ""}${x.licence ? `, ${x.licence}` : ""}`);
     if (src.length) body.append(el("p", src.join("; "), "src"));
     return body;
@@ -2232,6 +2239,7 @@ function paintBudget(entry) {
   if (clear.length) notes.push(el("p", `Checked, nothing taken off: ${clear.map((x) => x.label.toLowerCase()).join(", ")}.`, "bclear"));
   if (b.changes?.length) notes.push(el("p", `Your changes: ${b.changes.join("; ")}.`, "bchanges"));
   if (b.unknown?.length) notes.push(el("p", `Not something Tobler measures yet, so ignored: ${b.unknown.join(", ")}.`, "bchanges"));
+  if (b.notes?.length) notes.push(el("p", `Distances: ${b.notes.join("; ")}.`, "bchanges"));
   box.replaceChildren(el("p", U.localise(r.summary), "bsummary"), ol, ...notes);
 }
 
