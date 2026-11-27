@@ -30,6 +30,12 @@ test("a check that found something on the site is on site, and keeps its own wor
   const r = classifyEvidence(ev({ ref: "water.flood-zones", check: "water.flood-zones", name: "Flood zones (rivers and sea): on the site: Flood Zone 3 (4%)", distance_km: 0 }), ctx);
   assert.equal(r.class, "on_site"); assert.equal(r.said, "on the site: Flood Zone 3 (4%)");
 });
+test("a count check cited whole names its nearest feature, not the cut-off band list", () => {
+  const big = [...checks, { id: "heritage.sm", label: "Scheduled monuments", must: true, reach_km: 5, count: 59, state: "found", nearest: { name: "Willoughby deserted medieval village, post-medieval moated manor, church, six fishponds", distance_km: 0, relation: "crosses", site_share: 0.0008 } }];
+  const r = classifyEvidence(ev({ ref: "heritage.sm", check: "heritage.sm", name: "Scheduled monuments: 59 within 5 km (1 on site, …); nearest Willoughby deserted medieval vi", distance_km: 0 }), checkMaps(big));
+  assert.equal(r.class, "on_site");
+  assert.equal(relevanceLine(r, m), "Scheduled monuments: Willoughby deserted medieval village, post-medieval moated manor, church, six… (crosses the site's edge, under 1% of the site); 59 within 5 km.");
+});
 test("further than the check's reach is beyond range", () => {
   assert.equal(classifyEvidence(ev({ fid: "E9", relation: "outside", distance_km: 0.9 }), ctx).class, "beyond_range");
 });

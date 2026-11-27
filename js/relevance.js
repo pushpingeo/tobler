@@ -24,6 +24,9 @@ export const isDirect = (cls) => DIRECT.has(cls);
 const PATHWAYS = new Set(["water", "ground", "flight"]);
 const PATHWAY_WORDS = { water: "by water", ground: "through the ground", flight: "by flight" };
 const ON = new Set(["within", "crosses", "covers"]);
+// The fields whereWords reads, so the card can say "crosses the site's edge, 2% of the site" from the record.
+const pickRel = (o = {}) => Object.fromEntries(["site_share", "length_inside_km", "parts", "parts_on_site"].filter((k) => o[k] != null).map((k) => [k, o[k]]));
+const cut = (t, n = 80) => (t.length > n ? `${t.slice(0, n - 1).replace(/[\s,;]+\S*$/, "")}…` : t);
 // A check's label without its bracketed detail: "Nationally designated sites (SSSI and equivalents)" → "Nationally
 // designated sites". "Nearest homes" reads as "Homes" in a list.
 // Lower-case a label inside a sentence, unless it's a proper name ("Special Areas of Conservation", "SSSI").
@@ -35,12 +38,15 @@ export function classifyEvidence(e, { byCheck = new Map(), fidCheck = new Map() 
   const cid = e.check || fidCheck.get(String(e.fid || e.ref || "").toUpperCase()) || null;
   const c = cid ? byCheck.get(cid) : null;
   const d = e.distance_km ?? null;
+  const near = e.check && c?.nearest?.name ? c.nearest : null;
   const out = {
-    ref: e.fid || e.ref || cid, check: cid, label: c?.label || null, distance_km: d, relation: e.relation || null,
+    ref: e.fid || e.ref || cid, check: cid, label: c?.label || null, distance_km: d, relation: e.relation || near?.relation || null, ...pickRel(e),
     ...(c?.reach_km != null ? { reach_km: c.reach_km } : {}), must: !!c?.must,
     ...(c?.reached_by?.length ? { reached_by: c.reached_by } : {}),
-    // A check that found something reads as its own line ("on the site: Flood Zone 3 (4%)"); kept as said.
-    ...(e.check && e.name ? { said: String(e.name).split(": ").slice(1).join(": ") } : {}),
+    // A check cited whole: a count names its nearest feature and how it sits (from the check, not the evidence line,
+    // which is cut at 200 characters); a class or zone answer reads as its own line ("on the site: Flood Zone 3 (4%)").
+    ...(e.check && c?.nearest?.name ? { nearest_name: c.nearest.name, ...(c.count != null ? { count: c.count } : {}),
+      ...pickRel(c.nearest) } : e.check && e.name ? { said: String(e.name).split(": ").slice(1).join(": ") } : !e.check && e.name ? { nearest_name: String(e.name) } : {}),
     ...(e.in_search_area && e.coverage != null ? { coverage: e.coverage } : {}),
   };
   if (e.in_search_area || e.band === SEARCH_BAND) return { ...out, class: "in_search_area" };
@@ -90,7 +96,12 @@ export function relevanceLine(rel, dist = (km) => `${Math.round(km * 1000)} m`) 
   // The card and report already lead with the search-area line, and the source note repeats the caveat.
   if (rel.class === "in_search_area") return `${label}: in the search area${rel.coverage != null ? `, covering ${Math.max(1, Math.round(rel.coverage * 100))}% of it` : ""}.`;
   if (rel.class === "on_site" || rel.class === "at_edge") {
-    const where = rel.said ? rel.said.replace(/[.;\s]+$/, "") : whereWords(rel, dist) || "on the site";
+    const ww = (whereWords(rel, dist) || "on the site").replace(/^on site$/, "on the site");
+    // The feature's own name, unless it only repeats the check's ("Homes (residential land)" under Homes).
+    const named = rel.nearest_name && !shortLabel(rel.nearest_name).toLowerCase().startsWith(label.toLowerCase()) && !/^unnamed/i.test(rel.nearest_name);
+    if (rel.nearest_name && !named) return `${label}: ${ww}${rel.count > 1 && rel.reach_km ? `; ${rel.count} within ${dist(rel.reach_km)}` : ""}.`;
+    if (named) return `${label}: ${cut(rel.nearest_name)} (${ww})${rel.count > 1 && rel.reach_km ? `; ${rel.count} within ${dist(rel.reach_km)}` : ""}.`;
+    const where = rel.said ? rel.said.replace(/[.;\s]+$/, "") : ww;
     return `${label}: ${where}.`;
   }
   const at = rel.distance_km == null ? "within the run's distances" : `${dist(rel.distance_km)} away`;
