@@ -737,4 +737,82 @@ await test("a named project asks the atlas by the kind its name says (25 Nov: 'D
   if (wide.atlas) assert.match(wide.atlas.not_checked || "", /weren't searched|no map view/);
 });
 
+
+await test("what's planned is read from the person's words in code, and asked only when they didn't say (package E, 27 Nov)", async () => {
+  const table = JSON.parse(readFileSync(new URL("../catalogue/assets.json", import.meta.url)));
+  const host = memoryHost();
+  const said = [];
+  const ran = [], asked = [];
+  host.personMessages = () => [...said];
+  host.screening = { assetTable: () => table, assetLabel: (id) => table.assets[id]?.label || null,
+    screen: async (i, p) => { ran.push({ ...i, place: p.name }); return { run: `R${ran.length}`, site: p.name }; } };
+  host.askAssetType = async (name, question, opts) => { asked.push({ name, question, first: opts?.first || [] }); return { place: name, options: [] }; };
+  const t = createPlaceTools(host);
+  const sq = turf.polygon([[[-3.6, 55.97], [-3.59, 55.97], [-3.59, 55.976], [-3.6, 55.976], [-3.6, 55.97]]]);
+  host.list.push({ name: "Area 1", feature: sq, origin: { method: "drawn" }, status: "drawn", edits: [] });
+  host.list.push({ name: "Area 2", feature: sq, origin: { method: "drawn" }, status: "drawn", edits: [] });
+  // Said: runs at once, the person's words win over the analyst's choice, and the record keeps both.
+  t.newTurn(); said.push("Screen Area 1 as a 200-home scheme");
+  const out = await t.exec("screen_site", { place: "Area 1", asset_type: "solar" });
+  assert.equal(out.run, "R1");
+  assert.equal(ran[0].asset_type, "other");
+  assert.equal(ran[0].planned, "housing development");
+  assert.deepEqual(ran[0].asset_from, { by: "words", words: "a 200-home scheme", model: { asset_type: "solar" } });
+  assert.equal(asked.length, 0);
+  // Not said, about another place: the earlier site's housing doesn't carry over, so the picks are shown, nothing runs.
+  t.newTurn(); said.push("Now screen Area 2");
+  const held = await t.exec("screen_site", { place: "Area 2", asset_type: "other" });
+  assert.equal(held.held, "asset");
+  assert.equal(held.ask, "unsaid");
+  assert.equal(ran.length, 1, "nothing ran");
+  assert.match(asked[0].question, /What's planned at Area 2\?/);
+  assert.match(t.pendingLines()[0], /pick of what's planned/);
+  // The pick (its words, and the page's direct run): runs with what was asked.
+  t.newTurn(); said.push("Screen Area 2 as a solar farm site.");
+  assert.equal((await t.exec("screen_site", { place: "Area 2", asset_type: "solar", assumed: false })).run, "R2");
+  assert.equal(ran[1].asset_type, "solar");
+  assert.equal(ran[1].asset_from.words, "a solar farm site");
+  assert.equal(t.pendingLines().length, 0);
+  // The analyst's guess from the place's name: offered first, not run on.
+  t.newTurn(); said.push("Screen Area 1 again please");
+  // Area 1's own earlier words still count for it ("again" keeps its housing).
+  assert.equal((await t.exec("screen_site", { place: "Area 1", asset_type: "other" })).run, "R3");
+  assert.equal(ran[2].planned, "housing development");
+  t.newTurn(); said.push("what about Area 2 for Jackdaw-style oil and gas? no, just screen Area 2");
+  host.list.push({ name: "Jackdaw", feature: sq, origin: { method: "drawn" }, status: "drawn", edits: [] });
+  t.newTurn(); said.push("Screen Jackdaw");
+  const g = await t.exec("screen_site", { place: "Jackdaw", asset_type: "oil-gas-onshore", assumed: true });
+  assert.equal(g.held, "asset");
+  assert.equal(g.ask, "guess");
+  assert.equal(asked.at(-1).first[0].type, "oil-gas-onshore");
+  assert.match(asked.at(-1).question, /My guess is an onshore oil and gas plant or wells, but you didn't say/);
+  // Two things named: asked which, with both first.
+  t.newTurn(); said.push("Screen Jackdaw for a solar farm with battery storage");
+  const two = await t.exec("screen_site", { place: "Jackdaw", asset_type: "solar" });
+  assert.equal(two.ask, "several");
+  assert.deepEqual(asked.at(-1).first.map((x) => x.label), ["Solar farm", "Battery energy storage site"]);
+});
+
+await test("a place built from words: one yes for the place and the asset read from the words (package E)", async () => {
+  const table = JSON.parse(readFileSync(new URL("../catalogue/assets.json", import.meta.url)));
+  const host = memoryHost();
+  const said = ["screen the Jackdaw platform as a platform site"];
+  host.personMessages = () => [...said];
+  host.screening = { assetTable: () => table, assetLabel: (id) => table.assets[id]?.label || null, screen: async (i, p) => ({ run: "R1", site: p.name }) };
+  host.askAssetType = async () => ({ options: [] });
+  const t = createPlaceTools(host);
+  t.newTurn();
+  const found = await t.exec("find_place", { query: "Jackdaw platform" });
+  const c = found.candidates.find((x) => /JACKDAW/i.test(x.name));
+  await t.exec("make_place", { anchor: c.id, shape: "square", area_km2: 3, words: "the Jackdaw platform", match: "named_place", reason: "found" });
+  const held = await t.exec("screen_site", { place: host.list[0].name, asset_type: "platform" });
+  assert.equal(held.held, "confirm");
+  assert.match(held.queued, /^a constraints screen for an offshore platform or installation \(your words: “a platform site”\)/);
+  // Nothing said about what's planned: the place is still asked first, and the screen waits for the asset after.
+  said.length = 0; said.push("find the Jackdaw platform and screen it");
+  const h2 = await t.exec("screen_site", { place: host.list[0].name, asset_type: "platform" });
+  assert.equal(h2.held, "confirm");
+  assert.match(h2.queued, /once you've said what's planned/);
+});
+
 console.log(`${passed} place tests passed`);

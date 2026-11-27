@@ -102,7 +102,7 @@ function render(record) {
   fact("Site", U.localise(s.summary));
   fact("Units", U.unitsLine());
   fact("How it was found", s.how_found);
-  if (!r.study) fact("Planned", `${s.asset_label}${s.asset_assumed ? " (assumed)" : ""}; stage ${s.stage}${s.outside_profile ? `. ${s.outside_profile}` : ""}`);
+  if (!r.study) fact("Planned", `${s.asset_label}${s.asset_from?.by === "words" && s.asset_from.words && !s.asset_from.general ? ` (from the request: “${s.asset_from.words}”)` : s.asset_assumed ? " (assumed)" : ""}; stage ${s.stage}${s.outside_profile ? `. ${s.outside_profile}` : ""}`);
   fact("Screened", r.extent === "inside" ? "Inside the area only (the surroundings weren't screened)." : U.localise(`${s.footprint}; ${runDistancesLine(r)}.`));
   // Where the distances came from: the scale and why, an asset with no row, the asset's extensions, the person's changes.
   fact("Why these distances", r.reach

@@ -20,5 +20,6 @@ export function pickMessage(placeName, pick) {
   }
   const what = pick.label.toLowerCase();
   const text = `Screen ${placeName} as ${/^[aeiou]/.test(what) ? "an" : "a"} ${what} site.`;
-  return { text, forModel: `${text}\n[The person picked this from your buttons: call screen_site now with asset_type "${pick.type}" and assumed false.]` };
+  const planned = pick.planned ? ` and planned "${pick.planned}"` : "";
+  return { text, forModel: `${text}\n[The person picked this from your buttons: call screen_site now with asset_type "${pick.type}"${planned} and assumed false.]` };
 }

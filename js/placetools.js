@@ -16,6 +16,7 @@ import { EPSG_TOOL_DEFS, createEpsgTools } from "./epsgtools.js";
 import { elevationFrom, elevationSignificance } from "./elevation.js";
 import { themeFor, TOPIC_IDS } from "./findings.js";
 import { ASSET_TYPES } from "./reach.js";
+import { readAsset, settleAsset } from "./assetwords.js";
 import { searchAnchors, searchNominatim, searchNaturalEarth, searchWikidata, findFeaturesNear, featureOutline, FEATURE_TYPES, candidate, settlementNear } from "./gazetteer.js";
 import { parseCoordinates, formatLatLon } from "./coords.js";
 
@@ -290,6 +291,15 @@ const norm = (t) => String(t || "").toLowerCase().replace(/[‘’“”"'`]/g, 
 // Words that ask for a screen or a judgement on the place, in any of the person's messages.
 const SCREEN_ASKED = /\b(screen\w*|constraints?|risks?|sensitivit\w*|issues?|due diligence|e&s|environmental (check|assessment|review)|assess\w*|red flags?)\b/i;
 
+const cap = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
+const an = (t) => `${/^[aeiou]/i.test(t) ? "an" : "a"} ${t}`;
+// The question above the asset picks, when what's planned wasn't in the person's words.
+function assetQuestion(name, settled, guess) {
+  if (settled.ask === "several") return `You mentioned ${settled.options.map((o) => an(o.label)).join(" and ")}. Which should the screen of ${name} be for? It sets how far each check looks.`;
+  if (guess) return `What's planned at ${name}? My guess is ${an(guess)}, but you didn't say. It sets how far each check looks.`;
+  return `What's planned at ${name}? It sets how far the screen looks.`;
+}
+
 export function createPlaceTools(host) {
   // The person's licence settings, for every catalogue search (Esri MLA and non-commercial data are off by default).
   const allowed = () => ({ esri: !!host.esriLicence?.(), nonCommercial: !!host.nonCommercial?.() });
@@ -315,17 +325,18 @@ export function createPlaceTools(host) {
       return `${/^[aeiou]/i.test(entry?.label || "") ? "an" : "a"} ${(entry?.label || String(i.study || "study").replace(/-/g, " ")).toLowerCase()}`;
     }
     const what = (i.planned && String(i.planned).replace(/^(a|an|the)\s+/i, "")) || (i.asset_type && i.asset_type !== "other" ? host.screening?.assetLabel?.(i.asset_type) || i.asset_type.replace(/-/g, " ") : null);
-    return `a constraints screen${what ? ` for ${/^[aeiou]/i.test(what) ? "an" : "a"} ${what}` : ""}`;
+    const words = i.asset_from?.by === "words" && i.asset_from.words && !i.asset_from.general ? ` (your words: “${i.asset_from.words}”)` : "";
+    return `a constraints screen${what ? ` for ${/^[aeiou]/i.test(what) ? "an" : "a"} ${what}${words}` : i.asset_from?.general ? ", a general one" : ""}`;
   };
   // Before a run: hold it if the place isn't a site, or the person hasn't seen it yet. Returns the held result, or null.
-  async function holdRun(tool, p, i) {
+  async function holdRun(tool, p, i, said = queued(tool, i)) {
     const k = pkey(p);
     if (!i.whole) {
       const d = await R.describe(host.ref, p.feature);
       const n = notASite(p.origin || {}, p.feature.geometry, { area_km2: d.area_km2 ?? null, offshore: !!d.offshore });
       if (n) {
         pending.set(k, { tool, input: { ...i }, held: "which_part", place: p.name });
-        return { held: "which_part", place: p.name, kind: n.kind, what: n.what, ...(n.area_km2 ? { area_km2: n.area_km2 } : {}), geometry: p.feature.geometry.type, queued: queued(tool, i) };
+        return { held: "which_part", place: p.name, kind: n.kind, what: n.what, ...(n.area_km2 ? { area_km2: n.area_km2 } : {}), geometry: p.feature.geometry.type, queued: said };
       }
     }
     if (unseen.has(p) && p.status === "proposed") {
@@ -335,13 +346,13 @@ export function createPlaceTools(host) {
       const a = p.origin?.anchor || {};
       return { held: "confirm", place: p.name, anchor: a.name || a.place || null, source: a.source?.publisher || a.source?.title || null,
         confidence: p.origin?.confidence || null, role: role.role, role_why: role.why, geometry: p.feature.geometry.type,
-        ...(d.area_km2 != null ? { area_km2: d.area_km2 } : {}), ...(d.length_km != null ? { length_km: d.length_km } : {}), queued: queued(tool, i) };
+        ...(d.area_km2 != null ? { area_km2: d.area_km2 } : {}), ...(d.length_km != null ? { length_km: d.length_km } : {}), queued: said };
     }
     return null;
   }
   // What's asked and waiting, for the project summary: the person's yes runs it.
   const pendingLines = () => [...pending.values()].filter((x) => host.findPlace(x.place))
-    .map((x) => `- ${x.place}: ${queued(x.tool, x.input)} is waiting for the person's ${x.held === "which_part" ? "answer on which part of it is the site" : "yes that the place is right"} (${x.tool} ${JSON.stringify(x.input)})`);
+    .map((x) => `- ${x.place}: ${queued(x.tool, x.input)} is waiting for the person's ${x.held === "which_part" ? "answer on which part of it is the site" : x.held === "asset" ? "pick of what's planned there (the buttons are showing)" : "yes that the place is right"} (${x.tool} ${JSON.stringify(x.input)})`);
 
   const resolve = (ref) => {
     if (!ref) throw new Error("No anchor given.");
@@ -906,14 +917,42 @@ export function createPlaceTools(host) {
       dataset: elevation.dataset, publisher: elevation.publisher, licence: elevation.licence, checked_at: elevation.checked_at,
     };
   };
+  // What's planned, from the person's own words (package E, 27 Nov; js/assetwords.js). Read from their messages back
+  // to the last screen of another place, so context given first counts ("I'm planning a solar farm", then the
+  // drawing) and an earlier site's asset doesn't carry over. Code's reading wins over the analyst's (Rob, 27 Nov).
+  const screenedAt = new Map(); // place key → how many of the person's messages there were when it was last screened
+  const messagesFor = (p) => {
+    const all = host.personMessages?.() || [];
+    const from = Math.max(0, ...[...screenedAt].filter(([k]) => k !== pkey(p)).map(([, at]) => at));
+    return all.slice(from);
+  };
+  async function settleFor(p, i) {
+    const table = host.screening?.assetTable?.();
+    if (!table?.assets || !host.personMessages) return { input: i };
+    let offshore = false;
+    try { offshore = !!(await R.describe(host.ref, p.feature)).offshore; } catch { /* on land */ }
+    const settled = settleAsset(i, readAsset(messagesFor(p), table, { offshore }), { table });
+    // Nothing new said, but this place was screened before for something the person said: screened for that again.
+    const before = lastAsset.get(pkey(p));
+    if (settled.ask && settled.ask !== "several" && before) {
+      const input = { ...i, asset_type: before.asset_type, assumed: false };
+      delete input.planned;
+      if (before.planned) input.planned = before.planned;
+      return { input, from: { ...before.from, earlier_run: true } };
+    }
+    return settled;
+  }
+  const lastAsset = new Map(); // place key → what it was last screened for, when the person said it
   run.screen_site = async (input) => {
     if (!host.screening) return { not_available: "Screening isn't connected here." };
     const p = host.findPlace(input.place);
     if (!p) throw new Error(`No place called "${input.place}". Find or build the site first.`);
     // A yes to a held screen runs what was asked then: what's given now adds to it or changes it.
     const was = pending.get(pkey(p));
-    const i = was?.tool === "screen_site" ? { ...was.input, ...input } : input;
-    const held = await holdRun("screen_site", p, i);
+    const asked = was?.tool === "screen_site" ? { ...was.input, ...input } : input;
+    const settled = await settleFor(p, asked);
+    const i = settled.input ? { ...settled.input, ...(settled.from ? { asset_from: settled.from } : {}) } : { ...asked };
+    const held = await holdRun("screen_site", p, i, settled.ask ? "a constraints screen, once you've said what's planned there" : undefined);
     if (held) return held;
     // Several skills are on offer (Rob, 24 Nov): the analyst runs a screen only when the person asked for one (in
     // words, with the screen chip or an asset-type pick, which all say "screen"), and otherwise offers the skills.
@@ -923,8 +962,23 @@ export function createPlaceTools(host) {
       host.offerSkills(p.name);
       return { held: "skills", place: p.name };
     }
+    // What's planned wasn't in the person's words (nothing said, the analyst's guess, or two things named): the quick
+    // picks, with the guess first. The pick runs the screen from the page with what was asked (Rob, 27 Nov: confirm
+    // only when it wasn't said).
+    if (settled.ask && host.askAssetType) {
+      pending.set(pkey(p), { tool: "screen_site", input: { ...asked }, held: "asset", place: p.name });
+      const guess = settled.ask === "guess" ? (settled.model.planned || host.screening.assetLabel?.(settled.model.asset_type) || null) : null;
+      const shown = await host.askAssetType(p.name, assetQuestion(p.name, settled, guess), {
+        first: settled.ask === "guess" ? [{ type: settled.model.planned ? "other" : settled.model.asset_type, ...(settled.model.planned ? { planned: settled.model.planned } : {}), label: cap(guess) }]
+          : settled.ask === "several" ? settled.options.map((o) => ({ type: o.asset_type || "other", ...(o.planned ? { planned: o.planned } : {}), label: cap(o.label) })) : [],
+      });
+      return { held: "asset", place: p.name, ask: settled.ask, ...(guess ? { guess } : {}), ...(settled.options ? { named: settled.options.map((o) => o.label) } : {}), options: shown?.options || [] };
+    }
     pending.delete(pkey(p));
-    return host.screening.screen(i, p);
+    const out = await host.screening.screen(i, p);
+    screenedAt.set(pkey(p), (host.personMessages?.() || []).length);
+    if (i.asset_from) lastAsset.set(pkey(p), { asset_type: i.asset_type, ...(i.planned ? { planned: i.planned } : {}), from: (({ model, earlier_run, ...f }) => f)(i.asset_from) });
+    return out;
   };
   // Coordinate reference (EPSG registry via the Worker): js/epsgtools.js.
   // transform takes the person's own numbers only: a typed-coordinates candidate, never a place already in WGS 84.

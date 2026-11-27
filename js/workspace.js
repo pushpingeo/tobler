@@ -953,12 +953,14 @@ const host = {
     if (p) removePlace(p.id, by || { by: "analyst" });
   },
   personSaid: () => said.join("\n"),
+  // Each message the person typed or picked, oldest first: what's planned is read from them in code (js/assetwords.js).
+  personMessages: () => [...said],
   lastPersonText: () => said.at(-1) || "",
   renamePlace(name, to) {
     const p = placeByName(name);
     if (p) renameTo(p, to);
   },
-  askAssetType: (name, question) => askAssetType(name, question),
+  askAssetType: (name, question, opts) => askAssetType(name, question, opts),
   offerSkills: (name) => offerSkills(name),
 };
 // Screening runs: sealed NTR runs with their own tools; the conversation gets the headline, the card the detail.
@@ -1093,6 +1095,12 @@ function makeCard(p) {
       const whole = held.held === "which_part";
       send(whole ? `Use all of ${p.name}, as a rough first look.` : `Yes, use ${p.name}.`, undefined, { name: held.tool, input: { ...held.input, place: p.name, ...(whole ? { whole: true } : {}) } });
     } else send(`Yes, use ${p.name}.`);
+  });
+  // A screen waiting on this place's yes, with what's planned read from the person's words: they can change it here,
+  // and the pick is their yes to the place too (package E, 27 Nov).
+  card.querySelector('[data-op="asset"]')?.addEventListener("click", () => {
+    if (busy) return;
+    askAssetType(p.name, `What's planned at ${p.name} instead? Picking one also uses this place.`);
   });
   card.querySelector('[data-op="revise"]').addEventListener("click", () => {
     if (busy) return;
@@ -1760,6 +1768,15 @@ function showRun(record) {
   card.querySelector(".disclaimer").title = DISCLAIMER;
   card.querySelector(".disclaimer").before(feedbackRow({ on: "run", run: r.id, excerpt: `${r.id} ${r.site.name}: ${r.decision?.value || ""}, ${r.flags.length} flags`, send: sendFeedback }));
   { const o = card.querySelector(".outside"); o.hidden = !r.site.outside_profile; o.textContent = r.site.outside_profile || ""; }
+  // Where what's planned came from (package E): the person's words, quoted, with a way to change it and re-run.
+  { const a = card.querySelector(".asset-from");
+    if (a) {
+      const f = r.site.asset_from;
+      a.hidden = !!r.study || !!r.budget || !f;
+      const an = (t) => `${/^[aeiou]/i.test(t) ? "an" : "a"} ${t}`;
+      if (f) a.querySelector("span").textContent = f.general ? `A general screen, as you asked (“${f.words}”).` : f.by === "words" ? `Screened as ${an(r.site.asset_label)}, from your words: “${f.words}”.` : `Screened as ${an(r.site.asset_label)}, as you picked.`;
+      a.querySelector("button").onclick = () => { const q = places.get(r.place_id); if (q && !busy) askAssetType(q.name, `Screen ${q.name} as something else? Picking one re-runs the screen.`); };
+    } }
   // A search area says so first: the site's outline wasn't found, so nothing on this card is "on site".
   if (r.site.role === "search_area") {
     const sn = card.querySelector(".search-note"); sn.hidden = false;
@@ -2261,6 +2278,8 @@ function paintStatus(p, card = p.card) {
   let held = null;
   try { held = tools.pendingFor(p); } catch { held = null; } // the tools may not be made yet while the page starts
   if (accept) accept.textContent = held?.held === "which_part" ? "Use all of it" : "Use this area";
+  const asset = card.querySelector('[data-op="asset"]');
+  if (asset) asset.hidden = !(asking && held?.tool === "screen_site" && held.held === "confirm");
   card.querySelector(".badge").textContent = p.status === "proposed" ? "Proposed" : "";
 }
 
@@ -2568,7 +2587,8 @@ async function runDirect({ name, input }, turnLog, steps) {
   const t0 = Date.now();
   const out = await tools.exec(name, input);
   toolEvent({ name, input, output: out, ms: Date.now() - t0 }, turnLog, steps);
-  const text = finishTurn(host.screening)(name, input, out) || "Done.";
+  const f = finishTurn(host.screening)(name, input, out);
+  const text = (typeof f === "string" ? f : f?.text) || "Done.";
   return { text, usage: { input_tokens: 0, output_tokens: 0 }, stopReason: "finished_in_code" };
 }
 
@@ -2759,12 +2779,17 @@ function paintAdded(entry) {
 }
 
 // "What's planned at <place>?": a few buttons, More… for the rest, and a general screen. A tap screens at once.
-async function askAssetType(name, question) {
+async function askAssetType(name, question, { first = [] } = {}) {
   const p = placeByName(name);
   if (!p) throw new Error(`No place called "${name}".`);
   let offshore = false;
   try { offshore = !!(await R.describe(ref, p.feature)).offshore; } catch { /* reference not loaded: on land */ }
-  const { shown, more } = picksFor(assetPicks(), offshore);
+  const base = picksFor(assetPicks(), offshore);
+  // The analyst's guess, or the things the person named, go first (and out of the rest, so none shows twice).
+  const lead = first.filter((k) => k?.label);
+  const same = (a, b) => a.type === b.type && (a.planned || null) === (b.planned || null);
+  const shown = [...lead, ...base.shown.filter((k) => !lead.some((x) => same(x, k)))].slice(0, Math.max(base.shown.length, lead.length));
+  const more = [...base.shown, ...base.more].filter((k) => !shown.some((x) => same(x, k)));
   const card = el("div", null, "msg analyst asset-pick");
   card.append(el("p", question || `What's planned at ${p.name}? It sets how far the screen looks.`));
   const row = el("div", null, "picks");
@@ -2773,10 +2798,19 @@ async function askAssetType(name, question) {
     card.classList.add("done");
     card.querySelectorAll("button").forEach((b) => { b.disabled = true; });
     const m = pickMessage(p.name, pick);
-    send(m.text, m.forModel);
+    // A pick answers for the place too, when it was still a proposal.
+    if (p.status === "proposed") { p.status = "accepted"; paintStatus(p); scheduleRefresh(); }
+    // A screen held for this place runs from the page with what was asked and this pick, with no model call.
+    const held = tools.pendingFor(p);
+    if (held?.tool === "screen_site") {
+      const input = { ...held.input, place: p.name, asset_type: pick?.type || "other", assumed: false };
+      delete input.planned; delete input.asset_from;
+      if (pick?.planned) input.planned = pick.planned;
+      send(m.text, m.text, { name: "screen_site", input });
+    } else send(m.text, m.forModel);
   };
   const button = (pick, cls = "chip") => { const b = el("button", pick ? pick.label : "Just a general screen", cls); b.type = "button"; b.addEventListener("click", () => go(pick)); return b; };
-  shown.forEach((k) => row.append(button(k)));
+  shown.forEach((k, j) => row.append(button(k, j < lead.length && lead.length === 1 ? "chip primary" : "chip")));
   if (more.length) {
     const m = el("button", "More…", "chip more"); m.type = "button";
     m.addEventListener("click", () => { m.remove(); more.forEach((k) => row.insertBefore(button(k), general)); });

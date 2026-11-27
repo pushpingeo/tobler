@@ -2,11 +2,12 @@
   "about": "The asset table (package A, 26 Nov 2026; replaces catalogue/distances.json): what a kind of development is like, apart from who's asking (the profile). For each asset type: its names as people say them; the screening scale its size picks (local, regional or global: which of each check's reaches in catalogue/checks.json applies); the footprint radius used when the site is only a point; where it extends a check's reach, with the reason and the source; and the effects it sends out. A check owns its default reach; an asset row only extends it, never cuts it; the person's own distances override both. Protection distances (the developable area's buffers) stay in skills/developable-area/SKILL.md until package D's researched rows are reviewed by Rob. Nothing is fetched beyond 50 km. Read by js/reach.js; tested in test/reach.test.mjs.",
   "version": "1",
   "fields": {
-    "names": "how people say it, lower case; for matching the person's words later (package E)",
+    "names": "how people say it, lower case; read from the person's words in code (js/assetwords.js, package E). general.planned lists what has no row (housing, a warehouse): read the same way, screened on the general defaults with its label. counts: words after a number that also name it (a 200-home scheme)",
     "scale": "the screening scale for this asset in this setting, with why. by_size rules apply in order, each overriding what it names: below_mw, mw (at least), area_km2 (at least), below_km2. A rule's keeps names a scale whose checks the run also keeps, each check taking the further of its two reaches",
     "footprint_km": "the radius of the circle used when the site is only a point: the footprint's own width, which belongs to the place, not a search distance",
     "extends": "checks (by id) or topics whose reach this asset extends, to to_km, or by_tip_height ([[up_to_m, km], …, [null, km]]) when the tip height is given. Each has why and source. Never shortens a check",
     "effects": "how its effects travel (sight, flight, water, ground, road, sound), each with a source; nothing reads it yet (package E)",
+    "pair": "the row to use instead when the place is in the other setting (wind farm words for a site at sea read as offshore wind)",
     "scale_source": "where the scale and footprint come from. Today these are Tobler's first-cut defaults carried over from distances.json (draft-1, 18 Nov), awaiting package D's research and Rob's review"
   },
   "scale_source": "Tobler's first-cut defaults (catalogue/distances.json draft-1, 18 Nov 2026, carried over unchanged as scales on 26 Nov); package D researches them for Rob's review",
@@ -20,11 +21,18 @@
       "by_size": [
         { "below_km2": 1, "scale": "regional", "why": "a small offshore site (under 1 km²)" }
       ] },
-    "global_from_km2": 100
+    "global_from_km2": 100,
+    "planned": [
+      { "label": "housing development", "names": ["housing", "housing development", "housing scheme", "residential development", "homes", "houses", "dwellings", "new homes"], "counts": ["home", "house", "dwelling", "unit", "plot"] },
+      { "label": "warehouse or logistics site", "names": ["warehouse", "distribution warehouse", "distribution centre", "distribution center", "logistics", "logistics park", "logistics hub"] },
+      { "label": "battery energy storage site", "names": ["battery storage", "battery energy storage", "bess", "battery energy storage system"] },
+      { "label": "data centre", "names": ["data centre", "data center", "data centres", "data centers"] },
+      { "label": "office development", "names": ["offices", "office development", "office block", "office park"] }
+    ]
   },
   "assets": {
     "solar": {
-      "label": "solar farm", "names": ["solar farm", "solar park", "solar pv", "photovoltaic", "solar array"],
+      "label": "solar farm", "names": ["solar farm", "solar", "solar park", "solar pv", "photovoltaic", "solar array"],
       "onshore": { "scale": "regional", "footprint_km": 1, "why": "construction and glint near, traffic and views close, protected sites wider" },
       "by_size": [
         { "below_mw": 5, "scale": "local", "footprint_km": 0.3, "why": "a small array (under 5 MW): construction effects stay local" },
@@ -34,7 +42,7 @@
       "effects": []
     },
     "wind-onshore": {
-      "label": "onshore wind farm", "names": ["wind farm", "onshore wind", "wind turbines", "wind turbine"],
+      "pair": "wind-offshore", "label": "onshore wind farm", "names": ["wind farm", "wind", "onshore wind", "wind turbines", "wind turbine"],
       "onshore": { "scale": "regional", "footprint_km": 3, "why": "noise and shadow flicker near, visual and birds close, protected sites wider" },
       "by_size": [
         { "mw": 100, "scale": "global", "keeps": "regional", "why": "a large wind farm (100 MW or more): wider visual and bird context, keeping the regional checks (heritage, homes, roads, water) as well (Rob, 27 Nov)" }
@@ -58,7 +66,7 @@
       ]
     },
     "wind-offshore": {
-      "label": "offshore wind farm", "names": ["offshore wind", "offshore wind farm"],
+      "pair": "wind-onshore", "label": "offshore wind farm", "names": ["offshore wind", "offshore wind farm"],
       "offshore": { "scale": "global", "footprint_km": 5, "why": "construction noise and safety zones near, fishing and shipping close, seabirds and protected sites wider" },
       "extends": [], "effects": []
     },
@@ -85,7 +93,7 @@
       "extends": [], "effects": []
     },
     "oil-gas-onshore": {
-      "label": "onshore oil and gas plant or wells", "names": ["oil well", "gas well", "wellsite", "gas plant", "refinery"],
+      "pair": "oil-gas-field", "label": "onshore oil and gas plant or wells", "names": ["oil and gas", "oil well", "gas well", "wellsite", "gas plant", "refinery"],
       "onshore": { "scale": "regional", "footprint_km": 1, "why": "flaring, noise and safety near, traffic and influx close, protected sites wider" },
       "extends": [], "effects": []
     },
@@ -95,7 +103,7 @@
       "extends": [], "effects": []
     },
     "oil-gas-field": {
-      "label": "offshore oil or gas field", "names": ["oil field", "gas field", "offshore field"],
+      "pair": "oil-gas-onshore", "label": "offshore oil or gas field", "names": ["oil field", "gas field", "offshore field"],
       "offshore": { "scale": "global", "footprint_km": 5, "why": "subsea works and anchors near, discharges and shipping close, spill reach and protected sites wider" },
       "extends": [], "effects": []
     },

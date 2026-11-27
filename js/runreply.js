@@ -104,7 +104,8 @@ function flagsBlock(r, { noun = "flag", none = "No flags raised." } = {}) {
 // The constraints screen.
 export function screenReply(record, { replaced = null } = {}) {
   const r = record.tobler_run;
-  const asset = `${r.site.asset_label}${r.site.asset_assumed ? " (assumed: you didn't say what's planned)" : ""}`;
+  const f = r.site.asset_from;
+  const asset = `${r.site.asset_label}${f?.by === "words" && f.words && !f.general ? ` (your words: “${f.words}”)` : r.site.asset_assumed ? " (assumed: you didn't say what's planned)" : ""}`;
   const paras = [];
   paras.push([header(r, "Constraints screen"), ...decisionLines(r)].join(" "));
   const context = [
@@ -222,6 +223,8 @@ export function finishTurn(screening) {
       // Couldn't run here (offshore, a point for an area budget, no such study): code already wrote why.
       if (out.not_available) return sentence(out.not_available);
       // Held until the person has seen the place, said which part of it is the site, or picked an analysis.
+      // Asked what's planned with the quick picks (package E): the question is on the buttons' card.
+      if (out.held === "asset") return { text: BUTTONS.ask_asset_type(), soft: true };
       if (out.held) return heldReply(out);
     }
     // Layers brought in after a run (or the offer declined): what came back, written in code.

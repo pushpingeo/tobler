@@ -2,6 +2,32 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 27 Nov 2026 (evening): what's planned is read from the person's words, and asked only when not said (package E)
+Rob's answers at 18:00: confirm the asset only when it wasn't said; code's reading wins over the model's.
+- **Read in code** (`js/assetwords.js`, tested in `test/assetwords.test.mjs`): the asset table's names, and new
+  `general.planned` names for what has no row (housing, a warehouse, battery storage, a data centre, offices), each
+  read only when a word sets it up as what's planned ("for a solar farm", "as a housing site", "a proposed
+  warehouse", "a 200-home scheme"), never when it sits beside the site ("near the wind farm", "keep 50 m from homes",
+  "a wind farm is next door"). It errs on missing: a miss falls back to the picks, a wrong read screens the wrong
+  thing. A size in MW comes with it. Wind farm or oil and gas words take the row for where the place is (a new
+  `pair` field: offshore wind at sea).
+- **Which messages:** the person's, newest first, back to the last screen of another place. So context given before
+  the drawing counts, and an earlier site's asset doesn't carry over. A re-run of a place with nothing new said keeps
+  what it was last screened for.
+- **When it's asked:** said → runs at once, and the card says "Screened as a housing development, from your words:
+  “a 200-home scheme”" with Change (which re-runs). A place built from words still waits for its yes, and the yes
+  covers the asset (the reply quotes the words); "Change the asset" sits on that card. Not said, the analyst's guess
+  (an oil field's name), or two things named ("a solar farm with battery storage") → the quick picks, with the guess
+  or the named things first. A pick runs from the page with what was asked, with no model call. Every pick's own
+  words read back as its asset (tested), so a pick can't loop.
+- **The record** keeps `site.asset_from` (`by: "words"`, the words, and the model's own choice when it differed).
+  The report's "Planned" line quotes the words. Old runs have no `asset_from` and read as before.
+- **The analyst** is told to call screen_site rather than ask what's planned; ask_asset_type stays for the chip.
+- **Labels with a noun:** "battery energy storage site", not "battery energy storage".
+- **Tested:** `npm test`, with new tests in `assetwords.test.mjs` and `places.test.mjs`. **Not tested:** the 14
+  browser checks, desktop or phone (this session couldn't serve the page locally), a live model run, the replay
+  gate (the sealed screen didn't change; the gate passes assets directly). Not pushed: the session had no push access.
+
 ## 27 Nov 2026 (late afternoon): relevance classes replace severity on a screen (package E, step 2)
 Rob approved the samples at 15:49 (page and prototype: `claude/package-e-samples-2026-11-27.md` in the project).
 - **Classes, set in code** (`js/relevance.js`): on site (within, crosses, covers), at edge (within 50 m), in search

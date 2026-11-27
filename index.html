@@ -9,14 +9,15 @@
 <link rel="icon" href="img/tobler.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/public-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="js/vendor/maplibre-gl.css">
-<link rel="stylesheet" href="css/workspace.css?v=5038bd74">
+<link rel="stylesheet" href="css/workspace.css?v=81d9d44e">
 <script src="js/vendor/maplibre-gl.js"></script>
 <script type="importmap">
 {
  "imports": {
   "./js/arcgisauth.js": "./js/arcgisauth.js?v=64df2845",
   "./js/areabudget.js": "./js/areabudget.js?v=8c33f8d4",
-  "./js/assetpicks.js": "./js/assetpicks.js?v=01d8f63a",
+  "./js/assetpicks.js": "./js/assetpicks.js?v=39f09b86",
+  "./js/assetwords.js": "./js/assetwords.js?v=f6831c99",
   "./js/atlasclient.js": "./js/atlasclient.js?v=6e6b994a",
   "./js/atlasfeatures.js": "./js/atlasfeatures.js?v=aea7591d",
   "./js/boundaries.js": "./js/boundaries.js?v=b245dfdc",
@@ -26,7 +27,7 @@
   "./js/confidence.js": "./js/confidence.js?v=ad22f5c6",
   "./js/config.js": "./js/config.js?v=33489ea2",
   "./js/config.js?v=m2b": "./js/config.js?v=33489ea2",
-  "./js/converse.js": "./js/converse.js?v=767b1eca",
+  "./js/converse.js": "./js/converse.js?v=851ca048",
   "./js/coords.js": "./js/coords.js?v=7f6bb52e",
   "./js/datatools.js": "./js/datatools.js?v=1dd749c8",
   "./js/developable.js": "./js/developable.js?v=713ed76f",
@@ -45,18 +46,18 @@
   "./js/industry.js": "./js/industry.js?v=cc1bdc2f",
   "./js/licence.js": "./js/licence.js?v=3385dd2d",
   "./js/nearness.js": "./js/nearness.js?v=6807b2f9",
-  "./js/ntrrun.js": "./js/ntrrun.js?v=0ab06b32",
+  "./js/ntrrun.js": "./js/ntrrun.js?v=22e9d2c3",
   "./js/osmchecks.js": "./js/osmchecks.js?v=8678b98f",
   "./js/osmsnapshot.js": "./js/osmsnapshot.js?v=92c7b92e",
   "./js/outofdate.js": "./js/outofdate.js?v=09c95316",
-  "./js/placetools.js": "./js/placetools.js?v=57e114ba",
+  "./js/placetools.js": "./js/placetools.js?v=cd00d006",
   "./js/projectstore.js": "./js/projectstore.js?v=c0e11ae3",
   "./js/reach.js": "./js/reach.js?v=a2039916",
   "./js/reference.js": "./js/reference.js?v=c23a5252",
   "./js/relation.js": "./js/relation.js?v=1dfb524a",
   "./js/relevance.js": "./js/relevance.js?v=820d89b4",
   "./js/rundiff.js": "./js/rundiff.js?v=7b1dd180",
-  "./js/runreply.js": "./js/runreply.js?v=fc80a1ee",
+  "./js/runreply.js": "./js/runreply.js?v=9044d8ec",
   "./js/seavalues.js": "./js/seavalues.js?v=fd697cba",
   "./js/servicesite.js": "./js/servicesite.js?v=142927ba",
   "./js/share.js": "./js/share.js?v=86d97e8a",
@@ -70,7 +71,7 @@
   "./js/vendor/fileread.js": "./js/vendor/fileread.js?v=c6e0d988",
   "./js/vendor/flatgeobuf.js": "./js/vendor/flatgeobuf.js?v=5d6365ac",
   "./js/vendor/turf.js": "./js/vendor/turf.js?v=555787c6",
-  "./js/workspace.js": "./js/workspace.js?v=91118a98",
+  "./js/workspace.js": "./js/workspace.js?v=c1e9d0e9",
   "@turf/turf": "./js/vendor/turf.js?v=555787c6",
   "osmtogeojson": "./js/vendor/osmtogeojson.js?v=75ffea00"
  }
@@ -88,7 +89,7 @@
  "skills/place-finding/SKILL.md": "skills/place-finding/SKILL.md?v=4ad70e6b",
  "skills/place-finding/operations.md": "skills/place-finding/operations.md?v=5603be0c",
  "catalogue/anchors.json": "catalogue/anchors.json?v=4239096c",
- "catalogue/assets.json": "catalogue/assets.json?v=6722e5d0",
+ "catalogue/assets.json": "catalogue/assets.json?v=1dbd9a26",
  "catalogue/checks.json": "catalogue/checks.json?v=07ac744a",
  "catalogue/industries/energy.json": "catalogue/industries/energy.json?v=33cbc95c",
  "catalogue/industries/index.json": "catalogue/industries/index.json?v=3e703a5e",
@@ -249,6 +250,7 @@
     <div class="actions">
       <p class="question" hidden>Is this the area you meant?</p>
       <button type="button" data-op="accept" class="primary" hidden>Use this area</button>
+      <button type="button" data-op="asset" hidden>Change the asset</button>
       <button type="button" data-op="revise" hidden>Not quite</button>
       <button type="button" data-op="adjust" aria-expanded="false">Adjust</button>
       <button type="button" class="icon zoom" data-op="zoom" title="Zoom to this shape" aria-label="Zoom to this shape">
@@ -350,6 +352,7 @@
       <span class="meta"></span>
     </header>
     <p class="setup"></p>
+    <p class="asset-from" hidden><span></span> <button type="button" class="link" data-op="change-asset">Change</button></p>
     <p class="outside" hidden></p>
     <p class="outdated" hidden><span></span> <button type="button" data-op="rerun"></button></p>
     <p class="search-note" hidden></p>
@@ -389,6 +392,6 @@
   </article>
 </template>
 
-<script type="module" src="js/workspace.js?v=91118a98"></script>
+<script type="module" src="js/workspace.js?v=c1e9d0e9"></script>
 </body>
 </html>

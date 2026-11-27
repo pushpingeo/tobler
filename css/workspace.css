@@ -338,6 +338,8 @@ a { color: var(--sea); }
 .run .meta { font-size: 12px; color: var(--ink-2); }
 .run .setup, .run .sea { margin: 4px 0 8px; font-size: 13px; color: var(--ink-2); }
 .run .setup { margin-top: 2px; font-size: 12.5px; }
+.run .asset-from { margin: -4px 0 8px; font-size: 12.5px; color: var(--ink-2); }
+.run .asset-from .link { border: 0; background: none; padding: 0; color: var(--sea, #0b6e8a); text-decoration: underline; cursor: pointer; font: inherit; }
 .run details.dists { margin: 4px 0 6px; font-size: 13px; color: var(--ink-2); }
 .run details.dists summary { color: var(--ink-2); }
 .run details.dists .why-dists { margin: 2px 0 0; }

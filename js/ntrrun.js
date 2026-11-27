@@ -773,6 +773,7 @@ export async function runScreening({ host, site, inputs, asset, said = { search:
         role: searchArea ? "search_area" : role.role, role_why: role.why, ...(siteKm2 ? { area_km2: round(siteKm2, 3) } : {}),
         setting: offshore ? "offshore" : "onshore", summary: R.summaryLine(describe),
         asset_type: inputs.asset_type, asset_label: inputs.asset_label, asset_assumed: !!inputs.asset_assumed, ...(inputs.outside_profile ? { outside_profile: inputs.outside_profile } : {}),
+        ...(inputs.asset_from ? { asset_from: inputs.asset_from } : {}),
         stage: study ? (inputs.stage || "") : inputs.stage || "greenfield (assumed)", capacity_mw: inputs.capacity_mw ?? null, tip_height_m: inputs.tip_height_m ?? null,
       },
       ...(Object.keys(seaVals).length ? { sea: seaVals } : {}),
@@ -1017,6 +1018,8 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
     offer,
     // An asset type's label ("solar farm"), from the asset table.
     assetLabel(id) { const tb = typeof table === "function" ? table() : table; return tb?.assets?.[id]?.label || null; },
+    // The asset table itself, for reading what's planned from the person's words (js/assetwords.js).
+    assetTable() { return typeof table === "function" ? table() : table; },
     // A run saved in this browser (js/projectstore.js), put back on reload: the analyst can read it again, and new
     // runs carry on numbering after it (R3 after R1 and R2), so ids never repeat in a project.
     restore(record) {
@@ -1047,13 +1050,14 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
         host, site: { name: place.name, feature: place.feature, origin: place.origin }, asset, said, skill: sk, callClaude, model, runId: id, onEvent, ...(now ? { now } : {}), broughtIn: carried(place, "ntr-screen"),
         inputs: { asset_type: assetId || "other", asset_label: assetId ? tb.assets[assetId].label : planned || "site of unknown type", asset_assumed: assetId ? !!i.assumed : !planned,
           ...(planned ? { outside_profile: host.profile?.()?.wording?.outside || OUTSIDE_PROFILE } : {}),
-          stage: i.stage || "", capacity_mw: site.capacity_mw, tip_height_m: site.tip_height_m, focus: i.focus || "", extent: i.extent === "inside" ? "inside" : "around" },
+          stage: i.stage || "", capacity_mw: site.capacity_mw, tip_height_m: site.tip_height_m, focus: i.focus || "", extent: i.extent === "inside" ? "inside" : "around",
+          ...(i.asset_from ? { asset_from: i.asset_from } : {}) },
       });
       if (i.extent === "inside" && !isArea(place.feature)) record.tobler_run.note_scope = "Inside only applies to areas, so this point or line was screened with its surroundings.";
       record.tobler_run.place_id = place.id ?? null;
       record.tobler_run.place_geometry_at_run = JSON.stringify(place.feature.geometry);
       // What was asked, so the run can be repeated as it was once the site is edited (js/outofdate.js).
-      record.tobler_run.inputs = { asset_type: assetId || "other", assumed: assetId ? !!i.assumed : !planned, ...(planned ? { planned } : {}), stage: i.stage || "", focus: i.focus || "",
+      record.tobler_run.inputs = { asset_type: assetId || "other", assumed: assetId ? !!i.assumed : !planned, ...(planned ? { planned } : {}), ...(i.asset_from ? { asset_from: i.asset_from } : {}), stage: i.stage || "", focus: i.focus || "",
         ...(distancesFromInputs(i).length ? { distances: distancesFromInputs(i) } : {}) };
       // A re-run after the site was edited: which run it replaces, and why. From the card's re-run button (replaces),
       // or found here when the analyst screens a place again whose latest run is out of date.
