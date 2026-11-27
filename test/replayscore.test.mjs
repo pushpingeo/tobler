@@ -25,6 +25,10 @@ test("names match on their distinctive words, not the designation words", () => 
   assert.ok(sameName("Halladale Bridge hut circles (SM3304)", "Halladale Bridge, hut circles 700m NNW of"));
   assert.ok(!sameName("Caithness Lochs SPA", "Caithness and Sutherland Peatlands"), "one shared word isn't a match");
   assert.ok(!sameName("A836", "A83"), "road numbers match exactly");
+  assert.ok(sameName("Lochgoin Monument (LB12509)", "Lochgoyn Monument"), "a long word may differ by one letter");
+  assert.ok(sameName("Thame Lane railway bridge (Grade II)", "Thame Lane Bridge (DCL5657)"), "one extra word in a name of three or more");
+  assert.ok(!sameName("Loch Ulagadale", "Loch Ulladale Farm"), "two-word names get no allowance for a missing word");
+  assert.ok(!sameName("Moss", "Mose"), "short words must match exactly");
   assert.deepEqual(nameTokens("Residential properties"), ["residential", "properties"]);
   assert.deepEqual(nameTokens("Special Area of Conservation"), []);
 });

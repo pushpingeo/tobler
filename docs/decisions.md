@@ -23,6 +23,16 @@ lives (here, development sites only), which sites (R1, R2, R5, R6, R11, R17, R19
 - Already visible offline: Kirkton's peat check is off by default (its source is non-commercial), and the
   watercourses check doesn't run for onshore wind, so Halladale River scores "check not run".
 - R5's outcome was redone from the real decision letter and Kirkton's own summary: 39 facts, all matched to the page.
+- **Baseline (`gate-2026-11-27-baseline`):** 44 of 44 must facts surfaced where Tobler has a check, but that's 44 of
+  93; the rest are check not run (19), no check (27) or not checked (3). Two first-run misses were the scorer's
+  (Lochgoin/Lochgoyn; "Thame Lane railway bridge"/"Thame Lane Bridge"), so names now allow one letter's difference
+  in a long word, and one missing word in a name of three or more. Re-scored; only those two facts changed.
+- **Leads from the baseline, for Rob (can change answers, not fixed):** onshore wind of 100 MW or more is screened
+  at global scale (`catalogue/assets.json`), and the global scale has 17 checks against 39 to 45, with no heritage,
+  homes, roads or water: Lethen and Scoop Hill lost them. Kirkton's A836 is found at 1.66 km though the turning-area
+  exclaves sit beside it. Three none-expected facts read as contradicted, two of them because the document measures
+  from the turbines and the run from the boundary (R2, R5 homes), one because R17's polygon is larger than decided
+  (the railway). Whitelee's run names both Scotland and England.
 
 ## 26 Nov 2026 (night, last): fixes from Rob's Heswall log (Brimstage Road, screened as a mine)
 

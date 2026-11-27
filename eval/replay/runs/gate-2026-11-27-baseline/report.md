@@ -1,6 +1,6 @@
 # Replay gate: gate-2026-11-27-baseline (first run: sets the baseline)
 
-**Must facts surfaced:** 42 of 44 that Tobler has a check for (95%); 93 must facts in all.
+**Must facts surfaced:** 44 of 44 that Tobler has a check for (100%); 93 must facts in all.
 **Regressions against the last gate run:** none.
 
 | Site | Must surfaced | Recall | Found elsewhere | Missed | Beyond reach | Not checked | Check not run | No check | None-expected contradicted |
@@ -9,15 +9,10 @@
 | R2 Narachan Wind Farm, Kintyre | 3 of 3 | 100% | 0 | 0 | 0 | 1 | 2 | 4 | 1 |
 | R5 Kirkton Energy Park, Strath Halladale | 8 of 8 | 100% | 1 | 0 | 0 | 1 | 1 | 10 | 1 |
 | R6 Scoop Hill Community Wind Farm, near Moffat | 3 of 3 | 100% | 0 | 0 | 0 | 0 | 2 | 2 | 0 |
-| R11 Whitelee Windfarm Repowering, Eaglesham Moor | 5 of 6 | 83% | 0 | 1 | 0 | 1 | 4 | 1 | 0 |
+| R11 Whitelee Windfarm Repowering, Eaglesham Moor | 6 of 6 | 100% | 0 | 0 | 0 | 1 | 4 | 1 | 0 |
 | R17 Great North Road Solar and Biodiversity Park | 11 of 11 | 100% | 0 | 0 | 0 | 0 | 2 | 2 | 1 |
 | R19 Learielaw BESS, near Broxburn | 5 of 5 | 100% | 0 | 0 | 0 | 0 | 0 | 2 | 0 |
-| R21 Culham BESS | 4 of 5 | 80% | 0 | 1 | 0 | 0 | 0 | 6 | 0 |
-
-## Must facts missed
-
-- R11: **Lochgoin Monument (LB12509)** (listed building, category B, on site): missed; heritage.listed-buildings: found 20
-- R21: **Thame Lane railway bridge (Grade II)** (listed building, next to): missed; heritage.listed-buildings: found 2
+| R21 Culham BESS | 5 of 5 | 100% | 0 | 0 | 0 | 0 | 0 | 6 | 0 |
 
 ## Found, not where the document puts it
 

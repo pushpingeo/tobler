@@ -1968,10 +1968,9 @@
       "checked_against_text": true
      }
     },
-    "outcome": "missed",
-    "checked": [
-     "heritage.listed-buildings: found 20"
-    ]
+    "outcome": "found",
+    "name": "Lochgoyn Monument",
+    "distance_km": 0
    },
    {
     "fact": {
@@ -2407,10 +2406,9 @@
   "must": {
    "total": 12,
    "scored": 6,
-   "surfaced": 5,
-   "recall": 0.8333333333333334,
-   "found": 5,
-   "missed": 1,
+   "surfaced": 6,
+   "recall": 1,
+   "found": 6,
    "check_not_run": 4,
    "no_check": 1,
    "not_checked": 1
@@ -3236,10 +3234,9 @@
       "checked_against_text": true
      }
     },
-    "outcome": "missed",
-    "checked": [
-     "heritage.listed-buildings: found 2"
-    ]
+    "outcome": "found",
+    "name": "Thame Lane Bridge (DCL5657)",
+    "distance_km": 0.13
    },
    {
     "fact": {
@@ -3320,11 +3317,10 @@
   "must": {
    "total": 11,
    "scored": 5,
-   "surfaced": 4,
-   "recall": 0.8,
+   "surfaced": 5,
+   "recall": 1,
    "no_check": 6,
-   "found": 4,
-   "missed": 1
+   "found": 5
   },
   "should": {
    "check_not_run": 1

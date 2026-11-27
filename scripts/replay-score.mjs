@@ -75,13 +75,28 @@ export function nameTokens(s) {
     .replace(/[^a-z0-9]+/g, " ").split(" ")
     .filter((w) => w && !KIND_WORDS.has(w) && !/^(sm|lb)\d+$/.test(w));
 }
-// Same feature by name: every distinctive word of the shorter name is in the longer one ("Caithness and Sutherland
-// Peatlands SAC" and "Caithness & Sutherland Peatlands"). Road numbers must match exactly (A836 is not A83).
+// Same feature by name: the distinctive words of the shorter name are in the longer one ("Caithness and Sutherland
+// Peatlands SAC" and "Caithness & Sutherland Peatlands"). Two allowances, both seen in the baseline (27 Nov): a long
+// word may differ by one letter (the document's "Lochgoin" is the register's "Lochgoyn"), and a shorter name of three
+// or more words may have one word the other lacks ("Thame Lane railway bridge" and "Thame Lane Bridge"). Road
+// numbers and short words must match exactly (A836 is not A83).
+const oneEdit = (a, b) => {
+  if (a === b) return true;
+  if (a.length < 5 || b.length < 5 || Math.abs(a.length - b.length) > 1 || /\d/.test(a + b)) return false;
+  let i = 0, j = 0, edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++edits > 1) return false;
+    if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
+};
 export function sameName(a, b) {
   const x = nameTokens(a), y = nameTokens(b);
   if (!x.length || !y.length) return false;
-  const [short, long] = x.length <= y.length ? [x, new Set(y)] : [y, new Set(x)];
-  return short.every((w) => long.has(w));
+  const [short, long] = x.length <= y.length ? [x, y] : [y, x];
+  const hit = short.filter((w) => long.some((v) => oneEdit(w, v))).length;
+  return hit === short.length || (short.length >= 3 && hit >= short.length - 1);
 }
 
 // Where the document puts a fact, against the nearest matching feature's distance (km from the site's edge, 0 on
