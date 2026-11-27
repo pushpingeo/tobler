@@ -81,7 +81,7 @@ export function readMessage(text, table, { offshore = false } = {}) {
           && !(lead && SETS_UP_RE.test(lead[0])))) { beside.push([at, end]); continue; }
       taken.push([at, end]);
       const from = pass === 1 && lead ? at - lead[0].length : at;
-      const words = t.slice(from, end + (tail ? tail[0].length : 0)).replace(/^\s*(?:for|as)\s+/i, "").replace(/\s+/g, " ").trim();
+      const words = t.slice(from, end + (tail ? tail[0].length : 0)).replace(/^\s*(?:for|as|screen(?:ing)?)\s+/i, "").replace(/\s+/g, " ").trim();
       const what = e.asset_type ? { asset_type: forSetting(table, e.asset_type, offshore) } : { planned: e.planned };
       what.label = what.asset_type ? table.assets[what.asset_type].label : e.label;
       // Named twice: one reading, quoting the "for a" or "as a" phrase if there is one.

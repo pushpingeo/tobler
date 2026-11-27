@@ -21,7 +21,8 @@ ok("names with a word that sets them up are read", () => {
   assert.equal(read("screen this housing site").planned, "housing development");
   assert.equal(read("Screen Lethen for wind").asset_type, "wind-onshore");
   assert.equal(read("I would like to screen a warehouse location in Livingston").planned, "warehouse or logistics site");
-  assert.equal(read("I would like to screen a warehouse location in Livingston").words, "screen a warehouse location");
+  assert.equal(read("I would like to screen a warehouse location in Livingston").words, "a warehouse location");
+  assert.equal(read("Screen the Reventazón hydropower dam").words, "the Reventazón hydropower");
   assert.equal(read("Screen Linlithgow Loch for floating solar").asset_type, "solar");
 });
 

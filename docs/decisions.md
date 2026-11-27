@@ -36,7 +36,10 @@ Rob's answers at 18:00: confirm the asset only when it wasn't said; code's readi
   and what it is ("for the proposed Newlands Hill wind farm", "screen the Reventazón hydropower dam"), up to four
   capitalised words. A bare "Screen Whitelee wind farm" isn't read, and "next to the proposed … wind farm" or "near a
   proposed wind farm" is beside the site (the words before the lead-in count too). Named twice, the quote is the
-  "for a"/"as a" phrase.
+  "for a"/"as a" phrase, and a leading "screen" is dropped from it.
+- **Live check** (`try-requests`, which now reads the person's words as the page does): Newlands Hill read from the
+  words and run on one yes; Reventazón read as hydropower; Linlithgow Peel with nothing said asked once for the place,
+  then showed the picks.
 
 ## 27 Nov 2026 (late afternoon): relevance classes replace severity on a screen (package E, step 2)
 Rob approved the samples at 15:49 (page and prototype: `claude/package-e-samples-2026-11-27.md` in the project).
