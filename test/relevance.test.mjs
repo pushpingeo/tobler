@@ -113,10 +113,10 @@ const rec19 = JSON.parse(fs.readFileSync(new URL("R19.json", dir))).record;
     .map(({ _i, ...f }, i) => ({ ...f, id: findingId(i) }));
   r.order = "relevance"; r.headline = headlineOf(r.flags, r.checks); r.decision = null;
 }
-test("the reply leads with the headline and gives each flag's class line, with no rating", () => {
+test("the reply is the headline and a pointer to the card above, with no rating (Rob, 27 Nov: short for a phone)", () => {
   const t = screenReply(rec19);
   assert.match(t, /^\*\*Constraints screen of Learielaw BESS, near Broxburn \(R1\)\.\*\* On the site or at its edge: Surface water flooding, farmland grade and main roads\. 4 more flags within range\./);
-  assert.match(t, /The first 3 of 7 flags, on the site first:\n- F-01 Surface water flooding/);
+  assert.match(t, /\n\nThe card above has the flags, their evidence and what wasn't checked\. Ask me about any flag\.$/);
   assert.ok(!/major issue|severity|confidence|most serious/i.test(t), t);
 });
 test("F numbers follow the card's order", () => {

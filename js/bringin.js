@@ -243,8 +243,10 @@ const list = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", "
 export const lower = (s) => { const t = String(s || ""); return /\s[A-Z]/.test(t.replace(/\(.*?\)/g, "")) ? t : t.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase()); };
 const licWords = (d) => (d.licence_class === "unknown" ? "licence not stated" : d.licence_class === "open" ? d.licence_short : `${d.licence_short}: not confirmed for commercial use`);
 
-// The offer's lines in the reply after a run (js/runreply.js), written from the record.
-export function offerLines(r) {
+// The offer's lines in the reply after a run (js/runreply.js), written from the record. brief: only what's offered
+// and a search that failed; the layers looked at with nothing in reach, and the gaps with no layer, are left out
+// (Rob, 27 Nov: the reply was too long for a phone).
+export function offerLines(r, { brief = false } = {}) {
   const o = r.offer;
   if (!o || !o.searched?.length) return [];
   const out = [];
@@ -259,7 +261,7 @@ export function offerLines(r) {
       ...open.map((x) => `- **${x.dataset.title}** (${x.dataset.publisher || "publisher not stated"}; ${licWords(x.dataset)}), for ${lower(x.label)}${holds(x)}`)].join("\n"));
     out.push(`Bring ${open.length === 1 ? "it" : "them"} in? Use the buttons below, or tell me which. I'll put ${open.length === 1 ? "it" : "them"} on the map ${reach === "inside the area" ? "inside the area" : reach.replace(/^out/, "out")}, with the source. Nothing is added unless you say so.`);
   }
-  const empty = o.empty || [];
+  const empty = brief ? [] : o.empty || [];
   if (empty.length) {
     // By gap, so three empty pipeline layers read as one line.
     const scope = r.extent === "inside" ? "inside the area" : `within ${r.assessed_within_km ?? runFurthest(r)} km`;
@@ -271,7 +273,7 @@ export function offerLines(r) {
         : `For ${lower(label)}, the atlas has ${es.length} layers (${list(es.map((e) => e.title))}), but none has anything ${scope}, so they aren't offered.`);
     }
   }
-  if (o.nothing.length) out.push(`I looked in the atlas for ${list(o.nothing.map(lower))} and found no layer to offer.`);
+  if (o.nothing.length && !brief) out.push(`I looked in the atlas for ${list(o.nothing.map(lower))} and found no layer to offer.`);
   if (o.failed.length) out.push(`The atlas search for ${list(o.failed.map(lower))} didn't answer (${o.why_failed || "no reply"}), so there's nothing to offer for ${o.failed.length === 1 ? "it" : "them"} yet.`);
   return out;
 }

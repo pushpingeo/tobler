@@ -2,6 +2,21 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 27 Nov 2026 (night): the reply after a run is short, and points to the card above
+Rob: "it often says the card below when it means the card above; it's also very verbose, with the text repeating much
+of what's on the card." The card is drawn while the run goes, so it's always above the reply.
+- **A screen's reply** is now the headline (what's on the site or at its edge, how many more within range, how many
+  checks couldn't be answered) and "The card above has the flags, their evidence and what wasn't checked. Ask me
+  about any flag." Gone from the text: what it was screened for and how far out, the first three flags, "Not
+  checked: …", and the atlas layers looked at with nothing to offer. All of it is on the card.
+- **Kept**, as the card doesn't say it in the chat: what changed from the run before; a line when it's a search
+  area; layers actually offered (with what they hold, above their buttons); an atlas search that failed.
+- **The desk study** the same: decision, the count of possible linkages, the card above. **The developable area**
+  keeps its figure and biggest deduction (the figure is the answer) and now says "above".
+- Old runs (decision word, no headline) say the decision, its why and the count of flags.
+- Tested: `npm test` (reply tests rewritten to the short form, with a check that nothing the card says is repeated);
+  all 14 browser checks. The gate wasn't run: it scores run records, and the record didn't change.
+
 ## 27 Nov 2026 (evening): what's planned is read from the person's words, and asked only when not said (package E)
 Rob's answers at 18:00: confirm the asset only when it wasn't said; code's reading wins over the model's.
 - **Read in code** (`js/assetwords.js`, tested in `test/assetwords.test.mjs`): the asset table's names, and new

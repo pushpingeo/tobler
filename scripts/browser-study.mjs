@@ -93,7 +93,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 820 }], ["ph
   check(studyCall && studyCall.tools === 0, `${label}: the study's judgement is one call with no tools (${JSON.stringify(studyCall)})`);
   // The reply after the run is written in code from the record (plan item 1): no conversation call after the study.
   const reply = await page.evaluate(() => [...document.querySelectorAll(".msg.analyst")].at(-1)?.textContent || "");
-  check(/^Contamination desk study of Area 1 \(R1\): possible linkages: investigate\./.test(reply) && /F-01 Historic landfill 300 m north/.test(reply), `${label}: the reply is written from the record (${reply.slice(0, 140)})`);
+  check(/^Contamination desk study of Area 1 \(R1\): possible linkages: investigate\./.test(reply) && /possible linkages? in the open records checked\.[\s\S]*The card above sets out/.test(reply) && !/F-01/.test(reply), `${label}: the reply is written from the record, short, pointing to the card above (${reply.slice(0, 140)})`);
   await page.locator(".msg.analyst").last().screenshot({ path: `/tmp/study-reply-${label}.png` });
   const convAfter = seen.slice(seen.indexOf(studyCall) + 1).filter((s) => !/contamination desk study/.test(s.sys));
   check(convAfter.length === 0, `${label}: the model isn't asked to write the reply (${convAfter.length} conversation calls after the study)`);

@@ -11,45 +11,49 @@ let passed = 0;
 const test = async (name, fn) => { await fn(); passed++; console.log("ok", name); };
 const clean = (t) => assert.ok(!/undefined|null|NaN|\[object/.test(t), `no holes in: ${t}`);
 
-await test("screen: decision, why, distances, at most three flags most serious first, gaps musts first", () => {
+// Short, for a phone (Rob, 27 Nov): the headline and a pointer to the card above. The flags, distances and gaps are
+// the card's; the reply repeats none of them.
+const short = (t) => { assert.ok(t.split(/\s+/).length < 90, `short: ${t}`); assert.ok(!/card below|\n- F-\d|Not checked:|each check looks out/.test(t), `nothing the card says: ${t}`); };
+
+await test("screen: decision and why, the count, and the card above", () => {
   const t = screenReply(F.oracleSolar);
-  clean(t);
+  clean(t); short(t);
   assert.match(t, /^\*\*Constraints screen of Oracle campus, Linlithgow \(R1\)\*\*: \*\*progress with targeted investigation\*\*\./);
   assert.match(t, /Heritage assets sit at the site's edge/);
-  assert.match(t, /Screened for a solar farm; each check looks out its own distance from the site's edge: 250 m to 5 km, by check \(defaults for a solar farm\)\./);
-  assert.match(t, /The 3 most serious of 4 flags/);
-  assert.match(t, /- F-01 Listed buildings and a scheduled monument at the site's edge: high severity, high confidence; next to the site, 40 m/);
-  assert.match(t, /- F-02 .*: medium severity, medium confidence; crosses the site's edge, 40% of the site/);
-  assert.ok(!/F-04/.test(t), "the fourth is on the card");
-  assert.match(t, /Not checked: Flood zones and Peat\./, "a must-check comes first");
-  assert.ok(t.split(/\s+/).length < 160, "short");
+  assert.match(t, /\n\n4 flags\.\n\n/);
+  assert.match(t, /The card above has the flags, their evidence and what wasn't checked\. Ask me about any flag\.$/);
+});
+
+await test("screen ordered by relevance: the headline is the summary of what's on site", () => {
+  const rec = structuredClone(F.oracleSolar);
+  Object.assign(rec.tobler_run, { order: "relevance", decision: null,
+    headline: { flags: 4, direct: 2, direct_names: ["Listed buildings", "Flood zones"], in_range: 2, beyond_range: 0, checks: 40, not_checked: 7, not_checked_must: 0 } });
+  const t = screenReply(rec);
+  clean(t); short(t);
+  assert.match(t, /^\*\*Constraints screen of Oracle campus, Linlithgow \(R1\)\.\*\* On the site or at its edge: Listed buildings and flood zones\. 2 more flags within range\. 7 of 40 checks couldn't be answered\.\n\nThe card above/);
+  assert.ok(!/4 flags\./.test(t), "the headline counts them");
 });
 
 await test("screen on a search area, with a decision changed in code", () => {
   const t = runReply(F.kelsoSearchArea);
-  clean(t);
+  clean(t); short(t);
   assert.match(t, /Tobler changed the decision from progress, because none of the must-checks for biodiversity could be checked\./);
-  assert.match(t, /Screened a 3\.1 km² search area \(a default 1 km footprint round a point\)/);
-  assert.match(t, /- F-01 Homes and schools in the search area: high severity, low confidence; in the search area/);
-  assert.match(t, /\nOne flag:\n/);
+  assert.match(t, /This was a search area, not the site's outline, so nothing on the card is known to be on the site itself\./);
 });
 
-await test("screen outside the profile, distances the person set, no flags", () => {
+await test("screen with no flags", () => {
   const t = runReply(F.housingOutside);
-  clean(t);
-  assert.match(t, /Screened for a housing estate; each check looks out its own distance from the site's edge: 2 km \(general defaults for a site of this size, with your changes\)\. You changed: every count check to 2 km \(was 250 m to 5 km, by check\)\. A general screen/);
+  clean(t); short(t);
   assert.match(t, /No flags raised\./);
-  assert.ok(!/Not checked/.test(t));
+  assert.match(t, /The card above has what was checked\.$/);
 });
 
-await test("desk study: linkages, the study's own distances, what a full study adds", () => {
+await test("desk study: decision, the count, what a full study adds is on the card", () => {
   const t = studyReply(F.stanlowStudy);
-  clean(t);
+  clean(t); short(t);
   assert.match(t, /^\*\*Contamination desk study of Stanlow Refinery \(R4\)\*\*: \*\*possible linkages: investigate\*\*\./);
-  assert.match(t, /Checked the open records on the site and round it: each check out to its own distance from the site's edge, 250 m to 2 km, by check\./);
-  assert.match(t, /2 possible linkages/);
-  assert.match(t, /- F-01 Historic landfill .* \(possible linkage\): high severity, medium confidence; 300 m away/);
-  assert.match(t, /the 5 things a full desk study would add/);
+  assert.match(t, /2 possible linkages in the open records checked\./);
+  assert.match(t, /The card above sets out the sources, pathways and receptors checked, and what a full desk study would add\./);
   assert.equal(runReply(F.stanlowStudy), t);
 });
 
@@ -59,6 +63,7 @@ await test("developable area: the budget's own summary", () => {
   assert.match(t, /Net developable area for a solar farm: 7\.4 ha of 10\.2 ha gross \(73%\)\./);
   assert.match(t, /The biggest deduction is railway with a 30 m buffer \(1\.9 ha\)\./);
   assert.match(t, /Not checked: flood zone 3\./);
+  assert.match(t, /The card above has each deduction/);
   assert.equal(runReply(F.barnstonBudget), t);
 });
 
@@ -183,16 +188,6 @@ await test("a rerun says what changed, and when nothing underneath did, that it'
   const t = runReply(rec);
   clean(t);
   assert.match(t, /\n\nCompared with R1: Decision: was progress with targeted investigation, now major issue\. .* not in the data\.\n\n/);
-});
-
-await test("Heswall (26 Nov): a flag joining two kinds of evidence says which one is on the site", () => {
-  const rec = structuredClone(F.oracleSolar);
-  const r = rec.tobler_run || rec;
-  r.flags = [{ id: "F-01", risk: "SSSI close to the site, inside an SSSI Impact Risk Zone for minerals", severity: "high", confidence: "high", nearest_km: 0, traced: 2, untraced: 0,
-    evidence: [{ name: "Heswall Dales SSSI", distance_km: 0.52, relation: "outside", dataset: "Sites of Special Scientific Interest (SSSI), England (Natural England)", traced: true },
-      { name: "SSSI Impact Risk Zones: inside a risk zone; consult Natural England for: minerals", distance_km: 0, relation: "within", dataset: "SSSI Impact Risk Zones, England (Natural England)", traced: true }] }];
-  const t = screenReply(rec);
-  assert.match(t, /F-01 SSSI close to the site, inside an SSSI Impact Risk Zone for minerals: high severity, high confidence; SSSI Impact Risk Zones: on site/);
 });
 
 console.log(`${passed} run reply tests passed`);

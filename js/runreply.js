@@ -2,73 +2,15 @@
 // reply after a screen, a study or an area budget: every name, number and decision here comes from the record, so
 // nothing can be retyped wrong, and the reply can't run long. The model answers follow-ups (get_run).
 // No DOM, so the page, the replay script and the tests share it.
-import { whereWords, isOnSite } from "./relation.js";
 import { budgetSummary } from "./developable.js";
-import { searchHeadline } from "./siterole.js";
 import { offerLines, bringInReply } from "./bringin.js";
-import { reachLine as reachWords, changesLine, legacyDistancesLine } from "./reach.js";
 import * as U from "./units.js";
-import { relevanceLine, headlineText, isRelevanceRun, isDirect } from "./relevance.js";
+import { headlineText, isRelevanceRun } from "./relevance.js";
 
-const MAX_FLAGS = 3;
-const MAX_GAPS = 4;
-
-// Distances and sizes in the person's units, converted here from the record (package C): the reply carries no figure
-// that code didn't work out.
-const km = (v) => (v == null ? null : v === 0 ? "on the site" : `${U.dist(v)} away`);
+// Sizes in the person's units, converted here from the record (package C): the reply carries no figure that code
+// didn't work out.
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-const list = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
-const an = (w) => (/^[aeiou]/i.test(w) ? `an ${w}` : `a ${w}`);
-// "each check looks out its own distance from the site's edge: 250 m to 5 km, by check (…)", then what the person
-// changed and anything they said that wasn't used. An old run (near/close/wider) keeps its old line.
-function reachLine(r) {
-  if (!r.reach) {
-    const d = r.distances || {};
-    return `looking out to ${d.wider} km (${legacyDistancesLine(d)})`;
-  }
-  // The record holds these as words, in metric; shown in the reader's units (localise is the last resort here).
-  return U.localise(reachWords(r.reach));
-}
-const changes = (r) => [changesLine(r.reach), r.reach?.not_used?.length ? `Not used: ${r.reach.not_used.map((n) => n.line).join("; ")}.` : ""].filter(Boolean).map(U.localise);
 const sentence = (s) => { const t = String(s || "").trim(); return t ? (/[.!?]$/.test(t) ? t : `${t}.`) : ""; };
-
-// Where the nearest traced evidence is, in the words the card uses.
-function whereOf(f, searchArea) {
-  if (f.nearest_km == null) return null;
-  if (f.nearest_km === 0 && searchArea) return "in the search area";
-  // How the nearest sits against the site, when the evidence says (js/relation.js): something on it before something
-  // that only touches its edge.
-  const at = (f.evidence || []).filter((e) => e.relation && e.distance_km === f.nearest_km);
-  const e = at.find(isOnSite) || at[0];
-  const said = (!searchArea && e && whereWords(e, U.dist)) || km(f.nearest_km);
-  // A flag that joins two kinds of evidence says which one is that near (Heswall, 26 Nov: "SSSI close to the site,
-  // inside an SSSI Impact Risk Zone …; on the site" read as an SSSI on the site, when the zone was and the SSSI was
-  // 520 m off).
-  const sets = new Set((f.evidence || []).map((x) => x.dataset).filter(Boolean));
-  const near = e || (f.evidence || []).find((x) => x.distance_km === f.nearest_km);
-  const name = near && sets.size > 1 ? String(near.name || near.dataset || "").split(":")[0].trim() : "";
-  return name && name.length <= 60 ? `${name}: ${said}` : said;
-}
-
-function flagLine(f, searchArea) {
-  // A screen's flag says how it sits against the site, in code's words (package E); no rating.
-  if (f.relevance) return `- ${f.id} ${String(f.risk).replace(/[.\s]+$/, "")}: ${relevanceLine(f.relevance, U.dist)}`;
-  const rated = [f.severity ? `${f.severity} severity` : null, `${f.confidence} confidence`].filter(Boolean).join(", ");
-  const where = whereOf(f, searchArea);
-  const linkage = f.linkage ? ` (${f.linkage.rating} linkage)` : "";
-  return `- ${f.id} ${String(f.risk).replace(/[.\s]+$/, "")}${linkage}: ${rated}${where ? `; ${where}` : ""}`;
-}
-
-// What wasn't checked: the checks that came back not checked, musts first, by their labels.
-function gapsLine(r) {
-  const nc = (r.checks || []).filter((c) => c.state === "not_checked");
-  if (!nc.length) return null;
-  const ordered = [...nc.filter((c) => c.must), ...nc.filter((c) => !c.must)];
-  const names = [...new Set(ordered.map((c) => c.label))];
-  const shown = names.slice(0, MAX_GAPS);
-  const more = names.length - shown.length;
-  return `Not checked: ${list(shown)}${more ? ` and ${plural(more, "other check")}` : ""}.`;
-}
 
 // The first line: what ran, on what, and the decision.
 function header(r, what) {
@@ -86,64 +28,33 @@ function decisionLines(r) {
   return out;
 }
 
-function flagsBlock(r, { noun = "flag", none = "No flags raised." } = {}) {
-  if (r.parse_error) return ["The analyst's result couldn't be read, so there are no structured flags. Its write-up is kept on the card."];
-  if (!r.flags.length) return [none];
-  const searchArea = r.site.role === "search_area";
-  const shown = r.flags.slice(0, MAX_FLAGS);
-  const more = r.flags.length - shown.length;
-  if (isRelevanceRun(r)) {
-    const first = r.flags.some((f) => isDirect(f.relevance?.class)) ? (searchArea ? "the search area first" : "on the site first") : "nearest first";
-    return [more ? `The first ${shown.length} of ${plural(r.flags.length, noun)}, ${first}:` : r.flags.length === 1 ? `One ${noun}:` : `${r.flags.length} ${noun}s, ${first}:`,
-      ...shown.map((f) => flagLine(f, searchArea))];
-  }
-  return [more ? `The ${shown.length} most serious of ${plural(r.flags.length, noun)}:` : r.flags.length === 1 ? `One ${noun}:` : `${r.flags.length} ${noun}s, most serious first:`,
-    ...shown.map((f) => flagLine(f, searchArea))];
-}
-
-// The constraints screen.
+// The constraints screen. Short, for a phone (Rob, 27 Nov): the headline (what's on the site, how many more, what
+// couldn't be answered) and a pointer to the card, which is above the reply and has the rest. Only what the card
+// doesn't say gets its own line: what changed from the run before, a search area, and layers offered.
 export function screenReply(record, { replaced = null } = {}) {
   const r = record.tobler_run;
-  const f = r.site.asset_from;
-  const asset = `${r.site.asset_label}${f?.by === "words" && f.words && !f.general ? ` (your words: “${f.words}”)` : r.site.asset_assumed ? " (assumed: you didn't say what's planned)" : ""}`;
-  const paras = [];
-  paras.push([header(r, "Constraints screen"), ...decisionLines(r)].join(" "));
-  const context = [
-    r.extent === "inside" ? `Screened for ${an(asset)}, inside the area only.` : `Screened for ${an(asset)}; ${reachLine(r)}.`,
-    ...changes(r),
-    r.site.outside_profile || null,
-    r.site.role === "search_area" ? searchHeadline(r.site) : null,
-    r.note_scope || null,
-  ].filter(Boolean);
-  paras.push(context.join(" "));
+  const paras = [[header(r, "Constraints screen"), ...decisionLines(r)].join(" ")];
+  if (!isRelevanceRun(r)) paras.push(r.flags.length ? `${plural(r.flags.length, "flag")}.` : "No flags raised.");
   if (replaced) paras.push(replaced);
-  paras.push(flagsBlock(r).join("\n"));
-  const gaps = gapsLine(r);
-  if (gaps) paras.push(gaps);
-  paras.push(r.flags.length ? "The card below has the evidence, next steps and the distance slider. Ask me about any flag." : "The card below has what was checked and the distance slider.");
-  paras.push(...offerLines(r));
+  if (r.site.role === "search_area") paras.push(SEARCH_LINE);
+  paras.push(r.parse_error ? "The analyst's result couldn't be read, so there are no structured flags; its write-up is on the card above."
+    : r.flags.length ? "The card above has the flags, their evidence and what wasn't checked. Ask me about any flag." : "The card above has what was checked.");
+  paras.push(...offerLines(r, { brief: true }));
   return paras.join("\n\n");
 }
+const SEARCH_LINE = "This was a search area, not the site's outline, so nothing on the card is known to be on the site itself.";
 
-// A study other than the screen: the contamination desk study.
+// A study other than the screen: the contamination desk study. Short, as the screen.
 export function studyReply(record, { replaced = null } = {}) {
   const r = record.tobler_run;
   const label = r.study?.label || "Study";
-  const paras = [];
-  paras.push([header(r, label), ...decisionLines(r)].join(" "));
-  const context = [
-    r.reach ? `Checked the open records on the site and round it: each check out to its own distance from the site's edge, ${r.reach.range}.` : `Checked the open records on the site and out to ${r.distances?.wider} km from its edge.`,
-    ...changes(r),
-    r.site.role === "search_area" ? searchHeadline(r.site) : null,
-  ].filter(Boolean);
-  paras.push(context.join(" "));
+  const paras = [[header(r, label), ...decisionLines(r)].join(" ")];
+  paras.push(r.flags.length ? `${plural(r.flags.length, "possible linkage")} in the open records checked.` : "No contaminant linkages found in the open records checked.");
   if (replaced) paras.push(replaced);
-  paras.push(flagsBlock(r, { noun: "possible linkage", none: "No contaminant linkages found in the open records checked." }).join("\n"));
-  const gaps = gapsLine(r);
-  if (gaps) paras.push(gaps);
+  if (r.site.role === "search_area") paras.push(SEARCH_LINE);
   const adds = r.study?.full_study_adds?.length || 0;
-  paras.push(`The card below sets out the sources, pathways and receptors checked${adds ? `, and the ${plural(adds, "thing")} a full desk study would add that open records don't hold` : ""}. Ask me about any linkage.`);
-  paras.push(...offerLines(r));
+  paras.push(`The card above sets out the sources, pathways and receptors checked${adds ? `, and what a full desk study would add` : ""}. Ask me about any linkage.`);
+  paras.push(...offerLines(r, { brief: true }));
   return paras.join("\n\n");
 }
 
@@ -154,7 +65,7 @@ export function budgetReply(record, { replaced = null } = {}) {
   if (r.budget.unknown?.length) paras.push(`These weren't deductions Tobler measures, so they were left out: ${r.budget.unknown.join(", ")}.`);
   if (r.reach?.not_used?.length) paras.push(`Not used: ${r.reach.not_used.map((n) => n.line).join("; ")}.`);
   if (replaced) paras.push(replaced);
-  paras.push("The card below has each deduction with its reason and source, and the map shows what's left. Tell me to change a buffer, leave something out or treat it as usable at a cost, and I'll run it again.");
+  paras.push("The card above has each deduction with its reason and source, and the map shows what's left. Tell me to change a buffer, leave something out or treat it as usable at a cost, and I'll run it again.");
   return paras.join("\n\n");
 }
 
