@@ -627,13 +627,18 @@ function featureList(rawItems, { record = null, label = "" } = {}) {
     const li = el("li");
     const b = el("button", null, "feat");
     b.type = "button";
-    const where = f.around ? "around the site" : f.coverage ? `${Math.max(1, Math.round(f.coverage * 100))}% of the site` : f.distance_km == null ? "" : whereWords(f, U.dist) || (f.distance_km === 0 ? "on site" : U.dist(f.distance_km));
-    const name = f.name || "Unnamed";
+    // Short words for a narrow list (Rob, 27 Nov: the key was too wordy); the card's check lines keep the long form.
+    const where = (f.around ? "around the site" : f.coverage ? `${Math.max(1, Math.round(f.coverage * 100))}% of the site` : f.distance_km == null ? "" : whereWords(f, U.dist) || (f.distance_km === 0 ? "on site" : U.dist(f.distance_km)))
+      .replace("next to the site (touching its edge)", "touching the site");
     const layer = layerTitle(f);
+    // A feature named only by its layer (unnamed flood areas carry the layer's title) when the list already says
+    // "From <layer>" above: no name on the row, or it says the layer twice.
+    const sameAsLayer = one && f.name && f.name.replace(/\s*\([^()]*\)\s*$/, "").trim().toLowerCase() === layer.toLowerCase();
+    const name = sameAsLayer && where ? "" : f.name || "Unnamed";
     // The layer goes on the row only when the list mixes layers, and not when it's the feature's name already.
-    const meta = [f.detail, f.parts > 1 ? `${f.parts} parts` : "", !one && layer && layer.toLowerCase() !== name.toLowerCase() ? layer : ""].filter(Boolean).join(" · ");
+    const meta = [f.detail, f.parts > 1 ? `${f.parts} parts` : "", !one && layer && layer.toLowerCase() !== (f.name || "").toLowerCase() ? layer : ""].filter(Boolean).join(" · ");
     const head = el("span", null, "feat-head");
-    head.append(...(where ? [el("strong", where, "feat-dist")] : []), el("span", name, "feat-name"));
+    head.append(...(where ? [el("strong", where, "feat-dist")] : []), ...(name ? [el("span", name, "feat-name")] : []));
     b.append(head, ...(meta ? [el("span", meta, "feat-meta")] : []));
     if (!f.id) { b.disabled = true; b.title = "Not on the map in this view"; }
     b.addEventListener("click", (e) => { e.stopPropagation(); flyToFinding(f.id, record); });

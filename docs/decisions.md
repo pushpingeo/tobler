@@ -2370,3 +2370,7 @@ A thinking session with Rob, from his review of EIA screening practice. Docs onl
 - `docs/conceptual-model.md` rewritten; `CLAUDE.md`'s "Where new code goes" brought into line. The build is split
   into four packages in the claude.ai project (`claude/work-packages-2026-11-26.md`).
 - **Not tested:** nothing to test beyond `npm test` still passing; no page or answer changes.
+
+## 27 Nov, night: the map key's lists, wider and shorter (Rob)
+- The key widens to 340 px (phone: the screen less 24 px) while a theme's list is open; closed it stays 260 px (220 on a phone).
+- Feature rows in a list: "next to the site (touching its edge)" reads "touching the site"; the card's check lines keep the long form. A feature named only by its layer (unnamed flood areas) shows no name when the list already says "From <layer>", so the row reads "touching the site · 25 parts". Display only: nothing the model reads changed, so no gate run.

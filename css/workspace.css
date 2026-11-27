@@ -84,6 +84,10 @@ a { color: var(--sea); }
 .key .key-name { flex: 1; display: flex; align-items: center; margin: 0; text-decoration: none; color: var(--ink); text-align: left; }
 .key .key-name:hover, .key .key-name[aria-expanded="true"] { color: var(--sea); }
 .key li > .feat-list { flex-basis: 100%; }
+/* Wider while a theme's list is open (Rob, 27 Nov: the rows were squeezed into a narrow column). */
+.key:has(.feat-list) { max-width: min(340px, calc(100vw - 32px)); }
+.key .feat-list li { display: block; margin: 0; }
+.feat-list .feat-head { flex-wrap: wrap; }
 .key { max-height: calc(100vh - 120px); overflow: auto; }
 
 /* Features by distance from the site: a check's, or a key row's. Quiet rows, no underlines; the whole row is the button. */
@@ -309,6 +313,7 @@ a { color: var(--sea); }
   .tools button { width: 40px; height: 40px; }
   .hint { top: 44px; bottom: auto; left: 12px; right: 12px; transform: none; max-width: none; font-size: 13px; border-radius: 16px; justify-content: space-between; text-align: left; }
   .key { top: 44px; right: 12px; max-width: 220px; font-size: 12px; }
+  .key:has(.feat-list) { max-width: calc(100vw - 24px); }
   .hint:not([hidden]) ~ .key { top: 120px; }
   .panel {
     top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 52vh;
