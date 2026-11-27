@@ -99,7 +99,14 @@ for (const conv of convs) {
     renamePlace(name, to) { this.findPlace(name).name = to; },
     removePlace(name, by) { const i = list.findIndex((p) => p.name.toLowerCase() === String(name).toLowerCase()); if (i >= 0) { console.log(`   [removed ${list[i].name}: ${by?.reason || ""}]`); list.splice(i, 1); } },
     personSaid: () => said.join("\n"),
+    // Each message, for reading what's planned from the person's words (js/assetwords.js), as the page does.
+    personMessages: () => [...said],
     lastPersonText: () => said.at(-1) || "",
+    // The quick picks: logged; answer them in words on the next turn ("Screen X as a solar farm site").
+    askAssetType: async (name, question, { first = [] } = {}) => {
+      console.log(`   [ASSET PICKS for ${name}: ${question}${first.length ? ` | first: ${first.map((k) => k.label).join(", ")}` : ""}]`);
+      return { place: name, options: first.map((k) => k.label) };
+    },
   };
   const said = [];
   host.screening = createScreening({
@@ -110,7 +117,7 @@ for (const conv of convs) {
     },
     onRun: (rec) => {
       const r = rec.tobler_run;
-      console.log(`   [RUN CARD ${r.id}: ${r.site.name}; ${r.site.asset_label}${r.site.asset_assumed ? " (assumed)" : ""}; ${r.site.footprint}; ${r.reach ? `${r.reach.scale}: ${r.reach.range}; furthest ${r.reach.furthest_km} km${r.reach.changes?.length ? `; changed: ${r.reach.changes.map((c) => c.line).join("; ")}` : ""}${r.reach.not_used?.length ? `; not used: ${r.reach.not_used.map((n) => n.line).join("; ")}` : ""}` : "old distances"}]`);
+      console.log(`   [RUN CARD ${r.id}: ${r.site.name}; ${r.site.asset_label}${r.site.asset_assumed ? " (assumed)" : ""}${r.site.asset_from ? ` (from ${JSON.stringify(r.site.asset_from)})` : ""}; ${r.site.footprint}; ${r.reach ? `${r.reach.scale}: ${r.reach.range}; furthest ${r.reach.furthest_km} km${r.reach.changes?.length ? `; changed: ${r.reach.changes.map((c) => c.line).join("; ")}` : ""}${r.reach.not_used?.length ? `; not used: ${r.reach.not_used.map((n) => n.line).join("; ")}` : ""}` : "old distances"}]`);
       if (r.replaces) console.log(`     REPLACES ${r.replaces.run}: ${r.replaces.why}`);
       if (r.sea) console.log(`     SEA ${JSON.stringify(r.sea).slice(0, 900)}`);
       console.log(`     DECISION: ${r.decision ? `${r.decision.value} (${r.decision.why})` : "none given"}${r.headline ? ` | HEADLINE: ${headlineText(r.headline)}` : ""}`);
