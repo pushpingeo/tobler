@@ -1376,7 +1376,7 @@
         "regional": 2,
         "global": null
       },
-      "reach_why": "Access for construction and operation, and a source of noise and air quality limits for homes. OpenStreetMap's completeness varies by place, so this is never a must-check.",
+      "reach_why": "Motorways, trunk and A roads everywhere, and B roads too in the UK (Rob, 27 Nov). Access for construction and operation, and a source of noise and air quality limits for homes. OpenStreetMap's completeness varies by place, so this is never a must-check.",
       "applies": {
         "setting": "land"
       },
@@ -1391,6 +1391,11 @@
             90
           ],
           "osm": "main road"
+        },
+        {
+          "region": "United Kingdom",
+          "in": ["England", "Scotland", "Wales", "Northern Ireland"],
+          "osm": "b road"
         }
       ]
     },

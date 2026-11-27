@@ -131,7 +131,8 @@ The dated history and reasons are in `docs/decisions.md`; these shape daily work
   "Look out to X" sets every count check. A drawn or published shape beats a computed buffer. One ladder (within
   the site, 0–100 m … 30–50 km; in imperial 300 ft, 1,000 ft, ¼ … 30 mi); bands are for reporting, never risk;
   nothing fetched beyond 50 km. A size rule that widens the scale to global (a large wind farm, mine or plant, any site
-  of 100 km² or more) keeps the checks it had, each at the further reach (Rob, 27 Nov). Main roads are A roads only.
+  of 100 km² or more) keeps the checks it had, each at the further reach (Rob, 27 Nov). Main roads are motorway,
+  trunk and A roads everywhere, plus B roads in the UK (Rob, 27 Nov, night).
 - **Relations:** within, crosses, covers, adjacent (within 50 m, touching included), outside. An overlap under 1 m² is
   a touch; class checks count any overlap over 1 m² except from sources marked `coarse`.
 - **Units:** the record is metric; code converts with exact factors (`js/units.js`); the model never converts.
@@ -144,8 +145,7 @@ The dated history and reasons are in `docs/decisions.md`; these shape daily work
   asks.
 - **Map colours:** at most eight; red is the site's alone; colour never carries identity alone.
 - **The replay gate** fails on a regression, a site that didn't run, or any must fact with a check not surfaced
-  (Rob, 27 Nov). Gaps are reported apart and never fail it. It's red on one known fact (R1's B9007, a B road) until
-  Rob reweights it: read the report for anything else.
+  (Rob, 27 Nov). Gaps are reported apart and never fail it.
 - **Scope:** three skills stay visible, an early one marked. Quality means trust in the process, not scoring Tobler's
   decisions against a consultant's. New ideas go on `claude/enhancements.md`, not into the plan.
 

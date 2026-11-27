@@ -71,7 +71,7 @@
       "extends": [], "effects": []
     },
     "hydro": {
-      "label": "hydropower", "names": ["hydro", "hydropower", "hydroelectric", "dam"],
+      "label": "hydropower scheme", "names": ["hydro", "hydropower", "hydroelectric", "dam"],
       "onshore": { "scale": "global", "footprint_km": 5, "why": "reservoir and dam near; the river reach downstream and upstream close and wider (circles stand in until river reaches are built)" },
       "extends": [], "effects": []
     },

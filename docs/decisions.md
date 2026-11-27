@@ -2,6 +2,19 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 27 Nov 2026 (late night): B roads in the UK main roads check; "hydropower scheme"
+Rob: "In the UK, we probably should include B roads", chosen over reweighting R1's B9007 on the answer sheet.
+- **The main roads check** keeps motorway, trunk and A roads everywhere and adds a second source for the UK's four
+  nations: OpenStreetMap's `highway=secondary` (new kind `b road`, "B roads"), which is how the UK tags B roads. Same
+  reach (500 m local, 2 km regional). Outside the UK nothing changes: secondary roads elsewhere aren't B roads.
+- **Approximation, can change an answer:** a minor B road tagged `tertiary` is missed, and a secondary road with no B
+  number is counted. Matching on the `ref` (B123) would be exact, but the copy's tag sets can't match a ref.
+- **Until the atlas rebuilds Tobler's copy of OpenStreetMap with the new kind** (request in `docs/atlas-requests.md`),
+  UK screens ask public Overpass for B roads alone. When Overpass is down, main roads says "only partly checked"
+  (or not checked, if the copy found none), never "none found". The browser check's test copy now lists the kind.
+- `scripts/replay-score.mjs` maps a fact of kind "B road" to the main roads check, like "A road".
+- **The hydro row's label** reads "hydropower scheme" (Rob), so the card says "Screened as a hydropower scheme".
+
 ## 27 Nov 2026 (late night): a licence, and package H parked
 - **LICENSE added:** © Rob Dunfey, all rights reserved, source visible. Vendored libraries, fonts and other
   publishers' data keep their own licences and are listed as outside it. One line in the README points to it.

@@ -38,7 +38,7 @@ export const KIND_CHECKS = [
   [/^(national scenic area|AONB|national landscape)$/i, ["landscape.national-landscapes"], "name"],
   [/^(special landscape area|local landscape designation)$/i, ["landscape.local-designations"], "name"],
   [/^ancient woodland$/i, ["bio.ancient-woodland"], "name"],
-  [/^(A road|trunk road|road|motorway)$/i, ["material.main-roads"], "name"],
+  [/^(A road|B road|trunk road|road|motorway)$/i, ["material.main-roads"], "name"],
   [/^railway$/i, ["material.railways"], "class"],
   [/^overhead line$/i, ["material.power-lines"], "class"],
   [/^substation$/i, ["material.substations"], "class"],

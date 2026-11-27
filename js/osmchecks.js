@@ -14,6 +14,9 @@ export const OSM_KINDS = {
   substation: { sel: ['nwr["power"="substation"]'], match: (t) => t.power === "substation", name: (t) => `Substation${t.voltage ? ` (${kv(t.voltage)})` : ""}` },
   pipeline: { sel: ['way["man_made"="pipeline"]'], match: (t) => t.man_made === "pipeline", name: (t) => `${cap(t.substance || "")} pipeline`.trim(), line: true },
   "main road": { sel: ['way["highway"~"^(motorway|trunk|primary)$"]'], match: (t) => /^(motorway|trunk|primary)$/.test(t.highway || ""), name: (t) => t.ref || `${cap(t.highway)} road`, line: true },
+  // B roads (Rob, 27 Nov): UK only, as the main roads check's second source. The UK tags B roads highway=secondary;
+  // a minor B road tagged tertiary is missed, and the copy's tag sets can't match on a ref.
+  "b road": { sel: ['way["highway"="secondary"]'], match: (t) => t.highway === "secondary", name: (t) => t.ref || "B road", line: true },
   railway: { sel: ['way["railway"="rail"]'], match: (t) => t.railway === "rail", name: () => "Railway", line: true },
   aerodrome: { sel: ['nwr["aeroway"="aerodrome"]'], match: (t) => t.aeroway === "aerodrome", name: () => "Aerodrome" },
   "wind turbine": { sel: ['node["power"="generator"]["generator:source"="wind"]'], match: (t) => t.power === "generator" && t["generator:source"] === "wind", name: () => "Wind turbine" },
@@ -141,7 +144,7 @@ export async function osmAnswers({ wants, site, query, snapshot = null, timeoutS
   }
   }
 }
-const PLURAL = { "power line": "power lines", substation: "substations", pipeline: "pipelines", "main road": "main roads", railway: "railways", aerodrome: "aerodromes",
+const PLURAL = { "power line": "power lines", substation: "substations", pipeline: "pipelines", "main road": "main roads", "b road": "B roads", railway: "railways", aerodrome: "aerodromes",
   "wind turbine": "wind turbines", homes: "residential land", school: "schools", "health care": "hospitals, clinics and care homes",
   building: "buildings", "water body": "water bodies", watercourse: "rivers, streams and ditches" };
 export const osmTitle = (kind) => `OpenStreetMap: ${PLURAL[kind] || kind} (completeness varies)`;

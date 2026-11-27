@@ -486,4 +486,12 @@ await test("sea checks on a land site apply only with the sea within their own r
   assert.ok(has(P({ ...site(30), offshore: true, countries: [] }, "regional"), "material.subsea-pipelines"));
 });
 
+await test("main roads: B roads too in the UK, never outside it (Rob, 27 Nov)", () => {
+  const roads = (site) => P(site, "local").find((p) => p.check.id === "material.main-roads").sources.map((s) => s.osm);
+  assert.deepEqual(roads({ bbox: box(-3.6, 55.97), countries: ["United Kingdom"], offshore: false, sea: false }), ["main road", "b road"]);
+  assert.deepEqual(roads({ bbox: box(-5.93, 54.6), countries: ["United Kingdom"], offshore: false, sea: false }), ["main road", "b road"]);
+  assert.deepEqual(roads({ bbox: box(4.93, 51.49), countries: ["Netherlands"], offshore: false, sea: false }), ["main road"]);
+  assert.ok(OSM_KINDS["b road"].match({ highway: "secondary", ref: "B9007" }) && !OSM_KINDS["b road"].match({ highway: "tertiary" }));
+});
+
 console.log(`${passed} checks tests passed`);
