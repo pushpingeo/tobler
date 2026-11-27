@@ -1,8 +1,8 @@
 # Tobler: rules for building
 
 Tobler is an AI-first geospatial screening tool for environmental consultants (asktobler.com). Before working, read
-the plan, `tobler-workspace-plan.md` in the claude.ai project ("Where things are", "Next", "Decisions that stand"),
-and the latest entries in `docs/decisions.md`.
+the plan, `tobler-workspace-plan.md` in the claude.ai project ("Where things are", "Next"), the latest entries in
+`docs/decisions.md`, and the last three sections here (how things run, decisions that stand, lessons).
 
 ## Where new code goes
 
@@ -86,3 +86,92 @@ answer (which data a site gets, a count, a decision) is asked about first, not p
 - Search for the commercial site-report product's name before any push touching checks, distances or skills. It
   must never appear in the repo.
 - Tell Rob what was and wasn't tested, and log judgement calls in `docs/decisions.md`.
+
+## How things run
+
+- **Tests:** `npm test`, and `npm test` in `worker/`. In a fresh clone run `npm ci` first.
+- **Browser checks** (`scripts/browser-*.mjs`, 14): `node --import ./scripts/route-local.mjs scripts/browser-x.mjs`
+  needs no server (a backgrounded `http.server` can be refused by the session's safety check). The model, network
+  and ArcGIS are faked, so they prove the page, not the answer. A route that blocks outside services must match only
+  `https://` addresses, or it blocks Tobler's own files. A scripted check must queue exactly the model calls the page
+  will make.
+- **Actions** start through the REST API (`gh workflow run` needs GraphQL, which isn't available):
+  `gh api -X POST repos/pushpingeo/tobler/actions/workflows/<file>/dispatches -f ref=main …`. The digest:
+  `log-digest.yml` with `-f 'inputs[days]=7'`, about 4 minutes.
+- **Live replays:** `try-requests.yml` with `-f 'inputs[requests]=<one conversation per line; " >> " between turns>'`.
+  A place found from words is held, so add `" >> Yes, go ahead"` or nothing runs. Read the log with
+  `gh api repos/pushpingeo/tobler/actions/runs/<id>/logs` (a zip; unzip into a new empty folder).
+- **The workspace** reaches GitHub, package registries and `*.arcgis.com` only (not data.asktobler.com). Check a
+  deploy on asktobler.com with the cloud browser. It may open an ArcGIS authorize address to check a redirect URI;
+  never sign in there.
+- **Pushing:** fetch and rebase first (several chats push to main); `git -c push.negotiate=true push origin
+  HEAD:main`. On a conflict in `index.html` or `report.html` take main's and re-run `node scripts/stamp.mjs`; in
+  `package.json`'s test line take main's and add your test back. Bring a clone up to date with `git merge --ff-only
+  origin/main`. If the session's safety check refuses a push to main, don't work round it: push a branch and tell
+  Rob. Rerun tests and browser checks after every rebase.
+- **ArcGIS app:** "Ask Tobler", client ID `4GhkbypqSzSYKEb2`, in Rob's own org (`linlithgow.maps.arcgis.com`), never
+  an employer's. Redirects: asktobler.com, pushpingeo.github.io/tobler and localhost:8080, each `/oauth.html`.
+
+## Decisions that stand
+
+The dated history and reasons are in `docs/decisions.md`; these shape daily work.
+
+- **Checks** report found, none found or not checked. A source that doesn't cover a place never answers for it. UK
+  nations and councils are matched on ONS outlines (a source's `in`, touched by the site grown by the check's reach;
+  a new council needs `node scripts/build-uk-areas.mjs`); `extent` boxes only at sea. A sea check applies on land
+  only with the coast within its reach plus 1 km.
+- **Runs are sealed.** A place found from words is shown and confirmed before anything runs; a pick on the choice
+  card is that confirmation. The screen judges its checks with no tools. Nothing on the map looks like a screen until
+  one has run.
+- **The offer:** code searches the atlas for the named gaps, looks at each layer first and offers only those with
+  something in reach, saying what they hold. Nothing comes in without a yes; what comes in keeps publisher, licence
+  and date, is held to the run's distances and isn't judged until the person re-runs.
+- **Distances:** three kinds, kept apart (search, protection, impact pathway). A check owns its default reach; the
+  asset extends it with a reason and a source; the person overrides both; a skill's own reach wins in its run.
+  "Look out to X" sets every count check. A drawn or published shape beats a computed buffer. One ladder (within
+  the site, 0–100 m … 30–50 km; in imperial 300 ft, 1,000 ft, ¼ … 30 mi); bands are for reporting, never risk;
+  nothing fetched beyond 50 km. A large onshore wind farm (100 MW or more) runs at global scale and keeps the regional
+  checks, each at the further reach (Rob, 27 Nov).
+- **Relations:** within, crosses, covers, adjacent (within 50 m, touching included), outside. An overlap under 1 m² is
+  a touch; class checks count any overlap over 1 m² except from sources marked `coarse`.
+- **Units:** the record is metric; code converts with exact factors (`js/units.js`); the model never converts.
+- **Severity:** the model's rating goes; relevance classes set in code replace it (plan, step 2).
+- **Licences:** non-commercial and Esri MLA data off unless switched on; "unknown" stays unknown; no competitor or
+  commercial product names in the repo.
+- **Services and sign-in:** a site from a service keeps the geometry and drops the service. Tokens live in memory
+  only and go only to https `arcgis.com` hosts; secured requests never go through the Worker; secured addresses never
+  reach the atlas or the model. A public service that blocks browsers goes through the Worker only when the person
+  asks.
+- **Map colours:** at most eight; red is the site's alone; colour never carries identity alone.
+- **The replay gate** fails on a regression, a site that didn't run, or any must fact with a check not surfaced
+  (Rob, 27 Nov). Gaps are reported apart and never fail it.
+- **Scope:** three skills stay visible, an early one marked. Quality means trust in the process, not scoring Tobler's
+  decisions against a consultant's. New ideas go on `claude/enhancements.md`, not into the plan.
+
+## Lessons worth keeping
+
+1. Anything that must always be checked or said goes in code. Tool results carry facts, never instructions; when
+   code holds a fact, the model points to it by id.
+2. A turn can end in code: when a tool's result is the answer, let code write the reply. Buttons are an ending too.
+3. Where the rules are written down and the geometry is code, don't call a model. A model asked to convert units or
+   rate severity will, and the result has no source.
+4. Don't offer what you haven't looked at. A catalogue record says a layer covers a place, not that it holds anything
+   there. A capped answer is a sample in the server's order, never the nearest N.
+5. Membership and overlap come from real shapes; a box only narrows which shapes get measured. Trim the big shape to
+   the small one's box before an overlay, and measure the cheap thing first.
+6. Answer per item and fall back per item: all-or-nothing fallbacks hide partial success. Public Overpass fails;
+   our copy first.
+7. When two parts each hold a default for the same thing, write down which wins. When a new rule lands, sweep for
+   every place that answers the same question by the old rule.
+8. A new field has to survive every copy to the person: record, card, map, evidence and the share link's allow-list.
+   Test at the far end (the report).
+9. Keep the record in values and build display lines at display time, so a units switch is a redraw. Count on every
+   ladder you'll show while the features are in hand.
+10. Words the person reads must match what the code did. Scripted browser checks prove the page; live replays, logs
+    and the gate show the answer. Read them, and check `git status` and the live page before saying something is
+    live.
+11. Thinking counts against `max_tokens`; for a no-tool reading or writing job turn it off, and always handle a reply
+    with no text.
+12. Security: a proxy is a door (public only, on request, no tokens). An app's "Temporary Token" is the app, not the
+    person: use user sign-in with PKCE, keep the verifier in the page, open the popup straight from the click. Don't
+    trust a server's datum shift: take its native coordinates through Tobler's pipeline.

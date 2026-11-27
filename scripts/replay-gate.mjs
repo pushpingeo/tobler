@@ -16,7 +16,7 @@ import { createScreening } from "../js/ntrrun.js";
 import { atlasCall } from "./atlas-client.mjs";
 import { firmsCall } from "./firms-client.mjs";
 import { CONFIG } from "../js/config.js";
-import { scoreSite, regressions, gateReport } from "./replay-score.mjs";
+import { scoreSite, regressions, gateReport, belowThreshold } from "./replay-score.mjs";
 import { trustChecks } from "./log-checks.mjs";
 
 const arg = (k, d = null) => { const a = process.argv.find((x) => x.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : process.argv.includes(`--${k}`) ? true : d; };
@@ -128,5 +128,6 @@ writeFileSync(`${OUT}/report.md`, report);
 if (!failed.length && !pick && !offline) writeFileSync(latestPath, JSON.stringify({ label, at: new Date().toISOString(), model }, null, 1) + "\n");
 console.log(`\n${report}`);
 if (!scoreOnly) console.log(`Tokens: ${spend.input} in, ${spend.output} out`);
-// The gate fails on a regression or a site that didn't run, so the Action shows red.
-process.exitCode = regressed.length || failed.length ? 1 : 0;
+// The gate fails on a regression, a site that didn't run, or a must fact with a check not surfaced (the threshold), so
+// the Action shows red.
+process.exitCode = regressed.length || failed.length || belowThreshold(scores).length ? 1 : 0;

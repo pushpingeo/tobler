@@ -2,6 +2,23 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 27 Nov 2026 (midday): large wind farms keep their local checks; the gate's threshold; CLAUDE.md takes the handover
+Rob's yes to both, 11:30.
+- **The 100 MW rule:** onshore wind of 100 MW or more still runs at global scale (wider landscape, bird and boundary
+  reach) and now keeps the regional checks too: homes, main roads, listed buildings, scheduled monuments, flood
+  zones and the rest. A `by_size` rule in `catalogue/assets.json` may say `keeps: "regional"`; `resolveReaches`
+  takes each check's further default of the two, then the asset's extensions. So the 10 km heritage extension now
+  applies to large wind farms (at global scale alone the heritage checks had no reach to extend). The run's `reach`
+  records `keeps`. Why: the baseline lost heritage, homes, roads and water at Lethen and Scoop Hill; a bigger project
+  needs more checks, not fewer.
+- **Not changed, still a lead:** a site of 100 km² or more goes global whatever it is, and drops the local checks.
+  Not asked, so left; it's the same question for any huge site.
+- **The gate's threshold:** every must fact Tobler has a check for is surfaced. A single missed or beyond-reach must
+  fact fails the gate; gaps (not checked, check not run, no check) are reported and never fail it. The report says
+  "Threshold … met" or "failed, n not surfaced".
+- **CLAUDE.md** now holds how things run, the decisions that stand and twelve lessons (merged from the plan
+  archive's forty-odd), so the plan can stay short.
+
 ## 27 Nov 2026: the replay gate (plan, next step 1)
 
 Built `scripts/replay-gate.mjs`, `scripts/replay-score.mjs` and `eval/replay/` with Rob's go on where the data

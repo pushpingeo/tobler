@@ -55,7 +55,7 @@ export function chooseAsset(table, site = {}) {
   const row = table?.assets?.[site.asset_type] || null;
   const base = row?.[setting] || null;
   const area = +site.area_km2 || 0;
-  let scale, footprint, why, note = null;
+  let scale, footprint, why, note = null, keeps = null;
   const general = table?.general?.[setting] || { scale: setting === "offshore" ? "global" : "regional", footprint_km: 1, why: `general ${setting} default`, by_size: [] };
   if (base) {
     ({ scale, footprint_km: footprint, why } = base);
@@ -65,7 +65,7 @@ export function chooseAsset(table, site = {}) {
         || (s.mw != null && site.capacity_mw != null && site.capacity_mw >= s.mw)
         || (s.area_km2 != null && area >= s.area_km2) || (s.below_km2 != null && area > 0 && area < s.below_km2);
       if (!hit) continue;
-      if (s.scale) scale = s.scale;
+      if (s.scale) { keeps = s.keeps && s.keeps !== s.scale ? s.keeps : null; scale = s.scale; }
       if (s.footprint_km != null) footprint = s.footprint_km;
       why = `${why}; ${s.why}`;
     }
@@ -90,6 +90,7 @@ export function chooseAsset(table, site = {}) {
       ...(e.by_tip_height && site.tip_height_m > 0 ? { tip_height_m: site.tip_height_m } : {}) };
   }) : [];
   return { id: row && base ? site.asset_type : null, label: row?.label || site.planned || "site", row: !!(row && base), setting, scale, scale_why: why,
+    ...(keeps ? { keeps } : {}),
     footprint_km: footprint, extends: extends_, ...(note ? { note } : {}), table_version: table?.version || null };
 }
 
@@ -160,12 +161,16 @@ function touches(change, c, def) {
 
 // Each check's reach for a run: { km, default_km, from: "check" | "asset" | "person", why, source? }. Checks that don't
 // apply at this scale (null) aren't in the map. inside: every count looks inside (0). override(id): a skill's own reach
-// for a check (the developable area's buffers), which wins over everything.
+// for a check (the developable area's buffers), which wins over everything. asset.keeps: a scale whose checks the run
+// also keeps (a large wind farm at global scale keeps the regional checks: Rob, 27 Nov); each check then takes the
+// further of its two defaults, so nothing local is dropped and nothing wide is cut.
 export function resolveReaches(catalogue, { scale, asset = null, search = [], inside = false, override = null } = {}) {
   const m = new Map();
+  const also = asset?.keeps && asset.keeps !== scale ? asset.keeps : null;
   for (const c of catalogue?.checks || []) {
     if (c.answer === "value_at_site") continue;
-    const def = c.reach_km?.[scale];
+    const own = c.reach_km?.[scale], kept = also ? c.reach_km?.[also] : null;
+    const def = own == null ? kept ?? null : kept == null ? own : Math.max(own, kept);
     if (def == null) continue;
     let r = { km: def, default_km: def, from: "check", why: c.reach_why || "" };
     for (const e of asset?.extends || []) {
@@ -214,7 +219,7 @@ export function reachRecord({ asset, scale, plans, reaches, changes = [], protec
   const extended = counted.filter((p) => reaches.get(p.check.id)?.from === "asset")
     .map((p) => ({ check: p.check.id, label: p.check.label, from_km: reaches.get(p.check.id).default_km, to_km: p.reach_km, why: reaches.get(p.check.id).why, source: reaches.get(p.check.id).source }));
   return {
-    scale, scale_why: asset?.scale_why || "", asset: { id: asset?.id || null, label: asset?.label || "site", row: !!asset?.row, ...(asset?.note ? { note: asset.note } : {}) },
+    scale, ...(asset?.keeps ? { keeps: asset.keeps } : {}), scale_why: asset?.scale_why || "", asset: { id: asset?.id || null, label: asset?.label || "site", row: !!asset?.row, ...(asset?.note ? { note: asset.note } : {}) },
     footprint_km: asset?.footprint_km ?? 1, furthest_km: furthest, ladder: inside || budget ? [] : ladderTo(furthest),
     range: inside ? "inside the area only" : rangeText(counted.map((p) => p.reach_km)),
     ...(extended.length ? { extended } : {}),

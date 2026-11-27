@@ -89,6 +89,21 @@ await test("an asset with no row runs on the general defaults for its size, and 
   assert.equal(odd.scale, "global");
 });
 
+await test("a large wind farm keeps the regional checks at global scale, each at the further reach (Rob, 27 Nov)", () => {
+  const big = D.chooseAsset(assets, { asset_type: "wind-onshore", capacity_mw: 432 });
+  const m = D.resolveReaches(cat, { scale: big.scale, asset: big });
+  const g = D.resolveReaches(cat, { scale: "global", asset: { ...big, keeps: undefined } });
+  for (const id of ["community.homes", "material.main-roads", "heritage.listed-buildings", "water.flood-zones"]) {
+    assert.ok(m.has(id), `${id} kept`); assert.ok(!g.has(id), `${id} not at global alone`);
+  }
+  // Each check takes the further of its two defaults, then the asset's extension: nothing wide is cut.
+  for (const [id, r] of g) assert.ok(m.get(id).km >= r.km, `${id} not cut`);
+  assert.equal(m.get("heritage.scheduled-monuments").km, 10, "the 10 km heritage extension now applies");
+  assert.equal(m.get("community.homes").km, 2);
+  const rec = D.reachRecord({ asset: big, scale: big.scale, plans: [], reaches: m });
+  assert.equal(rec.keeps, "regional");
+});
+
 await test("asset sizes pick the scale and footprint, as distances.json's draft did", () => {
   const s = (x) => D.chooseAsset(assets, x);
   assert.equal(s({ asset_type: "solar", capacity_mw: 2 }).scale, "local");
@@ -96,6 +111,8 @@ await test("asset sizes pick the scale and footprint, as distances.json's draft 
   assert.equal(s({ asset_type: "solar", capacity_mw: 300 }).footprint_km, 2);
   assert.equal(s({ asset_type: "solar", capacity_mw: 300 }).scale, "regional");
   assert.equal(s({ asset_type: "wind-onshore", capacity_mw: 150 }).scale, "global");
+  assert.equal(s({ asset_type: "wind-onshore", capacity_mw: 150 }).keeps, "regional");
+  assert.equal(s({ asset_type: "wind-onshore", capacity_mw: 50 }).keeps, undefined);
   assert.equal(s({ asset_type: "mine", area_km2: 35 }).scale, "global");
   assert.equal(s({ asset_type: "mine", area_km2: 5 }).scale, "regional");
   assert.equal(s({ asset_type: "oil-gas-field", offshore: true }).scale, "global");

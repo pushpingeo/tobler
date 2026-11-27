@@ -28,8 +28,9 @@ The headline is recall of `must` facts Tobler has a check for. Gaps are counted 
 
 **Pass or fail:** a complete run is compared with the last complete one (`runs/latest.json`). The gate fails on a
 regression (a must fact surfaced before and not now, or a none-expected fact newly contradicted) or a site that
-didn't run. The first run sets the baseline. There's no fixed recall threshold yet: Rob sets one once the baseline
-is seen.
+didn't run. The first run sets the baseline. It also fails
+below the threshold (Rob, 27 Nov): every must fact Tobler has a check for is surfaced, so a single **missed** or
+**beyond reach** must fact fails it. Gaps (not checked, check not run, no check) are reported and never fail it.
 
 ## The data
 

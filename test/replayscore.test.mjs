@@ -1,7 +1,7 @@
 // The replay gate's scoring (scripts/replay-score.mjs), on made-up run records. The real replay set's answers are
 // in eval/replay/ and aren't read here.
 import assert from "node:assert/strict";
-import { checksFor, sameName, nameTokens, inPlace, scoreFact, scoreSite, regressions, gateReport } from "../scripts/replay-score.mjs";
+import { checksFor, sameName, nameTokens, inPlace, scoreFact, scoreSite, regressions, gateReport, belowThreshold } from "../scripts/replay-score.mjs";
 
 let n = 0;
 const test = (name, fn) => { fn(); n++; console.log(`ok ${name}`); };
@@ -93,6 +93,11 @@ test("a site's recall leaves gaps out of the denominator, and regressions are fo
   const md = gateReport([s2], { label: "test", regressed: regressions([s2], [s1]) });
   assert.match(md, /1 of 2 that Tobler has a check for \(50%\)/);
   assert.match(md, /T1: \*\*Beta Moss SAC\*\* \(SAC, on site\): missed/);
+  // The threshold: a missed must fact fails it; a gap (no check) never does.
+  assert.deepEqual(belowThreshold([s1]), []);
+  assert.deepEqual(belowThreshold([s2]), ["T1: Beta Moss SAC missed"]);
+  assert.match(md, /Threshold \(every must fact with a check surfaced\):\*\* failed, 1 not surfaced/);
+  assert.match(gateReport([s1]), /Threshold \(every must fact with a check surfaced\):\*\* met/);
 });
 
 console.log(`${n} replay-score tests passed`);

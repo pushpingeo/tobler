@@ -3,7 +3,7 @@
   "version": "1",
   "fields": {
     "names": "how people say it, lower case; for matching the person's words later (package E)",
-    "scale": "the screening scale for this asset in this setting, with why. by_size rules apply in order, each overriding what it names: below_mw, mw (at least), area_km2 (at least), below_km2",
+    "scale": "the screening scale for this asset in this setting, with why. by_size rules apply in order, each overriding what it names: below_mw, mw (at least), area_km2 (at least), below_km2. A rule's keeps names a scale whose checks the run also keeps, each check taking the further of its two reaches",
     "footprint_km": "the radius of the circle used when the site is only a point: the footprint's own width, which belongs to the place, not a search distance",
     "extends": "checks (by id) or topics whose reach this asset extends, to to_km, or by_tip_height ([[up_to_m, km], …, [null, km]]) when the tip height is given. Each has why and source. Never shortens a check",
     "effects": "how its effects travel (sight, flight, water, ground, road, sound), each with a source; nothing reads it yet (package E)",
@@ -37,7 +37,7 @@
       "label": "onshore wind farm", "names": ["wind farm", "onshore wind", "wind turbines", "wind turbine"],
       "onshore": { "scale": "regional", "footprint_km": 3, "why": "noise and shadow flicker near, visual and birds close, protected sites wider" },
       "by_size": [
-        { "mw": 100, "scale": "global", "why": "a large wind farm (100 MW or more): wider visual and bird context" }
+        { "mw": 100, "scale": "global", "keeps": "regional", "why": "a large wind farm (100 MW or more): wider visual and bird context, keeping the regional checks (heritage, homes, roads, water) as well (Rob, 27 Nov)" }
       ],
       "extends": [
         { "checks": ["landscape.national-parks", "landscape.national-landscapes", "landscape.wild-land", "material.wind-turbines"], "to_km": 45,

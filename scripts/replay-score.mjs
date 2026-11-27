@@ -192,12 +192,20 @@ export function regressions(now, before) {
 const pct = (x) => (x == null ? "–" : `${Math.round(x * 100)}%`);
 const where = (f) => f.relation === "on_site" ? "on site" : f.relation === "adjacent" ? "next to" : f.relation === "distance" ? `${f.distance_km} km` : f.relation === "within" ? `within ${f.distance_km} km` : f.relation === "absent" ? `none within ${f.distance_km} km` : "not stated";
 
+// The threshold (Rob, 27 Nov): every must fact Tobler has a check for is surfaced. A miss or a fact beyond the check's
+// reach fails the gate; gaps (not checked, check not run, no check) are reported apart and never fail it.
+export function belowThreshold(scores) {
+  return scores.flatMap((s) => s.rows.filter((r) => r.fact.weight === "must" && (r.outcome === "missed" || r.outcome === "beyond_reach")).map((r) => `${s.id}: ${r.fact.feature} ${r.outcome}`));
+}
+
 // The gate's report, for the push note and the committed results.
 export function gateReport(scores, { label = "", trust = null, regressed = [], failed = [] } = {}) {
   const tot = scores.reduce((a, s) => ({ scored: a.scored + s.must.scored, hit: a.hit + s.must.surfaced, total: a.total + s.must.total }), { scored: 0, hit: 0, total: 0 });
+  const below = belowThreshold(scores);
   const n = (s, k) => s.must[k] || 0;
   const L = [`# Replay gate${label ? `: ${label}` : ""}`, "",
     `**Must facts surfaced:** ${tot.hit} of ${tot.scored} that Tobler has a check for (${pct(tot.scored ? tot.hit / tot.scored : null)}); ${tot.total} must facts in all.`,
+    `**Threshold (every must fact with a check surfaced):** ${below.length ? `failed, ${below.length} not surfaced` : "met"}.`,
     `**Regressions against the last gate run:** ${regressed.length ? regressed.length : "none"}.`, ...(failed.length ? [`**Sites that didn't run:** ${failed.join("; ")}.`] : []), "",
     "| Site | Must surfaced | Recall | Found elsewhere | Missed | Beyond reach | Not checked | Check not run | No check | None-expected contradicted |",
     "|---|---|---|---|---|---|---|---|---|---|",
