@@ -1,0 +1,3311 @@
+[
+ {
+  "id": "R1",
+  "name": "Lethen Wind Farm, Dava Moor",
+  "rows": [
+   {
+    "fact": {
+     "feature": "Alltlaoigh Farmstead",
+     "kind": "scheduled monument",
+     "topic": "heritage",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Alltlaoigh, farmstead 1990m NE of Cnapan a' Choire Odhair Bhig",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Drynachan, Lochindorb and Dava Moors Special Landscape Area",
+     "kind": "local landscape designation",
+     "topic": "landscape",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "the site sits centrally within it",
+     "source": {
+      "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "not_checked",
+    "why": "Scotland's Local Landscape Areas aren't in Tobler's data (on the Spatial Hub)"
+   },
+   {
+    "fact": {
+     "feature": "B9007 road",
+     "kind": "road",
+     "topic": "material assets",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": "east",
+     "weight": "must",
+     "note": "bounds the site",
+     "source": {
+      "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "missed",
+    "checked": [
+     "material.main-roads: none"
+    ]
+   },
+   {
+    "fact": {
+     "feature": "Leonach Burn",
+     "kind": "watercourse",
+     "topic": "water",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": "west",
+     "weight": "must",
+     "note": "bounds the site",
+     "source": {
+      "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "check_not_run",
+    "checks": [
+     "water.watercourses"
+    ]
+   },
+   {
+    "fact": {
+     "feature": "Tomlachlan Burn (headwaters)",
+     "kind": "watercourse",
+     "topic": "water",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+      "page": 32,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "check_not_run",
+    "checks": [
+     "water.watercourses"
+    ]
+   },
+   {
+    "fact": {
+     "feature": "Deep peat, Class 1 and Class 2 peat",
+     "kind": "peat",
+     "topic": "ground and soil",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "EIAR_Non-Technical Summary.pdf",
+      "page": 17,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "not_checked",
+    "why": "non-commercial licence: off unless switched on in Settings"
+   },
+   {
+    "fact": {
+     "feature": "Cairngorms National Park",
+     "kind": "national park",
+     "topic": "landscape",
+     "relation": "distance",
+     "distance_km": 1,
+     "direction": "south",
+     "weight": "must",
+     "note": "just over 1 km from the site; 2.8 km from the nearest turbine",
+     "source": {
+      "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Cairngorms National Park",
+    "distance_km": 1.35
+   },
+   {
+    "fact": {
+     "feature": "Tom na Clach Wind Farm",
+     "kind": "wind farm",
+     "topic": "material assets",
+     "relation": "distance",
+     "distance_km": 3,
+     "direction": "west",
+     "weight": "must",
+     "note": "operational",
+     "source": {
+      "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found_elsewhere",
+    "name": "Wind turbine",
+    "distance_km": 4.82
+   },
+   {
+    "fact": {
+     "feature": "Carn nan Tri-tighearnan SAC and SSSI",
+     "kind": "SAC / SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 4.5,
+     "direction": "north-west",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+      "page": 27,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Carn nan Tri-tighearnan",
+    "distance_km": 4.37
+   },
+   {
+    "fact": {
+     "feature": "River Spey SAC",
+     "kind": "SAC",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 4.6,
+     "direction": "south",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+      "page": 27,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "River Spey",
+    "distance_km": 4.54
+   },
+   {
+    "fact": {
+     "feature": "Lochindorb Castle",
+     "kind": "scheduled monument",
+     "topic": "heritage",
+     "relation": "distance",
+     "distance_km": 5,
+     "direction": "east",
+     "weight": "must",
+     "note": "5 km from the boundary; 3.97 km from the nearest turbine (p11)",
+     "source": {
+      "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Lochindorb Castle",
+    "distance_km": 1.3
+   },
+   {
+    "fact": {
+     "feature": "Moy Wind Farm",
+     "kind": "wind farm",
+     "topic": "material assets",
+     "relation": "distance",
+     "distance_km": 7,
+     "direction": null,
+     "weight": "should",
+     "note": "operational",
+     "source": {
+      "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Wind turbine",
+    "distance_km": 4.82
+   },
+   {
+    "fact": {
+     "feature": "Moidach More SAC and SSSI",
+     "kind": "SAC / SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 8.2,
+     "direction": null,
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+      "page": 27,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Moidach More",
+    "distance_km": 6.34
+   },
+   {
+    "fact": {
+     "feature": "Castle Grant",
+     "kind": "garden and designed landscape",
+     "topic": "heritage",
+     "relation": "distance",
+     "distance_km": 11,
+     "direction": "south-east",
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+      "page": 13,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Castle Grant",
+    "distance_km": 6.59
+   },
+   {
+    "fact": {
+     "feature": "Anagach Woods SPA",
+     "kind": "SPA",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 11.3,
+     "direction": null,
+     "weight": "should",
+     "note": "capercaillie",
+     "source": {
+      "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+      "page": 19,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Anagach Woods",
+    "distance_km": 8.99
+   },
+   {
+    "fact": {
+     "feature": "Kinveachy Forest SPA",
+     "kind": "SPA",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 11.5,
+     "direction": null,
+     "weight": "should",
+     "note": "capercaillie",
+     "source": {
+      "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+      "page": 19,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Kinveachy Forest",
+    "distance_km": 11.5
+   },
+   {
+    "fact": {
+     "feature": "Craigmore Wood SPA",
+     "kind": "SPA",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 12.4,
+     "direction": null,
+     "weight": "should",
+     "note": "capercaillie",
+     "source": {
+      "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+      "page": 19,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Craigmore Wood",
+    "distance_km": 11.47
+   },
+   {
+    "fact": {
+     "feature": "Abernethy Forest SPA and SSSI",
+     "kind": "SPA / SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 13,
+     "direction": null,
+     "weight": "should",
+     "note": "capercaillie",
+     "source": {
+      "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+      "page": 19,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Abernethy Forest",
+    "distance_km": 13.09
+   },
+   {
+    "fact": {
+     "feature": "Farr Wind Farm",
+     "kind": "wind farm",
+     "topic": "material assets",
+     "relation": "distance",
+     "distance_km": 17,
+     "direction": null,
+     "weight": "should",
+     "note": "operational",
+     "source": {
+      "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Wind turbine",
+    "distance_km": 4.82
+   },
+   {
+    "fact": {
+     "feature": "Cairngorms SPA",
+     "kind": "SPA",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 19.3,
+     "direction": null,
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+      "page": 19,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Cairngorms Massif",
+    "distance_km": 18.49
+   },
+   {
+    "fact": {
+     "feature": "Wild Land Area 20: Monadhliath",
+     "kind": "wild land area",
+     "topic": "landscape",
+     "relation": "distance",
+     "distance_km": 19,
+     "direction": null,
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+      "page": 13,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "20. Monadhliath",
+    "distance_km": 17.12
+   },
+   {
+    "fact": {
+     "feature": "Wild Land Area 15: Cairngorms",
+     "kind": "wild land area",
+     "topic": "landscape",
+     "relation": "distance",
+     "distance_km": 20,
+     "direction": null,
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+      "page": 13,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "15. Cairngorms",
+    "distance_km": 18.39
+   },
+   {
+    "fact": {
+     "feature": "Inverness Airport",
+     "kind": "airport",
+     "topic": "material assets",
+     "relation": "distance",
+     "distance_km": 20,
+     "direction": "north-west",
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "EIAR_Non-Technical Summary.pdf",
+      "page": 19,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Inverness Airport",
+    "distance_km": 19.2
+   },
+   {
+    "fact": {
+     "feature": "Residential properties",
+     "kind": "homes",
+     "topic": "community",
+     "relation": "absent",
+     "distance_km": 2,
+     "direction": null,
+     "weight": "none_expected",
+     "note": "none within 2 km of the turbines; fourteen within 2 to 5 km (NTS)",
+     "source": {
+      "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "agrees"
+   },
+   {
+    "fact": {
+     "feature": "World Heritage Sites, Inventory Battlefields, Conservation Areas",
+     "kind": "heritage designations",
+     "topic": "heritage",
+     "relation": "absent",
+     "distance_km": 10,
+     "direction": null,
+     "weight": "none_expected",
+     "note": null,
+     "source": {
+      "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+      "page": 39,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   }
+  ],
+  "must": {
+   "total": 11,
+   "scored": 7,
+   "surfaced": 6,
+   "recall": 0.8571428571428571,
+   "found": 5,
+   "not_checked": 2,
+   "missed": 1,
+   "check_not_run": 2,
+   "found_elsewhere": 1
+  },
+  "should": {
+   "found": 12
+  },
+  "none_expected": {
+   "agrees": 1,
+   "no_check": 1
+  }
+ },
+ {
+  "id": "R2",
+  "name": "Narachan Wind Farm, Kintyre",
+  "rows": [
+   {
+    "fact": {
+     "feature": "Loch an Fhraoich",
+     "kind": "loch",
+     "topic": "water",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "EIR - Non Technical Summary.pdf",
+      "page": 9,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "check_not_run",
+    "checks": [
+     "water.water-bodies"
+    ]
+   },
+   {
+    "fact": {
+     "feature": "Kintyre Goose Roosts SPA (roost loch)",
+     "kind": "SPA",
+     "topic": "biodiversity",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "named as Kintyre Goose Roosts SPA in the determination (p6); draft turbines about 350 m from the loch at scoping",
+     "source": {
+      "document": "Narachan Wind Farm - Scoping Opinion - October 2019 - Final.pdf",
+      "page": 32,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Kintyre Goose Roosts",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Peat",
+     "kind": "peat",
+     "topic": "ground and soil",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "mostly under 2 m deep",
+     "source": {
+      "document": "EIR - Non Technical Summary.pdf",
+      "page": 29,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "not_checked",
+    "why": "non-commercial licence: off unless switched on in Settings"
+   },
+   {
+    "fact": {
+     "feature": "Loch Ulagadale",
+     "kind": "loch",
+     "topic": "water",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": "south-west",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "EIR - Non Technical Summary.pdf",
+      "page": 9,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "check_not_run",
+    "checks": [
+     "water.water-bodies"
+    ]
+   },
+   {
+    "fact": {
+     "feature": "Kintyre Way",
+     "kind": "long-distance route",
+     "topic": "community",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "EIR - Non Technical Summary.pdf",
+      "page": 35,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Tayinloan",
+     "kind": "settlement",
+     "topic": "community",
+     "relation": "distance",
+     "distance_km": 1.6,
+     "direction": "west",
+     "weight": "must",
+     "note": "the site is 1.6 km east of Tayinloan",
+     "source": {
+      "document": "Narachan Wind Farm - Scoping Opinion - October 2019 - Final.pdf",
+      "page": 12,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Narachan Burn Local Nature Conservation Site",
+     "kind": "local nature site",
+     "topic": "biodiversity",
+     "relation": "within",
+     "distance_km": 2,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "EIR - Non Technical Summary.pdf",
+      "page": 23,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Loch a' Chuirn Local Nature Conservation Site",
+     "kind": "local nature site",
+     "topic": "biodiversity",
+     "relation": "within",
+     "distance_km": 2,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "EIR - Non Technical Summary.pdf",
+      "page": 23,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Inner Hebrides and the Minches SAC",
+     "kind": "SAC",
+     "topic": "biodiversity",
+     "relation": "within",
+     "distance_km": 5,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "EIR - Non Technical Summary.pdf",
+      "page": 23,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Inner Hebrides and the Minches",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Rhunahaorine Point SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "within",
+     "distance_km": 5,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "EIR - Non Technical Summary.pdf",
+      "page": 23,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Rhunahaorine Point",
+    "distance_km": 0.46
+   },
+   {
+    "fact": {
+     "feature": "North Arran National Scenic Area",
+     "kind": "national scenic area",
+     "topic": "landscape",
+     "relation": "distance",
+     "distance_km": 8,
+     "direction": "east",
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Narachan Wind Farm proposal - DETERMINATION - 08 March 2024.pdf",
+      "page": 10,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "North Arran",
+    "distance_km": 7.9
+   },
+   {
+    "fact": {
+     "feature": "North Arran Wild Land Area 03",
+     "kind": "wild land area",
+     "topic": "landscape",
+     "relation": "not_stated",
+     "distance_km": null,
+     "direction": "east",
+     "weight": "should",
+     "note": "no distance given",
+     "source": {
+      "document": "Narachan Wind Farm proposal - DETERMINATION - 08 March 2024.pdf",
+      "page": 11,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "03. North Arran",
+    "distance_km": 10.76
+   },
+   {
+    "fact": {
+     "feature": "Residential properties",
+     "kind": "homes",
+     "topic": "community",
+     "relation": "absent",
+     "distance_km": 3,
+     "direction": null,
+     "weight": "none_expected",
+     "note": "closest are over 3 km from the nearest turbine",
+     "source": {
+      "document": "EIR - Non Technical Summary.pdf",
+      "page": 25,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "contradicted",
+    "found": [
+     "Homes (residential land) 0 km",
+     "Tayinloan 0.39 km",
+     "Killean 1.95 km"
+    ]
+   },
+   {
+    "fact": {
+     "feature": "Core Paths and Rights of Way",
+     "kind": "paths",
+     "topic": "community",
+     "relation": "absent",
+     "distance_km": 0,
+     "direction": null,
+     "weight": "none_expected",
+     "note": "none within the site",
+     "source": {
+      "document": "EIR - Non Technical Summary.pdf",
+      "page": 35,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   }
+  ],
+  "must": {
+   "total": 10,
+   "scored": 3,
+   "surfaced": 3,
+   "recall": 1,
+   "check_not_run": 2,
+   "found": 3,
+   "not_checked": 1,
+   "no_check": 4
+  },
+  "should": {
+   "found": 2
+  },
+  "none_expected": {
+   "contradicted": 1,
+   "no_check": 1
+  }
+ },
+ {
+  "id": "R5",
+  "name": "Kirkton Energy Park, Strath Halladale",
+  "rows": [
+   {
+    "fact": {
+     "feature": "The Flow Country World Heritage Site",
+     "kind": "world heritage site",
+     "topic": "heritage",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "partly within and adjacent to it",
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Flow Country",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Caithness and Sutherland Peatlands SAC",
+     "kind": "SAC",
+     "topic": "biodiversity",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "extends slightly into the boundary for habitat works, no infrastructure in it; the decision letter calls the site adjacent (p2)",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 16,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Caithness and Sutherland Peatlands",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "West Halladale SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "extends slightly into the boundary for habitat works, no infrastructure in it",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 16,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "West Halladale",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Blanket bog and heathland",
+     "kind": "peat habitat",
+     "topic": "ground and soil",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "turbines placed on peat under 1 m deep (NTS p19)",
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "not_checked",
+    "why": "non-commercial licence: off unless switched on in Settings"
+   },
+   {
+    "fact": {
+     "feature": "Sweeping Moorland and Flows LCT",
+     "kind": "landscape character type",
+     "topic": "landscape",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Coastal Crofts and Small Farms LCT",
+     "kind": "landscape character type",
+     "topic": "landscape",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "the eastern exclave, in western Melvich",
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Conifer plantation",
+     "kind": "woodland",
+     "topic": "land use",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "87.75 ha, to be felled and restored to bog; 3.58 ha of native woodland also to be cleared (NTS p8)",
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 21,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Hut circles and other non-designated heritage assets",
+     "kind": "non-designated heritage",
+     "topic": "heritage",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "three hut circles in the construction compound footprint; abandoned township of Kirkton near the access track; eight more assets within 1 km",
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 35,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Low Flying Area 14",
+     "kind": "military low flying area",
+     "topic": "material assets",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 29,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Caithness and Sutherland Peatlands SPA",
+     "kind": "SPA",
+     "topic": "biodiversity",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Caithness and Sutherland Peatlands",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Kirkton to Upper Bighouse Core Path",
+     "kind": "core path",
+     "topic": "community",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": "east",
+     "weight": "must",
+     "note": "on the eastern edge of the site",
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 33,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "A836",
+     "kind": "A road",
+     "topic": "material assets",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": "north",
+     "weight": "must",
+     "note": "the exclaves lie north of it; also the North Coast 500 and National Cycle Route 1 (p33)",
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 21,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found_elsewhere",
+    "name": "A836",
+    "distance_km": 1.66
+   },
+   {
+    "fact": {
+     "feature": "Halladale River",
+     "kind": "river",
+     "topic": "water",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": "east",
+     "weight": "must",
+     "note": "drains the whole site; SEPA status good; Strath Halladale lies immediately east (DL p26)",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 20,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "check_not_run",
+    "checks": [
+     "water.watercourses"
+    ]
+   },
+   {
+    "fact": {
+     "feature": "Cemetery at the end of the minor road from Melvich",
+     "kind": "cemetery",
+     "topic": "community",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "beside the site access",
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 21,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "East Halladale Flows Wild Land Area",
+     "kind": "wild land area",
+     "topic": "landscape",
+     "relation": "distance",
+     "distance_km": 1.29,
+     "direction": "east",
+     "weight": "must",
+     "note": "Wild Land Area 39; about 2 km from the nearest turbine (NTS p15)",
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "39. East Halladale Flows",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Melvich",
+     "kind": "settlement",
+     "topic": "community",
+     "relation": "distance",
+     "distance_km": 2.1,
+     "direction": "north",
+     "weight": "must",
+     "note": "nearest turbine about 3 km south of the village (p21); the eastern exclave is in western Melvich (p2)",
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "27 Upper Bighouse (nearest house)",
+     "kind": "homes",
+     "topic": "community",
+     "relation": "distance",
+     "distance_km": 1,
+     "direction": null,
+     "weight": "must",
+     "note": "from the nearest turbine; all 19 properties assessed are in Strath Halladale",
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 30,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Homes (residential land)",
+    "distance_km": 0.38
+   },
+   {
+    "fact": {
+     "feature": "Halladale Bridge hut circles (SM3304)",
+     "kind": "scheduled monument",
+     "topic": "heritage",
+     "relation": "distance",
+     "distance_km": 3,
+     "direction": "north-east",
+     "weight": "must",
+     "note": "from the nearest turbine; next to the A836; HES judged the setting effect significant, the Reporter did not",
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 35,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Halladale Bridge, hut circles 670m NE of, on banks of Giligill Burn",
+    "distance_km": 2.01
+   },
+   {
+    "fact": {
+     "feature": "Private water supply at Kirkton Farm",
+     "kind": "private water supply",
+     "topic": "water",
+     "relation": "within",
+     "distance_km": 5,
+     "direction": null,
+     "weight": "must",
+     "note": "surface water, domestic, downstream of the site",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 20,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "CAR authorisations at Kirkton Cottage and on the Halladale River",
+     "kind": "water authorisations",
+     "topic": "water",
+     "relation": "within",
+     "distance_km": 1,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 20,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "A897",
+     "kind": "A road",
+     "topic": "material assets",
+     "relation": "not_stated",
+     "distance_km": null,
+     "direction": "east",
+     "weight": "should",
+     "note": "runs up Strath Halladale; the core path is closer to the site (DL p35)",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 12,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "A897",
+    "distance_km": 0.72
+   },
+   {
+    "fact": {
+     "feature": "Melvich Wind Energy Hub (proposed)",
+     "kind": "wind farm",
+     "topic": "material assets",
+     "relation": "not_stated",
+     "distance_km": null,
+     "direction": null,
+     "weight": "should",
+     "note": "the neighbouring proposal; nearer than Kirkton in the view from Strathy Point",
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 29,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Wind turbine",
+    "distance_km": 1.86
+   },
+   {
+    "fact": {
+     "feature": "Strathy North, Strathy South and Strathy Wood wind farms",
+     "kind": "wind farm",
+     "topic": "material assets",
+     "relation": "not_stated",
+     "distance_km": null,
+     "direction": null,
+     "weight": "should",
+     "note": "seen behind or to the south of Kirkton in places",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 15,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Wind turbine",
+    "distance_km": 1.86
+   },
+   {
+    "fact": {
+     "feature": "Caithness Lochs SPA",
+     "kind": "SPA",
+     "topic": "biodiversity",
+     "relation": "not_stated",
+     "distance_km": null,
+     "direction": null,
+     "weight": "should",
+     "note": "site within greylag goose foraging range",
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Caithness Lochs",
+    "distance_km": 11.74
+   },
+   {
+    "fact": {
+     "feature": "Caithness and Sutherland Peatlands Ramsar site",
+     "kind": "Ramsar site",
+     "topic": "biodiversity",
+     "relation": "not_stated",
+     "distance_km": null,
+     "direction": null,
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 36,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Caithness and Sutherland Peatlands",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "North Caithness Cliffs SPA",
+     "kind": "SPA",
+     "topic": "biodiversity",
+     "relation": "not_stated",
+     "distance_km": null,
+     "direction": null,
+     "weight": "should",
+     "note": "scoped into the bird assessment",
+     "source": {
+      "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+      "page": 36,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "North Caithness Cliffs",
+    "distance_km": 3.33
+   },
+   {
+    "fact": {
+     "feature": "Leathad Carnaich (SM1876)",
+     "kind": "scheduled monument",
+     "topic": "heritage",
+     "relation": "within",
+     "distance_km": 10,
+     "direction": null,
+     "weight": "should",
+     "note": "within 10 km of the turbines",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 21,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Leathad Carnaich, hut circles, clearance cairns, N of Dalhalvaig School",
+    "distance_km": 2.42
+   },
+   {
+    "fact": {
+     "feature": "Millburn Barrows, Strath Halladale (SM13622)",
+     "kind": "scheduled monument",
+     "topic": "heritage",
+     "relation": "within",
+     "distance_km": 10,
+     "direction": null,
+     "weight": "should",
+     "note": "within 10 km of the turbines",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 21,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Millburn, Strath Halladale, barrows 340m NNE of",
+    "distance_km": 2.02
+   },
+   {
+    "fact": {
+     "feature": "The Borg (SM1839)",
+     "kind": "scheduled monument",
+     "topic": "heritage",
+     "relation": "within",
+     "distance_km": 10,
+     "direction": null,
+     "weight": "should",
+     "note": "within 10 km of the turbines",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 21,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "The Borg, broch, Strath Halladale",
+    "distance_km": 6.95
+   },
+   {
+    "fact": {
+     "feature": "Bighouse and associated buildings (LB7159)",
+     "kind": "listed building",
+     "topic": "heritage",
+     "relation": "within",
+     "distance_km": 10,
+     "direction": null,
+     "weight": "should",
+     "note": "within 10 km of the turbines",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 21,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "beyond_reach",
+    "reach_km": 2
+   },
+   {
+    "fact": {
+     "feature": "Bighouse, Garden Pavilion and Walled Garden (LB7160)",
+     "kind": "listed building",
+     "topic": "heritage",
+     "relation": "within",
+     "distance_km": 10,
+     "direction": null,
+     "weight": "should",
+     "note": "within 10 km of the turbines",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 21,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "beyond_reach",
+    "reach_km": 2
+   },
+   {
+    "fact": {
+     "feature": "Smigel Bridge (LB12915)",
+     "kind": "listed building",
+     "topic": "heritage",
+     "relation": "within",
+     "distance_km": 10,
+     "direction": null,
+     "weight": "should",
+     "note": "within 10 km of the turbines",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 21,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Smigel Bridge Farr",
+    "distance_km": 1.01
+   },
+   {
+    "fact": {
+     "feature": "Smigel Mill (LB7141)",
+     "kind": "listed building",
+     "topic": "heritage",
+     "relation": "within",
+     "distance_km": 10,
+     "direction": null,
+     "weight": "should",
+     "note": "within 10 km of the turbines",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 21,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Smigel Mill",
+    "distance_km": 1.04
+   },
+   {
+    "fact": {
+     "feature": "Farr Bay, Strathy and Portskerra SLA",
+     "kind": "special landscape area",
+     "topic": "landscape",
+     "relation": "within",
+     "distance_km": 40,
+     "direction": null,
+     "weight": "should",
+     "note": "within the 40 km study area; five other SLAs listed on the same page",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 14,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "not_checked",
+    "why": "Scotland's Local Landscape Areas aren't in Tobler's data (on the Spatial Hub)"
+   },
+   {
+    "fact": {
+     "feature": "Kyle of Tongue National Scenic Area",
+     "kind": "national scenic area",
+     "topic": "landscape",
+     "relation": "within",
+     "distance_km": 40,
+     "direction": null,
+     "weight": "should",
+     "note": "within the 40 km study area",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 14,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Kyle of Tongue",
+    "distance_km": 14.43
+   },
+   {
+    "fact": {
+     "feature": "Tongue House Garden and Designed Landscape",
+     "kind": "garden and designed landscape",
+     "topic": "heritage",
+     "relation": "within",
+     "distance_km": 40,
+     "direction": null,
+     "weight": "should",
+     "note": "within the 40 km study area",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 14,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "beyond_reach",
+    "reach_km": 10
+   },
+   {
+    "fact": {
+     "feature": "Castle of Mey (Barrogill Castle) Garden and Designed Landscape",
+     "kind": "garden and designed landscape",
+     "topic": "heritage",
+     "relation": "within",
+     "distance_km": 40,
+     "direction": null,
+     "weight": "should",
+     "note": "within the 40 km study area",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 14,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "beyond_reach",
+    "reach_km": 10
+   },
+   {
+    "fact": {
+     "feature": "Designated landscapes (NSA, SLA, GDL)",
+     "kind": "landscape designations",
+     "topic": "landscape",
+     "relation": "absent",
+     "distance_km": 0,
+     "direction": null,
+     "weight": "none_expected",
+     "note": "the site is in none",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 14,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Residential properties",
+     "kind": "homes",
+     "topic": "community",
+     "relation": "absent",
+     "distance_km": 1,
+     "direction": null,
+     "weight": "none_expected",
+     "note": "none within 1 km of the turbines; the nearest is about 1 km (DL p30)",
+     "source": {
+      "document": "Volume 1 - Non Technical Summary.pdf",
+      "page": 14,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "contradicted",
+    "found": [
+     "Homes (residential land) 0.38 km"
+    ]
+   }
+  ],
+  "must": {
+   "total": 20,
+   "scored": 8,
+   "surfaced": 8,
+   "recall": 1,
+   "found": 7,
+   "not_checked": 1,
+   "no_check": 10,
+   "found_elsewhere": 1,
+   "check_not_run": 1
+  },
+  "should": {
+   "found": 12,
+   "beyond_reach": 4,
+   "not_checked": 1
+  },
+  "none_expected": {
+   "no_check": 1,
+   "contradicted": 1
+  }
+ },
+ {
+  "id": "R6",
+  "name": "Scoop Hill Community Wind Farm, near Moffat",
+  "rows": [
+   {
+    "fact": {
+     "feature": "Dryfe Water SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": "south",
+     "weight": "must",
+     "note": "upland mixed ash woodland",
+     "source": {
+      "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+      "page": 3,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Dryfe Water",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Eskdalemuir Seismological Recording Station and Array (consultation zone)",
+     "kind": "safeguarding zone",
+     "topic": "material assets",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": "east",
+     "weight": "must",
+     "note": "the site lies west of the array, inside its consultation zone; no distance given",
+     "source": {
+      "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+      "page": 3,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Moffat Hills Regional Scenic Area",
+     "kind": "local landscape designation",
+     "topic": "landscape",
+     "relation": "distance",
+     "distance_km": 0.61,
+     "direction": "north-west",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+      "page": 3,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "not_checked",
+    "why": "Scotland's Local Landscape Areas aren't in Tobler's data (on the Spatial Hub)"
+   },
+   {
+    "fact": {
+     "feature": "River Tweed SSSI and SAC",
+     "kind": "SSSI / SAC",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 1.6,
+     "direction": "north",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Scoop Hill Scoping Report FINAL (A) - with figs.pdf",
+      "page": 12,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "River Tweed",
+    "distance_km": 1.59
+   },
+   {
+    "fact": {
+     "feature": "Residential properties",
+     "kind": "homes",
+     "topic": "community",
+     "relation": "within",
+     "distance_km": 2,
+     "direction": null,
+     "weight": "must",
+     "note": "20 within 2 km of the turbines",
+     "source": {
+      "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+      "page": 3,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Homes (residential land)",
+    "distance_km": 0.09
+   },
+   {
+    "fact": {
+     "feature": "Southern Upland Way",
+     "kind": "long-distance route",
+     "topic": "community",
+     "relation": "within",
+     "distance_km": 3,
+     "direction": "north",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+      "page": 3,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Lochwood SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 4.77,
+     "direction": "west",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Scoop Hill Scoping Report FINAL (A) - with figs.pdf",
+      "page": 12,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Lochwood",
+    "distance_km": 1.41
+   },
+   {
+    "fact": {
+     "feature": "Perchhall Loch SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 5.69,
+     "direction": "south-west",
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Scoop Hill Scoping Report FINAL (A) - with figs.pdf",
+      "page": 12,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Perchhall Loch",
+    "distance_km": 6.56
+   },
+   {
+    "fact": {
+     "feature": "Raehills",
+     "kind": "garden and designed landscape",
+     "topic": "heritage",
+     "relation": "distance",
+     "distance_km": 5.82,
+     "direction": "west",
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Scoop Hill Scoping Report FINAL (A) - with figs.pdf",
+      "page": 12,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Raehills",
+    "distance_km": 3.37
+   },
+   {
+    "fact": {
+     "feature": "Moffat Hills SAC and SPA",
+     "kind": "SAC / SPA",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 6.15,
+     "direction": "north",
+     "weight": "should",
+     "note": "as written in the scoping report",
+     "source": {
+      "document": "Scoop Hill Scoping Report FINAL (A) - with figs.pdf",
+      "page": 12,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Moffat Hills",
+    "distance_km": 5.57
+   },
+   {
+    "fact": {
+     "feature": "Moffat Conservation Area",
+     "kind": "conservation area",
+     "topic": "heritage",
+     "relation": "distance",
+     "distance_km": 6.99,
+     "direction": "north-west",
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Scoop Hill Scoping Report FINAL (A) - with figs.pdf",
+      "page": 12,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Talla-Hart Fell Wild Land Area",
+     "kind": "wild land area",
+     "topic": "landscape",
+     "relation": "distance",
+     "distance_km": 8,
+     "direction": "north",
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+      "page": 3,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "02. Talla- Hart fell",
+    "distance_km": 6.87
+   },
+   {
+    "fact": {
+     "feature": "Harestanes wind farm",
+     "kind": "wind farm",
+     "topic": "material assets",
+     "relation": "distance",
+     "distance_km": 11.3,
+     "direction": "west",
+     "weight": "should",
+     "note": "operational",
+     "source": {
+      "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+      "page": 3,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "not_checked",
+    "why": "OpenStreetMap's Overpass service isn't answering right now (all three public servers failed within 15 s; last: timed out after 12.219 s)."
+   },
+   {
+    "fact": {
+     "feature": "Clyde and Clyde 2 wind farms",
+     "kind": "wind farm",
+     "topic": "material assets",
+     "relation": "distance",
+     "distance_km": 16,
+     "direction": "north-north-west",
+     "weight": "should",
+     "note": "operational",
+     "source": {
+      "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+      "page": 3,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "not_checked",
+    "why": "OpenStreetMap's Overpass service isn't answering right now (all three public servers failed within 15 s; last: timed out after 12.219 s)."
+   },
+   {
+    "fact": {
+     "feature": "National Scenic Areas and Regional Scenic Areas",
+     "kind": "landscape designations",
+     "topic": "landscape",
+     "relation": "absent",
+     "distance_km": 0,
+     "direction": null,
+     "weight": "none_expected",
+     "note": "the site is in neither",
+     "source": {
+      "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+      "page": 3,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   }
+  ],
+  "must": {
+   "total": 7,
+   "scored": 4,
+   "surfaced": 4,
+   "recall": 1,
+   "found": 4,
+   "no_check": 2,
+   "not_checked": 1
+  },
+  "should": {
+   "found": 4,
+   "no_check": 1,
+   "not_checked": 2
+  },
+  "none_expected": {
+   "no_check": 1
+  }
+ },
+ {
+  "id": "R11",
+  "name": "Whitelee Windfarm Repowering, Eaglesham Moor",
+  "rows": [
+   {
+    "fact": {
+     "feature": "Dunwan Hill, fort (SM12882)",
+     "kind": "scheduled monument",
+     "topic": "heritage",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "nearest operational turbine about 280 m to its south-west",
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 93,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Dunwan Hill, fort",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Lochgoin Monument (LB12509)",
+     "kind": "listed building, category B",
+     "topic": "heritage",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 93,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Lochgoyn Monument",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Lochgoin Reservoir",
+     "kind": "reservoir",
+     "topic": "water",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": "north-west",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 80,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "check_not_run",
+    "checks": [
+     "water.water-bodies"
+    ]
+   },
+   {
+    "fact": {
+     "feature": "Craigendunton Reservoir",
+     "kind": "reservoir",
+     "topic": "water",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": "north",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 55,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "check_not_run",
+    "checks": [
+     "water.water-bodies"
+    ]
+   },
+   {
+    "fact": {
+     "feature": "Glen Water",
+     "kind": "watercourse",
+     "topic": "water",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": "north",
+     "weight": "must",
+     "note": "joins the River Irvine about 2 km south of the site",
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 80,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "check_not_run",
+    "checks": [
+     "water.watercourses"
+    ]
+   },
+   {
+    "fact": {
+     "feature": "Rotten Calder Water",
+     "kind": "watercourse",
+     "topic": "water",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": "north-east",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 81,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "check_not_run",
+    "checks": [
+     "water.watercourses"
+    ]
+   },
+   {
+    "fact": {
+     "feature": "Core Paths",
+     "kind": "paths",
+     "topic": "community",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 42,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Dunwan Dam wind farm",
+     "kind": "wind farm",
+     "topic": "material assets",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "5 turbines, 200 m; status in the report's table",
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 40,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "22",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Strathaven airfield",
+     "kind": "airfield",
+     "topic": "material assets",
+     "relation": "distance",
+     "distance_km": 2.4,
+     "direction": "east",
+     "weight": "must",
+     "note": "from the eastern boundary",
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 117,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Strathaven Airfield",
+    "distance_km": 2.11
+   },
+   {
+    "fact": {
+     "feature": "East Ayrshire Local Landscape Area",
+     "kind": "local landscape designation",
+     "topic": "landscape",
+     "relation": "distance",
+     "distance_km": 3.5,
+     "direction": "south",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 42,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "not_checked",
+    "why": "Scotland's Local Landscape Areas aren't in Tobler's data (on the Spatial Hub)"
+   },
+   {
+    "fact": {
+     "feature": "Muirkirk Uplands SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 3.5,
+     "direction": "south",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 56,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Muirkirk Uplands",
+    "distance_km": 3.46
+   },
+   {
+    "fact": {
+     "feature": "Brother and Little Lochs SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 3.5,
+     "direction": "north",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 57,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Brother and Little Lochs",
+    "distance_km": 3.63
+   },
+   {
+    "fact": {
+     "feature": "Blantyre Muir SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 5.2,
+     "direction": "north-east",
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 83,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "beyond_reach",
+    "reach_km": 5
+   },
+   {
+    "fact": {
+     "feature": "Waukenwae Moss SAC and SSSI",
+     "kind": "SAC / SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 5.4,
+     "direction": "north-east",
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 83,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Waukenwae Moss",
+    "distance_km": 5.23
+   },
+   {
+    "fact": {
+     "feature": "Cart and Kittoch Valleys SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 7.2,
+     "direction": null,
+     "weight": "should",
+     "note": "hydrologically connected to the site",
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 83,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "beyond_reach",
+    "reach_km": 5
+   },
+   {
+    "fact": {
+     "feature": "Rouken Glen SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 8,
+     "direction": "north",
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 83,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "beyond_reach",
+    "reach_km": 5
+   },
+   {
+    "fact": {
+     "feature": "Waulkmill Glen SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 8.4,
+     "direction": "north",
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 83,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "beyond_reach",
+    "reach_km": 5
+   },
+   {
+    "fact": {
+     "feature": "Calder Glen SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 8.5,
+     "direction": null,
+     "weight": "should",
+     "note": "on the Rotten Calder, which rises on the site",
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 83,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "beyond_reach",
+    "reach_km": 5
+   },
+   {
+    "fact": {
+     "feature": "Blood Moss and Slot Burn SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 9.9,
+     "direction": null,
+     "weight": "should",
+     "note": "listed with the SPA",
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 83,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "beyond_reach",
+    "reach_km": 5
+   },
+   {
+    "fact": {
+     "feature": "Muirkirk and North Lowther Uplands SPA",
+     "kind": "SPA",
+     "topic": "biodiversity",
+     "relation": "within",
+     "distance_km": 10,
+     "direction": null,
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 68,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Muirkirk and North Lowther Uplands",
+    "distance_km": 3.46
+   },
+   {
+    "fact": {
+     "feature": "Glasgow Airport",
+     "kind": "airport",
+     "topic": "material assets",
+     "relation": "distance",
+     "distance_km": 19,
+     "direction": "north",
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 117,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "beyond_reach",
+    "reach_km": 15
+   },
+   {
+    "fact": {
+     "feature": "River Ayr Way",
+     "kind": "long-distance route",
+     "topic": "community",
+     "relation": "distance",
+     "distance_km": 20,
+     "direction": "south",
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 42,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Wild Land Area 04: Waterhead Moor – Muirshiel",
+     "kind": "wild land area",
+     "topic": "landscape",
+     "relation": "within",
+     "distance_km": 25,
+     "direction": null,
+     "weight": "should",
+     "note": null,
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 43,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "04. Waterhead Moor - Muirshiel",
+    "distance_km": 22.8
+   },
+   {
+    "fact": {
+     "feature": "National Scenic Areas",
+     "kind": "national scenic area",
+     "topic": "landscape",
+     "relation": "absent",
+     "distance_km": 25,
+     "direction": null,
+     "weight": "none_expected",
+     "note": null,
+     "source": {
+      "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+      "page": 43,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "agrees"
+   }
+  ],
+  "must": {
+   "total": 12,
+   "scored": 6,
+   "surfaced": 6,
+   "recall": 1,
+   "found": 6,
+   "check_not_run": 4,
+   "no_check": 1,
+   "not_checked": 1
+  },
+  "should": {
+   "beyond_reach": 7,
+   "found": 3,
+   "no_check": 1
+  },
+  "none_expected": {
+   "agrees": 1
+  }
+ },
+ {
+  "id": "R17",
+  "name": "Great North Road Solar and Biodiversity Park",
+  "rows": [
+   {
+    "fact": {
+     "feature": "Best and most versatile farmland",
+     "kind": "agricultural land grade",
+     "topic": "land use",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "1,093 ha of 1,765 ha: 149 ha Grade 2, 944 ha Grade 3a, no Grade 1",
+     "source": {
+      "document": "EN010162-001340-Great North Road Solar and Biodiversity Park - SoS Decision letter - 27 October 2026.pdf",
+      "page": 7,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Provisional Agricultural Land Classification, England (Natural England)",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Carlton Wood (ancient woodland, assessed as a Local Wildlife Site)",
+     "kind": "ancient woodland",
+     "topic": "biodiversity",
+     "relation": "not_stated",
+     "distance_km": null,
+     "direction": null,
+     "weight": "should",
+     "note": "no physical works proposed in it; position against the Order limits not stated in the letter",
+     "source": {
+      "document": "EN010162-001340-Great North Road Solar and Biodiversity Park - SoS Decision letter - 27 October 2026.pdf",
+      "page": 9,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Carlton Wood",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Footpaths Kelham FP7a, Weston FP10, Carlton-on-Trent FP6 and FP10",
+     "kind": "public rights of way",
+     "topic": "community",
+     "relation": "not_stated",
+     "distance_km": null,
+     "direction": null,
+     "weight": "should",
+     "note": "historic cross-field paths raised in examination",
+     "source": {
+      "document": "EN010162-001340-Great North Road Solar and Biodiversity Park - SoS Decision letter - 27 October 2026.pdf",
+      "page": 12,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Staythorpe substation and power station; River Trent",
+     "kind": "substation / river",
+     "topic": "material assets",
+     "relation": "not_stated",
+     "distance_km": null,
+     "direction": null,
+     "weight": "should",
+     "note": "named as nearby projects and features",
+     "source": {
+      "document": "EN010162-000382-GNR_6.1A_ES_Volume 1_Cover and Contents (Clean).pdf",
+      "page": 8,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "not_checked",
+    "why": "OpenStreetMap's Overpass service isn't answering right now (all three public servers failed a moment ago)."
+   },
+   {
+    "fact": {
+     "feature": "Railway",
+     "kind": "railway",
+     "topic": "material assets",
+     "relation": "absent",
+     "distance_km": 0,
+     "direction": null,
+     "weight": "none_expected",
+     "note": "Network Rail has no apparatus inside the Order limits",
+     "source": {
+      "document": "EN010162-001340-Great North Road Solar and Biodiversity Park - SoS Decision letter - 27 October 2026.pdf",
+      "page": 20,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "contradicted",
+    "found": [
+     "Nottingham to Lincoln Line 0 km",
+     "East Coast Main Line 0 km",
+     "Railway 0 km"
+    ]
+   },
+   {
+    "fact": {
+     "feature": "Conservation Areas, listed buildings, scheduled monuments, registered park and garden",
+     "kind": "heritage counts",
+     "topic": "heritage",
+     "relation": "within",
+     "distance_km": 2,
+     "direction": null,
+     "weight": "must",
+     "note": "17 conservation areas, 227 listed buildings (19 Grade I), 26 scheduled monuments, 1 registered park and garden",
+     "source": {
+      "document": "EN010162-000382-GNR_6.1A_ES_Volume 1_Cover and Contents (Clean).pdf",
+      "page": 28,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Further heritage assets, including one registered battlefield",
+     "kind": "heritage counts",
+     "topic": "heritage",
+     "relation": "within",
+     "distance_km": 5,
+     "direction": null,
+     "weight": "must",
+     "note": "18 Grade I and 28 Grade II* listed buildings, 29 scheduled monuments, 1 registered park and garden, 1 registered battlefield",
+     "source": {
+      "document": "EN010162-000382-GNR_6.1A_ES_Volume 1_Cover and Contents (Clean).pdf",
+      "page": 28,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Sherwood Forest potential SPA",
+     "kind": "potential SPA",
+     "topic": "biodiversity",
+     "relation": "not_stated",
+     "distance_km": null,
+     "direction": null,
+     "weight": "should",
+     "note": "considered in the habitats assessment; no distance in the letter",
+     "source": {
+      "document": "EN010162-001340-Great North Road Solar and Biodiversity Park - SoS Decision letter - 27 October 2026.pdf",
+      "page": 17,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "missed",
+    "checked": [
+     "bio.spa: none"
+    ]
+   },
+   {
+    "fact": {
+     "feature": "Humber Estuary SAC and Ramsar site",
+     "kind": "SAC / Ramsar",
+     "topic": "biodiversity",
+     "relation": "not_stated",
+     "distance_km": null,
+     "direction": null,
+     "weight": "should",
+     "note": "taken to appropriate assessment; no distance in the letter",
+     "source": {
+      "document": "EN010162-001340-Great North Road Solar and Biodiversity Park - SoS Decision letter - 27 October 2026.pdf",
+      "page": 17,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "missed",
+    "checked": [
+     "bio.sac: found 1",
+     "bio.ramsar: none"
+    ]
+   },
+   {
+    "fact": {
+     "feature": "The Beck",
+     "kind": "watercourse",
+     "topic": "water",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": "west",
+     "weight": "must",
+     "note": "joins the River Trent about 700 m east of the study area",
+     "source": {
+      "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+      "page": 56,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "check_not_run",
+    "checks": [
+     "water.watercourses"
+    ]
+   },
+   {
+    "fact": {
+     "feature": "Overhead electricity lines",
+     "kind": "overhead line",
+     "topic": "material assets",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+      "page": 129,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Power line (400 kV)",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Eakring and Maplebeck Meadows SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "listed as bordering the Order Limits",
+     "source": {
+      "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+      "page": 38,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Eakring and Maplebeck Meadows SSSI",
+    "distance_km": 0.46
+   },
+   {
+    "fact": {
+     "feature": "River Trent",
+     "kind": "main river",
+     "topic": "water",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": "south-east",
+     "weight": "must",
+     "note": "borders the study area at its nearest point",
+     "source": {
+      "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+      "page": 56,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "check_not_run",
+    "checks": [
+     "water.watercourses"
+    ]
+   },
+   {
+    "fact": {
+     "feature": "East Coast Main Line",
+     "kind": "railway",
+     "topic": "material assets",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+      "page": 129,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Nottingham to Lincoln Line",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Laxton Sykes SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 0.3,
+     "direction": "north-west",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+      "page": 38,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Laxton Sykes SSSI",
+    "distance_km": 0.36
+   },
+   {
+    "fact": {
+     "feature": "Redgate Woods and Mansey Common SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 0.5,
+     "direction": "west",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+      "page": 38,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Redgate Woods and Mansey Common SSSI",
+    "distance_km": 0.46
+   },
+   {
+    "fact": {
+     "feature": "Roe Wood SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 1,
+     "direction": "south-west",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+      "page": 38,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Roe Wood SSSI",
+    "distance_km": 0.94
+   },
+   {
+    "fact": {
+     "feature": "Besthorpe Meadows SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 2.4,
+     "direction": "east",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+      "page": 38,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Besthorpe Meadows SSSI",
+    "distance_km": 2.4
+   },
+   {
+    "fact": {
+     "feature": "Wellow Park SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 3.7,
+     "direction": "north",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+      "page": 38,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Wellow Park SSSI",
+    "distance_km": 3.73
+   },
+   {
+    "fact": {
+     "feature": "Besthorpe Warren SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 3.7,
+     "direction": "east",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+      "page": 38,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Besthorpe Warren SSSI",
+    "distance_km": 3.71
+   },
+   {
+    "fact": {
+     "feature": "Kirton Wood SSSI",
+     "kind": "SSSI",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 3.8,
+     "direction": "north-north-west",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+      "page": 38,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Kirton Wood, Notts SSSI",
+    "distance_km": 3.99
+   },
+   {
+    "fact": {
+     "feature": "Birklands and Bilhaugh SAC",
+     "kind": "SAC",
+     "topic": "biodiversity",
+     "relation": "distance",
+     "distance_km": 7,
+     "direction": "north-west",
+     "weight": "should",
+     "note": "also considered in the habitats assessment (decision letter)",
+     "source": {
+      "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+      "page": 38,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Birklands & Bilhaugh",
+    "distance_km": 7.07
+   },
+   {
+    "fact": {
+     "feature": "Aerodromes: Knapthorne Lodge, Rectory Farm, Grassthorpe Grange, Darlton, RAF Syerston",
+     "kind": "aerodromes",
+     "topic": "material assets",
+     "relation": "within",
+     "distance_km": 30,
+     "direction": null,
+     "weight": "should",
+     "note": "those needing detailed assessment",
+     "source": {
+      "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+      "page": 119,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "not_checked",
+    "why": "OpenStreetMap's Overpass service isn't answering right now (all three public servers failed a moment ago)."
+   }
+  ],
+  "must": {
+   "total": 15,
+   "scored": 11,
+   "surfaced": 11,
+   "recall": 1,
+   "found": 11,
+   "no_check": 2,
+   "check_not_run": 2
+  },
+  "should": {
+   "found": 2,
+   "no_check": 1,
+   "not_checked": 2,
+   "missed": 2
+  },
+  "none_expected": {
+   "contradicted": 1
+  }
+ },
+ {
+  "id": "R19",
+  "name": "Learielaw BESS, near Broxburn",
+  "rows": [
+   {
+    "fact": {
+     "feature": "Class 2 prime agricultural land",
+     "kind": "agricultural land class",
+     "topic": "land use",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Determination Letter - Final - Learielaw Energy Storage.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Land Capability for Agriculture, national scale (1:250, 000), Scotland (James Hutton Institute)",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Major hazard pipeline consultation zone",
+     "kind": "safeguarding zone",
+     "topic": "material assets",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "a gas pipeline; HSE raised no objection",
+     "source": {
+      "document": "Determination Letter - Final - Learielaw Energy Storage.pdf",
+      "page": 4,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "M8 motorway",
+     "kind": "trunk road",
+     "topic": "material assets",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": "south",
+     "weight": "must",
+     "note": "the site is immediately north of the M8",
+     "source": {
+      "document": "J.Learielaw - Supporting Document.pdf",
+      "page": 8,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "M8",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Nearest houses, Drumshoreland Station",
+     "kind": "homes",
+     "topic": "community",
+     "relation": "distance",
+     "distance_km": 0.18,
+     "direction": "south",
+     "weight": "must",
+     "note": "on the far side of the motorway",
+     "source": {
+      "document": "Determination Letter - Final - Learielaw Energy Storage.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Homes (residential land)",
+    "distance_km": 0.12
+   },
+   {
+    "fact": {
+     "feature": "Edinburgh to Bathgate and Glasgow railway",
+     "kind": "railway",
+     "topic": "material assets",
+     "relation": "within",
+     "distance_km": 0.2,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "J.Learielaw - Supporting Document.pdf",
+      "page": 8,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Edinburgh to Glasgow via Bathgate",
+    "distance_km": 0.14
+   },
+   {
+    "fact": {
+     "feature": "Union Canal",
+     "kind": "scheduled monument",
+     "topic": "heritage",
+     "relation": "distance",
+     "distance_km": 0.28,
+     "direction": "north",
+     "weight": "must",
+     "note": "scheduled monument (supporting document, p8)",
+     "source": {
+      "document": "Determination Letter - Final - Learielaw Energy Storage.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Union Canal, River Almond to River Avon",
+    "distance_km": 0.19
+   },
+   {
+    "fact": {
+     "feature": "Broxburn",
+     "kind": "settlement",
+     "topic": "community",
+     "relation": "distance",
+     "distance_km": 1,
+     "direction": "north",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Determination Letter - Final - Learielaw Energy Storage.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Edinburgh Airport",
+     "kind": "airport",
+     "topic": "material assets",
+     "relation": "distance",
+     "distance_km": 7,
+     "direction": "north-east",
+     "weight": "should",
+     "note": "under its flight path (supporting document)",
+     "source": {
+      "document": "Determination Letter - Final - Learielaw Energy Storage.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Edinburgh Airport",
+    "distance_km": 4.65
+   }
+  ],
+  "must": {
+   "total": 7,
+   "scored": 5,
+   "surfaced": 5,
+   "recall": 1,
+   "found": 5,
+   "no_check": 2
+  },
+  "should": {
+   "found": 1
+  },
+  "none_expected": {}
+ },
+ {
+  "id": "R21",
+  "name": "Culham BESS",
+  "rows": [
+   {
+    "fact": {
+     "feature": "Oxford Green Belt",
+     "kind": "green belt",
+     "topic": "land use",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Appeal Decision - 3358132.pdf",
+      "page": 1,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Nuneham Courtenay (Grade I)",
+     "kind": "registered park and garden",
+     "topic": "heritage",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": "north",
+     "weight": "must",
+     "note": "the park is about 470 ha",
+     "source": {
+      "document": "Appeal Decision - 3358132.pdf",
+      "page": 1,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Nuneham Courtenay",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "400 kV overhead line and pylons",
+     "kind": "overhead line",
+     "topic": "material assets",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "one large pylon and two lower ones inside the site",
+     "source": {
+      "document": "Appeal Decision - 3358132.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "National Grid Didcot-Cowley",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Best and most versatile farmland",
+     "kind": "agricultural land grade",
+     "topic": "land use",
+     "relation": "on_site",
+     "distance_km": null,
+     "direction": null,
+     "weight": "must",
+     "note": "5 ha taken",
+     "source": {
+      "document": "Appeal Decision - 3358132.pdf",
+      "page": 9,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Provisional Agricultural Land Classification, England (Natural England)",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Culham Science Centre",
+     "kind": "employment site",
+     "topic": "community",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": "south-east",
+     "weight": "must",
+     "note": "the site takes in a small part of it",
+     "source": {
+      "document": "Appeal Decision - 3358132.pdf",
+      "page": 1,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Nuneham Courtenay Conservation Area",
+     "kind": "conservation area",
+     "topic": "heritage",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": "north",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "CD1.1.8-ESVol1_Chp1_Introduction-and-EIA-Methodology.pdf",
+      "page": 7,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Railway line (in cutting)",
+     "kind": "railway",
+     "topic": "material assets",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": "west",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "Appeal Decision - 3358132.pdf",
+      "page": 1,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Didcot and Chester Line",
+    "distance_km": 0
+   },
+   {
+    "fact": {
+     "feature": "Thame Lane railway bridge (Grade II)",
+     "kind": "listed building",
+     "topic": "heritage",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": "west",
+     "weight": "must",
+     "note": "position given as west along Thame Lane; no distance",
+     "source": {
+      "document": "Appeal Decision - 3358132.pdf",
+      "page": 1,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "found",
+    "name": "Thame Lane Bridge (DCL5657)",
+    "distance_km": 0.13
+   },
+   {
+    "fact": {
+     "feature": "Thame Lane, part of the Oxford Green Belt Way",
+     "kind": "public right of way",
+     "topic": "community",
+     "relation": "adjacent",
+     "distance_km": null,
+     "direction": "south",
+     "weight": "must",
+     "note": "runs between the site and the science centre",
+     "source": {
+      "document": "Appeal Decision - 3358132.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "River Thames",
+     "kind": "river",
+     "topic": "water",
+     "relation": "not_stated",
+     "distance_km": null,
+     "direction": "north",
+     "weight": "should",
+     "note": "beyond the woodland to the north; no distance",
+     "source": {
+      "document": "CD1.1.8-ESVol1_Chp1_Introduction-and-EIA-Methodology.pdf",
+      "page": 5,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "check_not_run",
+    "checks": [
+     "water.watercourses"
+    ]
+   },
+   {
+    "fact": {
+     "feature": "Abingdon",
+     "kind": "settlement",
+     "topic": "community",
+     "relation": "distance",
+     "distance_km": 2.5,
+     "direction": "west",
+     "weight": "must",
+     "note": null,
+     "source": {
+      "document": "CD1.1.8-ESVol1_Chp1_Introduction-and-EIA-Methodology.pdf",
+      "page": 5,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   },
+   {
+    "fact": {
+     "feature": "Didcot Power Station",
+     "kind": "power station",
+     "topic": "material assets",
+     "relation": "distance",
+     "distance_km": 5,
+     "direction": null,
+     "weight": "must",
+     "note": "source of the 400 kV line",
+     "source": {
+      "document": "Appeal Decision - 3358132.pdf",
+      "page": 2,
+      "checked_against_text": true
+     }
+    },
+    "outcome": "no_check"
+   }
+  ],
+  "must": {
+   "total": 11,
+   "scored": 5,
+   "surfaced": 5,
+   "recall": 1,
+   "no_check": 6,
+   "found": 5
+  },
+  "should": {
+   "check_not_run": 1
+  },
+  "none_expected": {}
+ }
+]
