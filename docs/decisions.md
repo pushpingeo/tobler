@@ -2,6 +2,14 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 27 Nov 2026 (late night): a licence, and package H parked
+- **LICENSE added:** © Rob Dunfey, all rights reserved, source visible. Vendored libraries, fonts and other
+  publishers' data keep their own licences and are listed as outside it. One line in the README points to it.
+- **Package H (Cloudflare hosting, skills private) is parked**, not dropped (Rob). The github.io address is useful:
+  new domains like asktobler.com are blocked on work networks where he shows it. Making the repo private on the free
+  plan would turn Pages off, and option A leaves the skills in public git history anyway. Back on the enhancements
+  list with what was learned (inventory in `claude/work-package-hosting-and-skills-2026-11-27.md`).
+
 ## 27 Nov 2026 (night): the reply after a run is short, and points to the card above
 Rob: "it often says the card below when it means the card above; it's also very verbose, with the text repeating much
 of what's on the card." The card is drawn while the run goes, so it's always above the reply.

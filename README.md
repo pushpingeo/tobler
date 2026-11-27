@@ -59,6 +59,8 @@ Every feature keeps its source's licence. OpenStreetMap data is © OpenStreetMap
 
 Screening results are a desk-based first look. They don't replace a proper assessment.
 
+The code, skills and catalogue are © Rob Dunfey, all rights reserved: visible here, not licensed for reuse. See [LICENSE](LICENSE).
+
 ---
 
 Built by Rob Dunfey ([pushpingeo](https://github.com/pushpingeo)).

@@ -1,0 +1,18 @@
+Copyright (c) 2026 Rob Dunfey. All rights reserved.
+
+This repository is published so that people can see how Tobler works. You may
+view the source here and use the live site at asktobler.com. No other rights are
+granted: you may not copy, modify, redistribute, sell, host or build on this code,
+its skills, prompts, catalogue or evaluation data, in whole or in part, without
+written permission from Rob Dunfey.
+
+Third-party parts keep their own licences and are not covered by this notice:
+- vendored libraries in js/vendor/ (MapLibre GL JS, Turf.js, Terra Draw,
+  FlatGeobuf, osmtogeojson and others), each under the licence in its file or
+  its project;
+- the fonts in fonts/ (Public Sans, SIL Open Font License 1.1);
+- data from other publishers, which keeps its publisher's terms, as recorded
+  with each source (for example OpenStreetMap data is © OpenStreetMap
+  contributors, ODbL).
+
+For permission or licensing, contact Rob Dunfey via https://github.com/pushpingeo.
