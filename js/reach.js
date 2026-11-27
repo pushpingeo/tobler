@@ -50,6 +50,7 @@ export function ladderBand(km, top = MAX_KM, units = "metric") {
 
 // The asset for a run: its row (if any), the scale its size picks and why, its footprint radius, and its extensions.
 // site: { asset_type, planned, offshore, capacity_mw, tip_height_m, area_km2 }.
+const rank = (sc) => ["local", "regional", "global"].indexOf(sc);
 export function chooseAsset(table, site = {}) {
   const setting = site.offshore ? "offshore" : "onshore";
   const row = table?.assets?.[site.asset_type] || null;
@@ -65,7 +66,9 @@ export function chooseAsset(table, site = {}) {
         || (s.mw != null && site.capacity_mw != null && site.capacity_mw >= s.mw)
         || (s.area_km2 != null && area >= s.area_km2) || (s.below_km2 != null && area > 0 && area < s.below_km2);
       if (!hit) continue;
-      if (s.scale) { keeps = s.keeps && s.keeps !== s.scale ? s.keeps : null; scale = s.scale; }
+      // A size rule that widens the scale keeps the checks of the scale it had (Rob, 27 Nov: more reach, never fewer
+      // checks); a rule may also name the scale it keeps.
+      if (s.scale) { const k = s.keeps || (rank(s.scale) > rank(scale) ? scale : null); keeps = k && k !== s.scale ? k : null; scale = s.scale; }
       if (s.footprint_km != null) footprint = s.footprint_km;
       why = `${why}; ${s.why}`;
     }
@@ -78,7 +81,9 @@ export function chooseAsset(table, site = {}) {
     note = what ? `No distances are set for ${what} yet, so the checks use the general defaults for a site of this size.` : "No asset type given, so the checks use the general defaults for a site of this size.";
   }
   const globalFrom = table?.general?.global_from_km2 ?? 100;
-  if (area >= globalFrom && scale !== "global") { scale = "global"; why = `${why}; a site of ${globalFrom} km² or more is screened at global scale`; }
+  // A very large site is screened at global scale and keeps the checks of the scale it had (Rob, 27 Nov), as a large
+  // wind farm does: more reach, never fewer checks.
+  if (area >= globalFrom && scale !== "global") { keeps = keeps || scale; scale = "global"; why = `${why}; a site of ${globalFrom} km² or more is screened at global scale, keeping the ${keeps} checks`; }
   // Extensions apply only when the row is for this setting (onshore wind's landscape reach doesn't go to sea).
   const extends_ = base ? (row.extends || []).map((e) => {
     let to = e.to_km;

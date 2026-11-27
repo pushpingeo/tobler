@@ -11,7 +11,7 @@
   },
   "scale_source": "Tobler's first-cut defaults (catalogue/distances.json draft-1, 18 Nov 2026, carried over unchanged as scales on 26 Nov); package D researches them for Rob's review",
   "general": {
-    "about": "An asset with no row (housing, a warehouse, offices, or nothing said): the general defaults for the site's size, and the card says so. A site of 100 km² or more is global whatever it is.",
+    "about": "An asset with no row (housing, a warehouse, offices, or nothing said): the general defaults for the site's size, and the card says so. A site of 100 km² or more is global whatever it is, and keeps the checks of the scale it would otherwise have had (Rob, 27 Nov).",
     "onshore": { "scale": "regional", "footprint_km": 1, "why": "general onshore default",
       "by_size": [
         { "below_km2": 1, "scale": "local", "why": "a site under 1 km² (100 ha): most effects stay within a few kilometres" }

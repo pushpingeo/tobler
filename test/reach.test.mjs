@@ -83,6 +83,10 @@ await test("an asset with no row runs on the general defaults for its size, and 
   assert.match(none.note, /No asset type given/);
   assert.equal(D.chooseAsset(assets, { area_km2: 0.5, offshore: true }).scale, "regional");
   assert.equal(D.chooseAsset(assets, { area_km2: 150 }).scale, "global", "a big licence is global whatever it is");
+  assert.equal(D.chooseAsset(assets, { area_km2: 150 }).keeps, "regional", "and keeps the checks it would have had");
+  assert.equal(D.chooseAsset(assets, { asset_type: "mine", area_km2: 150 }).keeps, "regional");
+  assert.equal(D.chooseAsset(assets, { asset_type: "mine", area_km2: 35 }).keeps, "regional", "a size rule that widens keeps what it had");
+  assert.equal(D.chooseAsset(assets, { asset_type: "solar", capacity_mw: 2 }).keeps, undefined, "a rule that narrows keeps nothing");
   // A row for one setting only: solar at sea is general too.
   const odd = D.chooseAsset(assets, { asset_type: "solar", offshore: true });
   assert.equal(odd.row, false);

@@ -1,3 +1,4 @@
 # Push a change to this file to run the replay gate (the last line is used). See eval/replay/README.md.
 --label=gate-2026-11-27-baseline
 --label=gate-2026-11-27-wind-keeps-regional
+--label=gate-2026-11-27-size-keeps

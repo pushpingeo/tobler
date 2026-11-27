@@ -2,6 +2,19 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 27 Nov 2026 (afternoon): a site that widens to global keeps its checks; main roads stay A roads
+Rob, 13:51.
+- **Main roads don't include B roads.** The gate's one miss (Lethen's B9007) stays a miss by definition: the check is
+  motorway, trunk and primary. The gate stays red on it until the outcome or the check changes; that's Rob's call,
+  not a fix to tune.
+- **Very large sites keep the local checks.** A site of 100 km² or more goes global and keeps the checks of the scale
+  it would have had. Applied as one rule: any size rule that widens the scale keeps the one it had (a large mine of
+  20 km² or more, a power plant of 500 MW or more, as well as the 100 MW wind farm). Can change answers: those runs now
+  get homes, roads, heritage and water. Why no reason not to: a capped fetch already says "n+", so a big area
+  undercounts honestly; the cost is time, which the gate's slow-runs check watches.
+- **Left alone:** an asset whose base scale is global (onshore hydro; offshore rows) isn't widened by size, so keeps
+  nothing. Onshore hydro still drops the local checks: same question, not asked.
+
 ## 27 Nov 2026 (midday): large wind farms keep their local checks; the gate's threshold; CLAUDE.md takes the handover
 Rob's yes to both, 11:30.
 - **The 100 MW rule:** onshore wind of 100 MW or more still runs at global scale (wider landscape, bird and boundary
