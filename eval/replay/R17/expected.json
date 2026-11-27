@@ -1,0 +1,365 @@
+{
+ "id": "R17",
+ "name": "Great North Road Solar and Biodiversity Park",
+ "set": "development",
+ "decision": "consented",
+ "decision_date": "2026-10-27",
+ "geometry": "georef.zip",
+ "made": "2026-11-27",
+ "how": "Facts copied from the documents in this folder. Each was matched by script to the words on the page cited. 'must' = on the site, next to it, or within 5 km; 'should' = further out or position not stated; 'none_expected' = the document says there are none within distance_km.",
+ "distance_basis": "As stated in the document: usually from the site boundary, sometimes from the nearest turbine (see note).",
+ "notes": [
+  "The scoping report copy ending '-2' now has text and was read; the other copy is still a scan.",
+  "Scoping distances are from the 2023 Order Limits, which were wider than the 1,765 ha decided. Your polygon is 2,391 ha; Rob is content to use it for now (27 Nov). Treat distances under about 1 km as approximate against it.",
+  "The decision letter names few features with distances; the Examining Authority's report would add more.",
+  "The heritage counts are for the 'solar park site' in the Environmental Statement's contents volume.",
+  "The scoping report spells Besthorpe Meadows as 'Bestorpe'."
+ ],
+ "expected": [
+  {
+   "feature": "Best and most versatile farmland",
+   "kind": "agricultural land grade",
+   "topic": "land use",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "1,093 ha of 1,765 ha: 149 ha Grade 2, 944 ha Grade 3a, no Grade 1",
+   "source": {
+    "document": "EN010162-001340-Great North Road Solar and Biodiversity Park - SoS Decision letter - 27 October 2026.pdf",
+    "page": 7,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Carlton Wood (ancient woodland, assessed as a Local Wildlife Site)",
+   "kind": "ancient woodland",
+   "topic": "biodiversity",
+   "relation": "not_stated",
+   "distance_km": null,
+   "direction": null,
+   "weight": "should",
+   "note": "no physical works proposed in it; position against the Order limits not stated in the letter",
+   "source": {
+    "document": "EN010162-001340-Great North Road Solar and Biodiversity Park - SoS Decision letter - 27 October 2026.pdf",
+    "page": 9,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Footpaths Kelham FP7a, Weston FP10, Carlton-on-Trent FP6 and FP10",
+   "kind": "public rights of way",
+   "topic": "community",
+   "relation": "not_stated",
+   "distance_km": null,
+   "direction": null,
+   "weight": "should",
+   "note": "historic cross-field paths raised in examination",
+   "source": {
+    "document": "EN010162-001340-Great North Road Solar and Biodiversity Park - SoS Decision letter - 27 October 2026.pdf",
+    "page": 12,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Staythorpe substation and power station; River Trent",
+   "kind": "substation / river",
+   "topic": "material assets",
+   "relation": "not_stated",
+   "distance_km": null,
+   "direction": null,
+   "weight": "should",
+   "note": "named as nearby projects and features",
+   "source": {
+    "document": "EN010162-000382-GNR_6.1A_ES_Volume 1_Cover and Contents (Clean).pdf",
+    "page": 8,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Railway",
+   "kind": "railway",
+   "topic": "material assets",
+   "relation": "absent",
+   "distance_km": 0.0,
+   "direction": null,
+   "weight": "none_expected",
+   "note": "Network Rail has no apparatus inside the Order limits",
+   "source": {
+    "document": "EN010162-001340-Great North Road Solar and Biodiversity Park - SoS Decision letter - 27 October 2026.pdf",
+    "page": 20,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Conservation Areas, listed buildings, scheduled monuments, registered park and garden",
+   "kind": "heritage counts",
+   "topic": "heritage",
+   "relation": "within",
+   "distance_km": 2.0,
+   "direction": null,
+   "weight": "must",
+   "note": "17 conservation areas, 227 listed buildings (19 Grade I), 26 scheduled monuments, 1 registered park and garden",
+   "source": {
+    "document": "EN010162-000382-GNR_6.1A_ES_Volume 1_Cover and Contents (Clean).pdf",
+    "page": 28,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Further heritage assets, including one registered battlefield",
+   "kind": "heritage counts",
+   "topic": "heritage",
+   "relation": "within",
+   "distance_km": 5.0,
+   "direction": null,
+   "weight": "must",
+   "note": "18 Grade I and 28 Grade II* listed buildings, 29 scheduled monuments, 1 registered park and garden, 1 registered battlefield",
+   "source": {
+    "document": "EN010162-000382-GNR_6.1A_ES_Volume 1_Cover and Contents (Clean).pdf",
+    "page": 28,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Sherwood Forest potential SPA",
+   "kind": "potential SPA",
+   "topic": "biodiversity",
+   "relation": "not_stated",
+   "distance_km": null,
+   "direction": null,
+   "weight": "should",
+   "note": "considered in the habitats assessment; no distance in the letter",
+   "source": {
+    "document": "EN010162-001340-Great North Road Solar and Biodiversity Park - SoS Decision letter - 27 October 2026.pdf",
+    "page": 17,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Humber Estuary SAC and Ramsar site",
+   "kind": "SAC / Ramsar",
+   "topic": "biodiversity",
+   "relation": "not_stated",
+   "distance_km": null,
+   "direction": null,
+   "weight": "should",
+   "note": "taken to appropriate assessment; no distance in the letter",
+   "source": {
+    "document": "EN010162-001340-Great North Road Solar and Biodiversity Park - SoS Decision letter - 27 October 2026.pdf",
+    "page": 17,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "The Beck",
+   "kind": "watercourse",
+   "topic": "water",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": "west",
+   "weight": "must",
+   "note": "joins the River Trent about 700 m east of the study area",
+   "source": {
+    "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+    "page": 56,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Overhead electricity lines",
+   "kind": "overhead line",
+   "topic": "material assets",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+    "page": 129,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Eakring and Maplebeck Meadows SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "listed as bordering the Order Limits",
+   "source": {
+    "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+    "page": 38,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "River Trent",
+   "kind": "main river",
+   "topic": "water",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": "south-east",
+   "weight": "must",
+   "note": "borders the study area at its nearest point",
+   "source": {
+    "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+    "page": 56,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "East Coast Main Line",
+   "kind": "railway",
+   "topic": "material assets",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+    "page": 129,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Laxton Sykes SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 0.3,
+   "direction": "north-west",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+    "page": 38,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Redgate Woods and Mansey Common SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 0.5,
+   "direction": "west",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+    "page": 38,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Roe Wood SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 1.0,
+   "direction": "south-west",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+    "page": 38,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Besthorpe Meadows SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 2.4,
+   "direction": "east",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+    "page": 38,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Wellow Park SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 3.7,
+   "direction": "north",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+    "page": 38,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Besthorpe Warren SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 3.7,
+   "direction": "east",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+    "page": 38,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Kirton Wood SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 3.8,
+   "direction": "north-north-west",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+    "page": 38,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Birklands and Bilhaugh SAC",
+   "kind": "SAC",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 7.0,
+   "direction": "north-west",
+   "weight": "should",
+   "note": "also considered in the habitats assessment (decision letter)",
+   "source": {
+    "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+    "page": 38,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Aerodromes: Knapthorne Lodge, Rectory Farm, Grassthorpe Grange, Darlton, RAF Syerston",
+   "kind": "aerodromes",
+   "topic": "material assets",
+   "relation": "within",
+   "distance_km": 30.0,
+   "direction": null,
+   "weight": "should",
+   "note": "those needing detailed assessment",
+   "source": {
+    "document": "EN010162-000008-GNR EIA Scoping Report 20231108-2.pdf",
+    "page": 119,
+    "checked_against_text": true
+   }
+  }
+ ]
+}

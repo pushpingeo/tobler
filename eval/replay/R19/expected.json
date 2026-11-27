@@ -1,0 +1,138 @@
+{
+ "id": "R19",
+ "name": "Learielaw BESS, near Broxburn",
+ "set": "development",
+ "decision": "consented",
+ "decision_date": null,
+ "geometry": "georef.zip",
+ "made": "2026-11-27",
+ "how": "Facts copied from the documents in this folder. Each was matched by script to the words on the page cited. 'must' = on the site, next to it, or within 5 km; 'should' = further out or position not stated; 'none_expected' = the document says there are none within distance_km.",
+ "distance_basis": "As stated in the document: usually from the site boundary, sometimes from the nearest turbine (see note).",
+ "notes": [
+  "A small site (your polygon is 7 ha), so on-site and near-site facts are the whole story.",
+  "Union Canal: about 280 m in the determination letter, about 300 m in the supporting document.",
+  "The letter's directions read oddly ('1 km south of Broxburn', '7 km southwest of Edinburgh Airport'); they describe where the site is, so Broxburn is to the north and the airport to the north-east."
+ ],
+ "expected": [
+  {
+   "feature": "Class 2 prime agricultural land",
+   "kind": "agricultural land class",
+   "topic": "land use",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Determination Letter - Final - Learielaw Energy Storage.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Major hazard pipeline consultation zone",
+   "kind": "safeguarding zone",
+   "topic": "material assets",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "a gas pipeline; HSE raised no objection",
+   "source": {
+    "document": "Determination Letter - Final - Learielaw Energy Storage.pdf",
+    "page": 4,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "M8 motorway",
+   "kind": "trunk road",
+   "topic": "material assets",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": "south",
+   "weight": "must",
+   "note": "the site is immediately north of the M8",
+   "source": {
+    "document": "J.Learielaw - Supporting Document.pdf",
+    "page": 8,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Nearest houses, Drumshoreland Station",
+   "kind": "homes",
+   "topic": "community",
+   "relation": "distance",
+   "distance_km": 0.18,
+   "direction": "south",
+   "weight": "must",
+   "note": "on the far side of the motorway",
+   "source": {
+    "document": "Determination Letter - Final - Learielaw Energy Storage.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Edinburgh to Bathgate and Glasgow railway",
+   "kind": "railway",
+   "topic": "material assets",
+   "relation": "within",
+   "distance_km": 0.2,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "J.Learielaw - Supporting Document.pdf",
+    "page": 8,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Union Canal",
+   "kind": "scheduled monument",
+   "topic": "heritage",
+   "relation": "distance",
+   "distance_km": 0.28,
+   "direction": "north",
+   "weight": "must",
+   "note": "scheduled monument (supporting document, p8)",
+   "source": {
+    "document": "Determination Letter - Final - Learielaw Energy Storage.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Broxburn",
+   "kind": "settlement",
+   "topic": "community",
+   "relation": "distance",
+   "distance_km": 1.0,
+   "direction": "north",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Determination Letter - Final - Learielaw Energy Storage.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Edinburgh Airport",
+   "kind": "airport",
+   "topic": "material assets",
+   "relation": "distance",
+   "distance_km": 7.0,
+   "direction": "north-east",
+   "weight": "should",
+   "note": "under its flight path (supporting document)",
+   "source": {
+    "document": "Determination Letter - Final - Learielaw Energy Storage.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  }
+ ]
+}

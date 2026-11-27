@@ -1,0 +1,48 @@
+name: Replay gate
+# Screens each site in eval/replay/sites.json from its boundary and scores it against its expected.json
+# (plan, next step 1). Results are committed to eval/replay/runs/<label>/. Cost: roughly 10-30p a site.
+on:
+  workflow_dispatch:
+    inputs:
+      args:
+        description: "e.g. --label=gate-2026-11-27 (add --sites=R1,R5 for a few)"
+        required: true
+        default: "--label=gate-dev"
+  push:
+    branches: [main]
+    paths: [".github/replay-gate-request"]
+permissions:
+  contents: write
+concurrency: replay-gate
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci || npm install
+      - name: Run the gate
+        id: gate
+        timeout-minutes: 80
+        continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ATLAS_MCP_KEY: ${{ secrets.ATLAS_MCP_KEY }}
+          FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
+        # The manual arguments, or the last line of the request file.
+        run: |
+          if [ -n "${{ github.event.inputs.args }}" ]; then node scripts/replay-gate.mjs ${{ github.event.inputs.args }}; exit; fi
+          node scripts/replay-gate.mjs $(grep -v '^#' .github/replay-gate-request | grep -v '^\s*$' | tail -1)
+      - name: Commit results (even if the gate failed)
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A eval/replay/runs
+          git diff --cached --quiet || git commit -m "Replay gate results"
+          for i in 1 2 3 4 5; do git pull --rebase && git push && break; sleep 10; done
+      - name: Gate result
+        if: steps.gate.outcome == 'failure'
+        run: echo "The gate found a regression or a site didn't run; see eval/replay/runs/*/report.md" && exit 1

@@ -1,0 +1,227 @@
+{
+ "id": "R2",
+ "name": "Narachan Wind Farm, Kintyre",
+ "set": "development",
+ "decision": "refused",
+ "decision_date": "2024-03-08",
+ "geometry": "georef.zip",
+ "made": "2026-11-27",
+ "how": "Facts copied from the documents in this folder. Each was matched by script to the words on the page cited. 'must' = on the site, next to it, or within 5 km; 'should' = further out or position not stated; 'none_expected' = the document says there are none within distance_km.",
+ "distance_basis": "As stated in the document: usually from the site boundary, sometimes from the nearest turbine (see note).",
+ "notes": [
+  "Site area at scoping (2019): 1,129 ha for about 22 turbines. Your polygon: 1,327 ha. The application was later cut to 11 turbines, so check the polygon is the application boundary.",
+  "The roost loch of the Special Protection Area is inside the site: this is the main on-site designation."
+ ],
+ "expected": [
+  {
+   "feature": "Loch an Fhraoich",
+   "kind": "loch",
+   "topic": "water",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "EIR - Non Technical Summary.pdf",
+    "page": 9,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Kintyre Goose Roosts SPA (roost loch)",
+   "kind": "SPA",
+   "topic": "biodiversity",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "named as Kintyre Goose Roosts SPA in the determination (p6); draft turbines about 350 m from the loch at scoping",
+   "source": {
+    "document": "Narachan Wind Farm - Scoping Opinion - October 2019 - Final.pdf",
+    "page": 32,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Peat",
+   "kind": "peat",
+   "topic": "ground and soil",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "mostly under 2 m deep",
+   "source": {
+    "document": "EIR - Non Technical Summary.pdf",
+    "page": 29,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Loch Ulagadale",
+   "kind": "loch",
+   "topic": "water",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": "south-west",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "EIR - Non Technical Summary.pdf",
+    "page": 9,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Kintyre Way",
+   "kind": "long-distance route",
+   "topic": "community",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "EIR - Non Technical Summary.pdf",
+    "page": 35,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Tayinloan",
+   "kind": "settlement",
+   "topic": "community",
+   "relation": "distance",
+   "distance_km": 1.6,
+   "direction": "west",
+   "weight": "must",
+   "note": "the site is 1.6 km east of Tayinloan",
+   "source": {
+    "document": "Narachan Wind Farm - Scoping Opinion - October 2019 - Final.pdf",
+    "page": 12,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Narachan Burn Local Nature Conservation Site",
+   "kind": "local nature site",
+   "topic": "biodiversity",
+   "relation": "within",
+   "distance_km": 2.0,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "EIR - Non Technical Summary.pdf",
+    "page": 23,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Loch a' Chuirn Local Nature Conservation Site",
+   "kind": "local nature site",
+   "topic": "biodiversity",
+   "relation": "within",
+   "distance_km": 2.0,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "EIR - Non Technical Summary.pdf",
+    "page": 23,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Inner Hebrides and the Minches SAC",
+   "kind": "SAC",
+   "topic": "biodiversity",
+   "relation": "within",
+   "distance_km": 5.0,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "EIR - Non Technical Summary.pdf",
+    "page": 23,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Rhunahaorine Point SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "within",
+   "distance_km": 5.0,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "EIR - Non Technical Summary.pdf",
+    "page": 23,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "North Arran National Scenic Area",
+   "kind": "national scenic area",
+   "topic": "landscape",
+   "relation": "distance",
+   "distance_km": 8.0,
+   "direction": "east",
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Narachan Wind Farm proposal - DETERMINATION - 08 March 2024.pdf",
+    "page": 10,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "North Arran Wild Land Area 03",
+   "kind": "wild land area",
+   "topic": "landscape",
+   "relation": "not_stated",
+   "distance_km": null,
+   "direction": "east",
+   "weight": "should",
+   "note": "no distance given",
+   "source": {
+    "document": "Narachan Wind Farm proposal - DETERMINATION - 08 March 2024.pdf",
+    "page": 11,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Residential properties",
+   "kind": "homes",
+   "topic": "community",
+   "relation": "absent",
+   "distance_km": 3.0,
+   "direction": null,
+   "weight": "none_expected",
+   "note": "closest are over 3 km from the nearest turbine",
+   "source": {
+    "document": "EIR - Non Technical Summary.pdf",
+    "page": 25,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Core Paths and Rights of Way",
+   "kind": "paths",
+   "topic": "community",
+   "relation": "absent",
+   "distance_km": 0.0,
+   "direction": null,
+   "weight": "none_expected",
+   "note": "none within the site",
+   "source": {
+    "document": "EIR - Non Technical Summary.pdf",
+    "page": 35,
+    "checked_against_text": true
+   }
+  }
+ ]
+}

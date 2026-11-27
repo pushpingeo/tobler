@@ -1,0 +1,75 @@
+{
+ "about": "The replay gate's sites (plan, next step 1): development-set sites from Rob's replay set, each screened from its boundary (site.geojson) as the person's own file, and scored against expected.json by scripts/replay-score.mjs. Inputs are what the application said: asset, capacity, tip height. Battery storage has no asset type yet, so it runs as other with what's planned, as the page would.",
+ "sites": [
+  {
+   "id": "R1",
+   "name": "Lethen Wind Farm, Dava Moor",
+   "inputs": {
+    "asset_type": "wind-onshore",
+    "capacity_mw": 102,
+    "tip_height_m": 185
+   }
+  },
+  {
+   "id": "R2",
+   "name": "Narachan Wind Farm, Kintyre",
+   "inputs": {
+    "asset_type": "wind-onshore",
+    "capacity_mw": 72.6,
+    "tip_height_m": 180
+   }
+  },
+  {
+   "id": "R5",
+   "name": "Kirkton Energy Park, Strath Halladale",
+   "inputs": {
+    "asset_type": "wind-onshore",
+    "capacity_mw": 52.8,
+    "tip_height_m": 149.9
+   }
+  },
+  {
+   "id": "R6",
+   "name": "Scoop Hill Community Wind Farm, near Moffat",
+   "inputs": {
+    "asset_type": "wind-onshore",
+    "capacity_mw": 432,
+    "tip_height_m": 250
+   }
+  },
+  {
+   "id": "R11",
+   "name": "Whitelee Windfarm Repowering, Eaglesham Moor",
+   "inputs": {
+    "asset_type": "wind-onshore",
+    "tip_height_m": 250
+   }
+  },
+  {
+   "id": "R17",
+   "name": "Great North Road Solar and Biodiversity Park",
+   "inputs": {
+    "asset_type": "solar",
+    "capacity_mw": 800
+   }
+  },
+  {
+   "id": "R19",
+   "name": "Learielaw BESS, near Broxburn",
+   "inputs": {
+    "asset_type": "other",
+    "planned": "battery energy storage",
+    "capacity_mw": 100
+   }
+  },
+  {
+   "id": "R21",
+   "name": "Culham BESS",
+   "inputs": {
+    "asset_type": "other",
+    "planned": "battery energy storage",
+    "capacity_mw": 500
+   }
+  }
+ ]
+}

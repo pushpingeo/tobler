@@ -1,0 +1,608 @@
+{
+ "id": "R5",
+ "name": "Kirkton Energy Park, Strath Halladale",
+ "set": "development",
+ "decision": "refused",
+ "decision_date": "2026-01-23",
+ "geometry": "georef.zip",
+ "made": "2026-11-27",
+ "how": "Facts copied from the documents in this folder. Each was matched by script to the words on the page cited. 'must' = on the site, next to it, or within 5 km; 'should' = further out or position not stated; 'none_expected' = the document says there are none within distance_km.",
+ "distance_basis": "As stated in the document: from the site boundary or from the nearest turbine (see each note).",
+ "notes": [
+  "Replaces the earlier outcome built from online reading: the folder now holds the right documents, the Scottish Ministers' decision letter (with the Reporter's public inquiry report bound in) and Kirkton's own Non-Technical Summary (November 2022).",
+  "Polygon: 423 ha in four parts (main site plus the turning-area exclaves north of the A836). The inquiry report gives about 419 ha. It matches.",
+  "Pages are PDF pages, not the printed numbers.",
+  "Distances are as stated: some from the site boundary, some from the nearest turbine (see each note).",
+  "East Halladale Flows WLA: 1.29 km from the site in the decision letter, about 2 km from the nearest turbine in the summary.",
+  "The SAC: the summary says it and West Halladale SSSI reach slightly into the boundary; the decision letter says the site is adjacent. Kept as on the site.",
+  "Hindsight: the Flow Country was inscribed in July 2024 (p3; p22 says June), after the 2022 application. The application went in a couple of months before the candidate nomination.",
+  "The DPEA case reference is WIN-270-21. The letter gives no ECU number, so the portal reference in the site list (ECU00003226) is still unconfirmed."
+ ],
+ "expected": [
+  {
+   "feature": "The Flow Country World Heritage Site",
+   "kind": "world heritage site",
+   "topic": "heritage",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "partly within and adjacent to it",
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Caithness and Sutherland Peatlands SAC",
+   "kind": "SAC",
+   "topic": "biodiversity",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "extends slightly into the boundary for habitat works, no infrastructure in it; the decision letter calls the site adjacent (p2)",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 16,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "West Halladale SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "extends slightly into the boundary for habitat works, no infrastructure in it",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 16,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Blanket bog and heathland",
+   "kind": "peat habitat",
+   "topic": "ground and soil",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "turbines placed on peat under 1 m deep (NTS p19)",
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Sweeping Moorland and Flows LCT",
+   "kind": "landscape character type",
+   "topic": "landscape",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Coastal Crofts and Small Farms LCT",
+   "kind": "landscape character type",
+   "topic": "landscape",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "the eastern exclave, in western Melvich",
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Conifer plantation",
+   "kind": "woodland",
+   "topic": "land use",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "87.75 ha, to be felled and restored to bog; 3.58 ha of native woodland also to be cleared (NTS p8)",
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 21,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Hut circles and other non-designated heritage assets",
+   "kind": "non-designated heritage",
+   "topic": "heritage",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "three hut circles in the construction compound footprint; abandoned township of Kirkton near the access track; eight more assets within 1 km",
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 35,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Low Flying Area 14",
+   "kind": "military low flying area",
+   "topic": "material assets",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 29,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Caithness and Sutherland Peatlands SPA",
+   "kind": "SPA",
+   "topic": "biodiversity",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Kirkton to Upper Bighouse Core Path",
+   "kind": "core path",
+   "topic": "community",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": "east",
+   "weight": "must",
+   "note": "on the eastern edge of the site",
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 33,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "A836",
+   "kind": "A road",
+   "topic": "material assets",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": "north",
+   "weight": "must",
+   "note": "the exclaves lie north of it; also the North Coast 500 and National Cycle Route 1 (p33)",
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 21,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Halladale River",
+   "kind": "river",
+   "topic": "water",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": "east",
+   "weight": "must",
+   "note": "drains the whole site; SEPA status good; Strath Halladale lies immediately east (DL p26)",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 20,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Cemetery at the end of the minor road from Melvich",
+   "kind": "cemetery",
+   "topic": "community",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "beside the site access",
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 21,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "East Halladale Flows Wild Land Area",
+   "kind": "wild land area",
+   "topic": "landscape",
+   "relation": "distance",
+   "distance_km": 1.29,
+   "direction": "east",
+   "weight": "must",
+   "note": "Wild Land Area 39; about 2 km from the nearest turbine (NTS p15)",
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Melvich",
+   "kind": "settlement",
+   "topic": "community",
+   "relation": "distance",
+   "distance_km": 2.1,
+   "direction": "north",
+   "weight": "must",
+   "note": "nearest turbine about 3 km south of the village (p21); the eastern exclave is in western Melvich (p2)",
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "27 Upper Bighouse (nearest house)",
+   "kind": "homes",
+   "topic": "community",
+   "relation": "distance",
+   "distance_km": 1.0,
+   "direction": null,
+   "weight": "must",
+   "note": "from the nearest turbine; all 19 properties assessed are in Strath Halladale",
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 30,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Halladale Bridge hut circles (SM3304)",
+   "kind": "scheduled monument",
+   "topic": "heritage",
+   "relation": "distance",
+   "distance_km": 3.0,
+   "direction": "north-east",
+   "weight": "must",
+   "note": "from the nearest turbine; next to the A836; HES judged the setting effect significant, the Reporter did not",
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 35,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Private water supply at Kirkton Farm",
+   "kind": "private water supply",
+   "topic": "water",
+   "relation": "within",
+   "distance_km": 5.0,
+   "direction": null,
+   "weight": "must",
+   "note": "surface water, domestic, downstream of the site",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 20,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "CAR authorisations at Kirkton Cottage and on the Halladale River",
+   "kind": "water authorisations",
+   "topic": "water",
+   "relation": "within",
+   "distance_km": 1.0,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 20,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "A897",
+   "kind": "A road",
+   "topic": "material assets",
+   "relation": "not_stated",
+   "distance_km": null,
+   "direction": "east",
+   "weight": "should",
+   "note": "runs up Strath Halladale; the core path is closer to the site (DL p35)",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 12,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Melvich Wind Energy Hub (proposed)",
+   "kind": "wind farm",
+   "topic": "material assets",
+   "relation": "not_stated",
+   "distance_km": null,
+   "direction": null,
+   "weight": "should",
+   "note": "the neighbouring proposal; nearer than Kirkton in the view from Strathy Point",
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 29,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Strathy North, Strathy South and Strathy Wood wind farms",
+   "kind": "wind farm",
+   "topic": "material assets",
+   "relation": "not_stated",
+   "distance_km": null,
+   "direction": null,
+   "weight": "should",
+   "note": "seen behind or to the south of Kirkton in places",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 15,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Caithness Lochs SPA",
+   "kind": "SPA",
+   "topic": "biodiversity",
+   "relation": "not_stated",
+   "distance_km": null,
+   "direction": null,
+   "weight": "should",
+   "note": "site within greylag goose foraging range",
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Caithness and Sutherland Peatlands Ramsar site",
+   "kind": "Ramsar site",
+   "topic": "biodiversity",
+   "relation": "not_stated",
+   "distance_km": null,
+   "direction": null,
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 36,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "North Caithness Cliffs SPA",
+   "kind": "SPA",
+   "topic": "biodiversity",
+   "relation": "not_stated",
+   "distance_km": null,
+   "direction": null,
+   "weight": "should",
+   "note": "scoped into the bird assessment",
+   "source": {
+    "document": "8.2_Decision_Letter___Final___Kirkton_Energy_Park.pdf",
+    "page": 36,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Leathad Carnaich (SM1876)",
+   "kind": "scheduled monument",
+   "topic": "heritage",
+   "relation": "within",
+   "distance_km": 10.0,
+   "direction": null,
+   "weight": "should",
+   "note": "within 10 km of the turbines",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 21,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Millburn Barrows, Strath Halladale (SM13622)",
+   "kind": "scheduled monument",
+   "topic": "heritage",
+   "relation": "within",
+   "distance_km": 10.0,
+   "direction": null,
+   "weight": "should",
+   "note": "within 10 km of the turbines",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 21,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "The Borg (SM1839)",
+   "kind": "scheduled monument",
+   "topic": "heritage",
+   "relation": "within",
+   "distance_km": 10.0,
+   "direction": null,
+   "weight": "should",
+   "note": "within 10 km of the turbines",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 21,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Bighouse and associated buildings (LB7159)",
+   "kind": "listed building",
+   "topic": "heritage",
+   "relation": "within",
+   "distance_km": 10.0,
+   "direction": null,
+   "weight": "should",
+   "note": "within 10 km of the turbines",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 21,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Bighouse, Garden Pavilion and Walled Garden (LB7160)",
+   "kind": "listed building",
+   "topic": "heritage",
+   "relation": "within",
+   "distance_km": 10.0,
+   "direction": null,
+   "weight": "should",
+   "note": "within 10 km of the turbines",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 21,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Smigel Bridge (LB12915)",
+   "kind": "listed building",
+   "topic": "heritage",
+   "relation": "within",
+   "distance_km": 10.0,
+   "direction": null,
+   "weight": "should",
+   "note": "within 10 km of the turbines",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 21,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Smigel Mill (LB7141)",
+   "kind": "listed building",
+   "topic": "heritage",
+   "relation": "within",
+   "distance_km": 10.0,
+   "direction": null,
+   "weight": "should",
+   "note": "within 10 km of the turbines",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 21,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Farr Bay, Strathy and Portskerra SLA",
+   "kind": "special landscape area",
+   "topic": "landscape",
+   "relation": "within",
+   "distance_km": 40.0,
+   "direction": null,
+   "weight": "should",
+   "note": "within the 40 km study area; five other SLAs listed on the same page",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 14,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Kyle of Tongue National Scenic Area",
+   "kind": "national scenic area",
+   "topic": "landscape",
+   "relation": "within",
+   "distance_km": 40.0,
+   "direction": null,
+   "weight": "should",
+   "note": "within the 40 km study area",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 14,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Tongue House Garden and Designed Landscape",
+   "kind": "garden and designed landscape",
+   "topic": "heritage",
+   "relation": "within",
+   "distance_km": 40.0,
+   "direction": null,
+   "weight": "should",
+   "note": "within the 40 km study area",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 14,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Castle of Mey (Barrogill Castle) Garden and Designed Landscape",
+   "kind": "garden and designed landscape",
+   "topic": "heritage",
+   "relation": "within",
+   "distance_km": 40.0,
+   "direction": null,
+   "weight": "should",
+   "note": "within the 40 km study area",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 14,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Designated landscapes (NSA, SLA, GDL)",
+   "kind": "landscape designations",
+   "topic": "landscape",
+   "relation": "absent",
+   "distance_km": 0.0,
+   "direction": null,
+   "weight": "none_expected",
+   "note": "the site is in none",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 14,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Residential properties",
+   "kind": "homes",
+   "topic": "community",
+   "relation": "absent",
+   "distance_km": 1.0,
+   "direction": null,
+   "weight": "none_expected",
+   "note": "none within 1 km of the turbines; the nearest is about 1 km (DL p30)",
+   "source": {
+    "document": "Volume 1 - Non Technical Summary.pdf",
+    "page": 14,
+    "checked_against_text": true
+   }
+  }
+ ]
+}

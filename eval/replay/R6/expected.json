@@ -1,0 +1,243 @@
+{
+ "id": "R6",
+ "name": "Scoop Hill Community Wind Farm, near Moffat",
+ "set": "development",
+ "decision": "refused",
+ "decision_date": "2026-02-05",
+ "geometry": "georef.zip",
+ "made": "2026-11-27",
+ "how": "Facts copied from the documents in this folder. Each was matched by script to the words on the page cited. 'must' = on the site, next to it, or within 5 km; 'should' = further out or position not stated; 'none_expected' = the document says there are none within distance_km.",
+ "distance_basis": "As stated in the document: usually from the site boundary, sometimes from the nearest turbine (see note).",
+ "notes": [
+  "Site area in the non-technical summary: about 5,685 ha. Your polygon: 5,694 ha.",
+  "Dryfe Water SSSI: the scoping report says adjacent to the south-east boundary; the decision letter says within the southern part of the site. The decision letter is used.",
+  "The Eskdalemuir array matters here and has no distance in the letter: only a consultation zone and a 10 km exclusion radius are described."
+ ],
+ "expected": [
+  {
+   "feature": "Dryfe Water SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": "south",
+   "weight": "must",
+   "note": "upland mixed ash woodland",
+   "source": {
+    "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+    "page": 3,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Eskdalemuir Seismological Recording Station and Array (consultation zone)",
+   "kind": "safeguarding zone",
+   "topic": "material assets",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": "east",
+   "weight": "must",
+   "note": "the site lies west of the array, inside its consultation zone; no distance given",
+   "source": {
+    "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+    "page": 3,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Moffat Hills Regional Scenic Area",
+   "kind": "local landscape designation",
+   "topic": "landscape",
+   "relation": "distance",
+   "distance_km": 0.61,
+   "direction": "north-west",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+    "page": 3,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "River Tweed SSSI and SAC",
+   "kind": "SSSI / SAC",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 1.6,
+   "direction": "north",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Scoop Hill Scoping Report FINAL (A) - with figs.pdf",
+    "page": 12,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Residential properties",
+   "kind": "homes",
+   "topic": "community",
+   "relation": "within",
+   "distance_km": 2.0,
+   "direction": null,
+   "weight": "must",
+   "note": "20 within 2 km of the turbines",
+   "source": {
+    "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+    "page": 3,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Southern Upland Way",
+   "kind": "long-distance route",
+   "topic": "community",
+   "relation": "within",
+   "distance_km": 3.0,
+   "direction": "north",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+    "page": 3,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Lochwood SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 4.77,
+   "direction": "west",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Scoop Hill Scoping Report FINAL (A) - with figs.pdf",
+    "page": 12,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Perchhall Loch SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 5.69,
+   "direction": "south-west",
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Scoop Hill Scoping Report FINAL (A) - with figs.pdf",
+    "page": 12,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Raehills",
+   "kind": "garden and designed landscape",
+   "topic": "heritage",
+   "relation": "distance",
+   "distance_km": 5.82,
+   "direction": "west",
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Scoop Hill Scoping Report FINAL (A) - with figs.pdf",
+    "page": 12,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Moffat Hills SAC and SPA",
+   "kind": "SAC / SPA",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 6.15,
+   "direction": "north",
+   "weight": "should",
+   "note": "as written in the scoping report",
+   "source": {
+    "document": "Scoop Hill Scoping Report FINAL (A) - with figs.pdf",
+    "page": 12,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Moffat Conservation Area",
+   "kind": "conservation area",
+   "topic": "heritage",
+   "relation": "distance",
+   "distance_km": 6.99,
+   "direction": "north-west",
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Scoop Hill Scoping Report FINAL (A) - with figs.pdf",
+    "page": 12,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Talla-Hart Fell Wild Land Area",
+   "kind": "wild land area",
+   "topic": "landscape",
+   "relation": "distance",
+   "distance_km": 8.0,
+   "direction": "north",
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+    "page": 3,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Harestanes wind farm",
+   "kind": "wind farm",
+   "topic": "material assets",
+   "relation": "distance",
+   "distance_km": 11.3,
+   "direction": "west",
+   "weight": "should",
+   "note": "operational",
+   "source": {
+    "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+    "page": 3,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Clyde and Clyde 2 wind farms",
+   "kind": "wind farm",
+   "topic": "material assets",
+   "relation": "distance",
+   "distance_km": 16.0,
+   "direction": "north-north-west",
+   "weight": "should",
+   "note": "operational",
+   "source": {
+    "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+    "page": 3,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "National Scenic Areas and Regional Scenic Areas",
+   "kind": "landscape designations",
+   "topic": "landscape",
+   "relation": "absent",
+   "distance_km": 0.0,
+   "direction": null,
+   "weight": "none_expected",
+   "note": "the site is in neither",
+   "source": {
+    "document": "Decision Letter - Scoop Hill Community Wind Farm.pdf",
+    "page": 3,
+    "checked_against_text": true
+   }
+  }
+ ]
+}

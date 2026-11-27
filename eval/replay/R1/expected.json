@@ -1,0 +1,393 @@
+{
+ "id": "R1",
+ "name": "Lethen Wind Farm, Dava Moor",
+ "set": "development",
+ "decision": "refused",
+ "decision_date": "2024-02-23",
+ "geometry": "georef.zip",
+ "made": "2026-11-27",
+ "how": "Facts copied from the documents in this folder. Each was matched by script to the words on the page cited. 'must' = on the site, next to it, or within 5 km; 'should' = further out or position not stated; 'none_expected' = the document says there are none within distance_km.",
+ "distance_basis": "As stated in the document: usually from the site boundary, sometimes from the nearest turbine (see note).",
+ "notes": [
+  "Site area in the decision letter: about 1,458 ha. Your polygon: 1,464 ha.",
+  "Two distances are given for several features: from the site boundary and from the nearest turbine. Both are recorded where stated.",
+  "The scoping report (2021) puts the National Park about 1.1 km south at one point and about 3 km at another; the decision letter says just over 1 km."
+ ],
+ "expected": [
+  {
+   "feature": "Alltlaoigh Farmstead",
+   "kind": "scheduled monument",
+   "topic": "heritage",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Drynachan, Lochindorb and Dava Moors Special Landscape Area",
+   "kind": "local landscape designation",
+   "topic": "landscape",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "the site sits centrally within it",
+   "source": {
+    "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "B9007 road",
+   "kind": "road",
+   "topic": "material assets",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": "east",
+   "weight": "must",
+   "note": "bounds the site",
+   "source": {
+    "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Leonach Burn",
+   "kind": "watercourse",
+   "topic": "water",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": "west",
+   "weight": "must",
+   "note": "bounds the site",
+   "source": {
+    "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Tomlachlan Burn (headwaters)",
+   "kind": "watercourse",
+   "topic": "water",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+    "page": 32,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Deep peat, Class 1 and Class 2 peat",
+   "kind": "peat",
+   "topic": "ground and soil",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "EIAR_Non-Technical Summary.pdf",
+    "page": 17,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Cairngorms National Park",
+   "kind": "national park",
+   "topic": "landscape",
+   "relation": "distance",
+   "distance_km": 1.0,
+   "direction": "south",
+   "weight": "must",
+   "note": "just over 1 km from the site; 2.8 km from the nearest turbine",
+   "source": {
+    "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Tom na Clach Wind Farm",
+   "kind": "wind farm",
+   "topic": "material assets",
+   "relation": "distance",
+   "distance_km": 3.0,
+   "direction": "west",
+   "weight": "must",
+   "note": "operational",
+   "source": {
+    "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Carn nan Tri-tighearnan SAC and SSSI",
+   "kind": "SAC / SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 4.5,
+   "direction": "north-west",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+    "page": 27,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "River Spey SAC",
+   "kind": "SAC",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 4.6,
+   "direction": "south",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+    "page": 27,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Lochindorb Castle",
+   "kind": "scheduled monument",
+   "topic": "heritage",
+   "relation": "distance",
+   "distance_km": 5.0,
+   "direction": "east",
+   "weight": "must",
+   "note": "5 km from the boundary; 3.97 km from the nearest turbine (p11)",
+   "source": {
+    "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Moy Wind Farm",
+   "kind": "wind farm",
+   "topic": "material assets",
+   "relation": "distance",
+   "distance_km": 7.0,
+   "direction": null,
+   "weight": "should",
+   "note": "operational",
+   "source": {
+    "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Moidach More SAC and SSSI",
+   "kind": "SAC / SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 8.2,
+   "direction": null,
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+    "page": 27,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Castle Grant",
+   "kind": "garden and designed landscape",
+   "topic": "heritage",
+   "relation": "distance",
+   "distance_km": 11.0,
+   "direction": "south-east",
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+    "page": 13,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Anagach Woods SPA",
+   "kind": "SPA",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 11.3,
+   "direction": null,
+   "weight": "should",
+   "note": "capercaillie",
+   "source": {
+    "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+    "page": 19,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Kinveachy Forest SPA",
+   "kind": "SPA",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 11.5,
+   "direction": null,
+   "weight": "should",
+   "note": "capercaillie",
+   "source": {
+    "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+    "page": 19,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Craigmore Wood SPA",
+   "kind": "SPA",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 12.4,
+   "direction": null,
+   "weight": "should",
+   "note": "capercaillie",
+   "source": {
+    "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+    "page": 19,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Abernethy Forest SPA and SSSI",
+   "kind": "SPA / SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 13.0,
+   "direction": null,
+   "weight": "should",
+   "note": "capercaillie",
+   "source": {
+    "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+    "page": 19,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Farr Wind Farm",
+   "kind": "wind farm",
+   "topic": "material assets",
+   "relation": "distance",
+   "distance_km": 17.0,
+   "direction": null,
+   "weight": "should",
+   "note": "operational",
+   "source": {
+    "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Cairngorms SPA",
+   "kind": "SPA",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 19.3,
+   "direction": null,
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+    "page": 19,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Wild Land Area 20: Monadhliath",
+   "kind": "wild land area",
+   "topic": "landscape",
+   "relation": "distance",
+   "distance_km": 19.0,
+   "direction": null,
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+    "page": 13,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Wild Land Area 15: Cairngorms",
+   "kind": "wild land area",
+   "topic": "landscape",
+   "relation": "distance",
+   "distance_km": 20.0,
+   "direction": null,
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+    "page": 13,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Inverness Airport",
+   "kind": "airport",
+   "topic": "material assets",
+   "relation": "distance",
+   "distance_km": 20.0,
+   "direction": "north-west",
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "EIAR_Non-Technical Summary.pdf",
+    "page": 19,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Residential properties",
+   "kind": "homes",
+   "topic": "community",
+   "relation": "absent",
+   "distance_km": 2.0,
+   "direction": null,
+   "weight": "none_expected",
+   "note": "none within 2 km of the turbines; fourteen within 2 to 5 km (NTS)",
+   "source": {
+    "document": "Lethen Wind Farm - DECISION LETTER - 23 February 2024.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "World Heritage Sites, Inventory Battlefields, Conservation Areas",
+   "kind": "heritage designations",
+   "topic": "heritage",
+   "relation": "absent",
+   "distance_km": 10.0,
+   "direction": null,
+   "weight": "none_expected",
+   "note": null,
+   "source": {
+    "document": "Lethen Wind Farm_Scoping Report_21.01.21.pdf",
+    "page": 39,
+    "checked_against_text": true
+   }
+  }
+ ]
+}

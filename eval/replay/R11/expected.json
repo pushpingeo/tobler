@@ -1,0 +1,377 @@
+{
+ "id": "R11",
+ "name": "Whitelee Windfarm Repowering, Eaglesham Moor",
+ "set": "development",
+ "decision": "scoping only",
+ "decision_date": null,
+ "geometry": "georef.zip",
+ "made": "2026-11-27",
+ "how": "Facts copied from the documents in this folder. Each was matched by script to the words on the page cited. 'must' = on the site, next to it, or within 5 km; 'should' = further out or position not stated; 'none_expected' = the document says there are none within distance_km.",
+ "distance_basis": "As stated in the document: usually from the site boundary, sometimes from the nearest turbine (see note).",
+ "notes": [
+  "Your polygon is 8,080 ha; the site list says about 82 km².",
+  "The existing turbines are on today's maps. That is correct context for a repowering, not hindsight."
+ ],
+ "expected": [
+  {
+   "feature": "Dunwan Hill, fort (SM12882)",
+   "kind": "scheduled monument",
+   "topic": "heritage",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "nearest operational turbine about 280 m to its south-west",
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 93,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Lochgoin Monument (LB12509)",
+   "kind": "listed building, category B",
+   "topic": "heritage",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 93,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Lochgoin Reservoir",
+   "kind": "reservoir",
+   "topic": "water",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": "north-west",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 80,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Craigendunton Reservoir",
+   "kind": "reservoir",
+   "topic": "water",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": "north",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 55,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Glen Water",
+   "kind": "watercourse",
+   "topic": "water",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": "north",
+   "weight": "must",
+   "note": "joins the River Irvine about 2 km south of the site",
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 80,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Rotten Calder Water",
+   "kind": "watercourse",
+   "topic": "water",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": "north-east",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 81,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Core Paths",
+   "kind": "paths",
+   "topic": "community",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 42,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Dunwan Dam wind farm",
+   "kind": "wind farm",
+   "topic": "material assets",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "5 turbines, 200 m; status in the report's table",
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 40,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Strathaven airfield",
+   "kind": "airfield",
+   "topic": "material assets",
+   "relation": "distance",
+   "distance_km": 2.4,
+   "direction": "east",
+   "weight": "must",
+   "note": "from the eastern boundary",
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 117,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "East Ayrshire Local Landscape Area",
+   "kind": "local landscape designation",
+   "topic": "landscape",
+   "relation": "distance",
+   "distance_km": 3.5,
+   "direction": "south",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 42,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Muirkirk Uplands SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 3.5,
+   "direction": "south",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 56,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Brother and Little Lochs SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 3.5,
+   "direction": "north",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 57,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Blantyre Muir SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 5.2,
+   "direction": "north-east",
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 83,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Waukenwae Moss SAC and SSSI",
+   "kind": "SAC / SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 5.4,
+   "direction": "north-east",
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 83,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Cart and Kittoch Valleys SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 7.2,
+   "direction": null,
+   "weight": "should",
+   "note": "hydrologically connected to the site",
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 83,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Rouken Glen SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 8.0,
+   "direction": "north",
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 83,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Waulkmill Glen SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 8.4,
+   "direction": "north",
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 83,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Calder Glen SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 8.5,
+   "direction": null,
+   "weight": "should",
+   "note": "on the Rotten Calder, which rises on the site",
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 83,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Blood Moss and Slot Burn SSSI",
+   "kind": "SSSI",
+   "topic": "biodiversity",
+   "relation": "distance",
+   "distance_km": 9.9,
+   "direction": null,
+   "weight": "should",
+   "note": "listed with the SPA",
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 83,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Muirkirk and North Lowther Uplands SPA",
+   "kind": "SPA",
+   "topic": "biodiversity",
+   "relation": "within",
+   "distance_km": 10.0,
+   "direction": null,
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 68,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Glasgow Airport",
+   "kind": "airport",
+   "topic": "material assets",
+   "relation": "distance",
+   "distance_km": 19.0,
+   "direction": "north",
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 117,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "River Ayr Way",
+   "kind": "long-distance route",
+   "topic": "community",
+   "relation": "distance",
+   "distance_km": 20.0,
+   "direction": "south",
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 42,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Wild Land Area 04: Waterhead Moor – Muirshiel",
+   "kind": "wild land area",
+   "topic": "landscape",
+   "relation": "within",
+   "distance_km": 25.0,
+   "direction": null,
+   "weight": "should",
+   "note": null,
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 43,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "National Scenic Areas",
+   "kind": "national scenic area",
+   "topic": "landscape",
+   "relation": "absent",
+   "distance_km": 25.0,
+   "direction": null,
+   "weight": "none_expected",
+   "note": null,
+   "source": {
+    "document": "Whitelee Windfarm Repowering Scoping Report.pdf",
+    "page": 43,
+    "checked_against_text": true
+   }
+  }
+ ]
+}

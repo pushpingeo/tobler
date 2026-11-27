@@ -77,6 +77,10 @@ answer (which data a site gets, a count, a decision) is asked about first, not p
 ## Before pushing to main
 
 - `node scripts/stamp.mjs`, then `npm test` (which includes the invariants).
+- **The replay gate**, for any push that can change an answer (checks, the catalogue, skills, reach, the run, data
+  tools): push a change to `.github/replay-gate-request`, wait for the Action, and put the top of its
+  `report.md` in the push note. A regression is fixed or explained to Rob before the next push. Never open or tune
+  to `eval/replay/*/expected.json`: it's the answer sheet (`eval/replay/README.md`).
 - Run the browser checks the change touches (`scripts/browser-*.mjs`, with `python3 -m http.server 8000` running)
   and look at the phone screenshots.
 - Search for the commercial site-report product's name before any push touching checks, distances or skills. It

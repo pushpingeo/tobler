@@ -1,0 +1,197 @@
+{
+ "id": "R21",
+ "name": "Culham BESS",
+ "set": "development",
+ "decision": "allowed on appeal",
+ "decision_date": "2025-07-22",
+ "geometry": "georef.zip",
+ "made": "2026-11-27",
+ "how": "Facts copied from the documents in this folder. Each was matched by script to the words on the page cited. 'must' = on the site, next to it, or within 5 km; 'should' = further out or position not stated; 'none_expected' = the document says there are none within distance_km.",
+ "distance_basis": "As stated in the document: usually from the site boundary, sometimes from the nearest turbine (see note).",
+ "notes": [
+  "Site area: 26.8 ha in the Environmental Statement. Your polygon: 30 ha.",
+  "Almost everything that mattered here is on or next to the site, which makes it a good test of how a feature sits against the boundary."
+ ],
+ "expected": [
+  {
+   "feature": "Oxford Green Belt",
+   "kind": "green belt",
+   "topic": "land use",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Appeal Decision - 3358132.pdf",
+    "page": 1,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Nuneham Courtenay (Grade I)",
+   "kind": "registered park and garden",
+   "topic": "heritage",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": "north",
+   "weight": "must",
+   "note": "the park is about 470 ha",
+   "source": {
+    "document": "Appeal Decision - 3358132.pdf",
+    "page": 1,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "400 kV overhead line and pylons",
+   "kind": "overhead line",
+   "topic": "material assets",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "one large pylon and two lower ones inside the site",
+   "source": {
+    "document": "Appeal Decision - 3358132.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Best and most versatile farmland",
+   "kind": "agricultural land grade",
+   "topic": "land use",
+   "relation": "on_site",
+   "distance_km": null,
+   "direction": null,
+   "weight": "must",
+   "note": "5 ha taken",
+   "source": {
+    "document": "Appeal Decision - 3358132.pdf",
+    "page": 9,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Culham Science Centre",
+   "kind": "employment site",
+   "topic": "community",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": "south-east",
+   "weight": "must",
+   "note": "the site takes in a small part of it",
+   "source": {
+    "document": "Appeal Decision - 3358132.pdf",
+    "page": 1,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Nuneham Courtenay Conservation Area",
+   "kind": "conservation area",
+   "topic": "heritage",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": "north",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "CD1.1.8-ESVol1_Chp1_Introduction-and-EIA-Methodology.pdf",
+    "page": 7,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Railway line (in cutting)",
+   "kind": "railway",
+   "topic": "material assets",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": "west",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "Appeal Decision - 3358132.pdf",
+    "page": 1,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Thame Lane railway bridge (Grade II)",
+   "kind": "listed building",
+   "topic": "heritage",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": "west",
+   "weight": "must",
+   "note": "position given as west along Thame Lane; no distance",
+   "source": {
+    "document": "Appeal Decision - 3358132.pdf",
+    "page": 1,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Thame Lane, part of the Oxford Green Belt Way",
+   "kind": "public right of way",
+   "topic": "community",
+   "relation": "adjacent",
+   "distance_km": null,
+   "direction": "south",
+   "weight": "must",
+   "note": "runs between the site and the science centre",
+   "source": {
+    "document": "Appeal Decision - 3358132.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "River Thames",
+   "kind": "river",
+   "topic": "water",
+   "relation": "not_stated",
+   "distance_km": null,
+   "direction": "north",
+   "weight": "should",
+   "note": "beyond the woodland to the north; no distance",
+   "source": {
+    "document": "CD1.1.8-ESVol1_Chp1_Introduction-and-EIA-Methodology.pdf",
+    "page": 5,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Abingdon",
+   "kind": "settlement",
+   "topic": "community",
+   "relation": "distance",
+   "distance_km": 2.5,
+   "direction": "west",
+   "weight": "must",
+   "note": null,
+   "source": {
+    "document": "CD1.1.8-ESVol1_Chp1_Introduction-and-EIA-Methodology.pdf",
+    "page": 5,
+    "checked_against_text": true
+   }
+  },
+  {
+   "feature": "Didcot Power Station",
+   "kind": "power station",
+   "topic": "material assets",
+   "relation": "distance",
+   "distance_km": 5.0,
+   "direction": null,
+   "weight": "must",
+   "note": "source of the 400 kV line",
+   "source": {
+    "document": "Appeal Decision - 3358132.pdf",
+    "page": 2,
+    "checked_against_text": true
+   }
+  }
+ ]
+}

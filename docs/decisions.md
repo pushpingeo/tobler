@@ -2,6 +2,28 @@
 
 Judgement calls made while building, newest first. Bigger product decisions live in the plan doc (`tobler-workspace-plan.md` in the claude.ai project).
 
+## 27 Nov 2026: the replay gate (plan, next step 1)
+
+Built `scripts/replay-gate.mjs`, `scripts/replay-score.mjs` and `eval/replay/` with Rob's go on where the data
+lives (here, development sites only), which sites (R1, R2, R5, R6, R11, R17, R19, R21) and pushing. Judgement calls:
+
+- **The gate screens the boundary directly, not through a chat.** Each `site.geojson` becomes a place made from a
+  file and goes to `host.screening.screen`, the sealed screen the page runs. Place-finding has its own evaluation;
+  mixing it in would make a miss hard to place. The alternative was a `try-requests` line per site.
+- **Scoring is in code, by kind.** Each expected kind maps to the check that should find it (`KIND_CHECKS`); a
+  feature counts only from that check's own datasets, matched on its distinctive name words (designation words and
+  record numbers left out; road numbers exact). Classes (homes, peat, farmland grade, railways, wind farms) match
+  by any feature or class the check returns. No model judges a match.
+- **Gaps aren't misses.** Not checked, check not run and no check are reported apart and left out of recall, so an
+  honest "not checked" never scores as a pass or a fail.
+- **Position tolerance:** documents often measure from the nearest turbine, so closer than stated is in place;
+  further by more than 30% (at least 500 m) is "found elsewhere", still surfaced.
+- **Pass or fail is against the last complete run**, not a fixed threshold, until Rob sets one from the baseline.
+- **Battery storage runs as `other`** (no asset type for it yet), as the page would.
+- Already visible offline: Kirkton's peat check is off by default (its source is non-commercial), and the
+  watercourses check doesn't run for onshore wind, so Halladale River scores "check not run".
+- R5's outcome was redone from the real decision letter and Kirkton's own summary: 39 facts, all matched to the page.
+
 ## 26 Nov 2026 (night, last): fixes from Rob's Heswall log (Brimstage Road, screened as a mine)
 
 Rob's log (asktobler.com, 21:34–21:40) turned up seven faults, three of them from this week's changes. Fixed:
