@@ -1,6 +1,6 @@
 ---
 name: cartography
-version: 0.4-draft
+version: 0.5-draft
 description: How to make a printed map from a site screen that a consultant can hand on: the sheet, the projection, the furniture every map must carry, what goes in the legend, how the extent and scale are chosen, and how the map says what it is and isn't. Use whenever a map leaves the screen as a page (a report page, a map series sheet, an image for a document).
 ---
 
@@ -21,24 +21,34 @@ template makes by the rules written here; a person can override them.
 - Leave white space outside the map frame for the coordinate labels.
 
 ## 2. Projection (always)
-- Printed maps are drawn in a projected CRS, never Web Mercator. The default is **WGS 84 / UTM** for the zone holding
-  the site's centre (EPSG 326zz north, 327zz south), from the EPSG registry, never typed in from memory.
-  Norway and Svalbard's zone exceptions apply; a site across a zone line takes the zone holding most of its area.
-- WGS 84 to WGS 84 / UTM is a conversion on one datum: no transformation, nothing to choose, nothing lost. Data held
-  in other datums reaches the map only through the coordinate-reference skill's pipeline.
-- A national grid may replace UTM where a reporting profile asks for it (British National Grid for a UK planning
-  report). That needs a transformation chosen by the coordinate-reference skill, and the map says which.
-- The basemap is drawn in Web Mercator and warped into the map's CRS. Its labels turn by the grid convergence (a
-  degree or two); vector layers are drawn directly in the map's CRS.
+- **One presentation CRS per run**, chosen once in code from where the site is, recorded in the run record with the
+  operation that gets there, and used by every output: report maps, map series, coordinates in tables, the data
+  pack's map files. No output picks its own. A run shown in UTM never shows British National Grid anywhere, and the
+  reverse.
+- **The country's standard grid where it has one, UTM elsewhere.** The table of national grids is data (country,
+  outline, EPSG code), not code: Great Britain, British National Grid (EPSG:27700); Northern Ireland, Irish
+  Transverse Mercator (EPSG:2157); the Netherlands, RD New (EPSG:28992); Australia, GDA2020 / MGA by zone. Anywhere
+  else: WGS 84 / UTM for the zone holding the site's centre (EPSG 326zz north, 327zz south), Norway's and Svalbard's
+  zone exceptions applied; a site across a zone line takes the zone holding most of its area. Membership is decided
+  on real outlines, never a box.
+- Codes come from the EPSG registry, never typed in from memory.
+- **Getting there:** to UTM from WGS 84 is a conversion on one datum, with nothing to choose. To a national grid on
+  another datum is a transformation, chosen by the coordinate-reference skill's pipeline for where the site is, and
+  the sheet names it with its accuracy (for example "OSGB36 to WGS 84 (6), EPSG:1314, about 2 m"). No map code holds
+  datum parameters.
+- The basemap is drawn in Web Mercator and warped into the presentation CRS. Its labels turn by the grid convergence
+  (a degree or two); vector layers are drawn directly in the presentation CRS.
 - These maps are never for navigation, and grid lines over a screening map suggest more accuracy than its sources
   have (Rob, 28 Nov). So: no grid lines, no graticule, no true-north correction.
 
 ## 3. Furniture every map carries (always)
 - **Title** from the place, the asset and the topic: "Culham BESS: heritage". A subtitle with what's planned, the
   site's area and the date screened.
-- **North arrow** (grid north), on the map face, in the top-left or top-right corner, whichever has less drawn
-  there (the site counts most); the right when they're equal. A plain arrow and N: no halo, circle or
-  convergence note.
+- **North arrow** (grid north), on the map face. A simple arrow split down its length, one half black and one white,
+  with a black outline (like the scale bar), so it reads on light and dark ground; an N above; no halo or circle;
+  no convergence note. **Placement:** try the corners in order, top left, top right, bottom left, bottom right, and
+  take the first quiet one: the site doesn't touch it and under 5% of it is drawn on. Top left comes first because it
+  balances the panel on the right. If none is quiet, take the least busy.
 - **Scale bar** in the panel, near the bottom, beside the coordinate statement; the scale as a ratio for the paper
   size printed ("1:25,000 at A3"). Always one of the standard round scales in section 5.
 - **Coordinate ticks** outside the map frame, in the map CRS's eastings and northings: ticks only, no lines across
