@@ -29,13 +29,24 @@ const sq = (w, s, e, n, props = {}) => ({ type: "Feature", properties: props, ge
 const site = sq(-1.235, 51.652, -1.229, 51.655, { role: "site" });
 const pc = await presentationCrs({ feature: site, ref, grids, epsg });
 const P = await projectorFor(pc, { grids, epsg });
+const OSM = (k) => `OpenStreetMap: ${k} (completeness varies; Tobler's copy, data as of 2026-11-24)`;
+const FLOOD = "Flood Map for Planning: Flood Zones 2 and 3, rivers and sea, England (Environment Agency)";
 const evid = (geometry, p) => ({ type: "Feature", properties: { role: "evidence", ...p }, geometry });
 const record = { type: "FeatureCollection", features: [site,
   evid({ type: "Point", coordinates: [-1.2, 51.66] }, { fid: "a", name: "Listed barn", theme: "heritage", dataset: "Listed buildings", publisher: "Historic England", licence: "OGL v3.0", checked_at: "2026-11-28T11:00:00Z", distance_km: 2.3 }),
-  evid(sq(-1.26, 51.645, -1.25, 51.65).geometry, { fid: "b", name: "Ancient wood", theme: "biodiversity", dataset: "Ancient woodland", publisher: "Natural England", distance_km: 1.2 })],
+  evid(sq(-1.26, 51.645, -1.25, 51.65).geometry, { fid: "b", name: "Ancient wood", theme: "biodiversity", dataset: "Ancient woodland", publisher: "Natural England", distance_km: 1.2 }),
+  // A fuller run, as a real one reads (Rob's Wirral run, 28 Nov): several features per source, long service titles.
+  evid(sq(-1.243, 51.656, -1.240, 51.658).geometry, { fid: "c", name: "A school", theme: "community-health", dataset: OSM("schools"), publisher: "OpenStreetMap contributors", licence: "ODbL 1.0", distance_km: 0.4 }),
+  evid(sq(-1.222, 51.649, -1.220, 51.650).geometry, { fid: "d", name: "Another school", theme: "community-health", dataset: OSM("schools"), publisher: "OpenStreetMap contributors", licence: "ODbL 1.0", distance_km: 0.6 }),
+  evid(sq(-1.250, 51.660, -1.228, 51.662).geometry, { fid: "e", name: FLOOD, theme: "water", dataset: FLOOD, publisher: "Environment Agency", licence: "Open Government Licence v3.0", checked_at: "2026-11-28T11:00:00Z", distance_km: 0.5 }),
+  evid(sq(-1.246, 51.6605, -1.232, 51.6615).geometry, { fid: "f", name: FLOOD, theme: "water", dataset: FLOOD, publisher: "Environment Agency", licence: "Open Government Licence v3.0", checked_at: "2026-11-28T11:00:00Z", distance_km: 0.55 }),
+  evid({ type: "LineString", coordinates: [[-1.27, 51.640], [-1.23, 51.648], [-1.19, 51.650]] }, { fid: "g", name: "A415", theme: "material-assets", dataset: OSM("main roads"), publisher: "OpenStreetMap contributors", licence: "ODbL 1.0", distance_km: 0.5 }),
+  evid({ type: "LineString", coordinates: [[-1.24, 51.67], [-1.22, 51.64]] }, { fid: "h", name: "Power line (132 kV)", theme: "material-assets", dataset: OSM("power lines"), publisher: "OpenStreetMap contributors", licence: "ODbL 1.0", distance_km: 0.3 }),
+  evid({ type: "Point", coordinates: [-1.221, 51.659] }, { fid: "i", name: "Substation", theme: "material-assets", dataset: OSM("substations"), publisher: "OpenStreetMap contributors", licence: "ODbL 1.0", distance_km: 0.7 })],
   tobler_run: { id: "run-browser", skill: { name: "ntr-screening", version: "0.9" }, finished_at: "2026-11-28T12:00:00Z",
     site: { name: "Culham", asset_label: "battery storage", area_km2: 0.2 }, presentation_crs: pc,
-    reach: { furthest_km: 5, ladder: [0.1, 0.25, 0.5, 1, 2, 5] }, flags: [], checked: [] } };
+    reach: { furthest_km: 5, ladder: [0.1, 0.25, 0.5, 1, 2, 5] }, flags: [], checked: [],
+    checks: [{ id: "flood-zones", topic: "water", label: "Flood zones (rivers and sea)", state: "found", source: { dataset: FLOOD, publisher: "Environment Agency" } }] } };
 const code = await encodeRun(record);
 
 // Synthetic basemap: a dot every 0.02° round the site.
@@ -111,8 +122,28 @@ for (const [label, viewport, touch] of [["desktop", { width: 1400, height: 900 }
   }
   check(errors.length === 0, `${label}: no page errors${errors.length ? ` (${errors.join("; ")})` : ""}`);
   await page.screenshot({ path: `${OUT}/sheet-${label}.png`, fullPage: false });
+  // The legend: one patch per thing, in plain words; the panel's last line sits on the bottom edge.
+  const panel = await page.evaluate(() => {
+    const svg = document.querySelector("#sheet svg"), texts = [...svg.querySelectorAll("text")];
+    const at = (re) => texts.find((t) => re.test(t.textContent));
+    const leg = +at(/^LEGEND$/).getAttribute("y"), loc = +at(/^LOCATION$/).getAttribute("y");
+    return { legend: texts.filter((t) => +t.getAttribute("y") > leg && +t.getAttribute("y") < loc && +t.getAttribute("x") > 330).map((t) => t.textContent),
+      lastY: Math.max(...texts.filter((t) => +t.getAttribute("x") >= 322).map((t) => +t.getAttribute("y"))), bottom: 297 - 12 };
+  });
+  const joined = panel.legend.join(" ");
+  check(new Set(panel.legend).size === panel.legend.length && /Schools/.test(joined) && /Flood zones \(rivers and sea\)/.test(joined) && !/completeness|Tobler's copy|Flood Map for Planning/.test(joined),
+    `${label}: the legend has one patch per thing, in plain words (${panel.legend.join(" | ")})`);
+  check(panel.bottom - panel.lastY > 3 && panel.bottom - panel.lastY < 5, `${label}: the panel's small print sits on the bottom edge (${(panel.bottom - panel.lastY).toFixed(1)} mm above the border)`);
   if (label === "desktop") {
-    await page.pdf({ path: `${OUT}/sheet.pdf`, format: "A3", landscape: true, printBackground: true }).catch(() => {});
+    // Printed three ways: as Chrome does it (paper from @page), forced A3, and on A4 portrait with margins, as a
+    // browser that ignores @page size would (Safari before 18.2). Each must be one page with the sheet on it.
+    await page.pdf({ path: `${OUT}/sheet-css.pdf`, preferCSSPageSize: true, printBackground: true });
+    await page.pdf({ path: `${OUT}/sheet.pdf`, format: "A3", landscape: true, printBackground: true });
+    await page.pdf({ path: `${OUT}/sheet-a4-portrait.pdf`, format: "A4", margin: { top: "10mm", bottom: "10mm", left: "10mm", right: "10mm" } });
+    for (const f of ["sheet-css.pdf", "sheet.pdf", "sheet-a4-portrait.pdf"]) {
+      const pdf = readFileSync(`${OUT}/${f}`), pages = (pdf.toString("latin1").match(/\/Type\s*\/Page\b/g) || []).length;
+      check(pages === 1 && pdf.length > 50000, `${label}: ${f} is one page with the sheet on it (${pages} page(s), ${Math.round(pdf.length / 1024)} KB)`);
+    }
   }
   await ctx.close();
 }

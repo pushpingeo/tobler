@@ -1,6 +1,6 @@
 ---
 name: cartography
-version: 0.6-draft
+version: 0.7-draft
 description: How to make a printed map from a site screen that a consultant can hand on: the sheet, the projection, the furniture every map must carry, what goes in the legend, how the extent and scale are chosen, and how the map says what it is and isn't. Use whenever a map leaves the screen as a page (a report page, a map series sheet, an image for a document).
 ---
 
@@ -22,6 +22,9 @@ template makes by the rules written here; a person can override them.
 - Each sheet stands alone. No "map 3 of 8" in the title; the run id and date are in the panel's small print, with
   the product's address (asktobler.com) there too, discreetly. No product logo on the sheet.
 - Leave white space outside the map frame for the coordinate labels.
+- The panel reads from both ends (Rob, 28 Nov): title, legend, locator and sources from the top; the scale, the
+  coordinate statement, the disclaimer and the small print sit on the bottom edge, whatever is above them. Spare
+  room falls between the two, never under the small print.
 
 ## 2. Projection (always)
 - **One presentation CRS per run**, chosen once in code from where the site is, recorded in the run record with the
@@ -60,7 +63,8 @@ template makes by the rules written here; a person can override them.
   labels carry the units ("mE", "mN").
 - **Coordinate statement:** the CRS by name and EPSG code, and the tick interval.
 - **Locator:** a small map placing the site in its country, filling the panel's width.
-- **Sources:** each layer drawn, with publisher, licence and the date it was queried. A licence that isn't stated is
+- **Sources:** each layer drawn, with publisher, licence and the date it was queried, one line per publisher and
+  licence; a caveat every layer in the line shares is printed once. A licence that isn't stated is
   printed as "licence not stated". The basemap's attribution, as its licence asks.
 - **Small print:** the run id, the skill and its version, the date printed, the paper size, asktobler.com.
 - **Disclaimer in the panel's small print**, beside the run details, exactly: "Made with Tobler from public web services,
@@ -70,8 +74,10 @@ template makes by the rules written here; a person can override them.
 ## 4. The legend (always)
 - Only what draws inside the frame. A layer with no feature in the map's extent gets no patch, even if it was
   checked. Whether something draws is tested on real shapes against the frame, not on boxes.
-- The site first, then the distance bands, then the topic's layers, then context layers, each named as the source
-  names it, in plain words.
+- The site first, then the distance bands, then the topic's layers, then context layers, each named in plain
+  words: the check's own name for the layer where a check read it ("Flood zones (rivers and sea)"), otherwise the
+  source's title without its publisher, caveats or dates. The source's full title is under Sources.
+- One patch per thing: layers that read the same (same name, colour and kind of mark) share a patch.
 - Colour never carries meaning alone: each patch has its name, and similar colours differ in pattern or outline.
 - What was checked and found nothing is said in the report, not the legend.
 

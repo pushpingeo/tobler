@@ -105,8 +105,8 @@ await test("legend: only what draws in the frame, site first, then bands, then l
 await test("licence not stated stays not stated on the sheet; the disclaimer is the skill's exact words", () => {
   const plan = S.planSheet(S.sheetInputs(record([heritage, wood])), PGB);
   const svg = S.sheetSvg(plan, { basemap: null });
-  assert.match(svg, /Ancient woodland, Natural England; licence not stated/);
-  assert.match(svg, /Listed buildings, Historic England; OGL v3\.0; queried 2026-11-28/);
+  assert.match(svg, /Natural England: Ancient woodland\. Licence not stated\./);
+  assert.match(svg, /Historic England: Listed buildings\. OGL v3\.0; queried 2026-11-28\./);
   assert.ok(svg.includes(S.SHEET_DISCLAIMER.slice(0, 40)));
   assert.match(svg, /Basemap not drawn/);
   assert.match(svg, /British National Grid|OSGB36/);
@@ -116,6 +116,39 @@ await test("licence not stated stays not stated on the sheet; the disclaimer is 
   assert.match(svg, /mN<\/text>/);
   assert.doesNotMatch(svg, /map \d of \d/i);
   assert.match(svg, /asktobler\.com/);
+});
+
+await test("the legend has one patch per thing, in plain words; sources are grouped by publisher (Rob, 28 Nov)", () => {
+  const osm = (k) => `OpenStreetMap: ${k} (completeness varies; Tobler's copy, data as of 2026-11-24)`;
+  const flood = "Flood Map for Planning: Flood Zones 2 and 3, rivers and sea, England (Environment Agency)";
+  assert.equal(S.plainName(osm("schools")), "Schools");
+  assert.equal(S.plainName(flood), "Flood Map for Planning: Flood Zones 2 and 3, rivers and sea, England");
+  assert.equal(S.plainName("(odd)"), "(odd)");
+  const lines = S.sourceLines([
+    { dataset: osm("schools"), publisher: "OpenStreetMap contributors", licence: "ODbL 1.0" },
+    { dataset: osm("main roads"), publisher: "OpenStreetMap contributors", licence: "ODbL 1.0" },
+    { dataset: flood, publisher: "Environment Agency", licence: "Open Government Licence v3.0", checked_at: "2026-11-28T11:00:00Z" },
+    { dataset: "Mine waste", publisher: "Environment Agency", licence: "unknown" }]);
+  assert.deepEqual(lines, [
+    "Environment Agency: Flood Map for Planning: Flood Zones 2 and 3, rivers and sea, England. Open Government Licence v3.0; queried 2026-11-28.",
+    "Environment Agency: Mine waste. Licence not stated.",
+    "OpenStreetMap contributors: schools; main roads (completeness varies; Tobler's copy, data as of 2026-11-24). ODbL 1.0."]);
+  // Two features of one source, and a check that names the layer: one patch, by the check's label.
+  const rec = record([heritage, { ...heritage, properties: { ...heritage.properties, fid: "h2" } }]);
+  rec.tobler_run.checks = [{ id: "listed", label: "Listed buildings and structures", source: { dataset: heritage.properties.dataset } }];
+  const plan = S.planSheet(S.sheetInputs(rec), PGB);
+  assert.deepEqual(plan.legend.filter((e) => e.kind !== "site" && e.kind !== "band").map((e) => e.label), ["Listed buildings and structures"]);
+});
+
+await test("the panel's bottom block sits on the bottom edge whatever is above it (Rob, 28 Nov)", () => {
+  for (const feats of [[heritage], [heritage, wood]]) {
+    const plan = S.planSheet(S.sheetInputs(record(feats)), PGB);
+    const svg = S.sheetSvg(plan, { basemap: null });
+    const X = plan.frame.x + plan.frame.w + 5, ys = [...svg.matchAll(/<text x="([\d.]+)" y="([\d.]+)"/g)].filter((m) => Math.abs(+m[1] - X) < 0.01).map((m) => +m[2]);
+    const gap = plan.frame.y + plan.frame.h - Math.max(...ys);
+    assert.ok(Math.abs(gap - 4) < 0.02, `last line ${gap.toFixed(2)} mm above the border`);
+    assert.match(svg, /SCALE AND COORDINATES/);
+  }
 });
 
 await test("north arrow: top left when quiet; moves on when the site or a feature fills it", () => {

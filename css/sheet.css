@@ -21,10 +21,13 @@ button:disabled { opacity: .5; cursor: default; }
 #sheet { margin: 14px auto 40px; padding: 0 12px; max-width: 1500px; }
 #sheet svg { display: block; width: 100%; height: auto; background: #fff; box-shadow: 0 1px 3px rgba(21,48,60,.15); }
 
+/* Printing. Chrome and Edge take the paper from @page, so the sheet is A3 landscape at full size. Safari (before 18.2)
+   ignores @page size and prints on whatever paper its dialog has: there the sheet is fitted to that page's width,
+   whole and in proportion, never a fixed 420 mm box that falls off the page (Rob's blank PDF, 28 Nov). */
 @page { size: A3 landscape; margin: 0; }
 @media print {
   .screen-only, #status { display: none !important; }
-  body { background: #fff; }
-  #sheet { margin: 0; padding: 0; max-width: none; }
-  #sheet svg { width: 420mm; height: 297mm; box-shadow: none; }
+  html, body { background: #fff; margin: 0; padding: 0; height: auto; }
+  #sheet { margin: 0; padding: 0; max-width: none; width: 100%; }
+  #sheet svg { width: 100%; height: auto; max-height: 100vh; box-shadow: none; break-inside: avoid; page-break-inside: avoid; }
 }

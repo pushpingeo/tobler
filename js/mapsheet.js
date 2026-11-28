@@ -191,10 +191,13 @@ export function planSheet(inputs, projector) {
   const legend = [{ kind: "site", label: inputs.site_label || "The site", colour: SITE_COLOUR }];
   const ringsDrawn = rings.filter((r) => r.draws);
   if (ringsDrawn.length) legend.push({ kind: "band", label: `Distance from the site: ${ringsDrawn.map((r) => lengthText(r.km * 1000)).join(", ")}`, colour: INK });
+  // One patch per thing: layers that read the same (the same plain name, colour and kind of mark) share a patch.
+  const names = inputs.names || {};
   const seen = new Map();
   for (const l of layers.filter((x) => x.draws)) {
-    const key = `${l.theme}|${l.dataset}`;
-    if (!seen.has(key)) seen.set(key, { kind: l.mm.polys.length ? "area" : l.mm.lines.length ? "line" : "point", label: l.dataset, topic: topicInfo(l.theme).label, colour: l.colour });
+    const label = names[l.dataset] || plainName(l.dataset), kind = l.mm.polys.length ? "area" : l.mm.lines.length ? "line" : "point";
+    const key = `${label.toLowerCase()}|${l.colour}|${kind}`;
+    if (!seen.has(key)) seen.set(key, { kind, label, topic: topicInfo(l.theme).label, colour: l.colour });
   }
   legend.push(...[...seen.values()].sort((a, b) => a.topic.localeCompare(b.topic) || a.label.localeCompare(b.label)));
 
@@ -229,6 +232,14 @@ export function planSheet(inputs, projector) {
   return { paper, frame, scale, ground, site: siteMm, rings, layers, legend, arrow, ticks, locator,
     scale_bar_m: scaleBarLength(scale), title: inputs.title || "", subtitle: inputs.subtitle || "", pc: inputs.pc || null,
     sources: [...src.values()].sort((a, b) => a.dataset.localeCompare(b.dataset)), small: inputs.small || [], wide_scale: WIDE_SCALES.includes(scale), notes: inputs.notes || [] };
+}
+// A layer's name in plain words for the legend when no check names it: the source's title without its publisher,
+// caveats or dates in brackets (those are under Sources) and without the "OpenStreetMap:" lead-in.
+export function plainName(dataset) {
+  let t = String(dataset || "").replace(/^OpenStreetMap:\s*/i, "");
+  while (/\s*\([^()]*\)\s*$/.test(t) && t.replace(/\s*\([^()]*\)\s*$/, "").trim()) t = t.replace(/\s*\([^()]*\)\s*$/, "");
+  t = t.trim();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : "Other features";
 }
 const range = (from, to, step) => { const out = []; for (let v = from; v <= to + 1e-6; v += step) out.push(v); return out; };
 
@@ -269,9 +280,9 @@ function northArrow(b) {
 function scaleBar(x, y, lengthM, scale) {
   const w = lengthM * 1000 / scale, seg = w / 4, h = 1.6;
   const parts = [0, 1, 2, 3].map((i) => `<rect x="${f2(x + i * seg)}" y="${f2(y)}" width="${f2(seg)}" height="${h}" fill="${i % 2 ? "#fff" : "#000"}"/>`).join("");
+  const lab = (dx, t, anchor) => `<text x="${f2(x + dx)}" y="${f2(y + h + 3.2)}" font-size="2.5" text-anchor="${anchor}" fill="${INK}">${esc(t)}</text>`;
   return `<g class="scale-bar">${parts}<rect x="${f2(x)}" y="${f2(y)}" width="${f2(w)}" height="${h}" fill="none" stroke="#000" stroke-width="0.3"/>`
-    + `<text x="${f2(x)}" y="${f2(y + h + 3)}" font-size="2.4" fill="${INK}">0</text>`
-    + `<text x="${f2(x + w)}" y="${f2(y + h + 3)}" font-size="2.4" text-anchor="end" fill="${INK}">${esc(lengthText(lengthM))}</text></g>`;
+    + lab(0, "0", "start") + lab(w / 2, lengthText(lengthM / 2), "middle") + lab(w, lengthText(lengthM), "middle") + `</g>`;
 }
 
 function legendPatch(e, x, y) {
@@ -327,63 +338,101 @@ export function sheetSvg(plan, { basemap = null } = {}) {
   });
   out.push(`<g class="ticks" stroke="${INK}" stroke-width="0.25">${T.join("")}</g>`);
 
-  // The panel, flush with the map: one outer border round both.
-  const px = F.x + F.w, pw = PANEL_MM, pad = 5, inner = pw - 2 * pad;
+  // The panel, flush with the map: one outer border round both. Laid out from both ends (Rob, 28 Nov): title, legend,
+  // locator and sources from the top; scale, coordinates, disclaimer and small print pinned to the bottom edge.
+  const px = F.x + F.w, pw = PANEL_MM, pad = 5, inner = pw - 2 * pad, X = px + pad, GREY = "#536a75";
   out.push(`<rect x="${F.x}" y="${F.y}" width="${f2(F.w + pw)}" height="${f2(F.h)}" fill="none" stroke="${INK}" stroke-width="0.4"/>`);
   out.push(`<line x1="${f2(px)}" y1="${F.y}" x2="${f2(px)}" y2="${f2(F.y + F.h)}" stroke="${INK}" stroke-width="0.4"/>`);
+  const heading = (t, yy) => `<text x="${f2(X)}" y="${f2(yy)}" font-size="2.3" font-weight="700" letter-spacing="0.14" fill="${GREY}">${esc(t.toUpperCase())}</text>`;
+  const rule = (yy, w = 0.25) => `<line x1="${f2(X)}" y1="${f2(yy)}" x2="${f2(X + inner)}" y2="${f2(yy)}" stroke="${INK}" stroke-width="${w}"/>`;
+
+  // The bottom block, measured first so it can sit on the bottom edge.
+  const B = { coord: 2.5, note: 2.3, small: 2.3, lead: 1.32 };
+  const coord = wrap(`${plan.pc ? presentationLine(plan.pc) : "Coordinate system not recorded."} Ticks every ${lengthText(plan.ticks.interval)}, in metres.`, inner, B.coord);
+  const notes = plan.notes.flatMap((n) => wrap(n, inner, B.note));
+  const disc = wrap(SHEET_DISCLAIMER, inner, B.small);
+  const small = plan.small.flatMap((s) => wrap(s, inner, B.small));
+  const bottomBlock = (top) => {
+    const o = []; let by = top;
+    o.push(heading("Scale and coordinates", by)); by += 4.8;
+    o.push(`<text x="${f2(X)}" y="${f2(by)}" font-size="3" font-weight="700" fill="${INK}">${esc(scaleText(plan.scale, paper))}</text>`); by += 3;
+    o.push(scaleBar(X, by, plan.scale_bar_m, plan.scale)); by += 8.8;
+    o.push(textBlock(X, by, coord, B.coord, { lead: B.lead })); by += coord.length * B.coord * B.lead;
+    if (notes.length) { by += 1.2; o.push(textBlock(X, by, notes, B.note, { weight: 600, lead: B.lead })); by += notes.length * B.note * B.lead; }
+    by += 0.6; o.push(rule(by)); by += 3.4;
+    o.push(textBlock(X, by, disc, B.small, { fill: "#4a5a62", lead: B.lead })); by += disc.length * B.small * B.lead;
+    o.push(textBlock(X, by, small, B.small, { fill: GREY, lead: B.lead })); by += (small.length - 1) * B.small * B.lead;
+    return { svg: o.join(""), last: by }; // last: the final line's baseline
+  };
+  // The last line's baseline sits 4 mm above the border (the title's cap height is about that far below the top).
+  const bottomTop = F.y + F.h - 4 - bottomBlock(0).last;
+
   let y = F.y + pad + 5;
   const title = wrap(plan.title, inner, 5.2);
-  out.push(textBlock(px + pad, y, title, 5.2, { weight: 700 })); y += title.length * 5.2 * 1.25 + 1;
+  out.push(textBlock(X, y, title, 5.2, { weight: 700, lead: 1.22 })); y += (title.length - 1) * 5.2 * 1.22 + 3;
   const sub = wrap(plan.subtitle, inner, 2.8);
-  out.push(textBlock(px + pad, y, sub, 2.8)); y += sub.length * 2.8 * 1.3 + 4;
+  if (sub.length) { y += 2.2; out.push(textBlock(X, y, sub, 2.8, { fill: GREY })); y += (sub.length - 1) * 2.8 * 1.3 + 2.6; }
+  out.push(rule(y, 0.4)); y += 6.2;
 
-  out.push(`<text x="${f2(px + pad)}" y="${f2(y)}" font-size="2.6" font-weight="700" fill="${INK}">Legend</text>`); y += 4;
+  out.push(heading("Legend", y)); y += 5;
   for (const e of plan.legend) {
-    const lines = wrap(e.topic ? `${e.label} (${e.topic})` : e.label, inner - 10, 2.5);
-    out.push(legendPatch(e, px + pad, y - 3)); out.push(textBlock(px + pad + 10, y, lines, 2.5));
-    y += Math.max(1, lines.length) * 2.5 * 1.3 + 1.6;
+    const lines = wrap(e.label, inner - 11, 2.6);
+    out.push(legendPatch(e, X, y - 3)); out.push(textBlock(X + 11, y, lines, 2.6));
+    y += Math.max(1, lines.length) * 2.6 * 1.3 + 2;
   }
-  y += 2;
+  y += 3;
 
-  // The locator, filling the panel's width (height capped).
+  // The locator, filling the panel's width (height capped by the room left above the sources and the bottom block).
   if (plan.locator) {
-    const L = plan.locator, b = L.bounds, boxH = Math.min(46, Math.max(20, F.y + F.h - y - 95));
+    const L = plan.locator, b = L.bounds, boxH = Math.min(46, Math.max(18, bottomTop - y - 34));
+    out.push(heading("Location", y)); y += 3;
     const k = Math.min(inner / (b.x1 - b.x0), boxH / (b.y1 - b.y0));
-    const lx = px + pad + (inner - (b.x1 - b.x0) * k) / 2, ly = y;
+    const lx = X + (inner - (b.x1 - b.x0) * k) / 2, ly = y;
     const t = ([e, n]) => [lx + (e - b.x0) * k, ly + (b.y1 - n) * k];
     const d = L.shape.polys.map((p) => p.map((r) => ringD(thin(r.map(t), 0.25))).join("")).join("");
-    out.push(`<g class="locator"><path d="${d}" fill="#eceee9" stroke="#8a9599" stroke-width="0.2" fill-rule="evenodd"/>`);
+    out.push(`<g class="locator"><path d="${d}" fill="#e3e6e1" stroke="#8a9599" stroke-width="0.2" fill-rule="evenodd"/>`);
     const [ax, ay] = t([L.frameGround.e0, L.frameGround.n1]), [bx, by] = t([L.frameGround.e1, L.frameGround.n0]);
-    const fw = Math.max(bx - ax, 1.2), fh = Math.max(by - ay, 1.2);
-    out.push(`<rect x="${f2(ax + (bx - ax - fw) / 2)}" y="${f2(ay + (by - ay - fh) / 2)}" width="${f2(fw)}" height="${f2(fh)}" fill="none" stroke="${SITE_COLOUR}" stroke-width="0.5"/></g>`);
-    y += (b.y1 - b.y0) * k + 5;
+    const fw = Math.max(bx - ax, 1.6), fh = Math.max(by - ay, 1.6);
+    out.push(`<rect x="${f2(ax + (bx - ax - fw) / 2)}" y="${f2(ay + (by - ay - fh) / 2)}" width="${f2(fw)}" height="${f2(fh)}" fill="${SITE_COLOUR}" fill-opacity="0.25" stroke="${SITE_COLOUR}" stroke-width="0.5"/></g>`);
+    y += (b.y1 - b.y0) * k + 7;
   }
 
-  // Sources, then (from the bottom up) small print, the disclaimer, the coordinate statement and the scale bar.
-  out.push(`<text x="${f2(px + pad)}" y="${f2(y)}" font-size="2.6" font-weight="700" fill="${INK}">Sources</text>`); y += 3.6;
-  const srcLines = [...plan.sources.map((s) => `${s.dataset}${s.publisher ? `, ${s.publisher}` : ""}; ${s.licence && !/^unknown$/i.test(s.licence) ? s.licence : "licence not stated"}${s.checked_at ? `; queried ${String(s.checked_at).slice(0, 10)}` : ""}.`),
+  // Sources: each layer drawn, then the basemap; cut short (and said so) where the bottom block begins.
+  out.push(heading("Sources", y)); y += 4.2;
+  const srcLines = [...sourceLines(plan.sources),
     basemap?.attribution ? `Basemap: ${basemap.attribution}` : "Basemap not drawn" + (basemap?.missing ? `: ${basemap.missing}` : ".")];
-  const bottomStart = F.y + F.h - pad - 62;
-  for (const s of srcLines) {
-    const lines = wrap(s, inner, 2.2);
-    if (y + lines.length * 2.2 * 1.3 > bottomStart) { out.push(textBlock(px + pad, y, ["… more in the report's sources."], 2.2)); y += 3; break; }
-    out.push(textBlock(px + pad, y, lines, 2.2)); y += lines.length * 2.2 * 1.3 + 0.8;
+  const S = 2.4, room = bottomTop - 4;
+  for (let i = 0; i < srcLines.length; i++) {
+    const lines = wrap(srcLines[i], inner, S), last = i === srcLines.length - 1;
+    // Keep a line's room for "more in the report" unless this is the last source.
+    if (y + (lines.length - 1) * S * 1.3 > room - (last ? 0 : S * 1.3 + 0.9)) { out.push(textBlock(X, y, [`… and ${srcLines.length - i} more, listed in the report's sources.`], S, { fill: GREY })); break; }
+    out.push(textBlock(X, y, lines, S)); y += lines.length * S * 1.3 + 0.9;
   }
 
-  let by = bottomStart + 4;
-  out.push(scaleBar(px + pad, by, plan.scale_bar_m, plan.scale)); by += 8.5;
-  out.push(`<text x="${f2(px + pad)}" y="${f2(by)}" font-size="2.8" font-weight="700" fill="${INK}">${esc(scaleText(plan.scale, paper))}</text>`); by += 4.2;
-  const coord = wrap(`${plan.pc ? presentationLine(plan.pc) : "Coordinate system not recorded."} Ticks every ${lengthText(plan.ticks.interval)}.`, inner, 2.3);
-  out.push(textBlock(px + pad, by, coord, 2.3)); by += coord.length * 2.3 * 1.3 + 2;
-  const notes = plan.notes.flatMap((n) => wrap(n, inner, 2.1));
-  if (notes.length) { out.push(textBlock(px + pad, by, notes, 2.1, { weight: 600 })); by += notes.length * 2.1 * 1.3 + 1.5; }
-  const disc = wrap(SHEET_DISCLAIMER, inner, 2.1);
-  out.push(textBlock(px + pad, by, disc, 2.1, { fill: "#4a5a62" })); by += disc.length * 2.1 * 1.3 + 1.5;
-  const small = plan.small.flatMap((s) => wrap(s, inner, 2.1));
-  out.push(textBlock(px + pad, by, small, 2.1, { fill: "#4a5a62" }));
+  out.push(bottomBlock(bottomTop).svg);
   out.push(`</svg>`);
   return out.join("");
 }
+// The sources as lines for the panel: one line per publisher, licence and date, naming each layer drawn from it. A
+// caveat in brackets that every layer in the line shares (OpenStreetMap's "completeness varies; Tobler's copy, data as
+// of …") is printed once; the publisher's name in brackets after a title is dropped, since the line leads with it.
+export function sourceLines(sources) {
+  const groups = new Map();
+  for (const s of sources) {
+    const m = String(s.dataset).match(/^(.*?)\s*\(([^()]*)\)\s*$/);
+    let base = m ? m[1] : String(s.dataset), tail = m ? m[2] : "";
+    if (tail && s.publisher && tail.toLowerCase() === s.publisher.toLowerCase()) tail = "";
+    if (s.publisher && /^OpenStreetMap/i.test(s.publisher)) base = base.replace(/^OpenStreetMap:\s*/i, "");
+    const licence = s.licence && !/^unknown$/i.test(s.licence) ? s.licence : "licence not stated";
+    const date = s.checked_at ? String(s.checked_at).slice(0, 10) : "";
+    const k = `${s.publisher}|${licence}|${date}|${tail}`;
+    if (!groups.has(k)) groups.set(k, { publisher: s.publisher || "Publisher not stated", licence, date, tail, names: [] });
+    groups.get(k).names.push(base);
+  }
+  return [...groups.values()].sort((a, b) => a.publisher.localeCompare(b.publisher) || a.names[0].localeCompare(b.names[0]))
+    .map((g) => `${g.publisher}: ${g.names.join("; ")}${g.tail ? ` (${g.tail})` : ""}. ${cap1(g.licence)}${g.date ? `; queried ${g.date}` : ""}.`);
+}
+const cap1 = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 // Drops points closer than tol mm to the last kept one (the locator only).
 function thin(r, tol) { const out = [r[0]]; for (const p of r.slice(1)) { const q = out.at(-1); if (Math.hypot(p[0] - q[0], p[1] - q[1]) >= tol) out.push(p); } return out.length > 3 ? out : r; }
 
@@ -407,15 +456,18 @@ export function sheetInputs(record, { kind = "around", topic = null, printed = n
   const place = s.name || "The site";
   const what = kind === "site" ? "on the site" : kind === "around" ? "around the site" : topicInfo(t).label.toLowerCase();
   const assetWord = s.asset_label && !s.asset_assumed ? ` ${s.asset_label}` : "";
+  // Legend names: a check's own label for the layers it read, so the legend says "Flood zones", not the service's title.
+  const names = {};
+  for (const c of r.checks || []) for (const src of [c.source, ...(c.sources || [])]) if (src?.dataset && c.label && !(src.dataset in names)) names[src.dataset] = c.label;
   const notes = [];
   if (kind === "topic" && !evidence.length) notes.push(`Nothing from this topic's checks is in this run's shared shapes.`);
   const skill = typeof r.skill === "string" ? r.skill : `${r.skill?.name || "ntr-screening"}${r.skill?.version ? ` ${r.skill.version}` : ""}`;
   return {
-    site, evidence, rings_km: rings, extent_km, pc: r.presentation_crs || null, locator,
+    site, evidence, rings_km: rings, extent_km, pc: r.presentation_crs || null, locator, names,
     title: `${place}${assetWord}: ${what}`,
     subtitle: [s.asset_label ? `${cap(s.asset_label)}${s.asset_assumed ? " (assumed)" : ""}` : null, s.area_km2 ? `${fmtArea(s.area_km2)}` : null, r.finished_at ? `screened ${String(r.finished_at).slice(0, 10)}` : null].filter(Boolean).join(" · "),
     notes,
-    small: [`Run ${r.id || "not recorded"} · skill ${skill} · cartography 0.6 · printed ${printed.slice(0, 10)} · A3 · asktobler.com`],
+    small: [`Run ${r.id || "not recorded"} · skill ${skill} · cartography 0.7 · printed ${printed.slice(0, 10)} · A3 · asktobler.com`],
   };
 }
 const fmtArea = (km2) => (km2 >= 1 ? `${km2.toLocaleString("en-GB", { maximumFractionDigits: 1 })} km²` : `${(km2 * 100).toLocaleString("en-GB", { maximumFractionDigits: 1 })} ha`);

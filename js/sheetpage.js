@@ -45,7 +45,7 @@ try {
   const bm = await drawBasemap({ maplibregl: window.maplibregl, style: BASEMAP, ground: plan.ground, frame: frameBox(plan.paper), inverse: projector.inverse });
   window.__sheet.warp = bm.error ? { error: bm.error } : { zoom: bm.plan.zoom, cssW: bm.plan.cssW, cssH: bm.plan.cssH, widthPx: bm.plan.widthPx, heightPx: bm.plan.heightPx };
   $("sheet").innerHTML = sheetSvg(plan, { basemap: bm.error ? { missing: bm.error } : { href: bm.href, attribution: ATTRIBUTION } });
-  status(bm.error ? `The basemap couldn't be drawn (${bm.error}); the sheet is shown without it.` : "Ready. Save as PDF prints it on A3 landscape.", !!bm.error);
+  status(bm.error ? `The basemap couldn't be drawn (${bm.error}); the sheet is shown without it.` : "Ready. Save as PDF prints it on A3 landscape; if the print box asks for a paper size, choose A3, landscape.", !!bm.error);
   $("print").disabled = false;
 } catch (e) {
   status(e.message || String(e), true);

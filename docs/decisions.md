@@ -2546,3 +2546,27 @@ A thinking session with Rob, from his review of EIA screening practice. Docs onl
 - **Tested:** `test/report.test.mjs` (a cut code; the button's address on asktobler.com and github.io);
   `scripts/browser-sheet.mjs` (the button opens the sheet; a cut link says so; desktop and phone); a code with junk
   after the end is refused in Chrome (Node's DecompressionStream lets it through, so it isn't a unit test).
+
+## 28 Nov 2026, late afternoon: the sheet after Rob's first look (panel, legend, sources, printing)
+
+- **Why:** Rob tried a sheet from a real run (Wirral, in Safari on macOS 12). Save as PDF gave a blank A4 page though
+  the sheet drew in the browser; the scale bar and the text under it floated above the bottom edge; the legend read
+  as several patches for one thing; and the sheet fell short of the mock-up he approved.
+- **What:** the panel is laid out from both ends: title (with a rule), legend, locator and sources from the top; scale,
+  coordinate statement, disclaimer and small print measured first and set on the bottom edge (last baseline 4 mm above
+  the border). Section headings as the mock-up's (small capitals, grey). The scale bar is labelled at 0, the middle
+  and the end. Legend names are the check's own label for a layer where a check read it, otherwise the source's title
+  without bracketed publisher, caveats or dates (`plainName`); layers that read the same share one patch. Sources are
+  one line per publisher, licence and date (`sourceLines`), with a shared caveat printed once, so four OpenStreetMap
+  layers are one line, not four. Printing: the sheet is fitted to the page's width (`width: 100%`, in proportion)
+  instead of a fixed 420 × 297 mm box; Chrome and Edge still take A3 landscape from `@page`. Cartography skill 0.7.
+- **Tested:** 17 unit tests (two new: legend and sources; the bottom block at 4 mm for a short and a longer panel).
+  `scripts/browser-sheet.mjs` with a fuller run (several features per source, long service titles): legend one patch
+  per thing, bottom block on the edge, desktop and phone; three prints in headless Chrome (paper from `@page`, forced
+  A3, A4 portrait with margins), each one page with the sheet on it. The check no longer swallows a failed print.
+- **Not tested:** Safari. The blank page wasn't reproduced (no Safari here; headless Chrome printed the old page fine),
+  so the print change is a likely fix, not a proven one. The real positron basemap still hasn't been seen from a chat.
+- **Judgement calls:** the legend uses Tobler's check label rather than the service's title (the title stays under
+  Sources). Safari before 18.2 ignores `@page size`, so there the person picks A3 landscape in the print box; the
+  status line says so. A sheet printed on other paper is fitted to it, so its "1:25,000 at A3" is then not true to
+  scale (the scale bar still is).
