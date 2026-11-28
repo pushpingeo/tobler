@@ -1,6 +1,6 @@
 ---
 name: cartography
-version: 0.5-draft
+version: 0.6-draft
 description: How to make a printed map from a site screen that a consultant can hand on: the sheet, the projection, the furniture every map must carry, what goes in the legend, how the extent and scale are chosen, and how the map says what it is and isn't. Use whenever a map leaves the screen as a page (a report page, a map series sheet, an image for a document).
 ---
 
@@ -15,7 +15,10 @@ template makes by the rules written here; a person can override them.
 ## 1. The sheet
 - Map series: A3 landscape, one map per sheet, maps only. The map frame and the information panel share one outer
   border: the panel's edge is the map's edge, with no gap.
-- Report maps: A4 portrait, inside the report's pages, with the same furniture in a smaller form.
+- Report maps: overview maps inside the report's A4 pages. They carry less (Rob, 28 Nov): no coordinate ticks or
+  labels; a north arrow by the same corner rule as the series; a simple scale bar (a round length, labelled once,
+  no ratio, since nobody measures from them) in whichever bottom corner is quieter and not taken by the arrow. The
+  page's caption names the bands; the report's back pages carry sources and the coordinate statement.
 - Each sheet stands alone. No "map 3 of 8" in the title; the run id and date are in the panel's small print, with
   the product's address (asktobler.com) there too, discreetly. No product logo on the sheet.
 - Leave white space outside the map frame for the coordinate labels.
@@ -41,7 +44,7 @@ template makes by the rules written here; a person can override them.
 - These maps are never for navigation, and grid lines over a screening map suggest more accuracy than its sources
   have (Rob, 28 Nov). So: no grid lines, no graticule, no true-north correction.
 
-## 3. Furniture every map carries (always)
+## 3. Furniture every map-series sheet carries (always)
 - **Title** from the place, the asset and the topic: "Culham BESS: heritage". A subtitle with what's planned, the
   site's area and the date screened.
 - **North arrow** (grid north), on the map face. A simple arrow split down its length, one half black and one white,
