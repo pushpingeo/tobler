@@ -1,0 +1,75 @@
+---
+name: cartography
+version: 0.1-draft
+description: How to make a printed map from a site screen that a consultant can hand on: the sheet, the projection, the furniture every map must carry, what goes in the legend, how the extent and scale are chosen, and how the map says what it is and isn't. Use whenever a map leaves the screen as a page (a report page, a map series sheet, an image for a document).
+---
+
+# Cartography for screening maps
+
+A screening map is read away from the tool that made it, often by someone who never saw the run. It has to say
+where it is, what it shows, how far, from what sources and on what terms, on its own. These rules are for that.
+
+The rules marked **always** are applied by the map template in code, not chosen per map. The rest are judgements the
+template makes by the rules written here; a person can override them.
+
+## 1. The sheet
+- Map series: A3 landscape, one map per sheet, maps only. The map frame and the information panel share one outer
+  border: the panel's edge is the map's edge, with no gap.
+- Report maps: A4 portrait, inside the report's pages, with the same furniture in a smaller form.
+- Each sheet stands alone. No "map 3 of 8" in the title; the run id and date are in the panel's small print.
+
+## 2. Projection (always)
+- Printed maps are drawn in a projected CRS, never Web Mercator. The default is **WGS 84 / UTM** for the zone holding
+  the site's centre (EPSG 326zz north, 327zz south), from the EPSG registry, never typed in from memory.
+  Norway and Svalbard's zone exceptions apply; a site across a zone line takes the zone holding most of its area.
+- WGS 84 to WGS 84 / UTM is a conversion on one datum: no transformation, nothing to choose, nothing lost. Data held
+  in other datums reaches the map only through the coordinate-reference skill's pipeline.
+- A national grid may replace UTM where a reporting profile asks for it (British National Grid for a UK planning
+  report). That needs a transformation chosen by the coordinate-reference skill, and the map says which.
+- The basemap is drawn in Web Mercator and warped into the map's CRS. Its labels turn by the grid convergence (a
+  degree or two); vector layers are drawn directly in the map's CRS.
+
+## 3. Furniture every map carries (always)
+- **Title** from the place, the asset and the topic: "Culham BESS: heritage". A subtitle with what's planned, the
+  site's area and the date screened.
+- **North arrow** pointing to grid north, with a line giving true north's angle from grid north at the site.
+- **Scale bar** in the panel, near the bottom, beside the coordinate statement; the scale as a ratio for the paper
+  size printed ("1:25,000 at A3").
+- **Grid** (the map CRS's eastings and northings, labelled in kilometres) and **graticule** (latitude and longitude,
+  labelled in degrees and minutes), both drawn faintly across the map.
+- **Coordinate statement:** the CRS by name and EPSG code, the grid and graticule intervals, and "stored in WGS 84".
+- **Locator:** a small map placing the site in its country.
+- **Sources:** each layer drawn, with publisher, licence and the date it was queried. A licence that isn't stated is
+  printed as "licence not stated". The basemap's attribution, as its licence asks.
+- **Small print:** the run id, the skill and its version, the date printed, the paper size.
+- **Disclaimer on the map face**, short and plain: made with Tobler from public web services named under Sources; a
+  screening map; boundaries as published and possibly generalised; not a survey, title plan or legal boundary; check
+  with the publisher before relying on any line. It says what the map is for without talking it down.
+
+## 4. The legend (always)
+- Only what draws inside the frame. A layer with no feature in the map's extent gets no patch, even if it was
+  checked. Whether something draws is tested on real shapes against the frame, not on boxes.
+- The site first, then the distance bands, then the topic's layers, then context layers, each named as the source
+  names it, in plain words.
+- Colour never carries meaning alone: each patch has its name, and similar colours differ in pattern or outline.
+- What was checked and found nothing is said in the report, not the legend.
+
+## 5. Extent and scale
+- Map 1 (on the site): the site fills most of the frame.
+- Map 2 (around the site): the site grown by the furthest finding's distance, up to the run's furthest reach.
+- Topic maps: the site grown by that topic's furthest finding, so every finding on the topic's list is on its map.
+- Then the next standard scale up: 1:2,500, 1:5,000, 1:10,000, 1:25,000, 1:50,000, 1:100,000, 1:250,000. The frame
+  is filled at that scale, so the map usually shows more than the minimum.
+
+## 6. Drawing
+- Red is the site's alone: a red line with a white casing, a faint fill.
+- Distance bands are true buffers of the site's outline (geodesic), drawn faint and dashed, labelled by distance.
+- Topic colours come from the shared topic palette (at most eight); context layers are drawn quieter than the
+  topic's own.
+- Labels for findings named in the report; others unlabelled unless the map is otherwise bare. Labels sit clear of
+  lines and other labels, with a halo.
+
+## 7. What a map never does
+- Show a feature the run didn't fetch without saying where it came from.
+- Hide that a check wasn't run: a topic map whose main check failed says so on the sheet.
+- Use a scale bar or grid that wasn't computed in the map's CRS.
