@@ -17,6 +17,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PAGES = [
   { page: "index.html", entry: "js/workspace.js", css: "css/workspace.css" },
   { page: "report.html", entry: "js/reportpage.js", css: "css/report.css" },
+  { page: "sheet.html", entry: "js/sheetpage.js", css: "css/sheet.css" },
 ];
 const FETCHED_DIRS = ["skills", "catalogue", "data/ref"];
 const FETCHED_EXT = /\.(json|md)$/;

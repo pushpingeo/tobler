@@ -2502,3 +2502,35 @@ A thinking session with Rob, from his review of EIA screening practice. Docs onl
 - **Not tested here:** the real registry (the workspace can't reach it): `presentation-check.yml` reads it for a
   place in each region and runs the control points, live too. Ireland's, the Netherlands' and Australia's real
   transformation records are seen only there.
+
+## 28 Nov 2026, afternoon: step 2b, map engine and basemap warp
+
+- **Map library first (Rob):** asked whether vector tiles could be reprojected instead of warped. MapLibre can't
+  (Web Mercator and globe; its custom projections, v6.15+, take only tiles already cut in that CRS, and OpenFreeMap is
+  Web Mercator only). OpenLayers can (vector tiles reprojected in the page, positron through `ol-mapbox-style`), and
+  Rob thinks it may be the better library, but only as a whole-app swap, not a second library for print. So 2b goes
+  ahead with the warp, and map library architecture goes to the next plan with public/private, logging and accounts
+  (project's `claude/enhancements.md`). The engine takes the basemap as an image, so swapping it later is contained.
+- **Rob's answers to 2b's questions:** synthetic vector tiles plus his browser for testing the warp (`geojson-vt` and
+  `vt-pbf` as dev dependencies only, never served); an unlinked test page first (`sheet.html`); 200 dpi, a 95 mm panel
+  and the page's own sans-serif.
+- **What:** `js/mapsheet.js` (no DOM): frame and next standard scale from the extent, ticks every first interval at
+  least 30 mm apart, in full metres with mE/mN at the corner, legend and sources from what draws in the frame (tested on
+  real outlines, so an L-shape round a corner doesn't count), the north arrow in the first quiet corner (16 × 16
+  samples, site untouched, under 5% drawn on), true buffers, topic colours, the panel, a locator, SVG out. Vertex by
+  vertex through `projectorFor` only. `js/basemapwarp.js`: MapLibre draws the style off screen at 2× pixel ratio (labels
+  print at about 8 pt), a 64 px control grid back through the projector's inverse to Web Mercator pixels, bilinear
+  warp in plain JS. `sheet.html` and `js/sheetpage.js`: `?kind=site|around|topic&topic=…#<share code>`.
+- **Tested:** 15 unit tests (`test/mapsheet.test.mjs`): the grid within 0.05 px of the exact projection for BNG and
+  UTM from 1:10,000 to 1:250,000; a synthetic picture's dots land within 0.35 px; canvas within 4,096 px at
+  1:250,000. `scripts/browser-sheet.mjs`: synthetic tiles drawn by the page's own MapLibre (SwiftShader) and warped into
+  BNG by EPSG:1314 (fake registry): 18 of 18 dots within 0.43 px of the projector's place (0.05 mm at 200 dpi), desktop
+  and phone; the A3 PDF prints on one page. **Not tested:** the real positron basemap (no tile access here; Rob's
+  browser), the real registry in the page, a real run's share link.
+- **Judgement calls:** beyond 1:250,000, 1:500,000 and 1:1,000,000, so every finding stays on its map (a 50 km reach is
+  about 100 km across; A3 at 1:250,000 shows about 75 km). Ticks on the left, bottom and top (the right edge is the
+  panel). Panel text wraps by an estimate (half the font size per letter). The locator is the country in the run's grid
+  (distorted far from the grid's centre, e.g. all of Australia in one MGA zone). Sheets are metric whatever the run's
+  units (grid metres). A layer's sources line takes the latest `checked_at` among its features.
+- **Found:** main's `index.html` and `report.html` stamps were stale for `js/presentation.js` (so `npm test` failed on
+  main); restamped here.

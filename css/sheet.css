@@ -1,0 +1,30 @@
+/* A map sheet (sheet.html, plan step 2b): one A3 landscape sheet, drawn by js/mapsheet.js. On screen the sheet is scaled
+   to the window; printed or saved as PDF it's A3 landscape at full size. Not linked from the app until the map series. */
+@font-face { font-family: "Public Sans"; src: url(../fonts/public-sans-latin-wght-normal.woff2) format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Public Sans"; src: url(../fonts/public-sans-latin-ext-wght-normal.woff2) format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+
+:root { --ink: #15303c; --ink-2: #536a75; --paper: #e9eef0; --rule: #d6dfe0; --sea: #2b6a80; --alert: #b8321f;
+  --font: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif; color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 15px/1.5 var(--font); color: var(--ink); background: var(--paper); }
+.bar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--rule); }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--ink); text-decoration: none; }
+.brand img { width: 26px; height: 26px; }
+.bar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+select, button { font: inherit; font-size: 14px; padding: 7px 12px; border-radius: 10px; border: 1px solid var(--rule); background: #fff; color: var(--ink); }
+button { cursor: pointer; }
+button.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+button:disabled { opacity: .5; cursor: default; }
+#status { margin: 10px 16px 0; color: var(--ink-2); font-size: 14px; }
+#status.error { color: var(--alert); }
+#sheet { margin: 14px auto 40px; padding: 0 12px; max-width: 1500px; }
+#sheet svg { display: block; width: 100%; height: auto; background: #fff; box-shadow: 0 1px 3px rgba(21,48,60,.15); }
+
+@page { size: A3 landscape; margin: 0; }
+@media print {
+  .screen-only, #status { display: none !important; }
+  body { background: #fff; }
+  #sheet { margin: 0; padding: 0; max-width: none; }
+  #sheet svg { width: 420mm; height: 297mm; box-shadow: none; }
+}

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Map sheet · Tobler</title>
+<link rel="icon" href="img/tobler.svg" type="image/svg+xml">
+<link rel="preload" href="fonts/public-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="js/vendor/maplibre-gl.css">
+<link rel="stylesheet" href="css/sheet.css?v=6bb8c323">
+<script src="js/vendor/maplibre-gl.js"></script>
+<script type="importmap">
+{
+ "imports": {
+  "./js/atlasclient.js": "./js/atlasclient.js?v=6e6b994a",
+  "./js/basemapwarp.js": "./js/basemapwarp.js?v=d290e2a8",
+  "./js/config.js": "./js/config.js?v=33489ea2",
+  "./js/epsgtools.js": "./js/epsgtools.js?v=d240ec21",
+  "./js/findings.js": "./js/findings.js?v=7f3cce45",
+  "./js/mapsheet.js": "./js/mapsheet.js?v=05a5763f",
+  "./js/nearness.js": "./js/nearness.js?v=6807b2f9",
+  "./js/presentation.js": "./js/presentation.js?v=85db9ceb",
+  "./js/share.js": "./js/share.js?v=5a8bc932",
+  "./js/sheetpage.js": "./js/sheetpage.js?v=5b9fff5b",
+  "./js/siterole.js": "./js/siterole.js?v=f9df2b66",
+  "./js/transform.js": "./js/transform.js?v=007b7bff",
+  "./js/vendor/fileread.js": "./js/vendor/fileread.js?v=c6e0d988",
+  "./js/vendor/turf.js": "./js/vendor/turf.js?v=555787c6",
+  "@turf/turf": "./js/vendor/turf.js?v=555787c6",
+  "osmtogeojson": "./js/vendor/osmtogeojson.js?v=75ffea00"
+ }
+}
+</script>
+<script type="application/json" id="asset-versions">
+{
+ "skills/cartography/SKILL.md": "skills/cartography/SKILL.md?v=d918dff2",
+ "skills/contamination-desk-study/SKILL.md": "skills/contamination-desk-study/SKILL.md?v=bed4993b",
+ "skills/coordinate-reference/SKILL.md": "skills/coordinate-reference/SKILL.md?v=30f0b981",
+ "skills/coordinate-reference/datums.md": "skills/coordinate-reference/datums.md?v=d513687d",
+ "skills/coordinate-reference/operations.md": "skills/coordinate-reference/operations.md?v=c2d3f852",
+ "skills/developable-area/SKILL.md": "skills/developable-area/SKILL.md?v=b8026fef",
+ "skills/ntr-screening/SKILL.md": "skills/ntr-screening/SKILL.md?v=16250455",
+ "skills/ntr-screening/operations.md": "skills/ntr-screening/operations.md?v=224cb367",
+ "skills/place-finding/SKILL.md": "skills/place-finding/SKILL.md?v=4ad70e6b",
+ "skills/place-finding/operations.md": "skills/place-finding/operations.md?v=5603be0c",
+ "catalogue/anchors.json": "catalogue/anchors.json?v=4239096c",
+ "catalogue/assets.json": "catalogue/assets.json?v=e0ccf25a",
+ "catalogue/checks.json": "catalogue/checks.json?v=0560acf3",
+ "catalogue/grids.json": "catalogue/grids.json?v=232a38cb",
+ "catalogue/industries/energy.json": "catalogue/industries/energy.json?v=33cbc95c",
+ "catalogue/industries/index.json": "catalogue/industries/index.json?v=3e703a5e",
+ "catalogue/osm-snapshot.json": "catalogue/osm-snapshot.json?v=c4fa12b6",
+ "catalogue/sssi_irz_codes.json": "catalogue/sssi_irz_codes.json?v=1790ecf5",
+ "catalogue/trusted.json": "catalogue/trusted.json?v=ba1feee4",
+ "data/ref/coastline.json": "data/ref/coastline.json?v=e913d7a4",
+ "data/ref/countries.json": "data/ref/countries.json?v=bd02bffd",
+ "data/ref/lakes.json": "data/ref/lakes.json?v=819467cc",
+ "data/ref/places.json": "data/ref/places.json?v=d095bb9f",
+ "data/ref/rivers.json": "data/ref/rivers.json?v=a6c03938",
+ "data/ref/uk-areas.json": "data/ref/uk-areas.json?v=8ee95b73"
+}
+</script>
+</head>
+<body>
+<div class="bar screen-only">
+  <a class="brand" href="./"><img src="img/tobler.svg" alt=""> Tobler</a>
+  <span class="bar-actions">
+    <select id="kind" aria-label="Which sheet" hidden></select>
+    <button type="button" id="print" class="primary" disabled>Save as PDF</button>
+  </span>
+</div>
+<p id="status" aria-live="polite">Opening the sheet…</p>
+<div id="sheet"></div>
+<script type="module" src="js/sheetpage.js?v=5b9fff5b"></script>
+</body>
+</html>
