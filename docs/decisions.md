@@ -2429,3 +2429,27 @@ A thinking session with Rob, from his review of EIA screening practice. Docs onl
 ## 27 Nov, night: the map key's lists, wider and shorter (Rob)
 - The key widens to 340 px (phone: the screen less 24 px) while a theme's list is open; closed it stays 260 px (220 on a phone).
 - Feature rows in a list: "next to the site (touching its edge)" reads "touching the site"; the card's check lines keep the long form. A feature named only by its layer (unnamed flood areas) shows no name when the list already says "From <layer>", so the row reads "touching the site · 25 parts". Display only: nothing the model reads changed, so no gate run.
+
+## 28 Nov 2026 (morning): package D's search reaches (Rob)
+- **What:** asset extensions from package D's research (`claude/research-asset-reaches.md` §1.1), UK only, where they
+  reach further than a check's own default. Housing: SAC, SPA and Ramsar to 10 km, scheduled monuments, registered
+  parks and gardens and battlefields to 1 km, ancient woodland to 1 km, National Parks, National Landscapes and wild
+  land to 2.5 km (West of Ifield scoping; MOD PEAs). Warehouses: European sites to 10 km (East Midlands Gateway 2).
+  Data centres: those heritage checks to 2 km, the landscape checks to 3 km (SDC M40 scoping opinion). Battery
+  storage: the landscape checks to 3 km (two LVAs, thin evidence). Pipelines and cables: European sites 10 km, ancient
+  woodland and heritage 1 km (HyNet ES; used for cables and lines until a source for those is read).
+- **How:** a planned label (`general.planned`) may carry `extends`; its scale and footprint stay the general defaults,
+  so the asset tool's list, the reading of words and the gate's `other` runs don't change. An extension may name
+  `countries`, matched on the world outlines the site touches; none means everywhere (wind's, as before). Onshore only
+  for planned labels. The card's note says some reaches are extended, each with its source.
+- **Rob's calls, 28 Nov:** listed buildings stay at the check's reach for every asset, as for wind (fetch limit in
+  towns). The PEA's "any asset" figures (10 km European sites, 1 km ancient woodland) stay in asset rows; check
+  defaults are unchanged. Solar from Mallard Pass and Botley West only, leaving Great North Road out (R17 is in the
+  gate). Then found: Botley West is R16, held back, so it can't be a source either; Mallard Pass alone (850 ha) adds
+  nothing a regional-scale solar screen doesn't already have, and only a sub-5 MW array is local. **Solar has no rows
+  yet**; it needs a source that isn't in the replay set.
+- **Not done:** UK only (US, Australian and Dutch rows mostly have no check to extend yet). Overhead lines' 3 km LVIA
+  (the pipeline-cable row can't tell a line from a pipe). Local landscape designations aren't extended (as before).
+- **Approximations:** a pipeline's figures stand in for cables and overhead lines; a 171 ha housing scheme's study
+  areas stand in for small sites (a 1 km heritage search at 10 ha is generous, not short). Either can change which
+  features a run lists, never by cutting a reach.

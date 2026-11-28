@@ -2,10 +2,10 @@
   "about": "The asset table (package A, 26 Nov 2026; replaces catalogue/distances.json): what a kind of development is like, apart from who's asking (the profile). For each asset type: its names as people say them; the screening scale its size picks (local, regional or global: which of each check's reaches in catalogue/checks.json applies); the footprint radius used when the site is only a point; where it extends a check's reach, with the reason and the source; and the effects it sends out. A check owns its default reach; an asset row only extends it, never cuts it; the person's own distances override both. Protection distances (the developable area's buffers) are in protection below where a source gives one (package D, 27 Nov); elsewhere the skill's own first cuts stand. Nothing is fetched beyond 50 km. Read by js/reach.js; tested in test/reach.test.mjs.",
   "version": "1",
   "fields": {
-    "names": "how people say it, lower case; read from the person's words in code (js/assetwords.js, package E). general.planned lists what has no row (housing, a warehouse): read the same way, screened on the general defaults with its label. counts: words after a number that also name it (a 200-home scheme)",
+    "names": "how people say it, lower case; read from the person's words in code (js/assetwords.js, package E). general.planned lists what has no row (housing, a warehouse): read the same way, screened on the general defaults with its label. counts: words after a number that also name it (a 200-home scheme). A planned label may carry extends of its own (package D, 28 Nov): its scale and footprint stay the general defaults",
     "scale": "the screening scale for this asset in this setting, with why. by_size rules apply in order, each overriding what it names: below_mw, mw (at least), area_km2 (at least), below_km2. A rule's keeps names a scale whose checks the run also keeps, each check taking the further of its two reaches",
     "footprint_km": "the radius of the circle used when the site is only a point: the footprint's own width, which belongs to the place, not a search distance",
-    "extends": "checks (by id) or topics whose reach this asset extends, to to_km, or by_tip_height ([[up_to_m, km], …, [null, km]]) when the tip height is given. Each has why and source. Never shortens a check",
+    "extends": "checks (by id) or topics whose reach this asset extends, to to_km, or by_tip_height ([[up_to_m, km], …, [null, km]]) when the tip height is given. Each has why, source and, from package D (28 Nov), basis (reg, gov, prof, plan, case, as in protection). countries: where the extension applies, by the world outlines' names; none means everywhere. Never shortens a check",
     "effects": "how its effects travel (sight, flight, water, ground, road, sound), each with a source; nothing reads it yet (package E)",
     "pair": "the row to use instead when the place is in the other setting (wind farm words for a site at sea read as offshore wind)",
     "scale_source": "where the scale and footprint come from. Today these are Tobler's first-cut defaults carried over from distances.json (draft-1, 18 Nov), awaiting package D's research and Rob's review"
@@ -23,10 +23,26 @@
       ] },
     "global_from_km2": 100,
     "planned": [
-      { "label": "housing development", "names": ["housing", "housing development", "housing scheme", "residential development", "homes", "houses", "dwellings", "new homes"], "counts": ["home", "house", "dwelling", "unit", "plot"] },
-      { "label": "warehouse or logistics site", "names": ["warehouse", "distribution warehouse", "distribution centre", "distribution center", "logistics", "logistics park", "logistics hub"] },
-      { "label": "battery energy storage site", "names": ["battery storage", "battery energy storage", "bess", "battery energy storage system"] },
-      { "label": "data centre", "names": ["data centre", "data center", "data centres", "data centers"] },
+      { "label": "housing development", "names": ["housing", "housing development", "housing scheme", "residential development", "homes", "houses", "dwellings", "new homes"], "counts": ["home", "house", "dwelling", "unit", "plot"],
+        "extends": [
+          {"checks": ["bio.sac", "bio.spa", "bio.ramsar"], "to_km": 10, "countries": ["United Kingdom"], "why": "European sites (SAC, SPA, Ramsar): housing scoping searches 10 km, further only for named sites", "source": "West of Ifield (Horsham; up to 3,000 homes, ~171 ha) EIA scoping report, Homes England, https://www.horsham.gov.uk/__data/assets/pdf_file/0003/129810/R-1620007949_3-WoI-HPA-Scoping-Report.pdf, §7.4.5", "basis": "case"},
+          {"checks": ["heritage.scheduled-monuments", "heritage.parks-gardens", "heritage.battlefields"], "to_km": 1, "countries": ["United Kingdom"], "why": "settings of designated heritage assets: housing scoping uses at least 1 km", "source": "West of Ifield (Horsham; up to 3,000 homes, ~171 ha) EIA scoping report, Homes England, https://www.horsham.gov.uk/__data/assets/pdf_file/0003/129810/R-1620007949_3-WoI-HPA-Scoping-Report.pdf, §9.3.5, p.80", "basis": "case", "not_extended": "Listed buildings stay at the check's own reach: towns have hundreds, and the layer's fetch limit would undercount them (Rob, 28 Nov, as for wind)."},
+          {"checks": ["bio.ancient-woodland"], "to_km": 1, "countries": ["United Kingdom"], "why": "ancient woodland and priority habitat: 1 km in preliminary ecological appraisal desk studies", "source": "MOD preliminary ecological appraisals on gov.uk (MOD015, 2026), https://assets.publishing.service.gov.uk/media/6ac73bdee8ef5609e7c9333d/Preliminary_ecological_appraisal.pdf; CIEEM PEA guidelines set the method, not one radius", "basis": "case"},
+          {"checks": ["landscape.national-parks", "landscape.national-landscapes", "landscape.wild-land"], "to_km": 2.5, "countries": ["United Kingdom"], "why": "landscape and visual: housing scoping's study area (cut from an initial 4 km)", "source": "West of Ifield (Horsham; up to 3,000 homes, ~171 ha) EIA scoping report, Homes England, https://www.horsham.gov.uk/__data/assets/pdf_file/0003/129810/R-1620007949_3-WoI-HPA-Scoping-Report.pdf, §10.3.8–9, p.88", "basis": "case"}
+        ] },
+      { "label": "warehouse or logistics site", "names": ["warehouse", "distribution warehouse", "distribution centre", "distribution center", "logistics", "logistics park", "logistics hub"],
+        "extends": [
+          {"checks": ["bio.sac", "bio.spa", "bio.ramsar"], "to_km": 10, "countries": ["United Kingdom"], "why": "European sites (SAC, SPA, Ramsar): logistics scoping searches 10 km", "source": "East Midlands Gateway Phase 2 (SEGRO; ~105 ha) EIA scoping report, §7.9, p.30, https://nsip-documents.planninginspectorate.gov.uk/published-documents/TR0510002-000235-MCO%206.1C%20Appendix%20C%20Applicants%20Scoping%20Report.pdf", "basis": "case"}
+        ] },
+      { "label": "battery energy storage site", "names": ["battery storage", "battery energy storage", "bess", "battery energy storage system"],
+        "extends": [
+          {"checks": ["landscape.national-parks", "landscape.national-landscapes", "landscape.wild-land"], "to_km": 3, "countries": ["United Kingdom"], "why": "landscape and visual: landscape and visual appraisals for battery storage use 3 km (thin evidence: two cases)", "source": "JT Energy Storage LVA, Egremont (1.18 ha, 30 MW), para 1.4.2, https://www.copeland.gov.uk/sites/default/files/planning-applications/lva_report_landscape_and_visual_appraisal.pdf; Staythorpe Road BESS LVA (Newark & Sherwood DC 23/00317/FULM), para 2.9, read from a search result only", "basis": "case"}
+        ] },
+      { "label": "data centre", "names": ["data centre", "data center", "data centres", "data centers"],
+        "extends": [
+          {"checks": ["heritage.scheduled-monuments", "heritage.parks-gardens", "heritage.battlefields"], "to_km": 2, "countries": ["United Kingdom"], "why": "settings of built heritage: a data centre's scoping uses 2 km (its views reach further north)", "source": "SDC M40 Campus data centre, Planning Inspectorate scoping opinion (9 Jun 2026), https://nsip-documents.planninginspectorate.gov.uk/published-documents/EN0110030-000026-Scoping%20Opinion.pdf, ID 3.5.1, 3.5.3", "basis": "case", "not_extended": "Listed buildings stay at the check's own reach: towns have hundreds, and the layer's fetch limit would undercount them (Rob, 28 Nov, as for wind)."},
+          {"checks": ["landscape.national-parks", "landscape.national-landscapes", "landscape.wild-land"], "to_km": 3, "countries": ["United Kingdom"], "why": "landscape and visual: 3 km, which the Inspectorate warned may not be enough where views reach 5 km", "source": "SDC M40 Campus data centre, Planning Inspectorate scoping opinion (9 Jun 2026), https://nsip-documents.planninginspectorate.gov.uk/published-documents/EN0110030-000026-Scoping%20Opinion.pdf, ID 3.6.4", "basis": "case"}
+        ] },
       { "label": "office development", "names": ["offices", "office development", "office block", "office park"] }
     ]
   },
@@ -172,7 +188,12 @@
       "label": "pipeline or cable", "names": ["pipeline", "cable", "cable route", "overhead line"],
       "onshore": { "scale": "local", "footprint_km": 0.1, "why": "a linear asset: construction corridor near, access and crossings close" },
       "offshore": { "scale": "regional", "footprint_km": 0.1, "why": "a linear asset: trenching and rock dump near, fishing gear and anchors close" },
-      "extends": [], "effects": []
+      "extends": [
+        {"checks": ["bio.sac", "bio.spa", "bio.ramsar"], "to_km": 10, "countries": ["United Kingdom"], "why": "European sites (SAC, SPA, Ramsar): 10 km either side of the route, from a CO2 pipeline's ES; used for cables and lines until a source for those is read", "source": "HyNet CO2 Pipeline ES, Appendix 19.1, Table 1, https://nsip-documents.planninginspectorate.gov.uk/published-documents/EN070007-000325-D-6-3-19-1_Appendix_19-1.pdf", "basis": "case"},
+        {"checks": ["bio.ancient-woodland"], "to_km": 1, "countries": ["United Kingdom"], "why": "ancient woodland and priority habitat: 1 km either side of the route", "source": "HyNet CO2 Pipeline ES, Appendix 19.1, Table 1, https://nsip-documents.planninginspectorate.gov.uk/published-documents/EN070007-000325-D-6-3-19-1_Appendix_19-1.pdf", "basis": "case"},
+        {"checks": ["heritage.scheduled-monuments", "heritage.parks-gardens", "heritage.battlefields"], "to_km": 1, "countries": ["United Kingdom"], "why": "designated heritage: 1 km either side of the route", "source": "HyNet CO2 Pipeline ES, Appendix 19.1, Table 1, https://nsip-documents.planninginspectorate.gov.uk/published-documents/EN070007-000325-D-6-3-19-1_Appendix_19-1.pdf", "basis": "case", "not_extended": "Listed buildings stay at the check's own reach: towns have hundreds, and the layer's fetch limit would undercount them (Rob, 28 Nov, as for wind)."}
+      ],
+      "effects": []
     },
     "road-rail": {
       "label": "road or railway", "names": ["road", "railway", "rail line"],

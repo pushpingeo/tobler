@@ -1059,7 +1059,7 @@ await test("the UK pack on land: flood zones and farmland by share of the site, 
   assert.ok(by["community.homes"] && by["hazards.coal-mining"] && by["water.source-protection"], "the new UK and OpenStreetMap checks run on a site in England");
 });
 
-await test("package A end to end: Barnston housing on the general defaults, no 10 km rings; \"look out to 5 km\" from the conversation", async () => {
+await test("package A end to end: a Barnston office site on the general defaults, no 10 km rings; \"look out to 5 km\" from the conversation", async () => {
   // A 10 ha field by Barnston on the Wirral. Every layer answers empty; OpenStreetMap answers empty.
   const C = [-3.08, 53.345];
   const field = { id: "b1", name: "Barnston field", feature: G.squareAround(C, 0.32, 0), origin: { method: "drawn" }, status: "accepted", edits: [] };
@@ -1067,11 +1067,11 @@ await test("package A end to end: Barnston housing on the general defaults, no 1
   const fetchFn = async (url) => ({ ok: true, json: async () => (/overpass|interpreter|kumi/i.test(String(url)) ? { elements: [] } : { samples: [] }) });
   const h = { ...host(), atlas: quiet, fetchFn, osmSnapshot: null };
   const svc = createScreening({ host: h, table, skill, callClaude: async () => final("Nothing found.\n\n```json\n{\"flags\":[],\"data_gaps\":[],\"checked\":[]}\n```"), onRun: () => {} });
-  await svc.screen({ asset_type: "other", planned: "housing" }, field);
+  await svc.screen({ asset_type: "other", planned: "offices" }, field);
   const r = [...svc.runs.values()].at(-1).tobler_run;
   assert.equal(r.reach.scale, "local");
   assert.equal(r.reach.asset.row, false);
-  assert.match(r.reach.asset.note, /No distances are set for housing yet/);
+  assert.match(r.reach.asset.note, /No distances are set for offices yet/);
   assert.equal(r.fetched_to_km, 5, "the furthest check (aerodromes, 5 km)");
   const rings = runRings(r);
   assert.deepEqual(rings, [0.1, 0.25, 0.5, 1, 2, 5]);
@@ -1080,7 +1080,7 @@ await test("package A end to end: Barnston housing on the general defaults, no 1
   assert.ok(r.checks.every((c) => c.reach_km == null || c.reach_km <= 5));
   assert.equal(r.distances, undefined);
   // "Look out to 5 km": every count check looks out 5 km, and the record keeps what was said and what it was.
-  await svc.screen({ asset_type: "other", planned: "housing", distances: [{ what: "all", value: 5, unit: "km" }] }, field);
+  await svc.screen({ asset_type: "other", planned: "offices", distances: [{ what: "all", value: 5, unit: "km" }] }, field);
   const r2 = [...svc.runs.values()].at(-1).tobler_run;
   for (const c of r2.checks.filter((x) => x.answer === "count_by_band")) assert.equal(c.reach_km, 5, c.id);
   assert.equal(r2.checks.find((c) => c.id === "community.homes").reach_from, "person");
@@ -1090,6 +1090,16 @@ await test("package A end to end: Barnston housing on the general defaults, no 1
   assert.equal(r2.checks.find((c) => c.id === "water.flood-zones")?.reach_km ?? 0.25, 0.25, "a class check keeps its reach");
   assert.deepEqual(r2.inputs.distances, [{ what: "all", value: 5, unit: "km" }]);
   assert.match(r2.replaces.diff.lines.join(" "), /distances the defaults \(250 m to 5 km, by check\) then, every count check to 5 km \(was 250 m to 5 km, by check\) now/);
+  // Housing on the same field takes package D's reaches (28 Nov): European sites to 10 km, each with its source.
+  await svc.screen({ asset_type: "other", planned: "housing" }, field);
+  const r3 = [...svc.runs.values()].at(-1).tobler_run;
+  const sac = r3.checks.find((c) => c.id === "bio.sac");
+  assert.equal(sac.reach_km, 10);
+  assert.equal(sac.reach_from, "asset");
+  assert.equal(r3.fetched_to_km, 10);
+  assert.deepEqual(runRings(r3), [0.1, 0.25, 0.5, 1, 2, 5, 10]);
+  assert.equal(r3.checks.find((c) => c.id === "heritage.listed-buildings").reach_km, 0.25);
+  assert.match(r3.reach.asset.note, /some reaches are extended for a housing development/);
 });
 
 await test("the developable area: the skill's rules for the asset type, the checks within each buffer, one area budget, no model call", async () => {

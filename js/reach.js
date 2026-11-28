@@ -84,19 +84,39 @@ export function chooseAsset(table, site = {}) {
   // A very large site is screened at global scale and keeps the checks of the scale it had (Rob, 27 Nov), as a large
   // wind farm does: more reach, never fewer checks.
   if (area >= globalFrom && scale !== "global") { keeps = keeps || scale; scale = "global"; why = `${why}; a site of ${globalFrom} km² or more is screened at global scale, keeping the ${keeps} checks`; }
-  // Extensions apply only when the row is for this setting (onshore wind's landscape reach doesn't go to sea).
-  const extends_ = base ? (row.extends || []).map((e) => {
+  // Extensions apply only when the row is for this setting (onshore wind's landscape reach doesn't go to sea), and
+  // only in the countries a row names (package D's reaches, 28 Nov: UK practice never answers for a US site). An
+  // asset with no row but a planned label (housing, battery storage) may carry extensions of its own, onshore only;
+  // its scale and footprint stay the general defaults.
+  const plannedRow = !base && setting === "onshore" ? plannedFor(table, site.planned) : null;
+  const here = new Set(site.countries || []);
+  const inCountry = (e) => !e.countries?.length || e.countries.some((c) => here.has(c));
+  const extends_ = (base ? row.extends || [] : plannedRow?.extends || []).filter(inCountry).map((e) => {
     let to = e.to_km;
     if (e.by_tip_height && site.tip_height_m > 0) {
       const step = e.by_tip_height.find(([upTo]) => upTo == null || site.tip_height_m <= upTo);
       if (step) to = step[1];
     }
     return { checks: e.checks || [], topics: e.topics || [], to_km: Math.min(MAX_KM, to), why: e.why, source: e.source,
+      ...(e.basis ? { basis: e.basis } : {}), ...(e.countries ? { countries: e.countries } : {}),
       ...(e.by_tip_height && site.tip_height_m > 0 ? { tip_height_m: site.tip_height_m } : {}) };
-  }) : [];
+  });
+  if (plannedRow && extends_.length) note = `No scale is set for ${plannedRow.label} yet, so the checks use the general defaults for a site of this size; some reaches are extended for ${aOrAn(plannedRow.label)}, each with its source.`;
   return { id: row && base ? site.asset_type : null, label: row?.label || site.planned || "site", row: !!(row && base), setting, scale, scale_why: why,
     ...(keeps ? { keeps } : {}),
     footprint_km: footprint, extends: extends_, ...(note ? { note } : {}), table_version: table?.version || null };
+}
+
+const aOrAn = (w) => (/^[aeiou]/i.test(w) ? `an ${w}` : `a ${w}`);
+
+// The planned label (general.planned) a run's planned words name: its label or one of its names, as whole words.
+const normP = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+export function plannedFor(table, planned) {
+  const p = normP(planned);
+  if (!p) return null;
+  const list = table?.general?.planned || [];
+  return list.find((g) => normP(g.label) === p || (g.names || []).some((n) => normP(n) === p))
+    || list.find((g) => (g.names || []).some((n) => ` ${p} `.includes(` ${normP(n)} `))) || null;
 }
 
 // Words the person used for "every check".

@@ -1041,7 +1041,7 @@ export function createScreening({ host, table, skill, skillFor = () => null, cal
       const planned = !assetId && typeof i.planned === "string" && i.planned.trim() ? i.planned.replace(/\s+/g, " ").trim().slice(0, 60) : null;
       const num = (v) => (Number.isFinite(+v) && +v > 0 ? +v : null);
       const site = { asset_type: assetId, offshore: !!d0.offshore, capacity_mw: num(i.capacity_mw), tip_height_m: num(i.tip_height_m), area_km2: d0.area_km2 ?? null };
-      const asset = chooseAsset(tb, { ...site, planned });
+      const asset = chooseAsset(tb, { ...site, planned, countries: d0.countries || [] });
       const said = readDistances(distancesFromInputs(i), { catalogue: host.checks || {} });
       const id = `R${++n}`;
       // For the page's progress line: what's being screened, so it can say roughly how long it takes.

@@ -27,7 +27,7 @@ function siteAt(lon, lat, ha, countries = ["United Kingdom"]) {
     areas: areasNear(UK, poly, 60, { onLand: countries.includes("United Kingdom") }) } };
 }
 function planFor(s, { asset_type = "other", planned = null, capacity_mw = null, tip_height_m = null, distances = [], skill = "screen" } = {}) {
-  const asset = D.chooseAsset(assets, { asset_type, planned, offshore: false, capacity_mw, tip_height_m, area_km2: s.area_km2 });
+  const asset = D.chooseAsset(assets, { asset_type, planned, offshore: false, capacity_mw, tip_height_m, area_km2: s.area_km2, countries: s.site.countries });
   const said = D.readDistances(distances, { catalogue: cat });
   const reaches = D.resolveReaches(cat, { scale: asset.scale, asset, search: said.search });
   const defaults = D.resolveReaches(cat, { scale: asset.scale, asset });
@@ -54,29 +54,82 @@ await test("the ladder: within the site, 0–100 m … 30–50 km, closed at a r
   assert.equal(D.bandLabel(30, 45), "30–45 km");
 });
 
-await test("Barnston (10 ha housing): local scale, checks to their own reach, rings stop at the furthest check, no 10 km ring", () => {
+await test("Barnston (10 ha housing): local scale, checks to their own reach or housing's, rings stop at the furthest check", () => {
   const p = planFor(BARNSTON, { planned: "housing" });
   assert.equal(p.reach.scale, "local");
-  assert.equal(p.by("bio.sac").reach_km, 2);
+  // Housing extends European sites to 10 km (package D, 28 Nov); homes and listed buildings keep their own reach.
+  assert.equal(p.by("bio.sac").reach_km, 10);
   assert.equal(p.by("community.homes").reach_km, 0.5);
   assert.equal(p.by("heritage.listed-buildings").reach_km, 0.25);
-  // The furthest a screen at this scale looks is aerodrome safeguarding (5 km); nature and heritage stop at 2 km.
-  assert.equal(p.reach.furthest_km, 5);
-  assert.ok(p.plans.every((x) => x.reach_km == null || x.reach_km <= 5));
-  assert.deepEqual(p.reach.ladder, [0.1, 0.25, 0.5, 1, 2, 5]);
-  assert.ok(!p.reach.ladder.includes(10) && !p.reach.ladder.includes(20));
-  assert.equal(p.reach.range, "250 m to 5 km, by check");
+  assert.equal(p.reach.furthest_km, 10);
+  assert.ok(p.plans.every((x) => x.reach_km == null || x.reach_km <= 10));
+  assert.deepEqual(p.reach.ladder, [0.1, 0.25, 0.5, 1, 2, 5, 10]);
+  assert.ok(!p.reach.ladder.includes(20));
+  assert.equal(p.reach.range, "250 m to 10 km, by check");
   assert.deepEqual(D.runRings({ reach: p.reach }), p.reach.ladder);
+  // A general screen of the same site stops at 5 km (aerodromes), with no 10 km ring.
+  const g = planFor(BARNSTON);
+  assert.equal(g.by("bio.sac").reach_km, 2);
+  assert.equal(g.reach.furthest_km, 5);
+  assert.deepEqual(g.reach.ladder, [0.1, 0.25, 0.5, 1, 2, 5]);
   // Bands reported by a 2 km check stop at 2 km.
-  const r = K.fromFeatures(p.by("bio.sac"), [{ name: "Dee Estuary", distance_km: 1.4 }], D.LADDER);
+  const r = K.fromFeatures(g.by("bio.sac"), [{ name: "Dee Estuary", distance_km: 1.4 }], D.LADDER);
   assert.deepEqual(r.bands.map((b) => b.label), ["0–100 m", "100–250 m", "250–500 m", "500 m–1 km", "1–2 km"]);
   assert.match(K.checkLine(r), /^1 within 2 km \(1 at 1–2 km\); nearest Dee Estuary, 1\.4 km$/);
 });
 
+await test("package D's search reaches: housing, warehouses, battery storage, data centres and pipelines in the UK", () => {
+  const h = planFor(BARNSTON, { planned: "housing development" });
+  for (const id of ["bio.sac", "bio.spa", "bio.ramsar"]) assert.equal(h.reaches.get(id).km, 10, id);
+  for (const id of ["heritage.scheduled-monuments", "heritage.parks-gardens", "heritage.battlefields"]) assert.equal(h.reaches.get(id).km, 1, id);
+  assert.equal(h.reaches.get("bio.ancient-woodland").km, 1);
+  assert.equal(h.reaches.get("landscape.national-parks").km, 2.5);
+  assert.equal(h.reaches.get("heritage.listed-buildings").km, 0.25, "listed buildings aren't extended (Rob, 28 Nov)");
+  assert.equal(h.reaches.get("bio.national-sites").km, 2, "never past what the source says, never shortened");
+  const sac = h.reaches.get("bio.sac");
+  assert.equal(sac.from, "asset");
+  assert.match(sac.source, /West of Ifield.*§7\.4\.5/);
+  assert.match(h.reach.asset.note, /general defaults for a site of this size; some reaches are extended for a housing development, each with its source/);
+  // The words the gate and the page use read the same label.
+  assert.equal(D.plannedFor(assets, "battery energy storage")?.label, "battery energy storage site");
+  assert.equal(D.plannedFor(assets, "a 200-home housing scheme")?.label, "housing development");
+  const b = planFor(BARNSTON, { asset_type: "other", planned: "battery energy storage" });
+  assert.equal(b.reaches.get("landscape.national-landscapes").km, 3);
+  assert.equal(b.reaches.get("bio.sac").km, 2);
+  const w = planFor(BARNSTON, { planned: "warehouse" });
+  assert.equal(w.reaches.get("bio.ramsar").km, 10);
+  assert.equal(w.reaches.get("heritage.scheduled-monuments").km, 0.5);
+  const dc = planFor(BARNSTON, { planned: "data centre" });
+  assert.equal(dc.reaches.get("heritage.scheduled-monuments").km, 2);
+  assert.equal(dc.reaches.get("landscape.national-parks").km, 3);
+  assert.equal(dc.reaches.get("heritage.listed-buildings").km, 0.25);
+  const pl = planFor(BARNSTON, { asset_type: "pipeline-cable" });
+  assert.equal(pl.reaches.get("bio.sac").km, 10);
+  assert.equal(pl.reaches.get("bio.ancient-woodland").km, 1);
+  assert.equal(pl.reaches.get("heritage.battlefields").km, 1);
+  // Offices have no rows: the general defaults, as before.
+  const o = planFor(BARNSTON, { planned: "office development" });
+  assert.equal(o.reaches.get("bio.sac").km, 2);
+  assert.match(o.reach.asset.note, /No distances are set for office development yet/);
+});
+
+await test("UK reaches never answer for another country, or at sea", () => {
+  const us = siteAt(-97.7, 30.3, 10, ["United States"]);
+  const h = planFor(us, { planned: "housing" });
+  assert.equal(h.reaches.get("bio.ancient-woodland").km, 0.5);
+  assert.equal(h.reaches.get("landscape.national-parks").km, 2);
+  assert.ok(![...h.reaches.values()].some((r) => r.from === "asset"));
+  assert.match(h.reach.asset.note, /No distances are set for housing yet/);
+  assert.equal(D.chooseAsset(assets, { asset_type: "pipeline-cable", countries: ["United States"] }).extends.length, 0);
+  assert.equal(D.chooseAsset(assets, { planned: "housing", offshore: true, countries: ["United Kingdom"] }).extends.length, 0);
+  // Wind's extensions name no country, so they still apply everywhere, as before.
+  assert.ok(D.chooseAsset(assets, { asset_type: "wind-onshore", countries: ["Australia"] }).extends.length >= 3);
+});
+
 await test("an asset with no row runs on the general defaults for its size, and says so", () => {
-  const p = planFor(BARNSTON, { planned: "housing" });
+  const p = planFor(BARNSTON, { planned: "offices" });
   assert.equal(p.reach.asset.row, false);
-  assert.match(p.reach.asset.note, /No distances are set for housing yet, so the checks use the general defaults for a site of this size/);
+  assert.match(p.reach.asset.note, /No distances are set for offices yet, so the checks use the general defaults for a site of this size/);
   assert.match(D.reachLine(p.reach), /general defaults for a site of this size/);
   const none = D.chooseAsset(assets, { asset_type: "other", area_km2: 5 });
   assert.equal(none.scale, "regional");
@@ -184,7 +237,7 @@ await test("a topic or a check by name: heritage to 10 km; homes within 50 m is 
   const p = planFor(BARNSTON, { planned: "housing", distances: [{ what: "heritage", value: 10, unit: "km" }, { what: "homes", value: 50, unit: "m" }] });
   assert.equal(p.by("heritage.scheduled-monuments").reach_km, 10);
   assert.equal(p.by("heritage.listed-buildings").reach_km, 10);
-  assert.equal(p.by("bio.sac").reach_km, 2, "other topics untouched");
+  assert.equal(p.by("bio.sac").reach_km, 10, "other topics untouched (housing's own 10 km)");
   assert.equal(p.by("community.homes").reach_km, 0.05);
   assert.match(p.reach.changes[0].line, /^heritage checks to 10 km \(was 250 m to 2 km, by check\)$/);
   assert.match(p.reach.changes[1].line, /^Nearest homes to 50 m \(was 500 m\)$/);
