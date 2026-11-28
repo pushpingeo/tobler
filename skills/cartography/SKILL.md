@@ -1,6 +1,6 @@
 ---
 name: cartography
-version: 0.3-draft
+version: 0.4-draft
 description: How to make a printed map from a site screen that a consultant can hand on: the sheet, the projection, the furniture every map must carry, what goes in the legend, how the extent and scale are chosen, and how the map says what it is and isn't. Use whenever a map leaves the screen as a page (a report page, a map series sheet, an image for a document).
 ---
 
@@ -37,17 +37,20 @@ template makes by the rules written here; a person can override them.
 - **Title** from the place, the asset and the topic: "Culham BESS: heritage". A subtitle with what's planned, the
   site's area and the date screened.
 - **North arrow** (grid north), on the map face, in the top-left or top-right corner, whichever has less drawn
-  there (the site counts most); the right when they're equal. No convergence note.
+  there (the site counts most); the right when they're equal. A plain arrow and N: no halo, circle or
+  convergence note.
 - **Scale bar** in the panel, near the bottom, beside the coordinate statement; the scale as a ratio for the paper
-  size printed ("1:25,000 at A3").
-- **Coordinate ticks** outside the map frame, in the map CRS's eastings and northings, labelled in kilometres on the
-  left and bottom edges. Ticks only: no lines across the map.
+  size printed ("1:25,000 at A3"). Always one of the standard round scales in section 5.
+- **Coordinate ticks** outside the map frame, in the map CRS's eastings and northings: ticks only, no lines across
+  the map. The interval is the first of 100, 200, 250, 500 m, 1, 2, 5, 10 km that puts ticks at least 30 mm apart
+  (1 km at 1:25,000). Labels in full metres, grouped in threes ("622 000"), on the left and bottom edges; the corner
+  labels carry the units ("mE", "mN").
 - **Coordinate statement:** the CRS by name and EPSG code, and the tick interval.
-- **Locator:** a small map placing the site in its country.
+- **Locator:** a small map placing the site in its country, filling the panel's width.
 - **Sources:** each layer drawn, with publisher, licence and the date it was queried. A licence that isn't stated is
   printed as "licence not stated". The basemap's attribution, as its licence asks.
 - **Small print:** the run id, the skill and its version, the date printed, the paper size, asktobler.com.
-- **Disclaimer on the map face**, in a small box in a corner, exactly: "Made with Tobler from public web services,
+- **Disclaimer in the panel's small print**, beside the run details, exactly: "Made with Tobler from public web services,
   each named under Sources. A screening map: boundaries may have been generalised. Not a survey, title plan or legal
   boundary." It says what the map is for without talking it down.
 
