@@ -1,6 +1,6 @@
 ---
 name: cartography
-version: 0.2-draft
+version: 0.3-draft
 description: How to make a printed map from a site screen that a consultant can hand on: the sheet, the projection, the furniture every map must carry, what goes in the legend, how the extent and scale are chosen, and how the map says what it is and isn't. Use whenever a map leaves the screen as a page (a report page, a map series sheet, an image for a document).
 ---
 
@@ -36,7 +36,8 @@ template makes by the rules written here; a person can override them.
 ## 3. Furniture every map carries (always)
 - **Title** from the place, the asset and the topic: "Culham BESS: heritage". A subtitle with what's planned, the
   site's area and the date screened.
-- **North arrow** (grid north), without a convergence note.
+- **North arrow** (grid north), on the map face, in the top-left or top-right corner, whichever has less drawn
+  there (the site counts most); the right when they're equal. No convergence note.
 - **Scale bar** in the panel, near the bottom, beside the coordinate statement; the scale as a ratio for the paper
   size printed ("1:25,000 at A3").
 - **Coordinate ticks** outside the map frame, in the map CRS's eastings and northings, labelled in kilometres on the
