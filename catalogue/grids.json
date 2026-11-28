@@ -1,0 +1,42 @@
+{
+  "about": "National grids for the presentation CRS (invariant 10, CLAUDE.md; skills/cartography/SKILL.md section 2). One run shows coordinates in one system: the grid of the region holding most of the site, else WGS 84 / UTM. Read only by js/presentation.js. Each region names its real outline (outline.layer: uk-areas or countries, in data/ref; names: the outline features' names). crs.code and crs.base are EPSG codes, checked against the EPSG registry at run time (kind, not deprecated, base CRS, area of use); a mismatch falls back to UTM and says why. crs.projection is the projection alone, on the grid's own datum, for proj4: no datum shift ever appears here (invariant 1). The datum transformation from WGS 84 is chosen at run time by js/epsgtools.js for where the site is. zones: a grid by UTM-style zone (code = code_base + zone; {zone} in the projection is the zone number). covers: names in data/ref/countries.json this region speaks for, so a sample point there that misses the finer outline isn't counted as another country.",
+  "version": "2026-11-28",
+  "grids": [
+    {
+      "id": "great-britain",
+      "region": "Great Britain",
+      "outline": { "layer": "uk-areas", "names": ["England", "Scotland", "Wales"] },
+      "covers": ["United Kingdom"],
+      "crs": { "code": 27700, "name": "OSGB36 / British National Grid", "base": 4277,
+        "projection": "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +units=m +no_defs" },
+      "source": "Ordnance Survey, A guide to coordinate systems in Great Britain; EPSG:27700"
+    },
+    {
+      "id": "northern-ireland",
+      "region": "Northern Ireland",
+      "outline": { "layer": "uk-areas", "names": ["Northern Ireland"] },
+      "covers": ["United Kingdom"],
+      "crs": { "code": 2157, "name": "IRENET95 / Irish Transverse Mercator", "base": 4173,
+        "projection": "+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=0.99982 +x_0=600000 +y_0=750000 +ellps=GRS80 +units=m +no_defs" },
+      "source": "OSNI and OSi, Irish Transverse Mercator; EPSG:2157"
+    },
+    {
+      "id": "netherlands",
+      "region": "the Netherlands",
+      "outline": { "layer": "countries", "names": ["Netherlands"] },
+      "covers": ["Netherlands"],
+      "crs": { "code": 28992, "name": "Amersfoort / RD New", "base": 4289,
+        "projection": "+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 +k=0.9999079 +x_0=155000 +y_0=463000 +ellps=bessel +units=m +no_defs" },
+      "source": "Kadaster, Rijksdriehoeksstelsel; EPSG:28992"
+    },
+    {
+      "id": "australia",
+      "region": "Australia",
+      "outline": { "layer": "countries", "names": ["Australia"] },
+      "covers": ["Australia"],
+      "zones": { "from": 46, "to": 59, "code_base": 7800, "name": "GDA2020 / MGA zone {zone}", "base": 7844,
+        "projection": "+proj=utm +zone={zone} +south +ellps=GRS80 +units=m +no_defs" },
+      "source": "ICSM, GDA2020 Technical Manual; EPSG:7846 to 7859"
+    }
+  ]
+}

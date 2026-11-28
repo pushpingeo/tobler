@@ -31,6 +31,7 @@ import { offerFor } from "./bringin.js";
 import { areaBudget, budgetLines } from "./areabudget.js";
 import { budgetRules, resolveDeductions, reachByCheck, classMatches, budgetSummary } from "./developable.js";
 import { placeRole, coverageIn, whereText, applySearchArea, reword, sameShape, SEARCH_BAND, SEARCH_NOTE } from "./siterole.js";
+import { presentationCrs } from "./presentation.js";
 
 // The band for a piece of evidence: a wide area the site lies within is "around the site", not "on site".
 export const AROUND = "around the site";
@@ -394,6 +395,8 @@ export async function runScreening({ host, site, inputs, asset, said = { search:
   };
   const describe = await R.describe(host.ref, fp.feature);
   const offshore = !!describe.offshore;
+  // The one coordinate system every output of this run shows (invariant 10), chosen while the checks run. Never throws.
+  const presentationP = presentationCrs({ feature: fp.feature, ref: host.ref, grids: host.grids || null, epsg: host.epsg || null });
   // Checks, in code, before the analyst starts (catalogue/checks.json; js/checks.js): every check that applies to
   // this site, at this scale, comes back found, none found or not checked with the reason, so the essentials never
   // depend on a lucky catalogue search and a topic with no data shows as a gap, never as silence.
@@ -751,6 +754,7 @@ export async function runScreening({ host, site, inputs, asset, said = { search:
     parsed.summary = reword(parsed.summary);
   }
   const siteFeature = { type: "Feature", geometry: fp.feature.geometry, properties: { role: "site", name: site.name, run: runId } };
+  const presentation_crs = await presentationP;
   return {
     type: "FeatureCollection",
     tobler_run: {
@@ -778,7 +782,7 @@ export async function runScreening({ host, site, inputs, asset, said = { search:
       },
       ...(Object.keys(seaVals).length ? { sea: seaVals } : {}),
       ...(elevation ? { elevation: { ...elevation, ...(elevSig ? { significance: elevSig } : {}) } } : {}),
-      extent: inside ? "inside" : "around", reach: reachRec, fetched_to_km: reach, assessed_within_km: reach,
+      extent: inside ? "inside" : "around", reach: reachRec, fetched_to_km: reach, assessed_within_km: reach, presentation_crs,
       method: inside
         ? "Inside the area only, at the person's request: features inside the area or touching its edge (distance 0), geodesic on WGS84; the surroundings weren't fetched. Coordinates WGS84 (EPSG:4326)."
         : searchArea

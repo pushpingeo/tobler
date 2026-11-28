@@ -13,6 +13,7 @@ import { elevationLine } from "./elevation.js";
 import { relevanceLine, isRelevanceRun } from "./relevance.js";
 import { findingLabels, findingRows, evidenceRows, sourcesOf, gapsOf, checksOf, decisionText, summaryBlocks, changeLog } from "./report.js";
 import { distanceNote } from "./developable.js";
+import { presentationLine } from "./presentation.js";
 
 const $ = (id) => document.getElementById(id);
 const BASEMAP = "https://tiles.openfreemap.org/styles/positron";
@@ -237,6 +238,8 @@ function render(record) {
   meth.append(el("h2", "Method"));
   meth.append(el("p", `Method: ${r.skill?.name} ${r.skill?.version}${r.industry ? ` (${r.industry} profile)` : ""}, run by ${r.model || "the analyst"}. ${r.method}`));
   meth.append(el("p", r.budget ? "An area budget: each deduction's features come from the checks, within the deduction's buffer; the rules (which deductions, their buffers and why) are the developable area skill's, for the asset type, with any changes the person asked for. Hard constraints, then buffers, then what's avoided by default are taken off in that order, each counted once; soft constraints are measured on what's left and not taken off. No model judged this: it's arithmetic on the data." : r.study ? "Each finding is a possible contaminant linkage (a source, a pathway and a receptor), judged from the checks alone, in the shape of the Environment Agency's LCRM Stage 1 desk study. Severity is how much a linkage would matter if it is real; confidence is how sure the evidence is. Open records only: no walkover, historical maps or commercial search." : isRelevanceRun(r) ? "Findings carry a neutral topic (biodiversity, water, heritage and so on); this is a screen, not an EIA or IFC review. Each finding's class is set in code from how its evidence sits against the site: on the site or at its edge (within 50 m), within the distance its check looks out to, dependent on a pathway such as water, within a distance the person widened, or beyond the usual range. Findings are listed in that order, then nearest first. Nothing in the order or the headline is the analyst's rating." : "Findings carry a neutral topic (biodiversity, water, heritage and so on); this is a screen, not an EIA or IFC review. Severity is how much a finding would matter if the evidence is right; confidence is how sure the evidence is."));
+  // The run's presentation CRS (invariant 10): the system this report's maps and coordinates are in.
+  if (r.presentation_crs?.code) meth.append(el("p", `Coordinates shown in ${presentationLine(r.presentation_crs)}`));
   const log = changeLog(r);
   if (log.length) meth.append(el("p", `Changes: ${log.map((a) => `${a.at}, written for ${km(a.within_km) || "inside the area"}: ${a.flags} findings${a.decision ? `, ${a.decision}` : ""}`).join("; ")}. This report shows the latest.`));
   if (r.shared) meth.append(el("p", `This link holds ${r.shared.evidence}. The full run (every feature found, ${r.evidence_total ?? "?"} in all) is in the run download from Tobler.`));

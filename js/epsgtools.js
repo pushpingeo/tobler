@@ -419,5 +419,28 @@ export function createEpsgTools(host, locate, typedAt = () => null) {
   };
   // For site files only (not a tool the analyst sees): kept off the enumerable keys so it isn't copied into the tools.
   Object.defineProperty(tools, "fileGeodesy", { value: { plan, useOperation, findByName, available: !!epsg }, enumerable: false });
+  // For the presentation CRS (js/presentation.js, invariant 10) and the cross-check (js/crosscheck.js): the same
+  // registry reads and the same choosing as everything else, never a second route to a datum shift.
+  // reach({ code, lonlat }): how to get from WGS 84 to a CRS at a place, in code, as section 4 of the skill says, with
+  // "choose" (nobody is asked: a display system that can't be reached falls back, and says why).
+  async function reach({ code, lonlat }) {
+    const crs = await describeCrs(code);
+    const r = await tools.transformation_options({ source: String(code), target: "4326", lonlat });
+    if (r.not_checked || r.error) return { crs, error: r.not_checked || r.error };
+    if (r.same_base) return { crs, kind: "conversion", note: "Same datum as WGS 84: a conversion (projection) only, nothing to choose." };
+    if (r.ask || !r.chosen) return { crs, kind: "none", why: r.why, recommended: r.recommended };
+    const toGrid = await prepareOperation(r.chosen, 4326, r.source.base);
+    const toWgs = await prepareOperation(r.chosen, r.source.base, 4326);
+    if (toGrid.error || toWgs.error) return { crs, kind: "none", why: toGrid.error || toWgs.error };
+    return { crs, kind: "transformation", base: r.source.base, why: r.why, operation: toGrid.record, toGrid: toGrid.apply, toWgs: toWgs.apply };
+  }
+  // The operation a run recorded, rebuilt by its code (an output drawing that run's maps): nothing is chosen again.
+  async function reachWith({ operation, base }) {
+    const toGrid = await prepareOperation(+operation, 4326, +base);
+    const toWgs = await prepareOperation(+operation, +base, 4326);
+    if (toGrid.error || toWgs.error) throw new Error(toGrid.error || toWgs.error);
+    return { operation: toGrid.record, toGrid: toGrid.apply, toWgs: toWgs.apply };
+  }
+  Object.defineProperty(tools, "presentationGeodesy", { value: { reach, reachWith, describe: describeCrs, available: !!epsg }, enumerable: false });
   return tools;
 }

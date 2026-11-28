@@ -886,6 +886,7 @@ const skills = {};
 let anchors = [];
 let trusted = { services: [], publishers: { patterns: [] } };
 let checksCatalogue = { checks: [], topics: [], scales: {} };
+let gridTable = null; // catalogue/grids.json: national grids for the presentation CRS (js/presentation.js)
 let irzCodes = null;
 const host = {
   ref,
@@ -901,6 +902,7 @@ const host = {
   get trusted() { return trusted; },
   // The checks every screen runs before the analyst starts (catalogue/checks.json, plan item 1).
   get checks() { return checksCatalogue; },
+  get grids() { return gridTable; },
   // Natural England's SSSI Impact Risk Zone codes, decoded (catalogue/sssi_irz_codes.json, from the atlas).
   get irz() { return irzCodes; },
   // Settings (the gear): whether the person holds an Esri licence, so Esri-licensed layers can be used.
@@ -1033,6 +1035,7 @@ Promise.all([
   fetch(asset("catalogue/anchors.json")).then((r) => r.json()).then((j) => { anchors = j.sources; }),
   fetch(asset("catalogue/trusted.json")).then((r) => r.json()).then((j) => { trusted = j; }),
   fetch(asset("catalogue/checks.json")).then((r) => r.json()).then((j) => { checksCatalogue = j; }),
+  fetch(asset("catalogue/grids.json")).then((r) => r.json()).then((j) => { gridTable = j; }),
   fetch(asset("catalogue/sssi_irz_codes.json")).then((r) => r.json()).then((j) => { irzCodes = j; }),
   fetch(asset("catalogue/assets.json")).then((r) => r.json()).then((j) => { assetTable = j; }),
   loadIndustry(store.get("industry")),

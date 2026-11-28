@@ -50,6 +50,20 @@ async function callClaude({ system, messages, tools, maxTokens }) {
   throw new Error("API kept failing");
 }
 
+// The EPSG registry, read directly (as scripts/gigs-check.mjs does), for the presentation CRS. Remembered per run.
+const epsgSeen = new Map();
+function epsgCall({ path, query = {} }) {
+  const q = new URLSearchParams(Object.entries(query).map(([k, v]) => [k, String(v)]));
+  const key = `${path}?${q}`;
+  if (!epsgSeen.has(key)) epsgSeen.set(key, (async () => {
+    const r = await fetch(`https://apps.epsg.org/api/v1/${path}/${q.size ? `?${q}` : ""}`, { headers: { accept: "application/json", ...UA } });
+    if (!r.ok) throw new Error(`EPSG answered ${r.status}`);
+    const t = await r.text();
+    try { return JSON.parse(t); } catch { return t; }
+  })().catch((e) => { epsgSeen.delete(key); throw e; }));
+  return epsgSeen.get(key);
+}
+
 // One screen, as the page runs it. Returns the run record and the log events the trust checks read.
 async function screenSite(site) {
   const ref = R.createReference(async (n) => json(`data/ref/${n}.json`));
@@ -64,7 +78,7 @@ async function screenSite(site) {
   let record = null;
   const host = {
     ref, anchors: json("catalogue/anchors.json").sources, headers: UA, list, trusted: json("catalogue/trusted.json"), checks: json("catalogue/checks.json"),
-    irz: json("catalogue/sssi_irz_codes.json"), profile: () => profile,
+    irz: json("catalogue/sssi_irz_codes.json"), profile: () => profile, grids: json("catalogue/grids.json"), epsg: offline ? null : epsgCall,
     firms: process.env.FIRMS_MAP_KEY ? firmsCall : null,
     transformationChoice: () => "choose", esriLicence: () => false, nonCommercial: () => false,
     fetchFn: offline ? async () => { throw new Error("offline"); } : (url, opts = {}) => fetch(url, { ...opts, headers: { ...UA, ...(opts.headers || {}) } }),
@@ -107,6 +121,8 @@ for (const site of sites) {
       saved = { site: site.id, ms, model, record: slim(record), events };
       writeFileSync(path, JSON.stringify(saved));
       console.log(`   ${record.tobler_run.id}: ${(ms / 1000).toFixed(0)} s, ${record.tobler_run.flags.length} flags, ${record.features.filter((f) => f.properties.role === "evidence").length} evidence features`);
+      const pc = record.tobler_run.presentation_crs;
+      console.log(`   presentation CRS: ${pc?.code ? `${pc.name} (EPSG:${pc.code})${pc.operation?.code ? ` by EPSG:${pc.operation.code}, ${pc.operation.accuracy_m} m` : ""}${pc.fallback_from ? `; not ${pc.fallback_from.name}: ${pc.fallback_from.reason}` : ""}` : `none (${pc?.why})`}`);
     }
     scores.push(scoreSite(json(`${DIR}/${site.id}/expected.json`), saved.record));
     sessions.push({ turns: [{ log: { user: `Screen ${site.name}`, reply: "", events: saved.events } }] });

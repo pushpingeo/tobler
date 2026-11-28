@@ -2473,3 +2473,32 @@ A thinking session with Rob, from his review of EIA screening practice. Docs onl
   cross-checks, "conversion unknown" said out loud.
 - **Slip:** `25b1b71` was pushed without restamping (a skill file is a stamped asset), so `npm test` failed on main
   until `629ed5d`. The page was unaffected.
+
+## 28 Nov 2026, late morning: step 2a, presentation CRS and geodetic checks
+
+- **What:** `catalogue/grids.json` (Great Britain 27700, Northern Ireland 2157, the Netherlands 28992, Australia GDA2020 /
+  MGA zones 46 to 59); `js/presentation.js` picks one per run and the run records it as `presentation_crs` (code, name,
+  region, base CRS, the operation with its EPSG code, accuracy, direction and dataset version, and why); the share link
+  keeps it; the report's method prints it. `js/crosscheck.js` compares a service's WGS 84 with Tobler's transform of its
+  native coordinates. Invariant 10 tested. Historic England control points as a fixture.
+- **How it picks:** sample points over the site (a 30 × 30 grid in an area, as `countrySplit` does); the region or
+  other country holding the most of them wins, on real outlines (ONS for the UK, Natural Earth elsewhere). A grid only if
+  that winner is a grid region; otherwise UTM for the zone holding most of the site. At sea: a grid only if its region is
+  within 1 km (Natural Earth's accuracy); so offshore UK sites get UTM, as the industry uses there.
+- **The registry decides the rest:** the grid's code is looked up (projected, not deprecated, the base the table says,
+  the site inside its area of use) and the transformation from WGS 84 is `js/epsgtools.js`'s choice for the site, with
+  "choose" (nobody to ask). Anything that stops it falls back to UTM, and the record says what and why
+  (`fallback_from`). Judgement call: a UK run whose registry lookup fails shows UTM rather than no coordinates.
+- **Projections are data, shifts never:** grids.json holds projection-only proj4 strings; `projectorFor` rebuilds the
+  projection from the code (never from the record: a share link can be edited) and the transformation from the registry
+  by the recorded code. The alternative, reading each grid's conversion parameters from EPSG, was more calls and more
+  code for the same numbers; the control points and the Action check the table's strings.
+- **Control points:** ten listed buildings across England, both coordinate pairs from Historic England's service
+  (OGL). Through Tobler (EPSG:1314, reversed): median 1.8 m, max 3.8 m (west Cornwall) from Historic England's own
+  WGS 84, which is probably OSTN15; without the shift, 92 to 132 m. Test tolerance 2.5 × the stated 2 m. NGR, the
+  Easting/Northing fields and the geometry agree to a metre; proj4 and `js/coords.js` agree to a millimetre.
+- **Gate host:** the replay gate now reads the EPSG registry directly (as the GIGS check does) so its runs carry the
+  grid; offline it falls back to UTM and says so.
+- **Not tested here:** the real registry (the workspace can't reach it): `presentation-check.yml` reads it for a
+  place in each region and runs the control points, live too. Ireland's, the Netherlands' and Australia's real
+  transformation records are seen only there.

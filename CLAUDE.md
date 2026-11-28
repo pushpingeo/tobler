@@ -61,7 +61,9 @@ test's `KNOWN` list or loosen a check without his say-so. Explaining it afterwar
 8. **One model setting** (*tested*). The model id is set in `js/config.js` and the Worker's environment only.
 9. **Rules live in skills, not prompts.** Expertise goes in `skills/*/SKILL.md`; tools stay deterministic and
    generic. Don't add a rule to fix one evaluation case.
-10. **One presentation CRS per run** (Rob, 28 Nov; *to be tested when the map engine lands*). The coordinate system
+10. **One presentation CRS per run** (Rob, 28 Nov; *tested*: chosen once by `js/presentation.js` from
+   `catalogue/grids.json`, set only by the run, kept by the share link; outputs project only through its
+   `projectorFor`). The coordinate system
    that outputs show is chosen once, in code, from where the site is (the country's standard grid where it has one,
    from a data table; WGS 84 / UTM elsewhere), recorded in the run record with the operation that reaches it, and read
    by every output: report maps, map series, coordinates in tables, the data pack's map files. No output picks its

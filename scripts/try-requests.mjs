@@ -71,7 +71,7 @@ const convs = (process.env.REQUESTS || "").split("\n").map((l) => l.trim()).filt
 for (const conv of convs) {
   const list = [];
   const host = {
-    ref, anchors, headers: UA, list, trusted, checks, irz, profile: () => profile,
+    ref, anchors, headers: UA, list, trusted, checks, irz, profile: () => profile, grids: JSON.parse(readFileSync("catalogue/grids.json", "utf8")),
     firms: process.env.FIRMS_MAP_KEY ? firmsCall : null,
     epsg: epsgCall,
     transformationChoice: () => (process.env.TRANSFORMATION_CHOICE === "ask" ? "ask" : "choose"),

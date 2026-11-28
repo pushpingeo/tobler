@@ -1,0 +1,22 @@
+name: Presentation CRS check
+# Which coordinate system a run shows in each grid region, read from the real EPSG registry, and Historic England's
+# control points cross-checked through it (scripts/presentation-check.mjs). The unit tests use a fake registry; the
+# workspace can't reach apps.epsg.org. No Anthropic cost. Runs on changes to the presentation code, or by hand.
+on:
+  workflow_dispatch:
+    inputs:
+      via_worker: { description: 'Read EPSG through the live Worker route instead of apps.epsg.org (yes/no)', required: false, default: 'no' }
+  push:
+    branches: [main]
+    paths: ['js/presentation.js', 'js/crosscheck.js', 'js/epsgtools.js', 'catalogue/grids.json', 'scripts/presentation-check.mjs']
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node scripts/presentation-check.mjs --live
+        env:
+          EPSG_PROXY: "${{ inputs.via_worker == 'yes' && 'https://tobler-api.robdunfey.workers.dev/epsg' || '' }}"

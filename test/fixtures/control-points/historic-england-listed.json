@@ -1,0 +1,174 @@
+{
+ "about": "Control points for the geodetic checks (CLAUDE.md, Geodetic integrity): ten listed buildings spread across England, each with its coordinates in British National Grid (the Easting and Northing fields, the NGR grid reference and the point's own geometry) and the service's WGS 84 output for the same point (outSR=4326). The service's transformation isn't stated; it agrees with EPSG:1314 to a few metres, so it's probably OSTN15. Taken once and kept here, so the tests need no network.",
+ "source": {
+  "service": "https://services-eu1.arcgis.com/ZOdPfBS3aqqDYPUQ/arcgis/rest/services/National_Heritage_List_for_England_NHLE_v02_VIEW/FeatureServer/0",
+  "layer": "Listed Building points",
+  "publisher": "Historic England",
+  "licence": "Open Government Licence v3.0",
+  "attribution": "© Historic England 2026. Contains Ordnance Survey data © Crown copyright and database right 2026.",
+  "queried": "2026-11-28",
+  "how": "one point per 20 km square in ten parts of England, the lowest list entry in each; outSR=27700 and outSR=4326"
+ },
+ "points": [
+  {
+   "list_entry": 1031617,
+   "name": "Leach Pottery",
+   "grade": "II",
+   "easting": 150873,
+   "northing": 39942,
+   "ngr": "SW 50873 39942",
+   "geometry_27700": [
+    150873.0,
+    39942.0
+   ],
+   "service_wgs84": [
+    -5.492865423,
+    50.206922259
+   ]
+  },
+  {
+   "list_entry": 1052155,
+   "name": "Milestone West Of Totterbank Bridge At Ngr So 364 876",
+   "grade": "II",
+   "easting": 336407,
+   "northing": 287581,
+   "ngr": "SO 36407 87581",
+   "geometry_27700": [
+    336407.141,
+    287581.119
+   ],
+   "service_wgs84": [
+    -2.937835207,
+    52.482444631
+   ]
+  },
+  {
+   "list_entry": 1054609,
+   "name": "The How Cottage With Associated Farmbuildings",
+   "grade": "II",
+   "easting": 340865,
+   "northing": 513212,
+   "ngr": "NY4086513212",
+   "geometry_27700": [
+    340864.692,
+    513211.969
+   ],
+   "service_wgs84": [
+    -2.914863863,
+    54.510755544
+   ]
+  },
+  {
+   "list_entry": 1041242,
+   "name": "Garden Wall Attached To Front Of East Hepple Farmhouse",
+   "grade": "II",
+   "easting": 398310,
+   "northing": 600597,
+   "ngr": "NT 98310 00597",
+   "geometry_27700": [
+    398310.172,
+    600596.766
+   ],
+   "service_wgs84": [
+    -2.028170786,
+    55.299475112
+   ]
+  },
+  {
+   "list_entry": 1108600,
+   "name": "Walls And Piers To No 25",
+   "grade": "II",
+   "easting": 388424,
+   "northing": 106638,
+   "ngr": "ST 88424 06638",
+   "geometry_27700": [
+    388424,
+    106638.0
+   ],
+   "service_wgs84": [
+    -2.165834022,
+    50.859127193
+   ]
+  },
+  {
+   "list_entry": 1031605,
+   "name": "The Lodge, Howe Combe",
+   "grade": "II",
+   "easting": 469877,
+   "northing": 192411,
+   "ngr": "SU6987792411",
+   "geometry_27700": [
+    469877.473,
+    192410.842
+   ],
+   "service_wgs84": [
+    -0.991907781,
+    51.626188809
+   ]
+  },
+  {
+   "list_entry": 1033367,
+   "name": "10, Kelfield Road",
+   "grade": "II",
+   "easting": 461835,
+   "northing": 437894,
+   "ngr": "SE6183537894",
+   "geometry_27700": [
+    461835.323,
+    437893.173
+   ],
+   "service_wgs84": [
+    -1.061908934,
+    53.833645049
+   ]
+  },
+  {
+   "list_entry": 1021941,
+   "name": "Crescent House Including Ground Floor Shops And Shakespeare Public House",
+   "grade": "II*",
+   "easting": 532102,
+   "northing": 182099,
+   "ngr": "TQ 32102 82099",
+   "geometry_27700": [
+    532101.606,
+    182098.997
+   ],
+   "service_wgs84": [
+    -0.097279962,
+    51.522368388
+   ]
+  },
+  {
+   "list_entry": 1031805,
+   "name": "Brogdale Farmhouse",
+   "grade": "II",
+   "easting": 600648,
+   "northing": 159666,
+   "ngr": "TR 00648 59666",
+   "geometry_27700": [
+    600648.0,
+    159666.0
+   ],
+   "service_wgs84": [
+    0.876942472,
+    51.300748308
+   ]
+  },
+  {
+   "list_entry": 1024994,
+   "name": "Lime Kiln At Mousehold Court",
+   "grade": "II",
+   "easting": 623607,
+   "northing": 310439,
+   "ngr": "TG2360710439",
+   "geometry_27700": [
+    623606.653,
+    310439.037
+   ],
+   "service_wgs84": [
+    1.303896052,
+    52.645597253
+   ]
+  }
+ ]
+}

@@ -59,7 +59,7 @@ export function slimRun(record, { tol = 0.0002, now = () => new Date().toISOStri
     schema: r.schema, id: r.id, kind: r.kind, skill: r.skill, model: r.model, industry: r.industry ?? null, ...(r.study ? { study: r.study } : {}), ...(r.budget ? { budget: r.budget } : {}),
     started_at: r.started_at, finished_at: r.finished_at, decision: r.decision ?? null,
     site: r.site, ...(r.sea ? { sea: r.sea } : {}), ...(r.elevation ? { elevation: r.elevation } : {}),
-    extent: r.extent, ...(r.reach ? { reach: r.reach } : { distances: r.distances }), fetched_to_km: r.fetched_to_km, assessed_within_km: r.assessed_within_km, method: r.method,
+    extent: r.extent, ...(r.reach ? { reach: r.reach } : { distances: r.distances }), ...pick(r, ["presentation_crs"]), fetched_to_km: r.fetched_to_km, assessed_within_km: r.assessed_within_km, method: r.method,
     // A screen ordered by relevance (package E) carries each flag's class and its headline; older runs their rating.
     ...pick(r, ["order", "headline"]),
     flags: r.flags.map((f) => ({ id: f.id, risk: f.risk, theme: f.theme, ...(f.relevance ? { relevance: f.relevance } : { severity: f.severity ?? null, confidence: f.confidence }), why: f.why, next_step: f.next_step || "",

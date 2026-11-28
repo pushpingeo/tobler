@@ -78,4 +78,35 @@ await test("I8 one model setting: the model id lives only in js/config.js (and t
   assert.deepEqual(hits, []);
 });
 
+await test("I10 one presentation CRS per run: chosen once, by js/presentation.js, from the grid table; outputs only read it", async () => {
+  const src = (f) => read(f).replace(/^\s*\/\/.*$/gm, "");
+  // Chosen in one place: only presentation.js reads the grid table's rows (the page only loads it for the host).
+  const readsRows = pageCode.filter((f) => /\bgrids\??\.grids\b/.test(src(f)));
+  assert.deepEqual(readsRows, ["js/presentation.js"], "the grid table's rows read outside js/presentation.js");
+  // Once per run: one call, in the run (js/ntrrun.js), and the record field set only there.
+  const calls = pageCode.filter((f) => f !== "js/presentation.js" && /\bpresentationCrs\s*\(/.test(src(f)));
+  assert.deepEqual(calls, ["js/ntrrun.js"]);
+  assert.equal((src("js/ntrrun.js").match(/\bpresentationCrs\s*\(/g) || []).length, 1, "chosen more than once in a run");
+  const sets = pageCode.filter((f) => f !== "js/ntrrun.js" && /presentation_crs\s*(=(?!=)|:)/.test(src(f)));
+  assert.deepEqual(sets, [], "only the run sets presentation_crs; outputs read it");
+  // No output picks its own: projection definitions (proj4 strings, UTM codes built from a zone) only where files are
+  // read (fileimport.js) and in presentation.js. An output projects through presentation.js's projectorFor.
+  const PROJ = /["'`]\+proj=|\b32[67]00\s*\+|\bproj4\s*\(/;
+  const ALLOWED = { "js/fileimport.js": "reads the person's files in their own CRS", "js/presentation.js": "the presentation CRS and its projector",
+    "js/crosscheck.js": "reads a service's native coordinates to check its WGS 84 (presentation.js's definitions)" };
+  const projects = pageCode.filter((f) => PROJ.test(src(f)));
+  assert.deepEqual(unexpected(projects, ALLOWED), [], "a file builds its own projection; outputs use projectorFor (js/presentation.js)");
+  // The grid table holds projections only: no datum shift (invariant 1), codes as numbers, every region with an outline.
+  const grids = JSON.parse(read("catalogue/grids.json"));
+  for (const g of grids.grids) {
+    const c = g.crs || g.zones;
+    assert.ok(Number.isInteger(c.code ?? c.code_base) && Number.isInteger(c.base), `${g.id}: EPSG codes as numbers`);
+    assert.ok(/^\+proj=\w+/.test(c.projection) && !/towgs84|nadgrids|\+datum=(?!WGS84)|\+pm=/i.test(c.projection), `${g.id}: a projection only, no datum shift`);
+    assert.ok(["uk-areas", "countries"].includes(g.outline.layer) && g.outline.names.length, `${g.id}: a real outline`);
+  }
+  // The field travels: the share link's allow-list keeps it, and the report prints it.
+  assert.match(src("js/share.js"), /pick\(r, \["presentation_crs"\]\)/);
+  assert.match(src("js/reportpage.js"), /r\.presentation_crs/);
+});
+
 console.log(`${passed} invariant tests passed`);

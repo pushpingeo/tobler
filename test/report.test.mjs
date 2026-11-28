@@ -120,4 +120,16 @@ await test("checks travel in a share link and the report shows them by topic; ol
   assert.match(gapsOf(back).couldnt[0], /^No standard check yet for heritage, water/);
 });
 
+await test("the presentation CRS travels in a share link whole (lesson 8), and the line the report prints from it", async () => {
+  const { presentationLine } = await import("../js/presentation.js");
+  const rec = record();
+  rec.tobler_run.presentation_crs = { chosen_by: "js/presentation.js", kind: "national grid", code: 27700, epsg: "EPSG:27700", name: "OSGB36 / British National Grid", region: "Great Britain",
+    base: { code: 4277, name: "OSGB36" }, operation: { kind: "transformation", code: 1314, epsg: "EPSG:1314", name: "OSGB36 to WGS 84 (6)", accuracy_m: 2, direction: "reverse", epsg_version: "12.0" }, accuracy_m: 2, registry_checked: true };
+  const back = (await decodeRun(`#${await encodeRun(slimRun(rec))}`)).tobler_run;
+  assert.deepEqual(back.presentation_crs, rec.tobler_run.presentation_crs);
+  assert.equal(presentationLine(back.presentation_crs), "OSGB36 / British National Grid (EPSG:27700), reached from WGS 84 by OSGB36 to WGS 84 (6) (EPSG:1314, run in reverse, about 2 m).");
+  // An older run has none, and nothing breaks.
+  assert.equal((await decodeRun(`#${await encodeRun(slimRun(record()))}`)).tobler_run.presentation_crs, undefined);
+});
+
 console.log(`${passed} report tests passed`);
