@@ -2534,3 +2534,15 @@ A thinking session with Rob, from his review of EIA screening practice. Docs onl
   units (grid metres). A layer's sources line takes the latest `checked_at` among its features.
 - **Found:** main's `index.html` and `report.html` stamps were stale for `js/presentation.js` (so `npm test` failed on
   main); restamped here.
+
+## 28 Nov 2026, afternoon: Map sheet button, plain words for a broken link
+
+- **Why:** Rob's first try of a sheet failed with "extra bytes past end": the sheet address was made by hand from the
+  report's, and the copy he sent was cut at about 4,096 characters (Chrome says "Failed to fetch" for that; Safari's
+  "extra bytes" means something after the end). Hand-editing addresses shouldn't be the way in.
+- **What:** the report page has a Map sheet button (runs with a presentation CRS) that opens `sheet.html` for the same
+  run code and units, around the site (`sheetLink` in `js/share.js`). `decodeRun` turns any failure to read the code
+  into "This link looks cut short or changed (n characters after the #) …", on the report and the sheet alike.
+- **Tested:** `test/report.test.mjs` (a cut code; the button's address on asktobler.com and github.io);
+  `scripts/browser-sheet.mjs` (the button opens the sheet; a cut link says so; desktop and phone); a code with junk
+  after the end is refused in Chrome (Node's DecompressionStream lets it through, so it isn't a unit test).

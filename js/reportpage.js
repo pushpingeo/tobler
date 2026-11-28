@@ -4,7 +4,7 @@ import { whereWords } from "./relation.js";
 import * as turf from "./vendor/turf.js";
 import * as U from "./units.js";
 import { topicOf, topicInfo, colourExpression } from "./findings.js";
-import { decodeRun } from "./share.js";
+import { decodeRun, sheetLink } from "./share.js";
 import { runDistancesLine, runRings, changesLine } from "./reach.js";
 import { DISCLAIMER } from "./disclaimer.js";
 import { seaLines, seaMatters } from "./seavalues.js";
@@ -57,6 +57,11 @@ try {
   if (!location.hash) throw new Error("This page shows a screening report from a link. Open a run card in Tobler and choose Report.");
   const record = await decodeRun(location.hash.slice(1));
   render(record);
+  // The A3 map sheet (step 2b; the map series comes in 2c), for runs that recorded a presentation CRS.
+  if (record.tobler_run.presentation_crs?.code) {
+    $("sheet").hidden = false;
+    $("sheet").addEventListener("click", () => { location.href = sheetLink(location.href); });
+  }
 } catch (e) {
   main.replaceChildren(el("p", e.message || String(e), "error"), Object.assign(el("a", "Go to Tobler"), { href: "./" }));
   window.__report.ready = true;

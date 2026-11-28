@@ -1,7 +1,7 @@
 // Share links and the report (js/share.js, js/report.js): what travels in a link, that it comes back the same, and
 // what the report shows from it.
 import assert from "node:assert/strict";
-import { slimRun, encodeRun, decodeRun, shareCode, simplifyGeometry, SHARE_PREFIX } from "../js/share.js";
+import { slimRun, encodeRun, decodeRun, shareCode, simplifyGeometry, SHARE_PREFIX, sheetLink } from "../js/share.js";
 import { findingLabels, findingRows, evidenceRows, sourcesOf, summaryBlocks, decisionText, changeLog, checksOf, gapsOf } from "../js/report.js";
 
 let passed = 0;
@@ -59,6 +59,12 @@ await test("a link round-trips exactly, and says when it's long", async () => {
   const sc = await shareCode(record());
   assert.ok(sc.chars < 3000 && !sc.long && !sc.tooLong, `small run, short link (${sc.chars})`);
   await assert.rejects(decodeRun("#hello"), /isn't a Tobler report link/);
+  // Cut short (as a paste that stopped at about 4,096 characters): said plainly, not the browser's words. Added to
+  // (junk after the end) is caught by browsers but not by Node's DecompressionStream; scripts/browser-sheet.mjs checks the cut.
+  await assert.rejects(decodeRun(`#${code.slice(0, Math.floor(code.length * 0.6))}`), /looks cut short or changed/);
+  // The report's Map sheet button: same run code and units, sheet.html, around the site.
+  assert.equal(sheetLink("https://asktobler.com/report.html?u=metric#v1.abc"), "https://asktobler.com/sheet.html?u=metric&kind=around#v1.abc");
+  assert.equal(sheetLink("https://pushpingeo.github.io/tobler/report?u=imperial#v1.abc"), "https://pushpingeo.github.io/tobler/sheet.html?u=imperial&kind=around#v1.abc");
 });
 
 await test("simplifying keeps polygons closed and valid", () => {

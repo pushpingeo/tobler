@@ -68,7 +68,17 @@ for (const [label, viewport, touch] of [["desktop", { width: 1400, height: 900 }
     }
     return route.abort();
   });
-  await page.goto(`http://localhost:8000/sheet.html?kind=around#${code}`);
+  // A link cut short (as pasted at about 4,096 characters) says so plainly.
+  await page.goto(`http://localhost:8000/sheet.html?kind=around#${code.slice(0, Math.floor(code.length * 0.6))}`);
+  await page.waitForFunction(() => window.__sheet?.ready, null, { timeout: 30000 });
+  const cut = await page.evaluate(() => document.getElementById("status").textContent);
+  check(/looks cut short or changed/.test(cut), `${label}: a cut-short link says so ("${cut.slice(0, 70)}")`);
+  // From the report: its Map sheet button opens this run's sheet, around the site.
+  await page.goto(`http://localhost:8000/report.html?u=metric#${code}`);
+  await page.waitForSelector("#sheet:not([hidden])", { timeout: 30000 });
+  await page.click("#sheet");
+  await page.waitForURL(/sheet\.html\?u=metric&kind=around#v1\./, { timeout: 30000 });
+  check(true, `${label}: the report's Map sheet button opens the sheet for the same run`);
   await page.waitForFunction(() => window.__sheet?.ready, null, { timeout: 90000 });
   const st = await page.evaluate(() => ({ error: window.__sheet.error || null, warp: window.__sheet.warp, status: document.getElementById("status").textContent,
     ground: window.__sheet.plan?.ground, scale: window.__sheet.plan?.scale, svg: !!document.querySelector("#sheet svg image"),

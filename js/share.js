@@ -107,8 +107,15 @@ export async function encodeRun(slim) {
 export async function decodeRun(code) {
   const c = String(code || "").replace(/^#?(r=)?/, "");
   if (!c.startsWith(SHARE_PREFIX)) throw new Error("This link isn't a Tobler report link, or it's from a newer version.");
-  const bytes = await pipe(fromB64(c.slice(SHARE_PREFIX.length)), new DecompressionStream("deflate-raw"));
-  const rec = JSON.parse(new TextDecoder().decode(bytes));
+  // A link that was cut short or added to when copied fails here; the browser's own words for it ("Failed to fetch",
+  // "extra bytes past end") don't say what happened, so say it plainly.
+  let rec;
+  try {
+    const bytes = await pipe(fromB64(c.slice(SHARE_PREFIX.length)), new DecompressionStream("deflate-raw"));
+    rec = JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    throw new Error(`This link looks cut short or changed (${c.length.toLocaleString("en-GB")} characters after the #), so the run in it can't be read. Copy it again with Copy link, or open the report from the run card in Tobler.`);
+  }
   if (!rec?.tobler_run?.flags) throw new Error("The link didn't hold a screening run.");
   return rec;
 }
@@ -121,4 +128,13 @@ export async function shareCode(record, opts = {}) {
     if (code.length <= MAX_LINK) break;
   }
   return { code, chars: code.length, long: code.length > LONG_LINK, tooLong: code.length > MAX_LINK };
+}
+
+// The sheet page's address for this report's: same run code, units kept, around the site first.
+export function sheetLink(href) {
+  const u = new URL(href);
+  u.pathname = u.pathname.replace(/report(\.html)?$/, "sheet.html");
+  if (!/sheet\.html$/.test(u.pathname)) u.pathname = u.pathname.replace(/\/?$/, "/sheet.html");
+  u.searchParams.set("kind", "around");
+  return u.href;
 }
