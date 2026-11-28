@@ -2453,3 +2453,23 @@ A thinking session with Rob, from his review of EIA screening practice. Docs onl
 - **Approximations:** a pipeline's figures stand in for cables and overhead lines; a 171 ha housing scheme's study
   areas stand in for small sites (a 1 km heritage search at 10 ha is generous, not short). Either can change which
   features a run lists, never by cutting a reach.
+
+## 28 Nov 2026, mid-morning: outputs designed, cartography skill, geodetic integrity
+
+- **Step 2 is three outputs** (Rob): a report (A4, page 1 standalone), a map series (A3, maps only) and a data pack
+  (offline zip first; "Open in ArcGIS" later, as the sign-in isn't reliable yet). Design: the project's
+  `claude/outputs-design-2026-11-28.md`; mock-up from R21's gate run, reviewed by Rob three times.
+- **Cartography skill** (`skills/cartography/`, 0.5): sheet layout, furniture, legend only for what draws, standard
+  scales, ticks outside the frame and no grid lines, graticule or convergence note (never for navigation; grid lines
+  overstate accuracy), a split north arrow in the first quiet corner (top left, top right, bottom left, bottom right),
+  the disclaimer in the panel's small print.
+- **One presentation CRS per run** (invariant 10): the country's standard grid where it has one, UTM elsewhere,
+  chosen once and used by every output. First draft said UTM everywhere; Rob changed it after seeing UTM numbers that
+  match nothing a UK consultant uses.
+- **Checked:** Historic England's WGS 84 output for two listed buildings is within 1 to 2 m of EPSG:1314 applied to
+  their native British National Grid coordinates (about 115 m with no shift). The warp from Web Mercator to the
+  presentation CRS through a 64 px control grid matches exact proj4 to under 0.01 px.
+- **Geodetic integrity** written up in `CLAUDE.md`: decisions in one place and recorded, control points and run-time
+  cross-checks, "conversion unknown" said out loud.
+- **Slip:** `25b1b71` was pushed without restamping (a skill file is a stamped asset), so `npm test` failed on main
+  until `629ed5d`. The page was unaffected.

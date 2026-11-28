@@ -61,6 +61,32 @@ test's `KNOWN` list or loosen a check without his say-so. Explaining it afterwar
 8. **One model setting** (*tested*). The model id is set in `js/config.js` and the Worker's environment only.
 9. **Rules live in skills, not prompts.** Expertise goes in `skills/*/SKILL.md`; tools stay deterministic and
    generic. Don't add a rule to fix one evaluation case.
+10. **One presentation CRS per run** (Rob, 28 Nov; *to be tested when the map engine lands*). The coordinate system
+   that outputs show is chosen once, in code, from where the site is (the country's standard grid where it has one,
+   from a data table; WGS 84 / UTM elsewhere), recorded in the run record with the operation that reaches it, and read
+   by every output: report maps, map series, coordinates in tables, the data pack's map files. No output picks its
+   own, and none shows coordinates in any other system. Getting there obeys invariant 1.
+
+## Geodetic integrity
+
+How Tobler keeps positions right with a model in the loop (Rob, 28 Nov). The invariants above enforce parts of it.
+
+- **The model never touches a coordinate** (invariant 3). It reads names, sizes and distances; tools compute.
+- **Each decision happens in one place, from the registry, and is recorded.** Transformations are chosen by
+  `js/epsgtools.js` (invariant 1); the presentation CRS by one module from a grid table (invariant 10). Each writes
+  what it chose, its EPSG code and its accuracy into the run record: provenance for coordinates, as for data.
+- **Skills hold the conventions; code enforces what must always hold.** `skills/coordinate-reference/` says when to
+  ask and how to choose; `skills/cartography/` says how maps show position (ticks, not grid lines; the accuracy a
+  sheet claims). Tests make the "always" parts true.
+- **Check against independent truth.** Control points with published coordinates in both systems (Historic England's
+  easting and northing fields, for example) must come through the pipeline within the operation's stated accuracy, as
+  unit tests. Where a service gives native coordinates, compare its WGS 84 output with Tobler's own transformation:
+  about 100 m in Great Britain means one side skipped the OSGB36 shift (lesson 12); 1 to 2 m is two valid
+  transformations disagreeing. Round trips return the start point. The replay gate scores positions against documents.
+- **Say what isn't known.** A file converted elsewhere without saying how is recorded as "conversion unknown" and the
+  sheet says so; a clean grid over a possible 100 m error is a false claim of accuracy.
+- **Don't claim more accuracy than the sources have.** No grid lines or graticule on screening maps; ticks only;
+  distances to the metre only where the sources support it.
 
 ## Ask Rob first
 
