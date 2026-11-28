@@ -1,6 +1,6 @@
 ---
 name: cartography
-version: 0.1-draft
+version: 0.2-draft
 description: How to make a printed map from a site screen that a consultant can hand on: the sheet, the projection, the furniture every map must carry, what goes in the legend, how the extent and scale are chosen, and how the map says what it is and isn't. Use whenever a map leaves the screen as a page (a report page, a map series sheet, an image for a document).
 ---
 
@@ -16,7 +16,9 @@ template makes by the rules written here; a person can override them.
 - Map series: A3 landscape, one map per sheet, maps only. The map frame and the information panel share one outer
   border: the panel's edge is the map's edge, with no gap.
 - Report maps: A4 portrait, inside the report's pages, with the same furniture in a smaller form.
-- Each sheet stands alone. No "map 3 of 8" in the title; the run id and date are in the panel's small print.
+- Each sheet stands alone. No "map 3 of 8" in the title; the run id and date are in the panel's small print, with
+  the product's address (asktobler.com) there too, discreetly. No product logo on the sheet.
+- Leave white space outside the map frame for the coordinate labels.
 
 ## 2. Projection (always)
 - Printed maps are drawn in a projected CRS, never Web Mercator. The default is **WGS 84 / UTM** for the zone holding
@@ -28,23 +30,25 @@ template makes by the rules written here; a person can override them.
   report). That needs a transformation chosen by the coordinate-reference skill, and the map says which.
 - The basemap is drawn in Web Mercator and warped into the map's CRS. Its labels turn by the grid convergence (a
   degree or two); vector layers are drawn directly in the map's CRS.
+- These maps are never for navigation, and grid lines over a screening map suggest more accuracy than its sources
+  have (Rob, 28 Nov). So: no grid lines, no graticule, no true-north correction.
 
 ## 3. Furniture every map carries (always)
 - **Title** from the place, the asset and the topic: "Culham BESS: heritage". A subtitle with what's planned, the
   site's area and the date screened.
-- **North arrow** pointing to grid north, with a line giving true north's angle from grid north at the site.
+- **North arrow** (grid north), without a convergence note.
 - **Scale bar** in the panel, near the bottom, beside the coordinate statement; the scale as a ratio for the paper
   size printed ("1:25,000 at A3").
-- **Grid** (the map CRS's eastings and northings, labelled in kilometres) and **graticule** (latitude and longitude,
-  labelled in degrees and minutes), both drawn faintly across the map.
-- **Coordinate statement:** the CRS by name and EPSG code, the grid and graticule intervals, and "stored in WGS 84".
+- **Coordinate ticks** outside the map frame, in the map CRS's eastings and northings, labelled in kilometres on the
+  left and bottom edges. Ticks only: no lines across the map.
+- **Coordinate statement:** the CRS by name and EPSG code, and the tick interval.
 - **Locator:** a small map placing the site in its country.
 - **Sources:** each layer drawn, with publisher, licence and the date it was queried. A licence that isn't stated is
   printed as "licence not stated". The basemap's attribution, as its licence asks.
-- **Small print:** the run id, the skill and its version, the date printed, the paper size.
-- **Disclaimer on the map face**, short and plain: made with Tobler from public web services named under Sources; a
-  screening map; boundaries as published and possibly generalised; not a survey, title plan or legal boundary; check
-  with the publisher before relying on any line. It says what the map is for without talking it down.
+- **Small print:** the run id, the skill and its version, the date printed, the paper size, asktobler.com.
+- **Disclaimer on the map face**, in a small box in a corner, exactly: "Made with Tobler from public web services,
+  each named under Sources. A screening map: boundaries may have been generalised. Not a survey, title plan or legal
+  boundary." It says what the map is for without talking it down.
 
 ## 4. The legend (always)
 - Only what draws inside the frame. A layer with no feature in the map's extent gets no patch, even if it was
@@ -72,4 +76,4 @@ template makes by the rules written here; a person can override them.
 ## 7. What a map never does
 - Show a feature the run didn't fetch without saying where it came from.
 - Hide that a check wasn't run: a topic map whose main check failed says so on the sheet.
-- Use a scale bar or grid that wasn't computed in the map's CRS.
+- Use a scale bar or coordinate ticks that weren't computed in the map's CRS.
